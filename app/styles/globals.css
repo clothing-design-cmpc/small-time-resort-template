@@ -1,0 +1,123 @@
+/* ============================================================
+ * GLOBAL RESET
+ * ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+video {
+  max-width: 100%;
+  display: block;
+}
+
+/* ============================================================
+ * COLOR TOKENS
+ * Dark mode is the default. Light mode overrides below.
+ * ============================================================ */
+:root {
+  --color-bg: #09090b;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-surface-active: rgba(255, 255, 255, 0.1);
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: rgba(255, 255, 255, 0.55);
+  --color-text-muted: rgba(255, 255, 255, 0.35);
+
+  /* Accent — resort's signature azure tone, used only on CTAs and active states */
+  --color-accent: #3ea8c9;
+  --color-accent-hover: #2f8aa8;
+
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  --color-skeleton-base: rgba(255, 255, 255, 0.06);
+  --color-skeleton-shine: rgba(255, 255, 255, 0.12);
+
+  /* Spacing scale — all gap/padding/margin values reference these */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  --max-width-content: 1280px;
+  --max-width-narrow: 720px;
+
+  /* Z-index scale — never use raw numbers in component CSS */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-drawer: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  /* Transition tokens — never hardcode raw transition values */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --transition-slow: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #ffffff;
+    --color-surface: rgba(0, 0, 0, 0.03);
+    --color-surface-hover: rgba(0, 0, 0, 0.06);
+    --color-surface-active: rgba(0, 0, 0, 0.1);
+    --color-border: rgba(0, 0, 0, 0.1);
+    --color-border-hover: rgba(0, 0, 0, 0.2);
+    --color-text-primary: #09090b;
+    --color-text-secondary: rgba(0, 0, 0, 0.55);
+    --color-text-muted: rgba(0, 0, 0, 0.35);
+    --color-skeleton-base: rgba(0, 0, 0, 0.06);
+    --color-skeleton-shine: rgba(0, 0, 0, 0.12);
+  }
+}
+
+/* ============================================================
+ * FOCUS-VISIBLE STANDARD
+ * Keyboard-only focus ring — mouse clicks never trigger it.
+ * ============================================================ */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(62, 168, 201, 0.2);
+}

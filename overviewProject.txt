@@ -1,0 +1,56 @@
+=== PROJECT: Villa Azure Resort ===
+
+1. PROJECT NAME & PURPOSE
+Villa Azure Resort is a private resort web application. Current phase
+scaffolds the VISITOR master template (public-facing site) first, with
+a SUPER ADMIN account to be scaffolded next. The visitor site follows
+the section order defined in the resort visitor master template plan:
+Hero, About, Rooms & Villas, Amenities, Resort Shop (browse-only, no
+cart/checkout), Activities/Experiences, Gallery, Testimonials, Location,
+Contact/Inquiry, Footer. Events & Functions and Spa & Wellness are
+intentionally left out for now.
+
+2. TECH STACK
+- Next.js 16.2.x (App Router, Turbopack)
+- JavaScript (no TypeScript)
+- React 19.2.x
+- CSS Modules / plain CSS (no Tailwind)
+- axios (installed, for client-side calls to external APIs)
+- Backend service: not yet connected (Supabase planned per Fixed Services Standard)
+
+3. ACCOUNT TYPES
+- visitor    — public, no auth required (scaffolded)
+- superAdmin — protected, auth required (not yet scaffolded)
+
+4. DATABASE OVERVIEW
+Not yet connected. No tables created.
+
+5. DATA MODELS OVERVIEW
+None yet.
+
+6. PROCESS FLOW
+None yet — no features built beyond the base shell and visitor placeholder page.
+
+7. FILE MAP
+- app/layout.jsx              — root layout shell, global metadata, imports globals.css
+- app/page.jsx                 — root route, redirects to /visitor
+- app/styles/globals.css       — CSS design tokens (color, spacing, z-index, transitions) + reset
+- app/styles/mediaQueries.css  — empty, ready for breakpoints
+- middleware.js                 — auth guard shell, matcher currently covers /superAdmin only
+- app/visitor/layout.jsx        — visitor account shell, public
+- app/visitor/page.jsx          — visitor placeholder homepage
+- app/visitor/Visitor.css       — visitor account-level styles
+
+8. API ENDPOINTS
+None yet.
+
+9. COMMON DEBUG POINTS
+- If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
+- If styles missing: confirm globals.css and mediaQueries.css are imported in app/layout.jsx.
+- If superAdmin routes are reachable without auth: middleware.js has no real session
+  check yet — this is expected until superAdmin login is built.
+
+10. ENVIRONMENT VARIABLES REQUIRED
+- NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)
+- NEXT_PUBLIC_SUPABASE_ANON_KEY  (blank — Supabase not yet connected)
+- SUPABASE_SERVICE_ROLE_KEY      (blank — Supabase not yet connected)

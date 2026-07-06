@@ -1,0 +1,12 @@
+/* ============================================================
+ * MEDIA QUERIES
+ * All responsive breakpoints live here — never inside module
+ * or component CSS files.
+ *
+ * Breakpoints:
+ *   480px  — small phones
+ *   768px  — tablets / landscape phones
+ *   1024px — small laptops
+ *   1280px — standard desktop
+ *   1536px — large screens
+ * ============================================================ */

@@ -1,0 +1,1 @@
+# small-time-resort-template

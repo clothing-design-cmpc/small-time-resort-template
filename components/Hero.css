@@ -1,0 +1,126 @@
+/*
+ * .heroSection
+ * Full-screen intro section. min-height is justified here per the
+ * full-screen section exception — this is the resort's landing view.
+ * Background is a layered gradient standing in for photography until
+ * a real image is supplied.
+ */
+.heroSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  width: 100%;
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(62, 168, 201, 0.14), transparent 55%),
+    radial-gradient(circle at 80% 75%, rgba(62, 168, 201, 0.08), transparent 60%),
+    linear-gradient(180deg, #0b1015 0%, #090a0c 60%, #060708 100%);
+}
+
+/*
+ * .heroContainer
+ * Constrains hero copy to a readable width and stacks content
+ * vertically with consistent spacing between eyebrow, title,
+ * subtitle, and CTA row.
+ */
+.heroContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  max-width: var(--max-width-narrow);
+}
+
+.heroEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.heroTitle {
+  font-size: 3.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.heroSubtitle {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+}
+
+/*
+ * .heroActions
+ * Row of CTA buttons. Wraps to a column on narrow viewports via
+ * mediaQueries.css — never declared here.
+ */
+.heroActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+/*
+ * .heroCtaPrimary
+ * Main call to action — solid accent fill, highest visual weight.
+ * transition is declared on the base state so it animates both
+ * on hover-in and hover-out.
+ */
+.heroCtaPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  background-color: var(--color-accent);
+  color: #05161c;
+  font-weight: 600;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.heroCtaPrimary:hover,
+.heroCtaPrimary:focus,
+.heroCtaPrimary:active {
+  background-color: var(--color-accent-hover);
+}
+
+/*
+ * .heroCtaSecondary
+ * Secondary action — outlined, lower visual weight than primary.
+ */
+.heroCtaSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.heroCtaSecondary:hover,
+.heroCtaSecondary:focus,
+.heroCtaSecondary:active {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}

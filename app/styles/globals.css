@@ -14,11 +14,27 @@ html {
 }
 
 body {
-  font-family: "Manrope", "Segoe UI", sans-serif;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
   color: var(--color-text-primary);
   background-color: var(--color-bg);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Heading & eyebrow typography
+ * Every h1–h3, section eyebrow, and the site wordmark uses the display
+ * serif (Fraunces) instead of the body sans — this is the pairing that
+ * gives the resort brand an editorial, hand-designed feel rather than
+ * reading as a single-font template. Never applied to body copy,
+ * buttons, or nav links — those stay on the sans body font for clarity.
+ */
+h1,
+h2,
+h3,
+.headerLogo,
+.footerLogoText {
+  font-family: var(--font-heading), Georgia, serif;
 }
 
 img,

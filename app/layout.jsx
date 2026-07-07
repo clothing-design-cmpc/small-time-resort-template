@@ -1,62 +1,49 @@
 /**
- * FILE: app/layout.jsx
- * ROLE: Applies to all account types (visitor, superAdmin)
+ * FILE: app/superAdmin/(protected)/layout.jsx
+ * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Root layout shell for the entire app. Holds only global metadata and
- * the global stylesheet import. No account-specific UI (nav, sidebar,
- * shell) lives here — each account folder has its own layout.jsx for that.
- *
- * TYPOGRAPHY:
- * Loads the resort's two-font pairing via next/font/google (never @import
- * or a Google Fonts <link> tag, per Next.js font standard). Fraunces is a
- * warm editorial serif used for headings/eyebrows — it gives the resort
- * brand personality a generic sans stack can't. Manrope stays as the body
- * font for clean, easy long-form reading. Both are exposed as CSS custom
- * properties (--font-heading / --font-body) so globals.css and every
- * component stylesheet can reference them without re-importing fonts.
+ * Shell for every AUTHENTICATED page under /superAdmin. Renders the
+ * fixed left Sidebar and the sticky top AdminHeader around every
+ * super-admin page. Lives inside the (protected) route group so
+ * /superAdmin/login — a sibling folder outside this group — never
+ * gets wrapped by this layout (login has no Sidebar/AdminHeader).
  *
  * DATA FLOW:
- * 1. Next.js renders this layout once for every route in the app.
- * 2. Global CSS tokens and reset are loaded here via globals.css.
- * 3. Account-specific layouts (e.g. app/visitor/layout.jsx) render inside
- *    the {children} slot below.
+ * 1. Every route under app/superAdmin/(protected)/ renders inside this layout's {children}
+ * 2. Sidebar and AdminHeader are rendered once, shared across all admin pages
+ * 3. No session check happens here — middleware.js already blocked anyone
+ *    without a valid superAdmin session before this layout ever renders
+ *
+ * ACCESSIBILITY:
+ * A visually-hidden "Skip to main content" link is the first focusable
+ * element in the DOM, so keyboard/screen-reader users can bypass the
+ * Sidebar and AdminHeader and jump straight to #mainContent (WCAG 2.1 AAA).
  */
-import { Fraunces, Manrope } from "next/font/google";
-import "./styles/globals.css";
-import "./styles/mediaQueries.css";
-
-/* Display serif for headings, eyebrows, and the wordmark — optional-italic gives editorial CTA emphasis */
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-heading",
-  display: "swap",
-});
-
-/* Geometric sans for body copy, nav, and UI chrome — stays readable at small sizes */
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
-  display: "swap",
-});
+import "../SuperAdmin.css";
+import Sidebar from "@/components/superAdmin/Sidebar";
+import AdminHeader from "@/components/superAdmin/AdminHeader";
 
 export const metadata = {
-  title: "Villa Azure Resort",
-  description: "A private resort offering an intimate escape — rooms, amenities, and experiences.",
-  openGraph: {
-    title: "Villa Azure Resort",
-    description: "A private resort offering an intimate escape — rooms, amenities, and experiences.",
-    images: ["/images/og-villa-azure.jpg"],
-  },
+  title: "Super-Admin | Villa Azure Resort",
+  description: "Enterprise control center for managing Villa Azure Resort.",
 };
 
-export default function RootLayout({ children }) {
+export default function SuperAdminLayout({ children }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${manrope.variable}`}>
-      <body>{children}</body>
-    </html>
+    // superAdminRoot scopes the dark enterprise color tokens (SuperAdmin.css)
+    // so they never leak into the visitor site's light theme.
+    <div className="superAdminRoot">
+      <a href="#mainContent" className="superAdminSkipLink">
+        Skip to main content
+      </a>
+      <Sidebar />
+      <div className="superAdminBody">
+        <AdminHeader />
+        <main id="mainContent" className="superAdminContent">
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }

@@ -34,14 +34,41 @@
   --color-info: #3b82f6;
   --color-neutral: rgba(255, 255, 255, 0.3);
 
+  /* Chart/data series colors — Recharts lines, bars, and pie segments */
+  --color-chart-1: #3b82f6;
+  --color-chart-2: #10b981;
+  --color-chart-3: #f59e0b;
+  --color-chart-4: #ef4444;
+  --color-chart-5: #8b5cf6;
+  --color-chart-6: #06b6d4;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-base: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
 
+  /* Admin-only font system (Inter/Space Grotesk/JetBrains Mono) — loaded
+     as CSS variables in app/layout.jsx, only ever applied within this
+     scope so the visitor site's Fraunces/Manrope pairing is untouched. */
+  font-family: var(--font-admin-body), "Segoe UI", sans-serif;
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   min-height: 100dvh;
+}
+
+/* Display font for admin page/section titles — overrides the visitor
+   site's h1-h3 { font-family: var(--font-heading) } rule from
+   app/styles/globals.css within the admin scope only. */
+.superAdminRoot h1,
+.superAdminRoot h2,
+.superAdminRoot h3 {
+  font-family: var(--font-admin-heading), "Segoe UI", sans-serif;
+}
+
+/* Monospace utility for IDs, timestamps, eyebrows, and numeric data —
+   used by StatusBadge, DataTable, and StatCard eyebrow labels. */
+.superAdminRoot .adminMono {
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
 }
 
 /* Light mode override — only applies when the OS prefers light,
@@ -83,4 +110,29 @@
   flex-direction: column;
   gap: var(--space-lg);
   padding: var(--space-xl);
+}
+
+/*
+ * .superAdminSkipLink
+ * "Skip to main content" — visually hidden until keyboard focus, lets
+ * keyboard/screen-reader users bypass the sidebar and jump straight to
+ * the page content. Required by the WCAG 2.1 AAA standard (Rule spec).
+ */
+.superAdminSkipLink {
+  position: fixed;
+  top: -100px;
+  left: var(--space-md);
+  z-index: var(--z-tooltip);
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 6px;
+}
+
+.superAdminSkipLink:focus-visible {
+  top: var(--space-md);
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }

@@ -1,12 +1,14 @@
 /*
  * .adminHeader
  * Sticky 70px top bar sitting above the scrollable content area,
- * to the right of the fixed sidebar.
+ * to the right of the fixed sidebar. Splits into a left cluster
+ * (breadcrumb + title) and a right cluster (user menu).
  */
 .adminHeader {
   height: 70px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 var(--space-lg);
   background-color: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
@@ -15,8 +17,112 @@
   z-index: var(--z-sticky);
 }
 
+.adminHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/*
+ * .adminBreadcrumb
+ * Small secondary-color trail above the page title, per the Dashboard
+ * Header spec (breadcrumb -> page title, left to right).
+ */
+.adminBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.adminBreadcrumbSeparator {
+  color: var(--color-text-muted);
+}
+
+.adminBreadcrumbCurrent {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
 .adminHeaderTitle {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-text-primary);
+}
+
+.adminHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/*
+ * .adminUserMenu
+ * Positioning context for the dropdown — trigger button + absolutely
+ * positioned dropdown panel beneath it.
+ */
+.adminUserMenu {
+  position: relative;
+}
+
+.adminUserMenuTrigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+}
+
+.adminUserMenuTrigger:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.adminUserAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.adminUserName {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/*
+ * .adminUserMenuDropdown
+ * Simple single-item menu — extend with Profile/Settings links as those
+ * pages are built. Instant show/hide, no transition (static principle).
+ */
+.adminUserMenuDropdown {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  min-width: 160px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+}
+
+.adminUserMenuSignOut {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.9rem;
+  color: var(--color-error);
+}
+
+.adminUserMenuSignOut:hover {
+  background-color: var(--color-surface-hover);
 }

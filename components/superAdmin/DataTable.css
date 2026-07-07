@@ -1,0 +1,177 @@
+/*
+ * .dataTableWrapper
+ * Horizontal-scroll container so wide tables never overflow the page
+ * on smaller viewports — admins need full row context, so rows never
+ * stack (per the Responsive Design Strategy: mobile tables scroll,
+ * not stack).
+ */
+.dataTableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/*
+ * .dataTableHeadCell
+ * Sticky, uppercase, monospace header cells per the Data Tables spec.
+ */
+.dataTableHeadCell {
+  height: 44px;
+  padding: 0 var(--space-md);
+  background-color: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border-strong);
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+
+/*
+ * .dataTableRow
+ * 48px minimum row height (mobile tap target), instant hover per the
+ * static design principle (no transition), alternating stripe on
+ * every other row.
+ */
+.dataTableRow {
+  height: 48px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dataTableRow:nth-child(even) {
+  background-color: var(--color-surface);
+}
+
+.dataTableRow:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.dataTableRow--clickable {
+  cursor: pointer;
+}
+
+.dataTableCell {
+  padding: 0.75rem var(--space-md);
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.dataTableAlign--left {
+  text-align: left;
+}
+
+.dataTableAlign--right {
+  text-align: right;
+}
+
+.dataTableAlign--center {
+  text-align: center;
+}
+
+/*
+ * .dataTableSkeletonBlock
+ * Pulse-animated placeholder shown in every cell while data loads.
+ */
+.dataTableSkeletonBlock {
+  display: block;
+  width: 100%;
+  height: 1rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base, rgba(255, 255, 255, 0.06)) 25%,
+    var(--color-skeleton-shine, rgba(255, 255, 255, 0.12)) 50%,
+    var(--color-skeleton-base, rgba(255, 255, 255, 0.06)) 75%
+  );
+  background-size: 200% 100%;
+  animation: dataTableSkeletonPulse 1.5s infinite;
+}
+
+@keyframes dataTableSkeletonPulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/*
+ * .dataTableState
+ * Shared shell for the empty and error states — centered message,
+ * generous padding so it never feels like a broken table.
+ */
+.dataTableState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl) var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.dataTableState--error {
+  color: var(--color-error);
+}
+
+/*
+ * .dataTablePagination
+ * "Showing X-Y of Z" summary (left) + Previous/Next controls (right),
+ * per the Data Tables pagination spec.
+ */
+.dataTablePagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.dataTablePaginationSummary {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.dataTablePaginationControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.dataTablePaginationButton {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.dataTablePaginationButton:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+}
+
+.dataTablePaginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dataTablePaginationCurrent {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}

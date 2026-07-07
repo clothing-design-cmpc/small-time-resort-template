@@ -1,0 +1,16 @@
+/*
+ * .statusBadge
+ * Colored pill: light-tint background + full-saturation text, no
+ * border, per the Status Badge design system spec. Colors are set
+ * inline per-instance (background/text) by StatusBadge.jsx since each
+ * status maps to a different hue.
+ */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}

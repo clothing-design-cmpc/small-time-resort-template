@@ -89,9 +89,13 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - components/shared/Header.jsx  — sticky nav: logo, links, Login link, Book Now CTA
 - app/visitor/booking/page.jsx  — booking holding page (Book Now CTA target, full form not built yet)
 - app/superAdmin/login/page.jsx — admin sign-in form (static, no Supabase auth wired yet)
-- app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages
+- app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages, includes skip-to-content link
 - app/superAdmin/(protected)/page.jsx — redirects to dashboard
 - app/superAdmin/(protected)/dashboard/page.jsx — admin dashboard
+- app/superAdmin/SuperAdmin.css — enterprise dark theme tokens (colors, chart colors, admin font-family scoping, skip-link styles), scoped to .superAdminRoot only
+- components/superAdmin/StatusBadge.jsx — reusable colored status pill (active/suspended/banned/pending/processing/delivered/failed), used by any future data table
+- components/superAdmin/DataTable.jsx — reusable paginated table with loading skeleton, empty, and error states; used by any future list page (Users, Orders, Audit Logs, Support Tickets)
+- components/superAdmin/ConfirmationModal.jsx — shared destructive-action confirmation dialog (delete/ban/cancel actions)
 - app/api/bookings/dates/route.js — GET, public, returns every currently
   reserved calendar date (expanded from confirmed Booking rows) as a flat
   array of "YYYY-MM-DD" strings. Consumed by both BookedDatesSection.jsx
@@ -107,6 +111,9 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - POST /api/auth/login  — body { email, password }; verifies against
   Supabase Auth + admin_profiles, sets the "session" HttpOnly cookie.
 - POST /api/auth/logout — clears the "session" cookie.
+- GET  /logout — public; clears the "session" cookie and redirects to
+  /superAdmin/login. Lets an admin log out by typing /logout directly
+  into the browser URL bar, without needing the AdminHeader button.
 - GET  /api/bookings/dates — public; no input. Returns
   { success, data: { bookedDates: ["YYYY-MM-DD", ...] }, message }.
   Expands every confirmed Booking's [checkInDate, checkOutDate) range
@@ -122,6 +129,11 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - If "Login" link is missing from the Header: check components/shared/Header.jsx for
   the headerLoginLink (desktop) and headerMobileLoginLink (mobile) elements, both
   pointing to /superAdmin/login.
+- If the browser shows "Module not found: Can't resolve '../SuperAdmin.css'" pointing
+  at ./app/layout.jsx: the root app/layout.jsx (fonts + <html>/<body> shell) and
+  app/superAdmin/(protected)/layout.jsx (Sidebar + AdminHeader shell, the file that
+  actually imports "../SuperAdmin.css") got swapped or merged. Restore each file to
+  its own exact path — root app/layout.jsx never imports SuperAdmin.css.
 - If Sidebar/AdminHeader show up on the login page: confirm dashboard and the root
   /superAdmin redirect live under app/superAdmin/(protected)/ — that route group is
   what keeps app/superAdmin/login/ (a sibling folder) from inheriting the Sidebar/

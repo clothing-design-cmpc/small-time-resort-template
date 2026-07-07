@@ -1,0 +1,124 @@
+/*
+ * .testimonialsSection
+ * Guest reviews section. Bordered top and bottom to frame it as a
+ * distinct zone on the page.
+ */
+.testimonialsSection {
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+.testimonialsContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.testimonialsHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.testimonialsEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.testimonialsTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/*
+ * .testimonialsGrid
+ * Three-column card grid. Auto-fills down to 1 column on mobile.
+ */
+.testimonialsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+/*
+ * .testimonialCard
+ * Review card. Stacks stars, quote, then author metadata.
+ */
+.testimonialCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+/*
+ * .testimonialStars
+ * Row of star glyphs — filled (accent color) or empty (muted).
+ */
+.testimonialStars {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.starFilled {
+  color: #f59e0b;
+  font-size: 1rem;
+}
+
+.starEmpty {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.testimonialQuote {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  flex-grow: 1;
+}
+
+/*
+ * .testimonialMeta
+ * Author name + date on the same row, separated visually.
+ */
+.testimonialMeta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+  gap: var(--space-sm);
+}
+
+.testimonialName {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.testimonialDate {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}

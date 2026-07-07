@@ -1,56 +1,22 @@
 /*
  * .visitorShell
- * Wraps every page under the visitor account. Currently a passthrough —
- * will hold shared visitor nav/footer spacing once those sections exist.
+ * Full-page wrapper for the visitor area. flex column so Footer
+ * naturally sits at the bottom regardless of page content height.
  */
 .visitorShell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
   width: 100%;
 }
 
 /*
- * .visitorPlaceholder
- * Full-viewport-height placeholder section shown until the real
- * homepage sections are built. min-height is justified here per
- * Rule 23.3 exception #2 — full-screen section sizing.
+ * .visitorContent
+ * Wraps all page content below the sticky header.
+ * padding-top offsets the fixed header height (68px) so no content
+ * is hidden behind it. flex-grow:1 pushes the footer to the bottom.
  */
-.visitorPlaceholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100dvh;
-  padding: var(--space-lg);
-  text-align: center;
-}
-
-/*
- * .visitorPlaceholderContainer
- * Constrains the placeholder text to a readable width on large screens.
- */
-.visitorPlaceholderContainer {
-  max-width: var(--max-width-narrow);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.visitorPlaceholderEyebrow {
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.visitorPlaceholderTitle {
-  font-size: 2rem;
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.visitorPlaceholderBody {
-  font-size: 1rem;
-  line-height: 1.7;
-  color: var(--color-text-secondary);
+.visitorContent {
+  flex-grow: 1;
+  padding-top: 68px;
 }

@@ -1,0 +1,112 @@
+/*
+ * .amenitiesHighlightSection
+ * Homepage amenities section — distinct background tone separates it
+ * from the rooms section above.
+ */
+.amenitiesHighlightSection {
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.amenitiesHighlightContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.amenitiesHighlightHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.amenitiesHighlightEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.amenitiesHighlightTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.amenitiesHighlightSubtitle {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  max-width: 50ch;
+}
+
+/*
+ * .amenitiesHighlightGrid
+ * 4 columns on desktop, auto-fills down to 2 on tablet, 1 on mobile.
+ */
+.amenitiesHighlightGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-md);
+  width: 100%;
+}
+
+/*
+ * .amenityHighlightCard
+ * Icon on left, label + description on right, horizontally aligned.
+ * Subtle border and surface — not a heavy card, just enough structure.
+ */
+.amenityHighlightCard {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+/*
+ * .amenityHighlightIcon
+ * Accent-colored icon container. Color references the resort's accent
+ * tone so icons feel branded, not generic.
+ */
+.amenityHighlightIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: rgba(62, 168, 201, 0.1);
+  color: var(--color-accent);
+}
+
+.amenityHighlightText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.amenityHighlightLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.amenityHighlightDescription {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}

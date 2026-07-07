@@ -1,0 +1,181 @@
+/*
+ * .siteHeader
+ * Sticky bar fixed to the top of the viewport at all times.
+ * Frosted-glass effect via backdrop-filter so page content scrolling
+ * underneath stays readable. z-index: var(--z-sticky) keeps it above
+ * all content except modals and toasts.
+ */
+.siteHeader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sticky);
+  background-color: rgba(9, 9, 11, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/*
+ * .headerContainer
+ * Inner row: logo left, nav center, CTA right.
+ * max-width caps content width; flex handles alignment.
+ */
+.headerContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-lg);
+  gap: var(--space-lg);
+}
+
+/*
+ * .headerLogo
+ * Brand wordmark on the left. Italic serif treatment gives it
+ * personality without a custom font dependency.
+ */
+.headerLogo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/*
+ * .headerNav
+ * Desktop-only horizontal nav row. Hidden on mobile via mediaQueries.css.
+ */
+.headerNav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+/*
+ * .headerNavLink
+ * Plain text links — no button appearance. Underline on hover only,
+ * instant (no transition per static design rule).
+ */
+.headerNavLink {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerNavLink:hover,
+.headerNavLink:focus {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+/*
+ * .headerBookButton
+ * Primary CTA — solid accent fill, pill shape.
+ * min-height 44px meets mobile touch target requirement.
+ */
+.headerBookButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.55rem 1.35rem;
+  border-radius: 999px;
+  background-color: var(--color-accent);
+  color: #05161c;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.headerBookButton:hover,
+.headerBookButton:focus {
+  background-color: var(--color-accent-hover);
+}
+
+/*
+ * .headerHamburger
+ * Mobile-only toggle button. Hidden on desktop via mediaQueries.css.
+ * Borderless, background-free — just an icon.
+ */
+.headerHamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  touch-action: manipulation;
+  padding: 0;
+}
+
+/*
+ * .headerMobileMenu
+ * Full-width dropdown below the header bar, mobile only.
+ * Stacks nav links and Book Now button vertically.
+ */
+.headerMobileMenu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  gap: var(--space-xs);
+}
+
+/*
+ * .headerMobileNavLink
+ * Full-width tap target for mobile nav rows.
+ */
+.headerMobileNavLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-sm) 0;
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headerMobileNavLink:hover,
+.headerMobileNavLink:focus {
+  color: var(--color-text-primary);
+}
+
+/*
+ * .headerMobileBookButton
+ * Book Now CTA in mobile menu — full-width accent button.
+ */
+.headerMobileBookButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  margin-top: var(--space-sm);
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: #05161c;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.headerMobileBookButton:hover,
+.headerMobileBookButton:focus {
+  background-color: var(--color-accent-hover);
+}

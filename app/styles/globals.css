@@ -10,7 +10,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* No smooth scroll — static design classification (see design doc) */
 }
 
 body {

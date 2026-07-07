@@ -1,12 +1,146 @@
 /* ============================================================
  * MEDIA QUERIES
- * All responsive breakpoints live here — never inside module
- * or component CSS files.
- *
- * Breakpoints:
- *   480px  — small phones
- *   768px  — tablets / landscape phones
- *   1024px — small laptops
- *   1280px — standard desktop
- *   1536px — large screens
+ * All responsive breakpoints live here — never inside component CSS files.
+ * Mobile-first: base CSS is mobile layout. Overrides go upward with min-width.
  * ============================================================ */
+
+/* ============================================================
+ * 480px — Small phones
+ * ============================================================ */
+@media (min-width: 480px) {
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+}
+
+/* ============================================================
+ * 768px — Tablet / landscape phones
+ * ============================================================ */
+@media (min-width: 768px) {
+  /* Header — show desktop nav, hide hamburger */
+  .headerHamburger {
+    display: none !important;
+  }
+
+  .headerNav {
+    display: flex !important;
+  }
+
+  .headerBookButton {
+    display: inline-flex !important;
+  }
+
+  .headerMobileMenu {
+    display: none !important;
+  }
+
+  /* Hero */
+  .heroTitle {
+    font-size: 3rem;
+  }
+
+  /* Footer grid — two columns on tablet */
+  .footerContainer {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ============================================================
+ * 1024px — Small laptop / desktop
+ * ============================================================ */
+@media (min-width: 1024px) {
+  /* Hero */
+  .heroTitle {
+    font-size: 3.5rem;
+  }
+
+  /* Footer — back to full three columns */
+  .footerContainer {
+    grid-template-columns: 1.6fr 1fr 1fr;
+  }
+
+  /* Sections — wider padding on desktop */
+  .featuredRoomsSection,
+  .amenitiesHighlightSection,
+  .testimonialsSection,
+  .ctaSection {
+    padding-left: var(--space-2xl);
+    padding-right: var(--space-2xl);
+  }
+}
+
+/* ============================================================
+ * Mobile-only overrides (max-width: 767px)
+ * Header: hide desktop nav + book button, show hamburger
+ * ============================================================ */
+@media (max-width: 767px) {
+  .headerNav {
+    display: none;
+  }
+
+  .headerBookButton {
+    display: none;
+  }
+
+  .headerHamburger {
+    display: flex;
+  }
+
+  /* Footer — single column on mobile */
+  .footerContainer {
+    grid-template-columns: 1fr;
+    gap: var(--space-xl);
+  }
+
+  .footerTagline {
+    max-width: 100%;
+  }
+
+  /* CTA buttons — stack on mobile */
+  .ctaActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .ctaButtonPrimary,
+  .ctaButtonSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Hero text scale */
+  .heroTitle {
+    font-size: 2.25rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1rem;
+  }
+
+  /* Hero CTA stack */
+  .heroActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .heroCtaPrimary,
+  .heroCtaSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Section titles */
+  .featuredRoomsTitle,
+  .amenitiesHighlightTitle,
+  .testimonialsTitle,
+  .ctaTitle {
+    font-size: 1.65rem;
+  }
+
+  /* Footer bottom — stack on mobile */
+  .footerBottomContainer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+}

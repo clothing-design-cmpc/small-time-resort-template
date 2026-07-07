@@ -1,0 +1,178 @@
+/*
+ * .siteFooter
+ * Full-width dark footer. Top border separates it from the last page section.
+ */
+.siteFooter {
+  width: 100%;
+  background-color: #060608;
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-2xl);
+}
+
+/*
+ * .footerContainer
+ * Three-column grid. Stacks to a single column on mobile via mediaQueries.css.
+ */
+.footerContainer {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+/*
+ * .footerBrand
+ * Brand column — wordmark + short tagline paragraph.
+ */
+.footerBrand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.footerLogoText {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--color-text-primary);
+}
+
+.footerTagline {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  max-width: 36ch;
+}
+
+/*
+ * .footerNavLabel
+ * Section eyebrow label above link lists. Monospace, uppercase, muted.
+ */
+.footerNavLabel {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-md);
+}
+
+/*
+ * .footerNav / .footerNavList
+ * Quick links column. List with no bullet points.
+ */
+.footerNav {
+  display: flex;
+  flex-direction: column;
+}
+
+.footerNavList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.footerNavLink {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.footerNavLink:hover,
+.footerNavLink:focus {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+/*
+ * .footerContact / .footerContactList
+ * Contact column — label + value pairs stacked vertically.
+ */
+.footerContact {
+  display: flex;
+  flex-direction: column;
+}
+
+.footerContactList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/*
+ * .footerContactItem
+ * One row: a muted label and a value or link side by side.
+ */
+.footerContactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footerContactLabel {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.footerContactValue {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+a.footerContactValue:hover,
+a.footerContactValue:focus {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+/*
+ * .footerBottom
+ * Thin strip below the main footer grid — copyright + legal links.
+ */
+.footerBottom {
+  border-top: 1px solid var(--color-border);
+}
+
+.footerBottomContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.footerCopyright {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.footerLegalLinks {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-lg);
+}
+
+.footerLegalLink {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.footerLegalLink:hover,
+.footerLegalLink:focus {
+  color: var(--color-text-secondary);
+  text-decoration: underline;
+}

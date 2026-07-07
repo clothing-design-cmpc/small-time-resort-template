@@ -1,0 +1,103 @@
+/*
+ * .ctaSection
+ * High-visibility CTA block before the footer.
+ * Slightly elevated surface + accent border-top signals importance.
+ */
+.ctaSection {
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  background-color: rgba(62, 168, 201, 0.04);
+}
+
+.ctaContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: var(--max-width-narrow);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.ctaEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.ctaTitle {
+  font-size: 2.25rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.ctaBody {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  max-width: 52ch;
+}
+
+.ctaActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+/*
+ * .ctaButtonPrimary
+ * Solid accent pill — the main conversion action.
+ */
+.ctaButtonPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0.85rem 2rem;
+  border-radius: 999px;
+  background-color: var(--color-accent);
+  color: #05161c;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.ctaButtonPrimary:hover,
+.ctaButtonPrimary:focus {
+  background-color: var(--color-accent-hover);
+}
+
+/*
+ * .ctaButtonSecondary
+ * Outlined pill — secondary action, lower visual weight.
+ */
+.ctaButtonSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0.85rem 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-hover);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.ctaButtonSecondary:hover,
+.ctaButtonSecondary:focus {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}

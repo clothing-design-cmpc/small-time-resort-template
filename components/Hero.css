@@ -38,9 +38,9 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 20%, rgba(62, 168, 201, 0.14), transparent 55%),
-    radial-gradient(circle at 80% 75%, rgba(62, 168, 201, 0.08), transparent 60%),
-    linear-gradient(180deg, rgba(6, 7, 8, 0.55) 0%, rgba(6, 7, 8, 0.75) 60%, rgba(6, 7, 8, 0.92) 100%);
+    radial-gradient(circle at 20% 20%, rgba(63, 125, 82, 0.18), transparent 55%),
+    radial-gradient(circle at 80% 75%, rgba(63, 125, 82, 0.1), transparent 60%),
+    linear-gradient(180deg, rgba(10, 16, 11, 0.5) 0%, rgba(10, 16, 11, 0.72) 60%, rgba(10, 16, 11, 0.9) 100%);
   z-index: var(--z-raised);
 }
 
@@ -61,18 +61,23 @@
   z-index: var(--z-sticky);
 }
 
+/*
+ * Hero text colors are hardcoded light values, not the global text tokens.
+ * The hero always sits over a dark photo + gradient overlay for contrast,
+ * independent of the site's light theme everywhere else.
+ */
 .heroEyebrow {
   font-size: 0.7rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .heroTitle {
   font-size: 3.25rem;
   line-height: 1.1;
   letter-spacing: -0.02em;
-  color: var(--color-text-primary);
+  color: #ffffff;
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -80,7 +85,7 @@
 .heroSubtitle {
   font-size: 1.1rem;
   line-height: 1.7;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.85);
   max-width: 60ch;
 }
 
@@ -113,7 +118,7 @@
   padding: 0.85rem 1.75rem;
   border-radius: 999px;
   background-color: var(--color-accent);
-  color: #05161c;
+  color: var(--color-on-accent);
   font-weight: 600;
   text-decoration: none;
   touch-action: manipulation;
@@ -137,8 +142,8 @@
   min-height: 44px;
   padding: 0.85rem 1.75rem;
   border-radius: 999px;
-  border: 1px solid var(--color-border-hover);
-  color: var(--color-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
   text-decoration: none;
   touch-action: manipulation;
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
@@ -147,6 +152,6 @@
 .heroCtaSecondary:hover,
 .heroCtaSecondary:focus,
 .heroCtaSecondary:active {
-  border-color: var(--color-accent);
-  background-color: var(--color-surface-hover);
+  border-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.12);
 }

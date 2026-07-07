@@ -11,10 +11,11 @@
   left: 0;
   right: 0;
   z-index: var(--z-sticky);
-  background-color: rgba(9, 9, 11, 0.85);
+  background-color: rgba(248, 250, 243, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 2px 12px rgba(28, 43, 32, 0.05);
 }
 
 /*
@@ -91,7 +92,7 @@
   padding: 0.55rem 1.35rem;
   border-radius: 999px;
   background-color: var(--color-accent);
-  color: #05161c;
+  color: var(--color-on-accent);
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
@@ -168,7 +169,7 @@
   margin-top: var(--space-sm);
   border-radius: 8px;
   background-color: var(--color-accent);
-  color: #05161c;
+  color: var(--color-on-accent);
   font-weight: 600;
   font-size: 1rem;
   text-decoration: none;

@@ -37,7 +37,7 @@ const featuredRooms = [
     pricePerNight: 12000,
     maxGuests: 4,
     bedType: "2 Bedrooms",
-    mainImageUrl: "https://images.unsplash.com/photo-1506974210756-8e1b8985d348?auto=format&fit=crop&w=800&q=80",
+    mainImageUrl: "https://images.unsplash.com/photo-1759372945658-1e9f56e751bd?auto=format&fit=crop&w=800&q=80",
   },
   {
     id: "family-suite",

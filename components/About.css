@@ -52,12 +52,14 @@
 
 /*
  * .aboutDifferentiators
- * Auto-fill grid of "why choose us" cards. Never a fixed column count —
- * collapses to a single column on narrow viewports automatically.
+ * Flex-wrap row of "why choose us" cards — flex (not grid) so an
+ * incomplete last row centers itself instead of hugging the left edge.
  */
 .aboutDifferentiators {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-lg);
   width: 100%;
   margin-top: var(--space-md);
@@ -66,8 +68,9 @@
 
 /*
  * .aboutDifferentiatorCard
- * Individual differentiator card. Subtle surface + border so it reads
- * as elevated content, never flush against neighboring cards.
+ * Individual differentiator card. Subtle surface + border + soft shadow
+ * so it reads as elevated content, never flush against neighboring cards.
+ * flex-basis 260px with a max-width caps growth when a row has few cards.
  */
 .aboutDifferentiatorCard {
   display: flex;
@@ -77,6 +80,9 @@
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  flex: 1 1 260px;
+  max-width: 340px;
 }
 
 .aboutDifferentiatorTitle {

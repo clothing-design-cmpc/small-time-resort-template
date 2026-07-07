@@ -7,7 +7,7 @@
 .featuredRoomsSection {
   width: 100%;
   padding: var(--space-2xl) var(--space-lg);
-  background-color: rgba(255, 255, 255, 0.01);
+  background-color: rgba(63, 125, 82, 0.035);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
 }
@@ -63,20 +63,24 @@
 
 /*
  * .featuredRoomsGrid
- * Auto-fill card grid — 3 columns on desktop, 1 on mobile.
- * Never a fixed column count — auto-fill + minmax handles all breakpoints.
+ * Flex-wrap row of room cards — flex (not grid) so an incomplete last
+ * row centers itself instead of hugging the left edge. 3 per row on
+ * desktop, wraps down to 1 on mobile via each card's flex-basis.
  */
 .featuredRoomsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-lg);
   width: 100%;
 }
 
 /*
  * .roomCard
- * Individual room card. Subtle surface + border defines the card boundary.
- * overflow:hidden clips the image to the card radius.
+ * Individual room card. Subtle surface + border + soft shadow defines
+ * the card boundary; overflow:hidden clips the image to the card radius.
+ * flex-basis 320px with a max-width caps growth when a row has few cards.
  */
 .roomCard {
   display: flex;
@@ -84,13 +88,18 @@
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
   cursor: pointer;
+  flex: 1 1 320px;
+  max-width: 400px;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), background-color var(--transition-base);
 }
 
 .roomCard:hover {
   border-color: var(--color-border-hover);
   background-color: var(--color-surface-hover);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /*

@@ -7,7 +7,7 @@
   width: 100%;
   padding: var(--space-2xl) var(--space-lg);
   border-top: 1px solid var(--color-border);
-  background-color: rgba(62, 168, 201, 0.04);
+  background-color: rgba(63, 125, 82, 0.07);
 }
 
 .ctaContainer {
@@ -42,62 +42,4 @@
   line-height: 1.7;
   color: var(--color-text-secondary);
   max-width: 52ch;
-}
-
-.ctaActions {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--space-md);
-  margin-top: var(--space-sm);
-}
-
-/*
- * .ctaButtonPrimary
- * Solid accent pill — the main conversion action.
- */
-.ctaButtonPrimary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 50px;
-  padding: 0.85rem 2rem;
-  border-radius: 999px;
-  background-color: var(--color-accent);
-  color: #05161c;
-  font-weight: 600;
-  font-size: 0.95rem;
-  text-decoration: none;
-  touch-action: manipulation;
-}
-
-.ctaButtonPrimary:hover,
-.ctaButtonPrimary:focus {
-  background-color: var(--color-accent-hover);
-}
-
-/*
- * .ctaButtonSecondary
- * Outlined pill — secondary action, lower visual weight.
- */
-.ctaButtonSecondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 50px;
-  padding: 0.85rem 2rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-border-hover);
-  color: var(--color-text-primary);
-  font-size: 0.95rem;
-  text-decoration: none;
-  touch-action: manipulation;
-}
-
-.ctaButtonSecondary:hover,
-.ctaButtonSecondary:focus {
-  border-color: var(--color-accent);
-  background-color: var(--color-surface-hover);
 }

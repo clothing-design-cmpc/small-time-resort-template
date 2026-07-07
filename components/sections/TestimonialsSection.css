@@ -8,7 +8,7 @@
   padding: var(--space-2xl) var(--space-lg);
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
-  background-color: rgba(255, 255, 255, 0.01);
+  background-color: rgba(63, 125, 82, 0.035);
 }
 
 .testimonialsContainer {
@@ -47,11 +47,14 @@
 
 /*
  * .testimonialsGrid
- * Three-column card grid. Auto-fills down to 1 column on mobile.
+ * Flex-wrap row of review cards — flex (not grid) so an incomplete
+ * last row centers itself instead of hugging the left edge.
  */
 .testimonialsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-lg);
   width: 100%;
 }
@@ -59,6 +62,7 @@
 /*
  * .testimonialCard
  * Review card. Stacks stars, quote, then author metadata.
+ * flex-basis 300px with a max-width caps growth when a row has few cards.
  */
 .testimonialCard {
   display: flex;
@@ -68,6 +72,9 @@
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  flex: 1 1 300px;
+  max-width: 380px;
 }
 
 /*

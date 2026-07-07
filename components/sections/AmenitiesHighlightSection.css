@@ -51,11 +51,14 @@
 
 /*
  * .amenitiesHighlightGrid
- * 4 columns on desktop, auto-fills down to 2 on tablet, 1 on mobile.
+ * Flex-wrap row of amenity cards — flex (not grid) so an incomplete
+ * last row centers itself instead of hugging the left edge.
  */
 .amenitiesHighlightGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-md);
   width: 100%;
 }
@@ -63,7 +66,9 @@
 /*
  * .amenityHighlightCard
  * Icon on left, label + description on right, horizontally aligned.
- * Subtle border and surface — not a heavy card, just enough structure.
+ * Subtle border, surface, and soft shadow — not a heavy card, just
+ * enough structure to feel lifted off the page.
+ * flex-basis 250px with a max-width caps growth on sparse rows.
  */
 .amenityHighlightCard {
   display: flex;
@@ -74,6 +79,9 @@
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  flex: 1 1 250px;
+  max-width: 320px;
 }
 
 /*
@@ -89,7 +97,7 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background-color: rgba(62, 168, 201, 0.1);
+  background-color: rgba(63, 125, 82, 0.12);
   color: var(--color-accent);
 }
 

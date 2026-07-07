@@ -1,0 +1,49 @@
+/*
+ * .dashboardSection
+ * Outer wrapper for the whole dashboard view — vertical stack of
+ * the header row and the KPI grid below it.
+ */
+.dashboardSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/*
+ * .dashboardHeaderRow
+ * Eyebrow + page title stacked above the stat grid.
+ */
+.dashboardHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.dashboardEyebrow {
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dashboardTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .dashboardGrid
+ * Four-column KPI stat card row on desktop. Uses auto-fill so it
+ * reflows to 2 columns on tablet and 1 column on mobile without
+ * needing separate breakpoint overrides (Rule 23.2).
+ */
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-lg);
+}

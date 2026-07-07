@@ -1,0 +1,22 @@
+/*
+ * .adminHeader
+ * Sticky 70px top bar sitting above the scrollable content area,
+ * to the right of the fixed sidebar.
+ */
+.adminHeader {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-lg);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.adminHeaderTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}

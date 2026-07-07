@@ -1,0 +1,48 @@
+/*
+ * .statCard
+ * Single KPI card: eyebrow label, large number, trend line.
+ * Hover is an instant background swap — no transition, per the
+ * super-admin static design principle.
+ */
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.statCard:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.statCardLabel {
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.statCardValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.statCardTrend {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.statCardTrend--up {
+  color: var(--color-success);
+}
+
+.statCardTrend--down {
+  color: var(--color-error);
+}

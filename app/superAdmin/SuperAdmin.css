@@ -1,0 +1,86 @@
+/* ============================================================
+ * SUPER-ADMIN COLOR TOKENS — ENTERPRISE DARK THEME
+ * Scoped to .superAdminRoot only, so the visitor site's light,
+ * warm theme (app/styles/globals.css) is never affected. Values
+ * per the Super-Admin Control Center design system.
+ * ============================================================ */
+.superAdminRoot {
+  --color-bg: #0d0e12;
+  --color-surface: rgba(255, 255, 255, 0.02);
+  --color-surface-hover: rgba(255, 255, 255, 0.05);
+  --color-surface-active: rgba(255, 255, 255, 0.10);
+  --color-surface-elevated: rgba(255, 255, 255, 0.15);
+
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-strong: rgba(255, 255, 255, 0.12);
+  --color-divider: rgba(255, 255, 255, 0.04);
+
+  --color-text-primary: #f8f9fa;
+  --color-text-secondary: rgba(255, 255, 255, 0.60);
+  --color-text-tertiary: rgba(255, 255, 255, 0.45);
+  --color-text-muted: rgba(255, 255, 255, 0.30);
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-light: rgba(59, 130, 246, 0.10);
+
+  --color-accent: #06b6d4;
+  --color-accent-hover: #0891b2;
+  --color-accent-light: rgba(6, 182, 212, 0.10);
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  --color-neutral: rgba(255, 255, 255, 0.3);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-base: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  min-height: 100dvh;
+}
+
+/* Light mode override — only applies when the OS prefers light,
+   independent of the visitor site's own theme. */
+@media (prefers-color-scheme: light) {
+  .superAdminRoot {
+    --color-bg: #ffffff;
+    --color-surface: rgba(0, 0, 0, 0.02);
+    --color-surface-hover: rgba(0, 0, 0, 0.05);
+    --color-surface-active: rgba(0, 0, 0, 0.10);
+    --color-surface-elevated: rgba(0, 0, 0, 0.04);
+    --color-border: rgba(0, 0, 0, 0.08);
+    --color-border-strong: rgba(0, 0, 0, 0.16);
+    --color-text-primary: #0f172a;
+    --color-text-secondary: rgba(15, 23, 42, 0.60);
+    --color-text-tertiary: rgba(15, 23, 42, 0.45);
+    --color-text-muted: rgba(15, 23, 42, 0.30);
+  }
+}
+
+/*
+ * .superAdminBody
+ * Everything except the fixed sidebar — pushed right by the sidebar's
+ * width so content never sits underneath it.
+ */
+.superAdminBody {
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/*
+ * .superAdminContent
+ * Main scrollable content area beneath the sticky header.
+ */
+.superAdminContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+}

@@ -2,8 +2,8 @@
  * .heroSection
  * Full-screen intro section. min-height is justified here per the
  * full-screen section exception — this is the resort's landing view.
- * Background is a layered gradient standing in for photography until
- * a real image is supplied.
+ * position: relative so the background photo and overlay (both
+ * position: absolute) can layer correctly behind .heroContainer.
  */
 .heroSection {
   display: flex;
@@ -15,17 +15,41 @@
   padding: var(--space-xl) var(--space-lg);
   text-align: center;
   position: relative;
+  overflow: hidden;
+}
+
+/*
+ * .heroBackgroundImage
+ * next/image with `fill` — stretches to cover the entire hero section.
+ * Sits behind .heroOverlay and .heroContainer via z-index stacking.
+ */
+.heroBackgroundImage {
+  object-fit: cover;
+  z-index: var(--z-base);
+}
+
+/*
+ * .heroOverlay
+ * Dark gradient layered on top of the background photo so the white
+ * text in .heroContainer stays readable regardless of the photo's
+ * own brightness or color.
+ */
+.heroOverlay {
+  position: absolute;
+  inset: 0;
   background:
     radial-gradient(circle at 20% 20%, rgba(62, 168, 201, 0.14), transparent 55%),
     radial-gradient(circle at 80% 75%, rgba(62, 168, 201, 0.08), transparent 60%),
-    linear-gradient(180deg, #0b1015 0%, #090a0c 60%, #060708 100%);
+    linear-gradient(180deg, rgba(6, 7, 8, 0.55) 0%, rgba(6, 7, 8, 0.75) 60%, rgba(6, 7, 8, 0.92) 100%);
+  z-index: var(--z-raised);
 }
 
 /*
  * .heroContainer
  * Constrains hero copy to a readable width and stacks content
  * vertically with consistent spacing between eyebrow, title,
- * subtitle, and CTA row.
+ * subtitle, and CTA row. position: relative + z-index lifts it
+ * above .heroBackgroundImage and .heroOverlay in the stacking order.
  */
 .heroContainer {
   display: flex;
@@ -33,6 +57,8 @@
   align-items: center;
   gap: var(--space-md);
   max-width: var(--max-width-narrow);
+  position: relative;
+  z-index: var(--z-sticky);
 }
 
 .heroEyebrow {

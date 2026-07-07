@@ -41,6 +41,10 @@ Step 5 : "Plan Your Stay" anchors to #contact, "Explore Rooms & Villas" anchors 
          (both sections do not exist yet — added later per the master template plan)
 Step 6 : components/About.jsx renders the resort story and a 3-card
          "why choose us" grid, with id="about" as the anchor target
+Step 7 : components/Hero.jsx renders a placeholder background photo via
+         next/image (Unsplash, free to use) layered under a dark gradient
+         overlay for text contrast — swap for real resort photography in
+         public/images/ once Cloudflare R2 is connected
 
 7. FILE MAP
 - app/layout.jsx              — root layout shell, global metadata, imports globals.css
@@ -48,6 +52,8 @@ Step 6 : components/About.jsx renders the resort story and a 3-card
 - app/styles/globals.css       — CSS design tokens (color, spacing, z-index, transitions) + reset
 - app/styles/mediaQueries.css  — empty, ready for breakpoints
 - middleware.js                 — auth guard shell, matcher currently covers /superAdmin only
+- next.config.mjs             — remotePatterns allows next/image to load
+                                Unsplash placeholder photos (images.unsplash.com)
 - app/visitor/layout.jsx        — visitor account shell, public
 - app/visitor/page.jsx          — visitor homepage, renders <Hero />
 - app/visitor/Visitor.css       — visitor account-level styles

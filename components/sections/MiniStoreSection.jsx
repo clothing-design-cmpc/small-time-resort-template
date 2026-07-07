@@ -55,7 +55,7 @@ const PRODUCTS = [
     price: "₱120",
     badge: "Fresh Daily",
     badgeType: "accent",
-    imageUrl: "https://images.unsplash.com/photo-1596803244897-5e42d1ecdcf7?auto=format&fit=crop&w=600&q=80",
+    imageUrl: "https://images.unsplash.com/photo-1758186989205-20afdf8d2665?auto=format&fit=crop&w=600&q=80",
     imageAlt: "Fresh young coconut with a straw on a beach table",
   },
   {

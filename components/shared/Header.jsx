@@ -17,18 +17,13 @@ import { useState } from "react";
 import Link from "next/link";
 import "./Header.css";
 
-/*
- * navLinks
- * All hrefs are anchor IDs that scroll to sections on the visitor homepage.
- * IDs: #rooms → FeaturedRoomsSection, #amenities → AmenitiesHighlightSection,
- * #shop → MiniStoreSection, #about → About, #contact → CTASection.
- */
 const navLinks = [
-  { label: "Rooms", href: "#rooms" },
-  { label: "Amenities", href: "#amenities" },
-  { label: "Shop", href: "#shop" },
-  { label: "About", href: "#about" },
-  { label: "Contact", href: "#contact" },
+  { label: "Rooms", href: "/visitor/rooms" },
+  { label: "Amenities", href: "/visitor/amenities" },
+  { label: "Gallery", href: "/visitor/gallery" },
+  { label: "About", href: "/visitor/about" },
+  { label: "Policies", href: "/visitor/policies" },
+  { label: "Contact", href: "/visitor/contact" },
 ];
 
 export default function Header() {
@@ -52,7 +47,7 @@ export default function Header() {
         </nav>
 
         {/* Book Now CTA — desktop */}
-        <Link href="#contact" className="headerBookButton">
+        <Link href="/visitor/booking" className="headerBookButton">
           Book Now
         </Link>
 
@@ -94,7 +89,7 @@ export default function Header() {
             </Link>
           ))}
           <Link
-            href="#contact"
+            href="/visitor/booking"
             className="headerMobileBookButton"
             onClick={() => setMenuOpen(false)}
           >

@@ -96,6 +96,18 @@
     max-width: 100%;
   }
 
+  /* CTA buttons — stack on mobile */
+  .ctaActions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .ctaButtonPrimary,
+  .ctaButtonSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+
   /* Hero text scale */
   .heroTitle {
     font-size: 2.25rem;
@@ -121,27 +133,8 @@
   .featuredRoomsTitle,
   .amenitiesHighlightTitle,
   .testimonialsTitle,
-  .ctaTitle,
-  .bookedDatesTitle,
-  .miniStoreTitle {
+  .ctaTitle {
     font-size: 1.65rem;
-  }
-
-  /* Booked dates carousel — narrow viewport centering padding */
-  .bookedCarouselTrack {
-    padding-left: calc(50% - 36px);
-    padding-right: calc(50% - 36px);
-  }
-
-  /* Mini calendar — full width on mobile */
-  .miniCalendar {
-    max-width: 100%;
-  }
-
-  /* Mini store — cards go full width on very small screens */
-  .miniStoreCard {
-    flex: 1 1 100%;
-    max-width: 100%;
   }
 
   /* Footer bottom — stack on mobile */
@@ -149,5 +142,58 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-sm);
+  }
+}
+
+/* ============================================================
+ * POLICIES PAGE — RESPONSIVE
+ * ============================================================ */
+
+/* Mobile: collapse sidebar above content, single column */
+@media (max-width: 767px) {
+  .policiesBodyContainer {
+    grid-template-columns: 1fr;
+  }
+
+  .policiesSidebar {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .policiesSidebarLabel {
+    display: none;
+  }
+
+  .policiesSidebarList {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .policiesSidebarLink {
+    font-size: 0.78rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--color-border);
+    border-left: 2px solid transparent;
+    border-radius: 999px;
+  }
+
+  .policiesTitle {
+    font-size: 1.75rem;
+  }
+
+  .policiesRefundTableHeader,
+  .policiesRefundTableRow {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+
+  .policiesContactPrompt {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

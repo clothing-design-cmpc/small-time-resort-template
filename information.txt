@@ -1,0 +1,5 @@
+cmpc.business@g.c
+supabase : M4qIivMY1lrk7DKo
+cloudflare r2
+emailjs
+github

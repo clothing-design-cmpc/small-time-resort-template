@@ -16,10 +16,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 7: connection URLs are defined in prisma.config.mjs (datasource.url),
+// NOT here. Keeping url/directUrl in this block causes P1012 validation error.
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 // ============================================================

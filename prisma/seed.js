@@ -104,13 +104,22 @@ async function seedAmenities() {
 /**
  * seedStoreProducts
  * Clears and re-inserts the Resort Shop's browse-only product list.
+ *
+ * This list must always mirror components/sections/MiniStoreSection.jsx
+ * exactly (name, description, price, category as badge, image) — that
+ * component is still rendering its own static PRODUCTS array, but once
+ * it's wired to fetch from the DB, these rows are what visitors will see.
+ * Previously this seeded unrelated merchandise (candles, beach bags) that
+ * had nothing to do with the bar drinks actually shown on the homepage.
  */
 async function seedStoreProducts() {
   const products = [
-    { name: "Villa Azure Scented Candle", description: "Coconut and sea-salt scented soy candle, hand-poured on-site.", price: 850.0, category: "home", imageUrl: "https://images.unsplash.com/photo-1602607203414-9d33e00b6da2?auto=format&fit=crop&w=1200&q=80", sortOrder: 1 },
-    { name: "Resort Woven Beach Bag", description: "Handwoven rattan beach bag with leather straps.", price: 1450.0, category: "accessories", imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=1200&q=80", sortOrder: 2 },
-    { name: "Signature Sun Oil", description: "Coconut-based sun oil, locally made, SPF-free finishing oil.", price: 620.0, category: "wellness", imageUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=80", sortOrder: 3 },
-    { name: "Villa Azure Linen Robe", description: "Lightweight linen bathrobe embroidered with the resort crest.", price: 3200.0, category: "apparel", imageUrl: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=1200&q=80", sortOrder: 4 },
+    { name: "Craft Pale Ale", description: "A local Philippine craft ale brewed with Benguet hops. Light, citrusy, and cold — best enjoyed poolside or at the gazebo bar after sunset.", price: 180.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=600&q=80", sortOrder: 1 },
+    { name: "House Red Wine", description: "A smooth Chilean Merlot selected by the resort as its house pour. Pairs with the villa's evening charcuterie set. Available by the glass or bottle.", price: 320.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80", sortOrder: 2 },
+    { name: "Premium Rum", description: "Aged dark rum from Negros Occidental, straight or over ice. The bar also mixes it into the resort's signature mojito with fresh mint from the garden.", price: 280.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=600&q=80", sortOrder: 3 },
+    { name: "Fresh Buko Juice", description: "Young coconut water served straight from the shell, chilled and cut to order. Naturally sweet, no added sugar. Sourced daily from the resort's own coconut grove.", price: 120.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1758186989205-20afdf8d2665?auto=format&fit=crop&w=600&q=80", sortOrder: 4 },
+    { name: "Sparkling Water", description: "San Pellegrino sparkling mineral water, 750ml. Cold, clean, and fizzy. Available at reception anytime or delivered to the villa on request.", price: 95.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=600&q=80", sortOrder: 5 },
+    { name: "Mango Soda", description: "Local canned mango soda made from Philippine carabao mangoes. Bright, sweet, and nostalgic. A resort favorite with kids and adults alike.", price: 80.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80", sortOrder: 6 },
   ];
 
   await prisma.storeProduct.deleteMany();

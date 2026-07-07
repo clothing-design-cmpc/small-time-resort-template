@@ -1,32 +1,67 @@
 /*
  * .loginSection
- * Full-height centered wrapper for the login card. Uses 100dvh so mobile
- * address bars never cause the card to jump (Rule 29.5).
+ * Full-viewport section that hosts the hero background photo — position:
+ * relative so the fill Image and gradient overlay can be absolutely
+ * positioned behind the frosted card. Uses 100dvh so mobile address bars
+ * never cause the card to jump (Rule 29.5).
  */
 .loginSection {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
   padding: var(--space-lg);
-  background-color: var(--color-bg);
+  overflow: hidden;
+}
+
+/*
+ * .loginBackgroundImage
+ * next/image with `fill` — the same placeholder villa photo used on the
+ * visitor Hero, so the admin login feels part of the same resort.
+ */
+.loginBackgroundImage {
+  object-fit: cover;
+  z-index: var(--z-base);
+}
+
+/*
+ * .loginOverlay
+ * Dark gradient above the photo so the frosted card and its text stay
+ * readable regardless of the underlying image brightness.
+ */
+.loginOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 10, 12, 0.55) 0%,
+    rgba(9, 10, 12, 0.78) 100%
+  );
+  z-index: var(--z-raised);
 }
 
 /*
  * .loginCard
- * The centered login form panel — border + surface background give it
- * a clear edge per the card standard (Rule 23.10).
+ * Frosted-glass card floating above the photo. Semi-transparent fill +
+ * backdrop-filter blur creates the glass effect; border stays subtle so
+ * the edge reads without competing with the photo (Rule 23.10).
  */
 .loginCard {
+  position: relative;
+  z-index: var(--z-raised);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
   width: 100%;
   max-width: 400px;
   padding: var(--space-xl);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 .loginEyebrow {
@@ -35,18 +70,32 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .loginTitle {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: #ffffff;
 }
 
 .loginLegend {
   font-size: 0.8rem;
-  color: var(--color-text-tertiary);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/*
+ * .loginAuthError
+ * Whole-form error banner (wrong credentials, network failure). Sits
+ * above the form, distinct from the per-field Zod errors below inputs.
+ */
+.loginAuthError {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  color: #fecaca;
+  background-color: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
 }
 
 .loginForm {
@@ -64,22 +113,31 @@
 
 .loginField label {
   font-size: 0.85rem;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.85);
 }
 
+/*
+ * .loginField input
+ * Semi-transparent field matching the frosted card, not a solid fill —
+ * keeps the glass effect consistent inside the card too.
+ */
 .loginField input {
   width: 100%;
   font-size: 1rem;
   padding: var(--space-sm) var(--space-md);
-  background-color: var(--color-surface-hover);
-  border: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  color: var(--color-text-primary);
+  color: #ffffff;
+}
+
+.loginField input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .loginFieldError {
   font-size: 0.8rem;
-  color: var(--color-error);
+  color: #fca5a5;
 }
 
 /*
@@ -101,7 +159,7 @@
   position: absolute;
   right: var(--space-sm);
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.75);
   padding: var(--space-xs) var(--space-sm);
 }
 
@@ -114,12 +172,12 @@
   align-self: flex-start;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--color-accent);
+  color: #67e8f9;
   padding: var(--space-xs) 0;
 }
 
 .loginSuperAdminFillButton:hover {
-  color: var(--color-accent-hover);
+  color: #06b6d4;
 }
 
 .loginSubmitButton {
@@ -129,12 +187,14 @@
   font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
-  background-color: var(--color-primary);
+  background-color: #06b6d4;
   border-radius: 8px;
+  transition: background-color var(--transition-fast);
 }
 
-.loginSubmitButton:hover {
-  background-color: var(--color-primary-hover);
+.loginSubmitButton:hover,
+.loginSubmitButton:focus-visible {
+  background-color: #0891b2;
 }
 
 .loginSubmitButton:disabled {

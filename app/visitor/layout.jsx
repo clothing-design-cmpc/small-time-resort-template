@@ -15,10 +15,14 @@
 import "./Visitor.css";
 import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
+import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 
 export default function VisitorLayout({ children }) {
   return (
     <div className="visitorShell">
+      {/* Ensures every page load/refresh opens on the Hero section
+          instead of the browser restoring a previous scroll position */}
+      <ScrollToTopOnLoad />
       <Header />
       {/* pt-[header height] so page content is never hidden behind the sticky header */}
       <div className="visitorContent">

@@ -1,80 +1,138 @@
 /**
  * FILE: app/superAdmin/login/page.jsx
- * ROLE: Super-admin only — the one page middleware.js always allows
- * through, since this is where an unauthenticated request gets sent
+ * ROLE: Public — the one page under /superAdmin reachable without a session
  *
  * PURPOSE:
- * Renders the sign-in form for the Villa Azure Resort admin control
- * center. This page is intentionally rendered OUTSIDE app/superAdmin/
- * layout.jsx (no Sidebar/AdminHeader) since a signed-out visitor has
- * nothing to navigate to yet.
+ * Login form for the super-admin account. Below the password field is a
+ * "Super Admin" quick-fill button that auto-fills the email and password
+ * inputs with the placeholder demo credentials — speeds up local testing
+ * until real Supabase auth (Rule 35.2) is wired up.
  *
  * DATA FLOW:
- * 1. Visitor clicks "Login" in the site Header, or is redirected here
- *    by middleware.js after hitting a protected /superAdmin/* route
- * 2. Form fields are local state only — no submit handler wired yet
- * 3. Once Supabase auth is connected (Rule 35.2), submit will call
- *    a server action / API route that sets the "session" HttpOnly
- *    cookie middleware.js checks, then redirect to /superAdmin/dashboard
+ * 1. User types email/password OR clicks "Super Admin" to auto-fill both fields
+ * 2. React Hook Form + Zod validate on submit (Rule 31.7)
+ * 3. onSubmit currently only logs intent — replace with a real
+ *    supabase.auth.signInWithPassword() call once Supabase is connected
+ * 4. On success, the real flow will redirect to /superAdmin/dashboard
  */
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import "./Login.css";
 
-export const metadata = {
-  title: "Admin Login | Villa Azure Resort",
-  description: "Sign in to the Villa Azure Resort admin control center.",
-};
+/* Placeholder demo credentials for the quick-fill button. Replace with a
+   real seeded super-admin account once Supabase auth is connected. */
+const DEMO_SUPER_ADMIN_EMAIL = "superadmin@villaazure.com";
+const DEMO_SUPER_ADMIN_PASSWORD = "SuperAdmin123!";
+
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters."),
+});
 
 export default function SuperAdminLoginPage() {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
+
+  /**
+   * fillSuperAdminDemoCredentials
+   * Fills the email and password fields with the placeholder super-admin
+   * credentials so a developer can log in instantly during local testing.
+   * setValue with shouldValidate re-runs Zod validation immediately so the
+   * form is submit-ready without the user needing to touch either field.
+   */
+  function fillSuperAdminDemoCredentials() {
+    setValue("email", DEMO_SUPER_ADMIN_EMAIL, { shouldValidate: true });
+    setValue("password", DEMO_SUPER_ADMIN_PASSWORD, { shouldValidate: true });
+  }
+
+  /**
+   * onSubmit
+   * Placeholder submit handler — replace with a real
+   * supabase.auth.signInWithPassword() call once Supabase is connected.
+   */
+  async function onSubmit(data) {
+    // TODO: replace with real Supabase session sign-in (Rule 35.2)
+    console.log("[SuperAdminLogin] submit placeholder:", data.email);
+  }
+
   return (
     <section className="loginSection">
-      {/* Same placeholder villa photo used on the visitor Hero — swap for
-          real resort photography in public/images/ once R2 is connected */}
-      <Image
-        src="https://images.unsplash.com/photo-1759372945658-1e9f56e751bd?auto=format&fit=crop&w=2400&q=80"
-        alt="Tropical villa with a private pool at twilight"
-        fill
-        priority
-        className="loginBackgroundImage"
-      />
-      {/* Dark gradient overlay sits above the photo for card contrast */}
-      <div className="loginOverlay" />
-
       <div className="loginCard">
-        <span className="loginEyebrow">Villa Azure Resort</span>
-        <h1 className="loginTitle">Admin Login</h1>
-        <p className="loginSubtitle">Sign in to access the control center.</p>
+        <span className="loginEyebrow">Villa Azure Admin</span>
+        <h1 className="loginTitle">Super-Admin Login</h1>
+        <p className="loginLegend">* Required fields</p>
 
-        {/* Static markup for now — submit handler and Supabase auth
-            wiring land once the backend is connected (see Rule 35.2) */}
-        <form className="loginForm">
-          <label className="loginLabel" htmlFor="loginEmail">
-            Email
-          </label>
-          <input
-            id="loginEmail"
-            name="email"
-            type="email"
-            autoFocus
-            required
-            className="loginInput"
-            placeholder="you@villaazure.com"
-          />
+        <form className="loginForm" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="loginField">
+            <label htmlFor="email">
+              Email <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              {...register("email")}
+            />
+            {errors.email && (
+              <span role="alert" className="loginFieldError">
+                {errors.email.message}
+              </span>
+            )}
+          </div>
 
-          <label className="loginLabel" htmlFor="loginPassword">
-            Password
-          </label>
-          <input
-            id="loginPassword"
-            name="password"
-            type="password"
-            required
-            className="loginInput"
-            placeholder="••••••••"
-          />
+          <div className="loginField">
+            <label htmlFor="password">
+              Password <span aria-hidden="true">*</span>
+            </label>
+            <div className="loginPasswordWrapper">
+              <input
+                id="password"
+                type={isPasswordVisible ? "text" : "password"}
+                autoComplete="current-password"
+                {...register("password")}
+              />
+              {/* Show/hide toggle — required on every password field per Rule 34.3 */}
+              <button
+                type="button"
+                className="loginPasswordToggle"
+                onClick={() => setIsPasswordVisible((visible) => !visible)}
+                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+              >
+                {isPasswordVisible ? "Hide" : "Show"}
+              </button>
+            </div>
+            {errors.password && (
+              <span role="alert" className="loginFieldError">
+                {errors.password.message}
+              </span>
+            )}
+          </div>
 
-          <button type="submit" className="loginSubmitButton">
-            Sign In
+          {/* Quick-fill shortcut — auto-fills both fields with the demo
+              super-admin credentials so testing never requires retyping them. */}
+          <button
+            type="button"
+            className="loginSuperAdminFillButton"
+            onClick={fillSuperAdminDemoCredentials}
+          >
+            Super Admin
+          </button>
+
+          <button type="submit" className="loginSubmitButton" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
       </div>

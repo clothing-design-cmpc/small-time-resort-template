@@ -16,6 +16,10 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 
+// Must match the login route's rule — Secure cookies are dropped
+// outright on plain HTTP local dev, so only require it in production.
+const isProduction = process.env.NODE_ENV === "production";
+
 export async function POST() {
   const response = NextResponse.json({
     success: true,
@@ -26,7 +30,7 @@ export async function POST() {
   // Deleting by setting maxAge 0 clears the cookie in the browser.
   response.cookies.set("session", "", {
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "strict",
     path: "/",
     maxAge: 0,

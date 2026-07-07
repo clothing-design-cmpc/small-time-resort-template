@@ -130,9 +130,14 @@ async function seedStoreProducts() {
 /**
  * seedSuperAdmin
  * Creates the super-admin Auth user via the Supabase Admin API if it
- * doesn't already exist, then upserts the matching admin_profiles row.
- * Skips entirely if SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD are not set —
- * this keeps the script safe to run before those are configured.
+ * doesn't already exist. If it already exists, its password and email
+ * confirmation are reset to match SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
+ * every time this runs — otherwise a stale password from an earlier seed
+ * (or one created manually in the Supabase dashboard) would silently
+ * never match what's in .env.local, and login would fail with
+ * "Invalid login credentials" for no visible reason. Skips entirely if
+ * SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD are not set — this keeps the
+ * script safe to run before those are configured.
  */
 async function seedSuperAdmin() {
   const email = process.env.SEED_ADMIN_EMAIL;
@@ -159,7 +164,16 @@ async function seedSuperAdmin() {
     authUser = created.user;
     console.log(`✓ Created super-admin auth user: ${email}`);
   } else {
-    console.log(`- Super-admin auth user already exists: ${email}`);
+    // Re-sync the password every run — this is what makes the seed script
+    // idempotent for auth, not just for the admin_profiles row. Without
+    // this, changing SEED_ADMIN_PASSWORD in .env.local and re-seeding
+    // would do nothing, and the login form would keep failing silently.
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+      password,
+      email_confirm: true,
+    });
+    if (updateError) throw updateError;
+    console.log(`✓ Super-admin auth user already existed — password re-synced: ${email}`);
   }
 
   await prisma.adminProfile.upsert({

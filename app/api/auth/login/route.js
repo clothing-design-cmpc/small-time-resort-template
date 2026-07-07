@@ -37,7 +37,29 @@ const loginRequestSchema = z.object({
 // session cookie mirrors the underlying Supabase access token's window.
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
+// Cookies marked Secure are silently dropped by the browser on plain
+// HTTP — which is exactly what `npm run dev` serves on localhost. Only
+// require HTTPS once actually deployed to production.
+const isProduction = process.env.NODE_ENV === "production";
+
 export async function POST(request) {
+  // Fail fast with a clear message if Supabase env vars were never set —
+  // otherwise the SDK throws a low-level fetch error that just looks
+  // like "login isn't working" with no indication why.
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    !process.env.SUPABASE_SERVICE_ROLE_KEY
+  ) {
+    console.error(
+      "[api/auth/login] Missing Supabase env vars — set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY in .env.local (see .env.local.example)."
+    );
+    return NextResponse.json(
+      { success: false, data: null, message: "Server auth is not configured yet. Check .env.local." },
+      { status: 500 }
+    );
+  }
+
   let payload;
   try {
     payload = loginRequestSchema.parse(await request.json());
@@ -54,12 +76,25 @@ export async function POST(request) {
   const password = payload.password;
 
   // Step 1: verify the password against Supabase Auth.
-  const { data: signInData, error: signInError } =
-    await browserClient.auth.signInWithPassword({ email, password });
+  let signInData;
+  let signInError;
+  try {
+    ({ data: signInData, error: signInError } =
+      await browserClient.auth.signInWithPassword({ email, password }));
+  } catch (networkError) {
+    console.error("[api/auth/login] Supabase request failed:", networkError.message);
+    return NextResponse.json(
+      { success: false, data: null, message: "Couldn't reach the auth server. Please try again." },
+      { status: 502 }
+    );
+  }
 
   // Always return the same generic message for wrong email vs wrong
   // password — never reveal which one failed (Rule 32.4).
   if (signInError || !signInData?.user) {
+    if (signInError) {
+      console.error("[api/auth/login] signInWithPassword failed:", signInError.message);
+    }
     return NextResponse.json(
       { success: false, data: null, message: "Invalid email or password." },
       { status: 401 }
@@ -106,7 +141,9 @@ export async function POST(request) {
 
   response.cookies.set("session", sessionPayload, {
     httpOnly: true,
-    secure: true,
+    // Secure cookies are dropped outright on plain HTTP — only enforce
+    // it in production where the app is served over HTTPS.
+    secure: isProduction,
     sameSite: "strict",
     path: "/",
     maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,

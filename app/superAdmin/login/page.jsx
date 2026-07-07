@@ -22,6 +22,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -75,11 +76,20 @@ export default function SuperAdminLoginPage() {
   async function onSubmit(data) {
     setAuthError(null);
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    let response;
+    try {
+      response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+    } catch {
+      // Network failure (server down, offline, etc.) — never let this
+      // throw silently and leave the submit button stuck disabled.
+      setAuthError("We couldn't reach the server. Check your connection and try again.");
+      return;
+    }
+
     const result = await response.json();
 
     if (!result.success) {
@@ -106,10 +116,29 @@ export default function SuperAdminLoginPage() {
       {/* Dark gradient overlay sits above the photo for card contrast */}
       <div className="loginOverlay" />
 
+      {/* Returns the admin to the public visitor homepage */}
+      <Link href="/visitor" className="loginBackToHome">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5" />
+          <path d="M12 19l-7-7 7-7" />
+        </svg>
+        Back to Villa Azure
+      </Link>
+
       <div className="loginCard">
-        <span className="loginEyebrow">Villa Azure Admin</span>
-        <h1 className="loginTitle">Super-Admin Login</h1>
-        <p className="loginLegend">* Required fields</p>
+        <div className="loginHeader">
+          {/* Icon badge gives the card a focal point instead of opening
+              cold on a line of small caps eyebrow text */}
+          <span className="loginBadge" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="4" y="10" width="16" height="10" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+          </span>
+          <span className="loginEyebrow">Villa Azure Admin</span>
+          <h1 className="loginTitle">Super-Admin Login</h1>
+          <p className="loginLegend">* Required fields</p>
+        </div>
 
         {/* Whole-form auth error — wrong credentials, not a super admin,
             or a network failure. Field-level Zod errors render separately

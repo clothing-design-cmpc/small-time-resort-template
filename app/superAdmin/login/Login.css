@@ -28,60 +28,129 @@
 /*
  * .loginOverlay
  * Dark gradient above the photo so the frosted card and its text stay
- * readable regardless of the underlying image brightness.
+ * readable regardless of the underlying image brightness. A faint green
+ * radial tint ties the overlay back to the resort's forest-green brand
+ * instead of reading as a generic black scrim.
  */
 .loginOverlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(9, 10, 12, 0.55) 0%,
-    rgba(9, 10, 12, 0.78) 100%
-  );
+  background:
+    radial-gradient(circle at 15% 85%, rgba(63, 125, 82, 0.22), transparent 55%),
+    linear-gradient(180deg, rgba(9, 14, 11, 0.6) 0%, rgba(9, 14, 11, 0.82) 100%);
   z-index: var(--z-raised);
+}
+
+/*
+ * .loginBackToHome
+ * Fixed pill link over the top-left of the photo, always reachable
+ * regardless of scroll. Returns the admin to the public visitor site.
+ */
+.loginBackToHome {
+  position: absolute;
+  top: var(--space-lg);
+  left: var(--space-lg);
+  z-index: var(--z-sticky);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: 0.55rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.loginBackToHome svg {
+  flex-shrink: 0;
+}
+
+.loginBackToHome:hover,
+.loginBackToHome:focus-visible {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.32);
+  color: #ffffff;
 }
 
 /*
  * .loginCard
  * Frosted-glass card floating above the photo. Semi-transparent fill +
- * backdrop-filter blur creates the glass effect; border stays subtle so
- * the edge reads without competing with the photo (Rule 23.10).
+ * backdrop-filter blur creates the glass effect; a soft brand-green top
+ * border ties it back to the resort's accent color instead of the
+ * generic cyan the previous version used. Border stays subtle so the
+ * edge reads without competing with the photo (Rule 23.10).
  */
 .loginCard {
   position: relative;
   z-index: var(--z-raised);
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
   width: 100%;
-  max-width: 400px;
-  padding: var(--space-xl);
-  background-color: rgba(255, 255, 255, 0.08);
+  max-width: 420px;
+  padding: var(--space-2xl) var(--space-xl);
+  background-color: rgba(20, 26, 21, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border-top: 3px solid var(--color-accent);
+  border-radius: 20px;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/*
+ * .loginBadge
+ * Small circular icon badge centered above the eyebrow — gives the card
+ * a clear focal point instead of starting cold on a line of tiny caps text.
+ */
+.loginBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-md);
+  border-radius: 999px;
+  background-color: rgba(63, 125, 82, 0.22);
+  border: 1px solid rgba(63, 125, 82, 0.4);
+  color: #9fd6ae;
+}
+
+.loginHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-xs);
 }
 
 .loginEyebrow {
   font-family: monospace;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.65);
+  color: #9fd6ae;
 }
 
 .loginTitle {
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: #ffffff;
 }
 
 .loginLegend {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.65);
+  margin-top: var(--space-xs);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /*
@@ -90,19 +159,20 @@
  * above the form, distinct from the per-field Zod errors below inputs.
  */
 .loginAuthError {
+  margin-top: var(--space-lg);
   padding: var(--space-sm) var(--space-md);
   font-size: 0.85rem;
   color: #fecaca;
-  background-color: rgba(239, 68, 68, 0.18);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  border-radius: 8px;
+  background-color: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  border-radius: 10px;
 }
 
 .loginForm {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  margin-top: var(--space-sm);
+  margin-top: var(--space-lg);
 }
 
 .loginField {
@@ -112,8 +182,9 @@
 }
 
 .loginField label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /*
@@ -123,16 +194,25 @@
  */
 .loginField input {
   width: 100%;
+  min-height: 46px;
   font-size: 1rem;
   padding: var(--space-sm) var(--space-md);
-  background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
   color: #ffffff;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .loginField input::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.loginField input:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(63, 125, 82, 0.32);
 }
 
 .loginFieldError {
@@ -157,44 +237,70 @@
 
 .loginPasswordToggle {
   position: absolute;
-  right: var(--space-sm);
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.75);
-  padding: var(--space-xs) var(--space-sm);
+  right: var(--space-xs);
+  min-height: 32px;
+  padding: 0 var(--space-sm);
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.7);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.loginPasswordToggle:hover,
+.loginPasswordToggle:focus-visible {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 /*
  * .loginSuperAdminFillButton
- * Sits directly below the password field. One click fills both the email
- * and password inputs with the demo super-admin credentials.
+ * Sits directly below the password field, styled as a small outlined
+ * chip rather than a raw text link — reads as an intentional dev/demo
+ * shortcut instead of a stray hyperlink.
  */
 .loginSuperAdminFillButton {
   align-self: flex-start;
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 32px;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid rgba(159, 214, 174, 0.35);
+  border-radius: 999px;
+  background-color: rgba(63, 125, 82, 0.14);
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #67e8f9;
-  padding: var(--space-xs) 0;
+  color: #9fd6ae;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.loginSuperAdminFillButton:hover {
-  color: #06b6d4;
+.loginSuperAdminFillButton:hover,
+.loginSuperAdminFillButton:focus-visible {
+  background-color: rgba(63, 125, 82, 0.24);
+  border-color: rgba(159, 214, 174, 0.55);
 }
 
 .loginSubmitButton {
   width: 100%;
-  min-height: 44px;
+  min-height: 46px;
   margin-top: var(--space-sm);
   font-size: 1rem;
   font-weight: 600;
-  color: #ffffff;
-  background-color: #06b6d4;
-  border-radius: 8px;
-  transition: background-color var(--transition-fast);
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border-radius: 10px;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .loginSubmitButton:hover,
 .loginSubmitButton:focus-visible {
-  background-color: #0891b2;
+  background-color: var(--color-accent-hover);
+}
+
+.loginSubmitButton:active {
+  transform: translateY(1px);
 }
 
 .loginSubmitButton:disabled {

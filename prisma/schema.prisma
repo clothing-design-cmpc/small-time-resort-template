@@ -26,17 +26,18 @@ datasource db {
 // MODEL: Room  (Rooms & Villas section)
 // ============================================================
 model Room {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name           String
-  slug           String   @unique
+  slug           String    @unique
   description    String?
-  pricePerNight  Decimal  @map("price_per_night") @db.Decimal(10, 2)
-  capacity       Int      @default(2)
-  imageUrl       String?  @map("image_url")
-  isActive       Boolean  @default(true) @map("is_active")
-  sortOrder      Int      @default(0) @map("sort_order")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+  pricePerNight  Decimal   @map("price_per_night") @db.Decimal(10, 2)
+  capacity       Int       @default(2)
+  imageUrl       String?   @map("image_url")
+  isActive       Boolean   @default(true) @map("is_active")
+  sortOrder      Int       @default(0) @map("sort_order")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  bookings       Booking[]
 
   @@map("rooms")
 }
@@ -71,6 +72,30 @@ model StoreProduct {
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("store_products")
+}
+
+// ============================================================
+// MODEL: Booking  (Booked Dates section + Reserve Your Villa date picker)
+// ============================================================
+// A single confirmed stay: checkInDate (inclusive) through checkOutDate
+// (exclusive, standard hotel convention — the checkout day itself is not
+// "occupied" and can be someone else's check-in day). The Booked Dates
+// carousel/calendar and the Reserve Your Villa date picker both derive
+// their "already reserved" dates by expanding every active Booking's
+// range server-side (see app/api/bookings/dates/route.js) instead of the
+// old module-level BOOKED_DATES constant.
+model Booking {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId       String?  @map("room_id") @db.Uuid
+  guestName    String   @map("guest_name")
+  checkInDate  DateTime @map("check_in_date") @db.Date
+  checkOutDate DateTime @map("check_out_date") @db.Date
+  status       String   @default("confirmed") // confirmed | cancelled
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  room Room? @relation(fields: [roomId], references: [id])
+
+  @@map("bookings")
 }
 
 // ============================================================

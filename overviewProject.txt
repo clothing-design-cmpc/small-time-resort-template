@@ -27,7 +27,7 @@ Progress: Hero (done), About (done). Next: Rooms & Villas.
 4. DATABASE OVERVIEW
 Supabase Postgres, schema managed via Prisma (prisma/schema.prisma) --
 NEVER the Supabase SQL Editor. Tables: rooms, amenities, store_products,
-admin_profiles. Prisma 7 note: connection URLs are NOT in schema.prisma --
+bookings, admin_profiles. Prisma 7 note: connection URLs are NOT in schema.prisma --
 they live in prisma.config.mjs (CLI: db push/generate/seed, uses
 DIRECT_URL) and services/prisma.js (app runtime, uses DATABASE_URL via
 the @prisma/adapter-pg driver adapter -- Prisma 7 requires an adapter,
@@ -45,7 +45,15 @@ SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD.
 - Room           -- name, slug (unique), description, pricePerNight, capacity, imageUrl, isActive, sortOrder
 - Amenity        -- name, description, icon, isActive, sortOrder
 - StoreProduct   -- name, description, price, category, imageUrl, isActive, sortOrder
-- AdminProfile   -- id (matches a Supabase Auth user UID), fullName, role
+- Booking        -- roomId (optional FK -> Room), guestName, checkInDate, checkOutDate
+                    (checkOutDate is exclusive -- standard hotel convention), status
+                    (confirmed | cancelled). Powers the Booked Dates section and the
+                    Reserve Your Villa date picker -- both read the same
+                    GET /api/bookings/dates endpoint instead of a hardcoded date list.
+- AdminProfile   -- id (matches a Supabase Auth user UID), fullName, role. The actual
+                    email/password for every admin account lives in Supabase Auth's
+                    built-in auth.users table (not managed by Prisma); admin_profiles
+                    only stores role/profile metadata keyed to that same user id.
 
 6. PROCESS FLOW
 
@@ -84,9 +92,25 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages
 - app/superAdmin/(protected)/page.jsx — redirects to dashboard
 - app/superAdmin/(protected)/dashboard/page.jsx — admin dashboard
+- app/api/bookings/dates/route.js — GET, public, returns every currently
+  reserved calendar date (expanded from confirmed Booking rows) as a flat
+  array of "YYYY-MM-DD" strings. Consumed by both BookedDatesSection.jsx
+  and DateCarousel.jsx.
+- components/sections/BookedDatesSection.jsx — fetches booked dates from
+  the API above (loading/empty/error states); carousel + mini calendar
+  render only once the fetch resolves.
+- components/shared/DateCarousel.jsx — "Reserve Your Villa" check-in date
+  picker; also fetches the same booked-dates API and disables/skips any
+  date that's already reserved.
 
 8. API ENDPOINTS
-None yet.
+- POST /api/auth/login  — body { email, password }; verifies against
+  Supabase Auth + admin_profiles, sets the "session" HttpOnly cookie.
+- POST /api/auth/logout — clears the "session" cookie.
+- GET  /api/bookings/dates — public; no input. Returns
+  { success, data: { bookedDates: ["YYYY-MM-DD", ...] }, message }.
+  Expands every confirmed Booking's [checkInDate, checkOutDate) range
+  server-side and returns a deduplicated, sorted list.
 
 9. COMMON DEBUG POINTS
 - If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
@@ -102,6 +126,26 @@ None yet.
   /superAdmin redirect live under app/superAdmin/(protected)/ — that route group is
   what keeps app/superAdmin/login/ (a sibling folder) from inheriting the Sidebar/
   AdminHeader layout.
+- If the super-admin "Super Admin" quick-fill button logs in with a password that
+  doesn't match SEED_ADMIN_PASSWORD: the DEMO_SUPER_ADMIN_PASSWORD constant in
+  app/superAdmin/login/page.jsx is just a hardcoded convenience string — it must be
+  kept in sync by hand with SEED_ADMIN_PASSWORD in .env.local, they are not read
+  from the same source.
+- Admin accounts are NOT a Prisma-managed "users" table — Supabase Auth's built-in
+  auth.users table is the source of truth for email/password; admin_profiles only
+  stores role + fullName keyed to that same auth.users id. Password mismatches are
+  fixed by re-running `npx prisma db seed`, which re-syncs the Auth user's password
+  to SEED_ADMIN_PASSWORD every time it runs (see prisma/seed.js seedSuperAdmin()).
+- If Booked Dates or the Reserve Your Villa picker show "No dates are booked yet."
+  when bookings should exist: confirm `npx prisma db seed` has been run (it seeds
+  sample bookings via seedBookings()) and that GET /api/bookings/dates returns
+  success: true in the browser network tab.
+- If the homepage loads scrolled down to the Booked Dates / Reserve Your Villa
+  area instead of the Hero: check that BookedDatesSection.jsx and
+  DateCarousel.jsx use the track-only centerCardInTrack() scrollTo helper on
+  mount, never scrollIntoView() — scrollIntoView also scrolls the page's
+  vertical axis to bring an off-screen section into view, which is what
+  caused this bug originally.
 
 10. ENVIRONMENT VARIABLES REQUIRED
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)

@@ -99,6 +99,21 @@
 }
 
 /*
+ * .dateCardBooked
+ * A date that's already reserved (per /api/bookings/dates). Not
+ * clickable — struck through and dimmed so it reads as unavailable at
+ * a glance instead of just looking like every other card.
+ */
+.dateCardBooked,
+.dateCardBooked:hover {
+  cursor: not-allowed;
+  opacity: 0.35;
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  text-decoration: line-through;
+}
+
+/*
  * .dateCardActive
  * The card currently centered in the viewport — enlarged and filled
  * with the accent color so it reads immediately as "the selected date."

@@ -12,36 +12,17 @@
  *
  * DATA FLOW:
  * 1. Rendered inside app/visitor/page.jsx between Testimonials and CTA
- * 2. BOOKED_DATE_OBJECTS is a module-level constant — never recreated,
- *    never causes useCallback/useEffect deps to change across renders
- * 3. State: activeIndex (which carousel card) + calMonthOffset (calendar paging)
+ * 2. On mount, fetches GET /api/bookings/dates — the server expands every
+ *    confirmed Booking's [checkInDate, checkOutDate) range into a flat,
+ *    deduplicated list of "YYYY-MM-DD" strings. Replaces the old
+ *    hardcoded BOOKED_DATES constant that lived directly in this file.
+ * 3. State: bookedDates (fetched), isLoading, loadError, activeIndex
+ *    (which carousel card), calMonthOffset (calendar paging)
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./BookedDatesSection.css";
-
-/* ─── Static data — module-level so it's created once, never on re-render ── */
-const BOOKED_DATES = [
-  "2026-07-10","2026-07-11","2026-07-12",
-  "2026-07-15","2026-07-16",
-  "2026-07-20","2026-07-21","2026-07-22","2026-07-23",
-  "2026-07-28","2026-07-29","2026-07-30",
-  "2026-08-03","2026-08-04","2026-08-05",
-  "2026-08-10","2026-08-11",
-  "2026-08-18","2026-08-19","2026-08-20","2026-08-21",
-  "2026-08-25","2026-08-26",
-  "2026-09-01","2026-09-02","2026-09-03",
-  "2026-09-08","2026-09-09",
-  "2026-09-15","2026-09-16","2026-09-17",
-];
-
-const BOOKED_DATE_OBJECTS = BOOKED_DATES.map((s) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-});
-
-const BOOKED_SET = new Set(BOOKED_DATES);
 
 /* ─── Formatters ─────────────────────────────────────────────────────────── */
 const WEEKDAY_SHORT  = new Intl.DateTimeFormat("en-US", { weekday: "short" });
@@ -64,18 +45,92 @@ const TODAY_KEY = toKey(TODAY);
 /* ─── Main exported section ──────────────────────────────────────────────── */
 export default function BookedDatesSection() {
   /*
+   * bookedDates  — "YYYY-MM-DD" strings fetched from /api/bookings/dates
+   * isLoading    — true while the fetch is in flight
+   * loadError    — set if the fetch fails, drives the error state + retry
    * activeIndex  — which booked-date card is centered/selected in the carousel
    * calMonthOffset — how many months the visitor has paged from the selected date's month
    */
+  const [bookedDates, setBookedDates]       = useState([]);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [loadError, setLoadError]           = useState(null);
   const [activeIndex, setActiveIndex]       = useState(0);
   const [calMonthOffset, setCalMonthOffset] = useState(0);
+  // Bumped by the error state's "Try again" button to re-run the fetch
+  // effect below without duplicating the fetch logic outside the effect.
+  const [reloadToken, setReloadToken]       = useState(0);
 
-  const trackRef         = useRef(null);
-  const isScrolling      = useRef(false);   /* true while a programmatic scroll is animating */
-  const scrollTimer      = useRef(null);
+  const trackRef    = useRef(null);
+  const isScrolling  = useRef(false);   /* true while a programmatic scroll is animating */
+  const scrollTimer  = useRef(null);
 
-  const selectedDate = BOOKED_DATE_OBJECTS[activeIndex];
-  const selectedKey  = toKey(selectedDate);
+  /*
+   * Fetch booked dates on mount (and whenever reloadToken changes, i.e.
+   * the visitor clicks "Try again" after a failed load). The async
+   * function is defined inside the effect so setState calls are always
+   * inside its own resolved callback, not the synchronous effect body.
+   */
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchBookedDates() {
+      setIsLoading(true);
+      setLoadError(null);
+
+      try {
+        const response = await fetch("/api/bookings/dates");
+        const result = await response.json();
+        if (isCancelled) return;
+
+        if (!result.success) {
+          setLoadError(result.message || "Failed to load booked dates. Please try again.");
+          return;
+        }
+
+        setBookedDates(result.data.bookedDates);
+        setActiveIndex(0);
+      } catch {
+        if (!isCancelled) {
+          setLoadError("We couldn't reach the server. Check your connection and try again.");
+        }
+      } finally {
+        if (!isCancelled) setIsLoading(false);
+      }
+    }
+
+    fetchBookedDates();
+    return () => {
+      isCancelled = true;
+    };
+  }, [reloadToken]);
+
+  /* Parsed Date objects + a lookup Set, recomputed only when bookedDates changes */
+  const bookedDateObjects = useMemo(
+    () =>
+      bookedDates.map((s) => {
+        const [y, m, d] = s.split("-").map(Number);
+        return new Date(y, m - 1, d);
+      }),
+    [bookedDates]
+  );
+  const bookedSet = useMemo(() => new Set(bookedDates), [bookedDates]);
+
+  const selectedDate = bookedDateObjects[activeIndex];
+  const selectedKey  = selectedDate ? toKey(selectedDate) : null;
+
+  /*
+   * centerCardInTrack
+   * Scrolls only the carousel track's own horizontal scrollbar so the
+   * given card sits centered — never calls scrollIntoView, which also
+   * scrolls the page's vertical axis to bring an off-screen section into
+   * view. That was the root cause of the page jumping down to this
+   * section on every reload instead of staying on the Hero section.
+   */
+  function centerCardInTrack(track, card, behavior) {
+    if (!track || !card) return;
+    const targetLeft = card.offsetLeft - track.clientWidth / 2 + card.clientWidth / 2;
+    track.scrollTo({ left: targetLeft, behavior });
+  }
 
   /*
    * selectIndex
@@ -85,7 +140,7 @@ export default function BookedDatesSection() {
    * through clicks (card click, arrow click).
    */
   function selectIndex(index) {
-    const clamped = Math.max(0, Math.min(BOOKED_DATE_OBJECTS.length - 1, index));
+    const clamped = Math.max(0, Math.min(bookedDateObjects.length - 1, index));
     setActiveIndex(clamped);
     setCalMonthOffset(0);   /* jump calendar back to the selected month */
 
@@ -95,7 +150,7 @@ export default function BookedDatesSection() {
     if (!card) return;
 
     isScrolling.current = true;
-    card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    centerCardInTrack(track, card, "smooth");
 
     window.clearTimeout(scrollTimer.current);
     scrollTimer.current = window.setTimeout(() => {
@@ -103,17 +158,20 @@ export default function BookedDatesSection() {
     }, 600);
   }
 
-  /* Scroll the first card into the visual center on mount — DOM-only side effect,
-     no setState needed since activeIndex initialises to 0 already */
+  /* Scroll the first card into the visual center whenever the fetched list
+     changes — DOM-only side effect. Uses the track-only scrollTo helper so
+     this never scrolls the page vertically. */
   useEffect(() => {
     const track = trackRef.current;
-    if (!track) return;
+    if (!track || bookedDateObjects.length === 0) return;
     const card = track.children[0];
-    if (card) card.scrollIntoView({ behavior: "instant", inline: "center", block: "nearest" });
-  }, []);
+    centerCardInTrack(track, card, "instant");
+  }, [bookedDateObjects.length]);
 
   /* ─── Calendar derived state ─────────────────────────────────── */
-  const calBase    = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + calMonthOffset, 1);
+  const calBase    = selectedDate
+    ? new Date(selectedDate.getFullYear(), selectedDate.getMonth() + calMonthOffset, 1)
+    : new Date(TODAY.getFullYear(), TODAY.getMonth() + calMonthOffset, 1);
   const calYear    = calBase.getFullYear();
   const calMonth   = calBase.getMonth();
   const firstDay   = new Date(calYear, calMonth, 1);
@@ -136,134 +194,174 @@ export default function BookedDatesSection() {
           </p>
         </div>
 
-        {/* Selected date readout */}
-        <p className="bookedDatesReadout">
-          Viewing:{" "}
-          <span className="bookedDatesReadoutValue">
-            {FULL_DATE_FMT.format(selectedDate)}
-          </span>
-        </p>
+        {/* Loading skeleton — mirrors the shape of the carousel + calendar */}
+        {isLoading && (
+          <div className="bookedDatesSkeletonWrap" aria-label="Loading booked dates">
+            <div className="bookedDatesSkeletonReadout skeletonBlock" />
+            <div className="bookedDatesSkeletonCarousel">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="bookedDatesSkeletonCard skeletonBlock" />
+              ))}
+            </div>
+            <div className="bookedDatesSkeletonCalendar skeletonBlock" />
+          </div>
+        )}
 
-        {/* Carousel */}
-        <div className="bookedCarouselViewport">
-          <button
-            type="button"
-            className="bookedCarouselArrow"
-            aria-label="Previous booked date"
-            onClick={() => selectIndex(activeIndex - 1)}
-            disabled={activeIndex === 0}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+        {/* Error state — user-friendly message + retry, never raw error text */}
+        {!isLoading && loadError && (
+          <div className="bookedDatesErrorState">
+            <p className="bookedDatesErrorMessage">{loadError}</p>
+            <button
+              type="button"
+              className="bookedDatesRetryButton"
+              onClick={() => setReloadToken((token) => token + 1)}
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-          <div
-            className="bookedCarouselTrack"
-            ref={trackRef}
-            role="listbox"
-            aria-label="Booked dates"
-          >
-            {BOOKED_DATE_OBJECTS.map((date, index) => (
+        {/* Empty state — no active bookings in the database yet */}
+        {!isLoading && !loadError && bookedDateObjects.length === 0 && (
+          <div className="bookedDatesEmptyState">
+            <p className="bookedDatesEmptyTitle">No dates are booked yet.</p>
+            <p className="bookedDatesEmptySubtitle">Every villa is currently available — check the Reserve Your Villa section below to pick a date.</p>
+          </div>
+        )}
+
+        {/* Loaded — carousel + calendar */}
+        {!isLoading && !loadError && bookedDateObjects.length > 0 && (
+          <>
+            {/* Selected date readout */}
+            <p className="bookedDatesReadout">
+              Viewing:{" "}
+              <span className="bookedDatesReadoutValue">
+                {FULL_DATE_FMT.format(selectedDate)}
+              </span>
+            </p>
+
+            {/* Carousel */}
+            <div className="bookedCarouselViewport">
               <button
-                key={toKey(date)}
                 type="button"
-                role="option"
-                aria-selected={index === activeIndex}
-                className={`bookedCard${index === activeIndex ? " bookedCardActive" : ""}`}
-                onClick={() => selectIndex(index)}
+                className="bookedCarouselArrow"
+                aria-label="Previous booked date"
+                onClick={() => selectIndex(activeIndex - 1)}
+                disabled={activeIndex === 0}
               >
-                <span className="bookedCardWeekday">{WEEKDAY_SHORT.format(date)}</span>
-                <span className="bookedCardDay">{date.getDate()}</span>
-                <span className="bookedCardMonth">{MONTH_SHORT.format(date)}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
               </button>
-            ))}
-          </div>
 
-          <button
-            type="button"
-            className="bookedCarouselArrow"
-            aria-label="Next booked date"
-            onClick={() => selectIndex(activeIndex + 1)}
-            disabled={activeIndex === BOOKED_DATE_OBJECTS.length - 1}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
+              <div
+                className="bookedCarouselTrack"
+                ref={trackRef}
+                role="listbox"
+                aria-label="Booked dates"
+              >
+                {bookedDateObjects.map((date, index) => (
+                  <button
+                    key={toKey(date)}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    className={`bookedCard${index === activeIndex ? " bookedCardActive" : ""}`}
+                    onClick={() => selectIndex(index)}
+                  >
+                    <span className="bookedCardWeekday">{WEEKDAY_SHORT.format(date)}</span>
+                    <span className="bookedCardDay">{date.getDate()}</span>
+                    <span className="bookedCardMonth">{MONTH_SHORT.format(date)}</span>
+                  </button>
+                ))}
+              </div>
 
-        {/* Mini calendar */}
-        <div className="miniCalendar" aria-label={`Calendar for ${calLabel}`}>
-          <div className="miniCalendarHeader">
-            <button
-              type="button"
-              className="miniCalendarNav"
-              aria-label="Previous month"
-              onClick={() => setCalMonthOffset((o) => o - 1)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-            <span className="miniCalendarLabel">{calLabel}</span>
-            <button
-              type="button"
-              className="miniCalendarNav"
-              aria-label="Next month"
-              onClick={() => setCalMonthOffset((o) => o + 1)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
+              <button
+                type="button"
+                className="bookedCarouselArrow"
+                aria-label="Next booked date"
+                onClick={() => selectIndex(activeIndex + 1)}
+                disabled={activeIndex === bookedDateObjects.length - 1}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
 
-          <div className="miniCalendarGrid">
-            {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
-              <span key={d} className="miniCalendarWeekdayLabel">{d}</span>
-            ))}
+            {/* Mini calendar */}
+            <div className="miniCalendar" aria-label={`Calendar for ${calLabel}`}>
+              <div className="miniCalendarHeader">
+                <button
+                  type="button"
+                  className="miniCalendarNav"
+                  aria-label="Previous month"
+                  onClick={() => setCalMonthOffset((o) => o - 1)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+                <span className="miniCalendarLabel">{calLabel}</span>
+                <button
+                  type="button"
+                  className="miniCalendarNav"
+                  aria-label="Next month"
+                  onClick={() => setCalMonthOffset((o) => o + 1)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              </div>
 
-            {Array.from({ length: leadBlanks }, (_, i) => (
-              <span key={`b${i}`} className="miniCalendarBlank" />
-            ))}
+              <div className="miniCalendarGrid">
+                {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
+                  <span key={d} className="miniCalendarWeekdayLabel">{d}</span>
+                ))}
 
-            {Array.from({ length: totalDays }, (_, i) => {
-              const day      = i + 1;
-              const cellDate = new Date(calYear, calMonth, day);
-              const cellKey  = toKey(cellDate);
-              const isBooked = BOOKED_SET.has(cellKey);
-              const isToday  = cellKey === TODAY_KEY;
-              const isHigh   = cellKey === selectedKey;
+                {Array.from({ length: leadBlanks }, (_, i) => (
+                  <span key={`b${i}`} className="miniCalendarBlank" />
+                ))}
 
-              let cls = "miniCalendarDay";
-              if (isBooked) cls += " miniCalendarDayBooked";
-              if (isToday)  cls += " miniCalendarDayToday";
-              if (isHigh)   cls += " miniCalendarDayHighlighted";
+                {Array.from({ length: totalDays }, (_, i) => {
+                  const day      = i + 1;
+                  const cellDate = new Date(calYear, calMonth, day);
+                  const cellKey  = toKey(cellDate);
+                  const isBooked = bookedSet.has(cellKey);
+                  const isToday  = cellKey === TODAY_KEY;
+                  const isHigh   = cellKey === selectedKey;
 
-              return (
-                <span key={cellKey} className={cls}>
-                  {day}
+                  let cls = "miniCalendarDay";
+                  if (isBooked) cls += " miniCalendarDayBooked";
+                  if (isToday)  cls += " miniCalendarDayToday";
+                  if (isHigh)   cls += " miniCalendarDayHighlighted";
+
+                  return (
+                    <span key={cellKey} className={cls}>
+                      {day}
+                    </span>
+                  );
+                })}
+              </div>
+
+              <div className="miniCalendarLegend">
+                <span className="miniCalendarLegendItem">
+                  <span className="miniCalendarLegendDot miniCalendarLegendDotBooked" />
+                  Booked
                 </span>
-              );
-            })}
-          </div>
-
-          <div className="miniCalendarLegend">
-            <span className="miniCalendarLegendItem">
-              <span className="miniCalendarLegendDot miniCalendarLegendDotBooked" />
-              Booked
-            </span>
-            <span className="miniCalendarLegendItem">
-              <span className="miniCalendarLegendDot miniCalendarLegendDotToday" />
-              Today
-            </span>
-            <span className="miniCalendarLegendItem">
-              <span className="miniCalendarLegendDot miniCalendarLegendDotAvailable" />
-              Available
-            </span>
-          </div>
-        </div>
+                <span className="miniCalendarLegendItem">
+                  <span className="miniCalendarLegendDot miniCalendarLegendDotToday" />
+                  Today
+                </span>
+                <span className="miniCalendarLegendItem">
+                  <span className="miniCalendarLegendDot miniCalendarLegendDotAvailable" />
+                  Available
+                </span>
+              </div>
+            </div>
+          </>
+        )}
 
       </div>
     </section>

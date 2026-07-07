@@ -31,7 +31,7 @@ import "./Login.css";
 /* Placeholder demo credentials for the quick-fill button. Must match the
    SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD used by prisma/seed.js. */
 const DEMO_SUPER_ADMIN_EMAIL = "superadmin@villaazure.com";
-const DEMO_SUPER_ADMIN_PASSWORD = "SuperAdmin123!";
+const DEMO_SUPER_ADMIN_PASSWORD = "superadmin123";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address."),

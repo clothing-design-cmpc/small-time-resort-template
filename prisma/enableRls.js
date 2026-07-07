@@ -37,6 +37,12 @@ const statements = [
 
   `alter table admin_profiles enable row level security;`,
   `create policy "Admins can view own profile" on admin_profiles for select using (auth.uid() = id);`,
+
+  // Public reads are limited to confirmed bookings — the app-layer route
+  // (app/api/bookings/dates/route.js) only ever selects checkInDate/
+  // checkOutDate, never guestName, so no guest PII is exposed either way.
+  `alter table bookings enable row level security;`,
+  `create policy "Public can view confirmed bookings" on bookings for select using (status = 'confirmed');`,
 ];
 
 /**

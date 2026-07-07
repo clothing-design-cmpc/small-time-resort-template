@@ -64,6 +64,9 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - components/shared/Header.jsx  — sticky nav: logo, links, Login link, Book Now CTA
 - app/visitor/booking/page.jsx  — booking holding page (Book Now CTA target, full form not built yet)
 - app/superAdmin/login/page.jsx — admin sign-in form (static, no Supabase auth wired yet)
+- app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages
+- app/superAdmin/(protected)/page.jsx — redirects to dashboard
+- app/superAdmin/(protected)/dashboard/page.jsx — admin dashboard
 
 8. API ENDPOINTS
 None yet.
@@ -78,6 +81,10 @@ None yet.
 - If "Login" link is missing from the Header: check components/shared/Header.jsx for
   the headerLoginLink (desktop) and headerMobileLoginLink (mobile) elements, both
   pointing to /superAdmin/login.
+- If Sidebar/AdminHeader show up on the login page: confirm dashboard and the root
+  /superAdmin redirect live under app/superAdmin/(protected)/ — that route group is
+  what keeps app/superAdmin/login/ (a sibling folder) from inheriting the Sidebar/
+  AdminHeader layout.
 
 10. ENVIRONMENT VARIABLES REQUIRED
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)

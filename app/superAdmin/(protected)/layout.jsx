@@ -1,20 +1,21 @@
 /**
- * FILE: app/superAdmin/layout.jsx
+ * FILE: app/superAdmin/(protected)/layout.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Shell for every page under /superAdmin. Renders the fixed left
- * Sidebar and the sticky top AdminHeader around every super-admin
- * page. Applies the enterprise dark-first design tokens scoped to
- * this account only (visitor site keeps its own light theme).
+ * Shell for every AUTHENTICATED page under /superAdmin. Renders the
+ * fixed left Sidebar and the sticky top AdminHeader around every
+ * super-admin page. Lives inside the (protected) route group so
+ * /superAdmin/login — a sibling folder outside this group — never
+ * gets wrapped by this layout (login has no Sidebar/AdminHeader).
  *
  * DATA FLOW:
- * 1. Every route under app/superAdmin/ renders inside this layout's {children}
+ * 1. Every route under app/superAdmin/(protected)/ renders inside this layout's {children}
  * 2. Sidebar and AdminHeader are rendered once, shared across all admin pages
  * 3. No session check happens here — middleware.js already blocked anyone
  *    without a valid superAdmin session before this layout ever renders
  */
-import "./SuperAdmin.css";
+import "../SuperAdmin.css";
 import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
 

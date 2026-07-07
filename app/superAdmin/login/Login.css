@@ -1,32 +1,65 @@
 /*
  * .loginSection
- * Full-viewport centering wrapper. Uses the enterprise dark tokens
- * directly (this page renders outside .superAdminRoot's layout, so
- * tokens are redeclared locally to match the same theme).
+ * Full-viewport section that hosts the background photo — position:
+ * relative so the fill Image and overlay can be absolutely positioned
+ * inside it. Card is centered on top via flex.
  */
 .loginSection {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
   padding: var(--space-lg);
-  background-color: #0d0e12;
+  overflow: hidden;
+}
+
+/*
+ * .loginBackgroundImage
+ * next/image with `fill` — same placeholder villa photo as the
+ * visitor Hero, so the admin login feels part of the same resort.
+ */
+.loginBackgroundImage {
+  object-fit: cover;
+  z-index: var(--z-base);
+}
+
+/*
+ * .loginOverlay
+ * Dark gradient above the photo so the frosted card and its text
+ * stay readable regardless of the underlying image brightness.
+ */
+.loginOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 10, 12, 0.55) 0%,
+    rgba(9, 10, 12, 0.75) 100%
+  );
+  z-index: var(--z-raised);
 }
 
 /*
  * .loginCard
- * Centered card holding the sign-in form. Layered surface + subtle
- * border per the design token standard, never a flat fill.
+ * Frosted-glass card floating above the photo. Semi-transparent fill
+ * + backdrop-filter blur is what creates the glass effect; border
+ * stays subtle so the edge reads without competing with the photo.
  */
 .loginCard {
+  position: relative;
+  z-index: var(--z-raised);
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 380px;
   padding: var(--space-xl) var(--space-lg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 .loginEyebrow {
@@ -34,7 +67,7 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .loginTitle {
@@ -42,14 +75,14 @@
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #f8f9fa;
+  color: #ffffff;
 }
 
 .loginSubtitle {
   margin-top: var(--space-xs);
   margin-bottom: var(--space-lg);
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 /*
@@ -67,28 +100,34 @@
   margin-top: var(--space-sm);
   font-size: 0.85rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /*
  * .loginInput
+ * Semi-transparent field matching the frosted card, not a solid
+ * fill — keeps the glass effect consistent inside the card too.
  * font-size 1rem minimum prevents iOS auto-zoom on focus (Rule 29.6).
  */
 .loginInput {
   width: 100%;
   min-height: 44px;
   padding: 0.6rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.02);
-  color: #f8f9fa;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   font-size: 1rem;
+}
+
+.loginInput::placeholder {
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .loginInput:focus-visible {
   outline: none;
   border-color: #06b6d4;
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
 }
 
 .loginSubmitButton {
@@ -105,6 +144,7 @@
   font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
 }
 
 .loginSubmitButton:hover,

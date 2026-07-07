@@ -1,5 +1,5 @@
 /**
- * FILE: app/superAdmin/page.jsx
+ * FILE: app/superAdmin/(protected)/page.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:

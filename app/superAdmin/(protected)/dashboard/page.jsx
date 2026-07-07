@@ -1,5 +1,5 @@
 /**
- * FILE: app/superAdmin/dashboard/page.jsx
+ * FILE: app/superAdmin/(protected)/dashboard/page.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:

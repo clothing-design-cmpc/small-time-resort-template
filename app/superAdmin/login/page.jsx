@@ -17,6 +17,7 @@
  *    a server action / API route that sets the "session" HttpOnly
  *    cookie middleware.js checks, then redirect to /superAdmin/dashboard
  */
+import Image from "next/image";
 import "./Login.css";
 
 export const metadata = {
@@ -27,6 +28,18 @@ export const metadata = {
 export default function SuperAdminLoginPage() {
   return (
     <section className="loginSection">
+      {/* Same placeholder villa photo used on the visitor Hero — swap for
+          real resort photography in public/images/ once R2 is connected */}
+      <Image
+        src="https://images.unsplash.com/photo-1759372945658-1e9f56e751bd?auto=format&fit=crop&w=2400&q=80"
+        alt="Tropical villa with a private pool at twilight"
+        fill
+        priority
+        className="loginBackgroundImage"
+      />
+      {/* Dark gradient overlay sits above the photo for card contrast */}
+      <div className="loginOverlay" />
+
       <div className="loginCard">
         <span className="loginEyebrow">Villa Azure Resort</span>
         <h1 className="loginTitle">Admin Login</h1>

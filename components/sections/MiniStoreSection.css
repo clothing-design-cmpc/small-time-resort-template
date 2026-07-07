@@ -1,0 +1,230 @@
+/*
+ * MiniStoreSection.css
+ * Display-only resort merchandise grid. Cards are intentionally clean
+ * and editorial — merchandise photography is the hero; text plays
+ * a supporting role. No hover-to-cart, no interactive state beyond
+ * the subtle lift on hover.
+ */
+
+/* ─── Section wrapper ───────────────────────────────────────────────── */
+.miniStoreSection {
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  background-color: rgba(63, 125, 82, 0.035);
+}
+
+.miniStoreContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────── */
+.miniStoreHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.miniStoreEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.miniStoreTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.miniStoreSubtitle {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  max-width: 52ch;
+}
+
+/* ─── Product grid ──────────────────────────────────────────────────── */
+/*
+ * .miniStoreGrid
+ * Flex-wrap so an incomplete last row centers itself — consistent with
+ * every other grid on the site (rooms, amenities, testimonials).
+ */
+.miniStoreGrid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+/*
+ * .miniStoreCard
+ * Product card — image on top, content below. flex-basis 280px so
+ * it lays out 3-per-row on desktop and wraps naturally on tablet/mobile.
+ * Lifts slightly on hover with a shadow increase and border darkening.
+ */
+.miniStoreCard {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: #ffffff;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  flex: 1 1 280px;
+  max-width: 340px;
+  transition:
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    transform var(--transition-base);
+  will-change: transform;
+}
+
+.miniStoreCard:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-hover);
+  transform: translateY(-3px);
+}
+
+/* ─── Product image ─────────────────────────────────────────────────── */
+/*
+ * .miniStoreImageWrapper
+ * Positioned container for next/image fill mode — gives the image a
+ * fixed aspect ratio without hard-coding a height on the img itself
+ * (Rule 27.1 — no fixed width/height on img tags).
+ */
+.miniStoreImageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.miniStoreImage {
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+}
+
+.miniStoreCard:hover .miniStoreImage {
+  transform: scale(1.04);
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────────── */
+/*
+ * .miniStoreBadge
+ * Small pill overlay on the image — positioned top-left so it doesn't
+ * cover the product's focal point. Three tones: accent (green),
+ * warm (amber), and earth (brown) for visual variety.
+ */
+.miniStoreBadge {
+  position: absolute;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: var(--z-raised);
+}
+
+.miniStoreBadge--accent {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.miniStoreBadge--warm {
+  background-color: #d98a24;
+  color: #fff8ee;
+}
+
+.miniStoreBadge--earth {
+  background-color: #7a5c3a;
+  color: #fdf5eb;
+}
+
+/* ─── Card body ─────────────────────────────────────────────────────── */
+.miniStoreCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  flex: 1 1 auto;
+}
+
+.miniStoreProductName {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.miniStoreProductDesc {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  flex: 1 1 auto;
+}
+
+/*
+ * .miniStoreCardFooter
+ * Price on the left, "At reception" availability tag on the right.
+ * Space-between so they always sit at opposite ends regardless of
+ * description length.
+ */
+.miniStoreCardFooter {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-sm);
+}
+
+.miniStorePrice {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+/*
+ * .miniStoreAvailabilityTag
+ * Replaces a "Add to Cart" button — makes clear this is display-only
+ * and guests get the item at the resort, not via an online order.
+ */
+.miniStoreAvailabilityTag {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-weight: 600;
+  background-color: rgba(63, 125, 82, 0.1);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+/* ─── Footer note ───────────────────────────────────────────────────── */
+.miniStoreFootnote {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 52ch;
+  line-height: 1.65;
+}

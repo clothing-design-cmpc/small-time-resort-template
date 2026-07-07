@@ -4,18 +4,22 @@
  *
  * PURPOSE:
  * Homepage that renders all visitor sections in sequence:
- * Hero → About → Featured Rooms → Amenities → Testimonials → CTA
+ * Hero → About → Featured Rooms → Amenities → Mini Store →
+ * Testimonials → Booked Dates → CTA
  *
  * DATA FLOW:
  * 1. Visitor hits "/visitor"
- * 2. All sections render server-side — no client data fetching
- * 3. Placeholder data used for rooms/amenities until Supabase is connected
+ * 2. Server-side sections render without data fetching (static placeholders)
+ * 3. BookedDatesSection and CTASection are Client Components — they own
+ *    interactive carousel state locally, no SSR data needed
  */
 import Hero from "@/components/Hero";
 import About from "@/components/About";
 import FeaturedRoomsSection from "@/components/sections/FeaturedRoomsSection";
 import AmenitiesHighlightSection from "@/components/sections/AmenitiesHighlightSection";
+import MiniStoreSection from "@/components/sections/MiniStoreSection";
 import TestimonialsSection from "@/components/sections/TestimonialsSection";
+import BookedDatesSection from "@/components/sections/BookedDatesSection";
 import CTASection from "@/components/sections/CTASection";
 
 export const metadata = {
@@ -35,7 +39,9 @@ export default function VisitorHomePage() {
       <About />
       <FeaturedRoomsSection />
       <AmenitiesHighlightSection />
+      <MiniStoreSection />
       <TestimonialsSection />
+      <BookedDatesSection />
       <CTASection />
     </main>
   );

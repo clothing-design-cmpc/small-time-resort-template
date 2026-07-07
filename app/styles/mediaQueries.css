@@ -121,8 +121,27 @@
   .featuredRoomsTitle,
   .amenitiesHighlightTitle,
   .testimonialsTitle,
-  .ctaTitle {
+  .ctaTitle,
+  .bookedDatesTitle,
+  .miniStoreTitle {
     font-size: 1.65rem;
+  }
+
+  /* Booked dates carousel — narrow viewport centering padding */
+  .bookedCarouselTrack {
+    padding-left: calc(50% - 36px);
+    padding-right: calc(50% - 36px);
+  }
+
+  /* Mini calendar — full width on mobile */
+  .miniCalendar {
+    max-width: 100%;
+  }
+
+  /* Mini store — cards go full width on very small screens */
+  .miniStoreCard {
+    flex: 1 1 100%;
+    max-width: 100%;
   }
 
   /* Footer bottom — stack on mobile */

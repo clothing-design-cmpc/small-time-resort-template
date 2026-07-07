@@ -1,0 +1,373 @@
+/*
+ * BookedDatesSection.css
+ * Styles for the booked-dates carousel + mini calendar.
+ * Color intent: booked = warm red-amber; today = accent green;
+ * available = default surface — matches the resort's light green theme.
+ */
+
+/* ─── Section wrapper ───────────────────────────────────────────────── */
+.bookedDatesSection {
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.bookedDatesContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────── */
+.bookedDatesHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.bookedDatesEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.bookedDatesTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.bookedDatesSubtitle {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  max-width: 52ch;
+}
+
+/* ─── Selected date readout ─────────────────────────────────────────── */
+.bookedDatesReadout {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+.bookedDatesReadoutValue {
+  font-weight: 600;
+  color: #c0442a;
+}
+
+/* ─── Carousel viewport (arrows + track) ─────────────────────────────── */
+.bookedCarouselViewport {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 600px;
+}
+
+/*
+ * .bookedCarouselTrack
+ * Horizontally scrollable strip. Side padding lets the first and last
+ * cards reach the visual center. Edge fade mask gives the strip a natural
+ * soft finish rather than a hard clip.
+ */
+.bookedCarouselTrack {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  flex: 1 1 auto;
+  padding: var(--space-xs) calc(50% - 36px);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, transparent 0, #000 64px, #000 calc(100% - 64px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 64px, #000 calc(100% - 64px), transparent 100%);
+}
+
+.bookedCarouselTrack::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * .bookedCard
+ * Single booked-date card. Fixed width for consistent scroll-snap math.
+ * Default state is a red-amber tint to communicate "unavailable".
+ */
+.bookedCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+  width: 72px;
+  min-height: 78px;
+  padding: var(--space-sm) 0;
+  border: 1px solid rgba(192, 68, 42, 0.2);
+  border-radius: 12px;
+  background-color: rgba(192, 68, 42, 0.05);
+  color: rgba(192, 68, 42, 0.7);
+  cursor: pointer;
+  scroll-snap-align: center;
+  touch-action: manipulation;
+  transition:
+    transform var(--transition-base),
+    background-color var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    color var(--transition-base);
+}
+
+.bookedCard:hover {
+  border-color: rgba(192, 68, 42, 0.4);
+  background-color: rgba(192, 68, 42, 0.09);
+}
+
+/*
+ * .bookedCardActive
+ * The centered/selected card — fully filled with the booked red-amber
+ * and scaled up so it reads as the currently focused date.
+ */
+.bookedCardActive,
+.bookedCardActive:hover {
+  transform: scale(1.14);
+  background-color: #c0442a;
+  border-color: #c0442a;
+  color: #fff8f6;
+  box-shadow: var(--shadow-card-hover);
+}
+
+.bookedCardWeekday {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.bookedCardDay {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.bookedCardMonth {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/*
+ * .bookedCarouselArrow
+ * Prev/next controls flanking the strip — identical shape to DateCarousel
+ * arrows for visual consistency across both carousels.
+ */
+.bookedCarouselArrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.bookedCarouselArrow:hover,
+.bookedCarouselArrow:focus {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}
+
+.bookedCarouselArrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ─── Mini calendar ─────────────────────────────────────────────────── */
+/*
+ * .miniCalendar
+ * Compact month-view calendar below the carousel. Max-width keeps it
+ * from stretching on wide screens — 380px is just enough for 7 columns.
+ */
+.miniCalendar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 380px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  padding: var(--space-lg);
+}
+
+/*
+ * .miniCalendarHeader
+ * Prev / Month-Year label / Next row above the day grid.
+ */
+.miniCalendarHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.miniCalendarLabel {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+.miniCalendarNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.miniCalendarNav:hover,
+.miniCalendarNav:focus {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}
+
+/*
+ * .miniCalendarGrid
+ * 7-column grid — one column per weekday. Day cells and weekday labels
+ * both live here so column alignment is automatic.
+ */
+.miniCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+.miniCalendarWeekdayLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.miniCalendarBlank {
+  /* Empty placeholder — keeps day cells in the correct column */
+}
+
+/*
+ * .miniCalendarDay
+ * Individual day cell. Small circle shape so the highlight states
+ * read as markers, not blocks.
+ */
+.miniCalendarDay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+/*
+ * .miniCalendarDayBooked
+ * Date that is already reserved — warm red-amber fill matching the
+ * carousel card color to maintain visual consistency.
+ */
+.miniCalendarDayBooked {
+  background-color: rgba(192, 68, 42, 0.12);
+  color: #c0442a;
+  font-weight: 600;
+}
+
+/*
+ * .miniCalendarDayToday
+ * Today's date — accent green ring (outline, not fill) so it doesn't
+ * clash visually with booked dates that might coincide.
+ */
+.miniCalendarDayToday {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/*
+ * .miniCalendarDayHighlighted
+ * The date currently centered in the booked carousel — solid booked-red
+ * fill with white text, visually linking the carousel and the calendar.
+ */
+.miniCalendarDayHighlighted {
+  background-color: #c0442a;
+  color: #fff8f6;
+  font-weight: 700;
+}
+
+/* ─── Legend ─────────────────────────────────────────────────────────── */
+.miniCalendarLegend {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+.miniCalendarLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.03em;
+}
+
+.miniCalendarLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.miniCalendarLegendDotBooked {
+  background-color: #c0442a;
+}
+
+.miniCalendarLegendDotToday {
+  background-color: var(--color-accent);
+}
+
+.miniCalendarLegendDotAvailable {
+  background-color: var(--color-border-hover);
+}

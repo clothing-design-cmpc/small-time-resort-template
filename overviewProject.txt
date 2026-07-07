@@ -61,6 +61,9 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - components/Hero.css           — Hero section styles, gradient background (no photo yet)
 - components/About.jsx          — About section: resort story + 3 "why choose us" cards
 - components/About.css          — About section styles, auto-fill differentiator grid
+- components/shared/Header.jsx  — sticky nav: logo, links, Login link, Book Now CTA
+- app/visitor/booking/page.jsx  — booking holding page (Book Now CTA target, full form not built yet)
+- app/superAdmin/login/page.jsx — admin sign-in form (static, no Supabase auth wired yet)
 
 8. API ENDPOINTS
 None yet.
@@ -70,6 +73,11 @@ None yet.
 - If styles missing: confirm globals.css and mediaQueries.css are imported in app/layout.jsx.
 - If superAdmin routes are reachable without auth: middleware.js has no real session
   check yet — this is expected until superAdmin login is built.
+- If "Book Now" 404s: confirm app/visitor/booking/page.jsx still exists — Header.jsx
+  links directly to /visitor/booking.
+- If "Login" link is missing from the Header: check components/shared/Header.jsx for
+  the headerLoginLink (desktop) and headerMobileLoginLink (mobile) elements, both
+  pointing to /superAdmin/login.
 
 10. ENVIRONMENT VARIABLES REQUIRED
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)

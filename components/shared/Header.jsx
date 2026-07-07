@@ -46,6 +46,12 @@ export default function Header() {
           ))}
         </nav>
 
+        {/* Staff/admin login — desktop. Kept visually quiet (text link, not
+            a filled button) so it never competes with the Book Now CTA. */}
+        <Link href="/superAdmin/login" className="headerLoginLink">
+          Login
+        </Link>
+
         {/* Book Now CTA — desktop */}
         <Link href="/visitor/booking" className="headerBookButton">
           Book Now
@@ -94,6 +100,13 @@ export default function Header() {
             onClick={() => setMenuOpen(false)}
           >
             Book Now
+          </Link>
+          <Link
+            href="/superAdmin/login"
+            className="headerMobileLoginLink"
+            onClick={() => setMenuOpen(false)}
+          >
+            Login
           </Link>
         </nav>
       )}

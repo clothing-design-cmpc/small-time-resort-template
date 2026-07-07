@@ -1,0 +1,113 @@
+/*
+ * .loginSection
+ * Full-viewport centering wrapper. Uses the enterprise dark tokens
+ * directly (this page renders outside .superAdminRoot's layout, so
+ * tokens are redeclared locally to match the same theme).
+ */
+.loginSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+  background-color: #0d0e12;
+}
+
+/*
+ * .loginCard
+ * Centered card holding the sign-in form. Layered surface + subtle
+ * border per the design token standard, never a flat fill.
+ */
+.loginCard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  padding: var(--space-xl) var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.loginEyebrow {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.loginTitle {
+  margin-top: var(--space-sm);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f8f9fa;
+}
+
+.loginSubtitle {
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-lg);
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/*
+ * .loginForm
+ * Single-column field stack. Gap handles spacing — never margin
+ * on individual fields.
+ */
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.loginLabel {
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/*
+ * .loginInput
+ * font-size 1rem minimum prevents iOS auto-zoom on focus (Rule 29.6).
+ */
+.loginInput {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.02);
+  color: #f8f9fa;
+  font-size: 1rem;
+}
+
+.loginInput:focus-visible {
+  outline: none;
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+}
+
+.loginSubmitButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  margin-top: var(--space-lg);
+  border: none;
+  border-radius: 8px;
+  background-color: #06b6d4;
+  color: #0d0e12;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.loginSubmitButton:hover,
+.loginSubmitButton:focus-visible {
+  background-color: #0891b2;
+}

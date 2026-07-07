@@ -80,6 +80,26 @@
 }
 
 /*
+ * .headerLoginLink
+ * Quiet text link to /superAdmin/login — desktop only. Deliberately not
+ * styled as a filled button so it never visually competes with the
+ * Book Now CTA, which stays the single primary action in the header.
+ */
+.headerLoginLink {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerLoginLink:hover,
+.headerLoginLink:focus {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+/*
  * .headerBookButton
  * Primary CTA — solid accent fill, pill shape.
  * min-height 44px meets mobile touch target requirement.
@@ -179,4 +199,26 @@
 .headerMobileBookButton:hover,
 .headerMobileBookButton:focus {
   background-color: var(--color-accent-hover);
+}
+
+/*
+ * .headerMobileLoginLink
+ * Quiet text link below the Book Now button in the mobile dropdown —
+ * matches the desktop treatment, stays secondary to Book Now.
+ */
+.headerMobileLoginLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: var(--space-xs);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.headerMobileLoginLink:hover,
+.headerMobileLoginLink:focus {
+  color: var(--color-text-primary);
 }

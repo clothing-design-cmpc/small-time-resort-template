@@ -10,6 +10,8 @@ cart/checkout), Activities/Experiences, Gallery, Testimonials, Location,
 Contact/Inquiry, Footer. Events & Functions and Spa & Wellness are
 intentionally left out for now.
 
+Progress: Hero (done), About (done). Next: Rooms & Villas.
+
 2. TECH STACK
 - Next.js 16.2.x (App Router, Turbopack)
 - JavaScript (no TypeScript)
@@ -33,10 +35,12 @@ None yet.
 === PROCESS: Visitor Homepage Render ===
 Step 1 : Visitor hits "/visitor"
 Step 2 : app/visitor/layout.jsx wraps the page, imports Visitor.css
-Step 3 : app/visitor/page.jsx (Server Component) renders <Hero />
+Step 3 : app/visitor/page.jsx (Server Component) renders <Hero /> then <About />
 Step 4 : components/Hero.jsx renders static resort name, tagline, and two CTAs
 Step 5 : "Plan Your Stay" anchors to #contact, "Explore Rooms & Villas" anchors to #rooms
          (both sections do not exist yet — added later per the master template plan)
+Step 6 : components/About.jsx renders the resort story and a 3-card
+         "why choose us" grid, with id="about" as the anchor target
 
 7. FILE MAP
 - app/layout.jsx              — root layout shell, global metadata, imports globals.css
@@ -49,6 +53,8 @@ Step 5 : "Plan Your Stay" anchors to #contact, "Explore Rooms & Villas" anchors 
 - app/visitor/Visitor.css       — visitor account-level styles
 - components/Hero.jsx           — Hero section: resort name, tagline, two CTAs
 - components/Hero.css           — Hero section styles, gradient background (no photo yet)
+- components/About.jsx          — About section: resort story + 3 "why choose us" cards
+- components/About.css          — About section styles, auto-fill differentiator grid
 
 8. API ENDPOINTS
 None yet.

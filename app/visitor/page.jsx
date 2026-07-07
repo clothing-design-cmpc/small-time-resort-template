@@ -3,18 +3,20 @@
  * ROLE: Visitor — public landing page
  *
  * PURPOSE:
- * Default entry point for the visitor site ("/visitor"). Renders the
- * Hero section first. Remaining sections (About, Rooms & Villas,
- * Amenities, Resort Shop, Activities, Gallery, Testimonials, Location,
- * Contact) will each be added as their own components per the resort
- * visitor master template plan, one at a time.
+ * Default entry point for the visitor site ("/visitor"). Renders Hero
+ * then About. Remaining sections (Rooms & Villas, Amenities, Resort
+ * Shop, Activities, Gallery, Testimonials, Location, Contact, Footer)
+ * will each be added as their own components per the resort visitor
+ * master template plan, one at a time.
  *
  * DATA FLOW:
  * 1. Visitor hits "/visitor"
- * 2. This Server Component renders <Hero /> and future sections in order
+ * 2. This Server Component renders <Hero /> then <About />, and future
+ *    sections in order
  * 3. No data fetching happens here yet — all sections are static for now
  */
 import Hero from "@/components/Hero";
+import About from "@/components/About";
 
 export const metadata = {
   title: "Villa Azure Resort | Home",
@@ -30,6 +32,7 @@ export default function VisitorHomePage() {
   return (
     <main>
       <Hero />
+      <About />
     </main>
   );
 }

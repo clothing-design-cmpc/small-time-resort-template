@@ -1,0 +1,92 @@
+/*
+ * .aboutSection
+ * Second homepage section. Not full-screen (unlike Hero) — height is
+ * driven by content, with generous vertical padding on all sides so
+ * it never touches the Hero above or the section below.
+ */
+.aboutSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+/*
+ * .aboutContainer
+ * Constrains the story copy to a readable width and stacks the
+ * eyebrow, title, body, and differentiator grid vertically.
+ */
+.aboutContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: var(--max-width-content);
+  text-align: center;
+}
+
+.aboutEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.aboutTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.aboutBody {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  max-width: 65ch;
+}
+
+/*
+ * .aboutDifferentiators
+ * Auto-fill grid of "why choose us" cards. Never a fixed column count —
+ * collapses to a single column on narrow viewports automatically.
+ */
+.aboutDifferentiators {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+  margin-top: var(--space-md);
+  text-align: left;
+}
+
+/*
+ * .aboutDifferentiatorCard
+ * Individual differentiator card. Subtle surface + border so it reads
+ * as elevated content, never flush against neighboring cards.
+ */
+.aboutDifferentiatorCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.aboutDifferentiatorTitle {
+  font-size: 1.1rem;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+.aboutDifferentiatorBody {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}

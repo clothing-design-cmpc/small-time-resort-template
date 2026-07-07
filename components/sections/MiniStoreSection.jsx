@@ -3,16 +3,15 @@
  * ROLE: Visitor — public, no auth required
  *
  * PURPOSE:
- * Display-only resort merchandise section. Shows curated products guests
- * can bring home — local candles, linen sets, artisan food items, and
- * branded keepsakes. Cards are purely informational: no cart, no checkout.
- * Gives the resort a lifestyle-brand feel and surfaces upsell potential
- * for future e-commerce integration.
+ * Display-only resort shop section. Browse-only — no cart, no checkout.
+ * Products are drinks available at the resort bar and reception:
+ * local craft beer, imported wines, spirits, sodas, and juices.
+ * Guests order at the bar or through reception during their stay.
  *
  * DATA FLOW:
  * 1. Rendered inside app/visitor/page.jsx after AmenitiesHighlightSection
- * 2. Static PRODUCTS array — replace with a Supabase/R2 fetch once the
- *    store admin panel is built
+ * 2. Static PRODUCTS array — replace with Supabase fetch once
+ *    the super-admin content panel is built
  * 3. Image src values point to Unsplash placeholders until R2 is wired
  */
 import Image from "next/image";
@@ -20,79 +19,79 @@ import "./MiniStoreSection.css";
 
 const PRODUCTS = [
   {
-    id: "prod-1",
-    name: "Villa Azure Soy Candle",
-    description: "Hand-poured in small batches with coconut soy wax. Scented with notes of sea salt, white jasmine, and sandalwood — the exact scent of the resort lobby.",
-    price: "₱980",
-    badge: "Bestseller",
+    id: "drink-1",
+    name: "Craft Pale Ale",
+    description: "A local Philippine craft ale brewed with Benguet hops. Light, citrusy, and cold — best enjoyed poolside or at the gazebo bar after sunset.",
+    price: "₱180",
+    badge: "Local Brew",
     badgeType: "accent",
-    imageUrl: "https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=600&q=80",
-    imageAlt: "Villa Azure soy candle in a frosted glass jar",
+    imageUrl: "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Cold craft pale ale in a frosted glass",
   },
   {
-    id: "prod-2",
-    name: "Shoreline Linen Set",
-    description: "100% stonewashed linen pillowcase pair in our signature sage tone. The same linen used on every villa bed. Pre-washed, pre-softened, ready for the first night.",
-    price: "₱2,400",
-    badge: "Limited",
+    id: "drink-2",
+    name: "House Red Wine",
+    description: "A smooth Chilean Merlot selected by the resort as its house pour. Pairs with the villa's evening charcuterie set. Available by the glass or bottle.",
+    price: "₱320 / glass",
+    badge: "House Pour",
     badgeType: "warm",
-    imageUrl: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80",
-    imageAlt: "Stonewashed linen pillowcases folded on a wooden surface",
+    imageUrl: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Glass of red wine on a wooden table at sunset",
   },
   {
-    id: "prod-3",
-    name: "Artisan Sea Salt",
-    description: "Harvested from the cove beside the resort. Sun-dried over three tides and lightly smoked over coconut husk. 180g jar with a wooden spoon.",
-    price: "₱520",
-    badge: "Local",
+    id: "drink-3",
+    name: "Premium Rum",
+    description: "Aged dark rum from Negros Occidental, straight or over ice. The bar also mixes it into the resort's signature mojito with fresh mint from the garden.",
+    price: "₱280 / shot",
+    badge: "Local Spirit",
     badgeType: "earth",
-    imageUrl: "https://images.unsplash.com/photo-1574316071802-0d684efa7bf5?auto=format&fit=crop&w=600&q=80",
-    imageAlt: "Glass jar of artisan sea salt with a wooden spoon",
+    imageUrl: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Dark rum poured over ice in a rocks glass",
   },
   {
-    id: "prod-4",
-    name: "Woven Rattan Tote",
-    description: "Hand-woven by local craftspeople from sustainably harvested rattan. Wide base, natural leather handles. Holds everything from a beach day to a grocery run.",
-    price: "₱1,750",
+    id: "drink-4",
+    name: "Fresh Buko Juice",
+    description: "Young coconut water served straight from the shell, chilled and cut to order. Naturally sweet, no added sugar. Sourced daily from the resort's own coconut grove.",
+    price: "₱120",
+    badge: "Fresh Daily",
+    badgeType: "accent",
+    imageUrl: "https://images.unsplash.com/photo-1596803244897-5e42d1ecdcf7?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Fresh young coconut with a straw on a beach table",
+  },
+  {
+    id: "drink-5",
+    name: "Sparkling Water",
+    description: "San Pellegrino sparkling mineral water, 750ml. Cold, clean, and fizzy. Available at reception anytime or delivered to the villa on request.",
+    price: "₱95",
     badge: null,
     badgeType: null,
-    imageUrl: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=600&q=80",
-    imageAlt: "Natural rattan woven tote bag with leather handles",
+    imageUrl: "https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Sparkling mineral water bottle with a glass on ice",
   },
   {
-    id: "prod-5",
-    name: "Cold Brew Concentrate",
-    description: "Single-origin Benguet beans steeped for 20 hours. The same cold brew served poolside every morning. 500ml bottle, makes 8–10 cups.",
-    price: "₱390",
-    badge: "New",
-    badgeType: "accent",
-    imageUrl: "https://images.unsplash.com/photo-1578374173705-969cbe6f2d6b?auto=format&fit=crop&w=600&q=80",
-    imageAlt: "Dark glass bottle of cold brew coffee concentrate",
-  },
-  {
-    id: "prod-6",
-    name: "Resort Keepsake Box",
-    description: "A curated gift set: one candle, one sea salt jar, and a hand-written note card from the resort. Arrives in a reusable mango-wood box with a linen ribbon.",
-    price: "₱1,650",
-    badge: "Gift",
+    id: "drink-6",
+    name: "Mango Soda",
+    description: "Local canned mango soda made from Philippine carabao mangoes. Bright, sweet, and nostalgic. A resort favorite with kids and adults alike.",
+    price: "₱80",
+    badge: "Guest Fave",
     badgeType: "warm",
-    imageUrl: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=600&q=80",
-    imageAlt: "Wooden gift box with candle and small jars inside",
+    imageUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80",
+    imageAlt: "Chilled mango soda cans in a cooler with ice",
   },
 ];
 
 export default function MiniStoreSection() {
   return (
-    <section className="miniStoreSection">
+    <section className="miniStoreSection" id="shop">
       <div className="miniStoreContainer">
 
         {/* Section header */}
         <div className="miniStoreHeader">
           <span className="miniStoreEyebrow">Resort Shop</span>
-          <h2 className="miniStoreTitle">Take the Stillness Home</h2>
+          <h2 className="miniStoreTitle">Drinks at the Bar</h2>
           <p className="miniStoreSubtitle">
-            A small collection of things made for or inspired by the resort.
-            Available at reception during your stay.
+            Cold drinks, local brews, and classic pours — available at the
+            gazebo bar, pool bar, or delivered to your villa anytime.
           </p>
         </div>
 
@@ -124,7 +123,7 @@ export default function MiniStoreSection() {
                 <p className="miniStoreProductDesc">{product.description}</p>
                 <div className="miniStoreCardFooter">
                   <span className="miniStorePrice">{product.price}</span>
-                  <span className="miniStoreAvailabilityTag">At reception</span>
+                  <span className="miniStoreAvailabilityTag">At the bar</span>
                 </div>
               </div>
 
@@ -134,8 +133,8 @@ export default function MiniStoreSection() {
 
         {/* Footer note */}
         <p className="miniStoreFootnote">
-          All items are available at the resort reception. Ask our team about
-          packaging for travel or pre-ordering before arrival.
+          All drinks are available at the gazebo bar, pool bar, or via
+          in-villa delivery. Ask our team about pairings or custom orders.
         </p>
 
       </div>

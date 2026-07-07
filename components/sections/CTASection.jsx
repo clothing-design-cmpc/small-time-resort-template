@@ -18,7 +18,7 @@ import "./CTASection.css";
 
 export default function CTASection() {
   return (
-    <section className="ctaSection">
+    <section className="ctaSection" id="contact">
       <div className="ctaContainer">
         <span className="ctaEyebrow">Ready to Book?</span>
         <h2 className="ctaTitle">Reserve Your Villa</h2>

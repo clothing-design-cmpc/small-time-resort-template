@@ -1,9 +1,8 @@
 /*
  * MiniStoreSection.css
- * Display-only resort merchandise grid. Cards are intentionally clean
- * and editorial — merchandise photography is the hero; text plays
- * a supporting role. No hover-to-cart, no interactive state beyond
- * the subtle lift on hover.
+ * Display-only resort drinks shop grid. Static — no hover animations,
+ * no image zoom, no card lift transforms. Cards use only border and
+ * background to define elevation.
  */
 
 /* ─── Section wrapper ───────────────────────────────────────────────── */
@@ -59,8 +58,7 @@
 /* ─── Product grid ──────────────────────────────────────────────────── */
 /*
  * .miniStoreGrid
- * Flex-wrap so an incomplete last row centers itself — consistent with
- * every other grid on the site (rooms, amenities, testimonials).
+ * Flex-wrap so an incomplete last row centers itself.
  */
 .miniStoreGrid {
   display: flex;
@@ -73,9 +71,8 @@
 
 /*
  * .miniStoreCard
- * Product card — image on top, content below. flex-basis 280px so
- * it lays out 3-per-row on desktop and wraps naturally on tablet/mobile.
- * Lifts slightly on hover with a shadow increase and border darkening.
+ * Product card — image on top, content below. No hover transforms or
+ * shadow changes — fully static per design spec.
  */
 .miniStoreCard {
   display: flex;
@@ -87,25 +84,13 @@
   overflow: hidden;
   flex: 1 1 280px;
   max-width: 340px;
-  transition:
-    box-shadow var(--transition-base),
-    border-color var(--transition-base),
-    transform var(--transition-base);
-  will-change: transform;
-}
-
-.miniStoreCard:hover {
-  box-shadow: var(--shadow-card-hover);
-  border-color: var(--color-border-hover);
-  transform: translateY(-3px);
 }
 
 /* ─── Product image ─────────────────────────────────────────────────── */
 /*
  * .miniStoreImageWrapper
- * Positioned container for next/image fill mode — gives the image a
- * fixed aspect ratio without hard-coding a height on the img itself
- * (Rule 27.1 — no fixed width/height on img tags).
+ * Positioned container for next/image fill mode — fixed aspect ratio
+ * without hard-coding a height on the img tag (Rule 27.1).
  */
 .miniStoreImageWrapper {
   position: relative;
@@ -115,21 +100,19 @@
   flex-shrink: 0;
 }
 
+/*
+ * .miniStoreImage
+ * No transform or transition — static design, no zoom on hover.
+ */
 .miniStoreImage {
   object-fit: cover;
-  transition: transform var(--transition-slow);
-}
-
-.miniStoreCard:hover .miniStoreImage {
-  transform: scale(1.04);
 }
 
 /* ─── Badge ──────────────────────────────────────────────────────────── */
 /*
  * .miniStoreBadge
- * Small pill overlay on the image — positioned top-left so it doesn't
- * cover the product's focal point. Three tones: accent (green),
- * warm (amber), and earth (brown) for visual variety.
+ * Small pill overlay on the image, top-left. Three color tones for
+ * visual variety across the card grid.
  */
 .miniStoreBadge {
   position: absolute;
@@ -185,9 +168,7 @@
 
 /*
  * .miniStoreCardFooter
- * Price on the left, "At reception" availability tag on the right.
- * Space-between so they always sit at opposite ends regardless of
- * description length.
+ * Price on the left, availability tag on the right.
  */
 .miniStoreCardFooter {
   display: flex;
@@ -206,8 +187,7 @@
 
 /*
  * .miniStoreAvailabilityTag
- * Replaces a "Add to Cart" button — makes clear this is display-only
- * and guests get the item at the resort, not via an online order.
+ * Replaces "Add to Cart" — browse-only, guests order at the bar.
  */
 .miniStoreAvailabilityTag {
   font-size: 0.7rem;

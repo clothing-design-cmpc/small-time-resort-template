@@ -18,17 +18,34 @@ Progress: Hero (done), About (done). Next: Rooms & Villas.
 - React 19.2.x
 - CSS Modules / plain CSS (no Tailwind)
 - axios (installed, for client-side calls to external APIs)
-- Backend service: not yet connected (Supabase planned per Fixed Services Standard)
+- Backend service: Supabase (connected — @supabase/supabase-js, direct + session pooler)
 
 3. ACCOUNT TYPES
 - visitor    — public, no auth required (scaffolded)
 - superAdmin — protected, auth required (not yet scaffolded)
 
 4. DATABASE OVERVIEW
-Not yet connected. No tables created.
+Supabase Postgres, schema managed via Prisma (prisma/schema.prisma) --
+NEVER the Supabase SQL Editor. Tables: rooms, amenities, store_products,
+admin_profiles. Prisma 7 note: connection URLs are NOT in schema.prisma --
+they live in prisma.config.mjs (CLI: db push/generate/seed, uses
+DIRECT_URL) and services/prisma.js (app runtime, uses DATABASE_URL via
+the @prisma/adapter-pg driver adapter -- Prisma 7 requires an adapter,
+plain `new PrismaClient()` with no adapter will throw at runtime).
+Workflow: edit schema.prisma -> npx prisma db push -> npx prisma generate.
+RLS/policies applied via prisma/enableRls.js (run once after first db
+push). Seed data via prisma/seed.js (npx prisma db seed) -- also creates
+the super-admin Auth user from SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD.
+Env keys required: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL (in both .env and
+.env.local -- Prisma CLI/config reads .env, Next.js app reads .env.local),
+SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD.
 
 5. DATA MODELS OVERVIEW
-None yet.
+- Room           -- name, slug (unique), description, pricePerNight, capacity, imageUrl, isActive, sortOrder
+- Amenity        -- name, description, icon, isActive, sortOrder
+- StoreProduct   -- name, description, price, category, imageUrl, isActive, sortOrder
+- AdminProfile   -- id (matches a Supabase Auth user UID), fullName, role
 
 6. PROCESS FLOW
 
@@ -64,6 +81,9 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - components/shared/Header.jsx  — sticky nav: logo, links, Login link, Book Now CTA
 - app/visitor/booking/page.jsx  — booking holding page (Book Now CTA target, full form not built yet)
 - app/superAdmin/login/page.jsx — admin sign-in form (static, no Supabase auth wired yet)
+- app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages
+- app/superAdmin/(protected)/page.jsx — redirects to dashboard
+- app/superAdmin/(protected)/dashboard/page.jsx — admin dashboard
 
 8. API ENDPOINTS
 None yet.
@@ -78,6 +98,10 @@ None yet.
 - If "Login" link is missing from the Header: check components/shared/Header.jsx for
   the headerLoginLink (desktop) and headerMobileLoginLink (mobile) elements, both
   pointing to /superAdmin/login.
+- If Sidebar/AdminHeader show up on the login page: confirm dashboard and the root
+  /superAdmin redirect live under app/superAdmin/(protected)/ — that route group is
+  what keeps app/superAdmin/login/ (a sibling folder) from inheriting the Sidebar/
+  AdminHeader layout.
 
 10. ENVIRONMENT VARIABLES REQUIRED
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)

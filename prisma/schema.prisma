@@ -1,0 +1,88 @@
+// FILE: prisma/schema.prisma
+// PURPOSE:
+// Defines the database schema for Villa Azure Resort using Prisma ORM
+// against the Supabase Postgres database. All schema changes go through
+// `npx prisma db push` (terminal only) — never the Supabase SQL Editor.
+//
+// Connection setup (Prisma 7 — connection URLs live in prisma.config.mjs,
+// NOT in this file):
+//   prisma.config.mjs -> datasource.url = DIRECT_URL (session pooler,
+//                        port 5432) — used by the CLI for db push/generate.
+//   services/prisma.js -> runtime PrismaClient uses a driver adapter
+//                        (@prisma/adapter-pg) pointed at DATABASE_URL
+//                        (transaction pooler, port 6543).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// MODEL: Room  (Rooms & Villas section)
+// ============================================================
+model Room {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String   @unique
+  description    String?
+  pricePerNight  Decimal  @map("price_per_night") @db.Decimal(10, 2)
+  capacity       Int      @default(2)
+  imageUrl       String?  @map("image_url")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("rooms")
+}
+
+// ============================================================
+// MODEL: Amenity  (Resort Amenities section)
+// ============================================================
+model Amenity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  icon        String?  // icon identifier (e.g. lucide icon name) rendered by the frontend
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("amenities")
+}
+
+// ============================================================
+// MODEL: StoreProduct  (Resort Shop — browse-only, no cart/checkout)
+// ============================================================
+model StoreProduct {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  category    String   @default("general")
+  imageUrl    String?  @map("image_url")
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("store_products")
+}
+
+// ============================================================
+// MODEL: AdminProfile  (Super Admin accounts)
+// ============================================================
+// The `id` must match an existing Supabase Auth user's UID (created via
+// Supabase Auth, not via this table). Prisma does not manage the
+// auth.users table directly — this table only stores role/profile
+// metadata for a user that already exists in Supabase Auth.
+model AdminProfile {
+  id        String   @id @db.Uuid
+  fullName  String   @map("full_name")
+  role      String   @default("super_admin")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("admin_profiles")
+}

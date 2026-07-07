@@ -13,13 +13,18 @@
 import Link from "next/link";
 import "./Footer.css";
 
+/*
+ * quickLinks
+ * All hrefs point to anchor IDs on the visitor homepage.
+ * #gallery will resolve once the Gallery section is added to the page.
+ */
 const quickLinks = [
-  { label: "Rooms & Villas", href: "/visitor/rooms" },
-  { label: "Amenities", href: "/visitor/amenities" },
-  { label: "Gallery", href: "/visitor/gallery" },
-  { label: "About Us", href: "/visitor/about" },
-  { label: "Contact", href: "/visitor/contact" },
-  { label: "Policies", href: "/visitor/policies" },
+  { label: "Rooms & Villas", href: "#rooms" },
+  { label: "Amenities",      href: "#amenities" },
+  { label: "Shop",           href: "#shop" },
+  { label: "Gallery",        href: "#gallery" },
+  { label: "About Us",       href: "#about" },
+  { label: "Contact",        href: "#contact" },
 ];
 
 export default function Footer() {
@@ -82,9 +87,10 @@ export default function Footer() {
       <div className="footerBottom">
         <div className="footerBottomContainer">
           <span className="footerCopyright">© {currentYear} Villa Azure Resort. All rights reserved.</span>
+          {/* Privacy Policy and Terms link to #contact until a dedicated policies page is built */}
           <div className="footerLegalLinks">
-            <Link href="/visitor/policies" className="footerLegalLink">Privacy Policy</Link>
-            <Link href="/visitor/policies" className="footerLegalLink">Terms & Conditions</Link>
+            <Link href="#contact" className="footerLegalLink">Privacy Policy</Link>
+            <Link href="#contact" className="footerLegalLink">Terms &amp; Conditions</Link>
           </div>
         </div>
       </div>

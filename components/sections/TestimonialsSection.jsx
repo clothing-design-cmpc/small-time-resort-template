@@ -49,7 +49,7 @@ function StarRating({ count }) {
 
 export default function TestimonialsSection() {
   return (
-    <section className="testimonialsSection">
+    <section className="testimonialsSection" id="testimonials">
       <div className="testimonialsContainer">
         <div className="testimonialsHeader">
           <span className="testimonialsEyebrow">Guest Reviews</span>

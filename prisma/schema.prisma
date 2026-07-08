@@ -49,6 +49,8 @@ model Room {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
   bookings       Booking[]
+  seasonalPrices SeasonalPrice[]
+  blackoutDates  BlackoutDate[]
 
   @@map("rooms")
 }
@@ -123,4 +125,81 @@ model AdminProfile {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("admin_profiles")
+}
+
+// ============================================================
+// MODEL: BookingRules  (Booking Rules & Configuration, blueprint Page 7)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "singleton" (see app/api/superAdmin/settings/
+// booking-rules/route.js), never creates a second row.
+model BookingRules {
+  id String @id @default("singleton")
+
+  // --- Section 1: General Booking Settings ---
+  minNightsRequired  Int    @default(1) @map("min_nights_required")
+  maxNightsAllowed   Int    @default(30) @map("max_nights_allowed")
+  advanceBookingDays Int    @default(365) @map("advance_booking_days") // guests can book at most this many days ahead
+  checkInTime        String @default("14:00") @map("check_in_time") // 24h "HH:mm"
+  checkOutTime       String @default("11:00") @map("check_out_time") // 24h "HH:mm"
+
+  // --- Booking Types (extension beyond the base blueprint, per admin request) ---
+  allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
+  allowDayTour       Boolean @default(false) @map("allow_day_tour")
+  allowNightTour     Boolean @default(false) @map("allow_night_tour")
+
+  // --- Section 2: Cancellation Policy ---
+  refundPercentage       Int @default(100) @map("refund_percentage") // % refunded if cancelled before the cutoff
+  cancellationCutoffDays Int @default(7) @map("cancellation_cutoff_days") // days before check-in for full refund
+
+  // --- Section 3: Deposit & Payment ---
+  depositRequired   Boolean @default(true) @map("deposit_required")
+  depositPercentage Int     @default(50) @map("deposit_percentage") // % of total held as deposit
+
+  // --- Section 4: Pricing Modifiers ---
+  weekendSurchargePercent   Int @default(0) @map("weekend_surcharge_percent") // extra % on Fri/Sat nights
+  lastMinuteDiscountPercent Int @default(0) @map("last_minute_discount_percent") // % off if booked within a few days
+  groupDiscountThreshold    Int @default(3) @map("group_discount_threshold") // min rooms booked together to qualify
+  groupDiscountPercent      Int @default(0) @map("group_discount_percent")
+
+  // --- Section 5: Seasonal Pricing toggle ---
+  seasonalPricingEnabled Boolean @default(true) @map("seasonal_pricing_enabled")
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
+
+  @@map("booking_rules")
+}
+
+// ============================================================
+// MODEL: SeasonalPrice  (Booking Rules — Section 5: Seasonal Pricing)
+// ============================================================
+model SeasonalPrice {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId        String   @map("room_id") @db.Uuid
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  seasonName    String   @map("season_name") // "Peak Season", "Shoulder", "Off-Season", etc.
+  startDate     DateTime @map("start_date") @db.Date
+  endDate       DateTime @map("end_date") @db.Date
+  pricePerNight Decimal  @map("price_per_night") @db.Decimal(10, 2) // overrides the room's default price for this range
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("seasonal_prices")
+}
+
+// ============================================================
+// MODEL: BlackoutDate  (Booking Rules — Section 6: Blackout Dates)
+// ============================================================
+model BlackoutDate {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId    String   @map("room_id") @db.Uuid
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  reason    String   @default("Custom") // "Cleaning" | "Maintenance" | "Private" | "Custom"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("blackout_dates")
 }

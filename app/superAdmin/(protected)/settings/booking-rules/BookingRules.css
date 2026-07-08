@@ -1,0 +1,344 @@
+/*
+ * .bookingRulesPage
+ * Outer wrapper — vertical stack of the header, the settings form
+ * (Sections 1-5 + Preview Impact), and the two sub-list sections
+ * (Seasonal Pricing, Blackout Dates).
+ */
+.bookingRulesPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  max-width: 900px;
+}
+
+.bookingRulesHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.bookingRulesEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.bookingRulesPageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .bookingRulesSection
+ * One numbered block (Section 1, 2, 3…) inside the settings card, or
+ * a standalone card for Seasonal Pricing / Blackout Dates below it.
+ */
+.bookingRulesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bookingRulesSection:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.bookingRulesSectionHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.bookingRulesSectionTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.bookingRulesSectionSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: var(--space-xs);
+}
+
+/*
+ * .bookingRulesForm--card
+ * Wraps Sections 1-5 + Preview Impact in one bordered card, matching
+ * the Room/Amenity form card treatment.
+ */
+.bookingRulesForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bookingRulesForm--card {
+  gap: var(--space-xl);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.bookingRulesFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 200px;
+}
+
+.bookingRulesFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.bookingRulesFormField input[type="text"],
+.bookingRulesFormField input[type="number"],
+.bookingRulesFormField input[type="date"],
+.bookingRulesFormField input[type="time"],
+.bookingRulesFormField select {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.bookingRulesFormRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.bookingRulesFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+/*
+ * .bookingRulesHint
+ * Short explanatory line under a field or toggle — always plain
+ * English, never just restating the label (Rule 2 comment standard
+ * applied to end-user copy).
+ */
+.bookingRulesHint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.bookingRulesToggleRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.bookingRulesToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.bookingRulesFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.bookingRulesButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.bookingRulesButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.bookingRulesButton--neutral:hover,
+.bookingRulesButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.bookingRulesButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.bookingRulesButton--primary:hover,
+.bookingRulesButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.bookingRulesButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bookingRulesAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.bookingRulesAddButton:hover,
+.bookingRulesAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+/*
+ * .bookingRulesPreview
+ * Sample-calculation panel — visually distinct from the editable
+ * sections above it so it reads as a live readout, not a form.
+ */
+.bookingRulesPreview {
+  background-color: var(--color-surface-hover);
+  border-radius: 8px;
+  padding: var(--space-md);
+}
+
+.bookingRulesPreviewList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.bookingRulesPreviewRow {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.bookingRulesPreviewRow dt,
+.bookingRulesPreviewRow dd {
+  margin: 0;
+}
+
+.bookingRulesPreviewRow--total {
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--color-border);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .bookingRulesRowActions
+ * Edit/Delete buttons inside a Seasonal Pricing / Blackout Dates row.
+ */
+.bookingRulesRowActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.bookingRulesRowActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.bookingRulesRowActionButton:hover,
+.bookingRulesRowActionButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.bookingRulesRowActionButton--destructive {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.bookingRulesRowActionButton--destructive:hover,
+.bookingRulesRowActionButton--destructive:focus-visible {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================
+ * SEASONAL PRICE / BLACKOUT DATE MODAL
+ * ============================================================ */
+
+.bookingRulesModalBackdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: rgba(9, 9, 11, 0.5);
+  z-index: var(--z-modal-backdrop);
+}
+
+.bookingRulesModalDialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 480px;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: var(--z-modal);
+}

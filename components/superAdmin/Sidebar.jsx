@@ -18,13 +18,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import "./Sidebar.css";
 
-/* Add entries here as new admin pages are built. Rooms (Page 1) and
-   Amenities (Page 2) are built — more will be appended as each
-   subsequent page is built, one at a time. */
+/* Add entries here as new admin pages are built. Rooms (Page 1),
+   Amenities (Page 2), and Booking Rules (Page 7) are built — more
+   will be appended as each subsequent page is built, one at a time. */
 const navLinks = [
   { label: "Dashboard", href: "/superAdmin/dashboard" },
   { label: "Rooms", href: "/superAdmin/content/rooms" },
   { label: "Amenities", href: "/superAdmin/content/amenities" },
+  { label: "Booking Rules", href: "/superAdmin/settings/booking-rules" },
 ];
 
 export default function Sidebar() {

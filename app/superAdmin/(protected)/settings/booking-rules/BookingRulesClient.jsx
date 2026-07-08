@@ -49,6 +49,12 @@ const bookingRulesSchema = z.object({
   allowOvernightStay: z.boolean(),
   allowDayTour: z.boolean(),
   allowNightTour: z.boolean(),
+  dayTourStartTime: z.string().min(1),
+  dayTourEndTime: z.string().min(1),
+  dayTourPricePerGuest: z.coerce.number().min(0),
+  nightTourStartTime: z.string().min(1),
+  nightTourEndTime: z.string().min(1),
+  nightTourPricePerGuest: z.coerce.number().min(0),
   refundPercentage: z.coerce.number().int().min(0).max(100),
   cancellationCutoffDays: z.coerce.number().int().min(0),
   depositRequired: z.boolean(),
@@ -72,6 +78,12 @@ const DEFAULT_BOOKING_RULES = {
   allowOvernightStay: true,
   allowDayTour: false,
   allowNightTour: false,
+  dayTourStartTime: "08:00",
+  dayTourEndTime: "17:00",
+  dayTourPricePerGuest: 500,
+  nightTourStartTime: "18:00",
+  nightTourEndTime: "23:00",
+  nightTourPricePerGuest: 600,
   refundPercentage: 100,
   cancellationCutoffDays: 7,
   depositRequired: true,
@@ -112,6 +124,12 @@ export default function BookingRulesClient({ rooms }) {
         allowOvernightStay: bookingRules.allowOvernightStay,
         allowDayTour: bookingRules.allowDayTour,
         allowNightTour: bookingRules.allowNightTour,
+        dayTourStartTime: bookingRules.dayTourStartTime,
+        dayTourEndTime: bookingRules.dayTourEndTime,
+        dayTourPricePerGuest: bookingRules.dayTourPricePerGuest,
+        nightTourStartTime: bookingRules.nightTourStartTime,
+        nightTourEndTime: bookingRules.nightTourEndTime,
+        nightTourPricePerGuest: bookingRules.nightTourPricePerGuest,
         refundPercentage: bookingRules.refundPercentage,
         cancellationCutoffDays: bookingRules.cancellationCutoffDays,
         depositRequired: bookingRules.depositRequired,
@@ -135,6 +153,8 @@ export default function BookingRulesClient({ rooms }) {
   const groupDiscountPercent = watch("groupDiscountPercent");
   const depositPercentage = watch("depositPercentage");
   const depositRequired = watch("depositRequired");
+  const allowDayTour = watch("allowDayTour");
+  const allowNightTour = watch("allowNightTour");
 
   // Local-only toggles (not saved, not part of the settings form) that
   // let the admin see the conditional discounts in action instead of
@@ -232,89 +252,149 @@ export default function BookingRulesClient({ rooms }) {
 
             <div className="bookingRulesFormRow">
               <div className="bookingRulesFormField">
-                <label htmlFor="minNightsRequired">Minimum Nights Required</label>
+                <label htmlFor="minNightsRequired">Shortest Stay Allowed (nights)</label>
                 <input id="minNightsRequired" type="number" {...register("minNightsRequired")} />
-                <p className="bookingRulesHint">Resort-wide default — a room can override this with its own Min Nights / Booking value.</p>
+                <p className="bookingRulesHint">Halimbawa: kung 2 ang nilagay, hindi puwedeng mag-book ng 1 gabi lang — dapat 2 gabi pataas.</p>
                 {errors.minNightsRequired && <span role="alert" className="bookingRulesFormError">{errors.minNightsRequired.message}</span>}
               </div>
               <div className="bookingRulesFormField">
-                <label htmlFor="maxNightsAllowed">Maximum Nights Allowed</label>
+                <label htmlFor="maxNightsAllowed">Longest Stay Allowed (nights)</label>
                 <input id="maxNightsAllowed" type="number" {...register("maxNightsAllowed")} />
-                <p className="bookingRulesHint">Resort-wide default — a room can override this with its own Max Nights / Booking value.</p>
+                <p className="bookingRulesHint">Halimbawa: kung 14 ang nilagay, hanggang 14 gabi lang puwede sa isang booking. (Puwede pa ring i-set ng bawat room ang sarili nitong limit — tingnan ang Rooms page.)</p>
                 {errors.maxNightsAllowed && <span role="alert" className="bookingRulesFormError">{errors.maxNightsAllowed.message}</span>}
               </div>
             </div>
 
             <div className="bookingRulesFormRow">
               <div className="bookingRulesFormField">
-                <label htmlFor="advanceBookingDays">Advance Booking Window (days)</label>
+                <label htmlFor="advanceBookingDays">How Far Ahead Guests Can Book (days)</label>
                 <input id="advanceBookingDays" type="number" {...register("advanceBookingDays")} />
-                <p className="bookingRulesHint">How far ahead guests are allowed to book, e.g. 365 = up to a year out.</p>
+                <p className="bookingRulesHint">Halimbawa: 365 = puwedeng mag-book ang guest hanggang 1 taon bago ang check-in date nila.</p>
                 {errors.advanceBookingDays && <span role="alert" className="bookingRulesFormError">{errors.advanceBookingDays.message}</span>}
               </div>
               <div className="bookingRulesFormField">
                 <label htmlFor="checkInTime">Check-in Time</label>
                 <input id="checkInTime" type="time" {...register("checkInTime")} />
+                <p className="bookingRulesHint">Pinakamaagang oras na puwedeng dumating ang guest para mag-check-in.</p>
               </div>
               <div className="bookingRulesFormField">
                 <label htmlFor="checkOutTime">Check-out Time</label>
                 <input id="checkOutTime" type="time" {...register("checkOutTime")} />
+                <p className="bookingRulesHint">Pinakahuling oras na dapat umalis ang guest sa araw ng check-out.</p>
               </div>
             </div>
 
             <div className="bookingRulesFormField">
-              <label>Booking Types</label>
-              <p className="bookingRulesHint">Which kinds of reservations guests can make. Overnight is the standard stay; Day/Night Tour are shorter, no-overnight visits.</p>
+              <label>Types of Booking Guests Can Make</label>
+              <p className="bookingRulesHint">
+                <strong>Overnight Stay</strong> = tulog sa isang room, gamit ang Check-in/Check-out Time sa itaas.{" "}
+                <strong>Day Tour</strong> at <strong>Night Tour</strong> = walang room, walang tulog — pasok lang sa
+                resort sa loob ng ilang oras, may sariling oras at bayad na hiwalay sa presyo ng room.
+              </p>
               <div className="bookingRulesToggleRow">
                 <label className="bookingRulesToggle">
                   <input type="checkbox" {...register("allowOvernightStay")} />
-                  Overnight Stay
+                  Overnight Stay (tulugan, may room)
                 </label>
                 <label className="bookingRulesToggle">
                   <input type="checkbox" {...register("allowDayTour")} />
-                  Day Tour
+                  Day Tour (araw lang, walang room)
                 </label>
                 <label className="bookingRulesToggle">
                   <input type="checkbox" {...register("allowNightTour")} />
-                  Night Tour
+                  Night Tour (gabi lang, walang room)
                 </label>
               </div>
             </div>
+
+            {allowDayTour && (
+              <div className="bookingRulesSubPanel">
+                <p className="bookingRulesSubPanelTitle">Day Tour Settings</p>
+                <p className="bookingRulesHint">Ito ang mangyayari kapag pinili ng guest ang &quot;Day Tour&quot; sa booking form nila.</p>
+                <div className="bookingRulesFormRow">
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourStartTime">Simula ng Day Tour</label>
+                    <input id="dayTourStartTime" type="time" {...register("dayTourStartTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourEndTime">Katapusan ng Day Tour</label>
+                    <input id="dayTourEndTime" type="time" {...register("dayTourEndTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourPricePerGuest">Bayad Kada Guest (₱)</label>
+                    <input id="dayTourPricePerGuest" type="number" step="0.01" {...register("dayTourPricePerGuest")} />
+                    {errors.dayTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.dayTourPricePerGuest.message}</span>}
+                  </div>
+                </div>
+                <p className="bookingRulesHint">
+                  Halimbawa: {watch("dayTourStartTime")}–{watch("dayTourEndTime")}, ₱{Number(watch("dayTourPricePerGuest") || 0).toLocaleString()} kada tao —
+                  walang assigned na room, gagamitin lang ng guest ang pool/facilities sa oras na ito.
+                </p>
+              </div>
+            )}
+
+            {allowNightTour && (
+              <div className="bookingRulesSubPanel">
+                <p className="bookingRulesSubPanelTitle">Night Tour Settings</p>
+                <p className="bookingRulesHint">Ito ang mangyayari kapag pinili ng guest ang &quot;Night Tour&quot; sa booking form nila.</p>
+                <div className="bookingRulesFormRow">
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourStartTime">Simula ng Night Tour</label>
+                    <input id="nightTourStartTime" type="time" {...register("nightTourStartTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourEndTime">Katapusan ng Night Tour</label>
+                    <input id="nightTourEndTime" type="time" {...register("nightTourEndTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourPricePerGuest">Bayad Kada Guest (₱)</label>
+                    <input id="nightTourPricePerGuest" type="number" step="0.01" {...register("nightTourPricePerGuest")} />
+                    {errors.nightTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.nightTourPricePerGuest.message}</span>}
+                  </div>
+                </div>
+                <p className="bookingRulesHint">
+                  Halimbawa: {watch("nightTourStartTime")}–{watch("nightTourEndTime")}, ₱{Number(watch("nightTourPricePerGuest") || 0).toLocaleString()} kada tao —
+                  walang assigned na room, gagamitin lang ng guest ang pool/facilities sa oras na ito.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* --- Section 2: Cancellation Policy --- */}
           <div className="bookingRulesSection">
             <h2 className="bookingRulesSectionTitle">Section 2: Cancellation Policy</h2>
-            <p className="bookingRulesSectionSubtitle">What a guest gets back if they cancel, and how close to check-in that still applies.</p>
+            <p className="bookingRulesSectionSubtitle">Kung mag-cancel ang guest, gaano karami ang maibabalik sa kanila, at hanggang kailan puwede mag-cancel para may refund pa.</p>
             <div className="bookingRulesFormRow">
               <div className="bookingRulesFormField">
-                <label htmlFor="refundPercentage">Refund Percentage (%)</label>
+                <label htmlFor="refundPercentage">Ibabalik na Bayad Kapag Nag-cancel (%)</label>
                 <input id="refundPercentage" type="number" min="0" max="100" {...register("refundPercentage")} />
+                <p className="bookingRulesHint">Halimbawa: 100% = ibabalik lahat ng bayad. 50% = kalahati lang ang maibabalik.</p>
                 {errors.refundPercentage && <span role="alert" className="bookingRulesFormError">{errors.refundPercentage.message}</span>}
               </div>
               <div className="bookingRulesFormField">
-                <label htmlFor="cancellationCutoffDays">Cancellation Cutoff (days before check-in)</label>
+                <label htmlFor="cancellationCutoffDays">Dapat Mag-cancel Bago ang Ilang Araw</label>
                 <input id="cancellationCutoffDays" type="number" {...register("cancellationCutoffDays")} />
+                <p className="bookingRulesHint">Halimbawa: 7 = dapat mag-cancel ang guest 7 araw o mas maaga bago ang check-in para makakuha ng refund sa taas.</p>
                 {errors.cancellationCutoffDays && <span role="alert" className="bookingRulesFormError">{errors.cancellationCutoffDays.message}</span>}
               </div>
             </div>
             <p className="bookingRulesHint">
-              Example: &quot;Full refund if cancelled {watch("cancellationCutoffDays")}+ days before check-in.&quot;
+              Ibig sabihin: &quot;Full refund kung mag-cancel ng {watch("cancellationCutoffDays")}+ araw bago ang check-in.&quot;
             </p>
           </div>
 
           {/* --- Section 3: Deposit & Payment --- */}
           <div className="bookingRulesSection">
             <h2 className="bookingRulesSectionTitle">Section 3: Deposit &amp; Payment</h2>
-            <p className="bookingRulesSectionSubtitle">Whether guests need to pay upfront to lock in a booking, and how much.</p>
+            <p className="bookingRulesSectionSubtitle">Kailangan bang magbayad muna ang guest para ma-confirm ang booking, at magkano.</p>
             <label className="bookingRulesToggle">
               <input type="checkbox" {...register("depositRequired")} />
-              Deposit required to confirm a booking
+              Kailangan ng deposito para ma-confirm ang booking
             </label>
             <div className="bookingRulesFormField">
-              <label htmlFor="depositPercentage">Deposit Percentage (%)</label>
+              <label htmlFor="depositPercentage">Halaga ng Deposito (%)</label>
               <input id="depositPercentage" type="number" min="0" max="100" {...register("depositPercentage")} />
-              <p className="bookingRulesHint">Example: &quot;{depositPercentage || 0}% of total room price held as deposit.&quot;</p>
+              <p className="bookingRulesHint">Halimbawa: &quot;{depositPercentage || 0}% ng kabuuang bayad ang kukunin bilang deposito.&quot;</p>
               {errors.depositPercentage && <span role="alert" className="bookingRulesFormError">{errors.depositPercentage.message}</span>}
             </div>
           </div>
@@ -322,31 +402,32 @@ export default function BookingRulesClient({ rooms }) {
           {/* --- Section 4: Pricing Modifiers --- */}
           <div className="bookingRulesSection">
             <h2 className="bookingRulesSectionTitle">Section 4: Pricing Modifiers</h2>
-            <p className="bookingRulesSectionSubtitle">Automatic price add-ons and discounts applied on top of a room&apos;s base rate.</p>
+            <p className="bookingRulesSectionSubtitle">Automatic na dagdag o bawas sa presyo, sa ibabaw ng regular rate ng room.</p>
             <div className="bookingRulesFormRow">
               <div className="bookingRulesFormField">
-                <label htmlFor="weekendSurchargePercent">Weekend Surcharge (%)</label>
+                <label htmlFor="weekendSurchargePercent">Dagdag Bayad tuwing Biyernes/Sabado ng Gabi (%)</label>
                 <input id="weekendSurchargePercent" type="number" {...register("weekendSurchargePercent")} />
-                <p className="bookingRulesHint">Example: &quot;{weekendSurchargePercent || 0}% extra on Fri/Sat nights.&quot;</p>
+                <p className="bookingRulesHint">Halimbawa: &quot;{weekendSurchargePercent || 0}% dagdag sa Fri/Sat nights.&quot;</p>
                 {errors.weekendSurchargePercent && <span role="alert" className="bookingRulesFormError">{errors.weekendSurchargePercent.message}</span>}
               </div>
               <div className="bookingRulesFormField">
-                <label htmlFor="lastMinuteDiscountPercent">Last-Minute Discount (%)</label>
+                <label htmlFor="lastMinuteDiscountPercent">Discount Kapag Last-Minute na ang Book (%)</label>
                 <input id="lastMinuteDiscountPercent" type="number" {...register("lastMinuteDiscountPercent")} />
-                <p className="bookingRulesHint">Example: &quot;15% off bookings made within 3 days.&quot;</p>
+                <p className="bookingRulesHint">Halimbawa: &quot;{lastMinuteDiscountPercent || 0}% off kapag malapit na ang check-in date sa oras ng pag-book.&quot;</p>
                 {errors.lastMinuteDiscountPercent && <span role="alert" className="bookingRulesFormError">{errors.lastMinuteDiscountPercent.message}</span>}
               </div>
             </div>
             <div className="bookingRulesFormRow">
               <div className="bookingRulesFormField">
-                <label htmlFor="groupDiscountThreshold">Group Discount Threshold (rooms)</label>
+                <label htmlFor="groupDiscountThreshold">Ilang Room Bago Mag-apply ang Group Discount</label>
                 <input id="groupDiscountThreshold" type="number" {...register("groupDiscountThreshold")} />
+                <p className="bookingRulesHint">Halimbawa: 3 = kailangang 3 rooms o higit pa sa iisang booking bago mag-apply ang discount sa baba.</p>
                 {errors.groupDiscountThreshold && <span role="alert" className="bookingRulesFormError">{errors.groupDiscountThreshold.message}</span>}
               </div>
               <div className="bookingRulesFormField">
                 <label htmlFor="groupDiscountPercent">Group Discount (%)</label>
                 <input id="groupDiscountPercent" type="number" {...register("groupDiscountPercent")} />
-                <p className="bookingRulesHint">Example: &quot;{watch("groupDiscountThreshold") || 0}+ rooms = {watch("groupDiscountPercent") || 0}% off.&quot;</p>
+                <p className="bookingRulesHint">Halimbawa: &quot;{watch("groupDiscountThreshold") || 0}+ rooms = {watch("groupDiscountPercent") || 0}% off.&quot;</p>
                 {errors.groupDiscountPercent && <span role="alert" className="bookingRulesFormError">{errors.groupDiscountPercent.message}</span>}
               </div>
             </div>
@@ -356,12 +437,12 @@ export default function BookingRulesClient({ rooms }) {
                season list is its own component below the form) --- */}
           <div className="bookingRulesSection">
             <h2 className="bookingRulesSectionTitle">Section 5: Seasonal Pricing</h2>
-            <p className="bookingRulesSectionSubtitle">Turn date-range price overrides (peak season, off-season, etc.) on or off resort-wide.</p>
+            <p className="bookingRulesSectionSubtitle">I-on o i-off ang special pricing para sa mga piling petsa (hal. Peak Season, Off-Season).</p>
             <label className="bookingRulesToggle">
               <input type="checkbox" {...register("seasonalPricingEnabled")} />
-              Enable seasonal pricing overrides
+              I-enable ang seasonal pricing
             </label>
-            <p className="bookingRulesHint">When off, all seasonal price entries below are ignored and rooms always charge their default rate.</p>
+            <p className="bookingRulesHint">Kapag naka-off ito, hindi gagamitin ang mga seasonal price sa baba — regular rate lagi ang gagamitin ng bawat room.</p>
           </div>
 
           {/* --- Preview Impact --- */}

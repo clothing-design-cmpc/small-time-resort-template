@@ -148,6 +148,20 @@ model BookingRules {
   allowDayTour       Boolean @default(false) @map("allow_day_tour")
   allowNightTour     Boolean @default(false) @map("allow_night_tour")
 
+  // --- Day Tour settings — only meaningful when allowDayTour is true.
+  //     A Day Tour is a same-day, no-room, no-overnight visit (guest
+  //     uses the pool/facilities during these hours only, at a flat
+  //     per-guest rate — not the room's per-night price). ---
+  dayTourStartTime      String  @default("08:00") @map("day_tour_start_time") // 24h "HH:mm"
+  dayTourEndTime        String  @default("17:00") @map("day_tour_end_time") // 24h "HH:mm"
+  dayTourPricePerGuest  Decimal @default(500) @map("day_tour_price_per_guest") @db.Decimal(10, 2)
+
+  // --- Night Tour settings — only meaningful when allowNightTour is
+  //     true. Same idea as Day Tour but for an evening window. ---
+  nightTourStartTime     String  @default("18:00") @map("night_tour_start_time") // 24h "HH:mm"
+  nightTourEndTime       String  @default("23:00") @map("night_tour_end_time") // 24h "HH:mm"
+  nightTourPricePerGuest Decimal @default(600) @map("night_tour_price_per_guest") @db.Decimal(10, 2)
+
   // --- Section 2: Cancellation Policy ---
   refundPercentage       Int @default(100) @map("refund_percentage") // % refunded if cancelled before the cutoff
   cancellationCutoffDays Int @default(7) @map("cancellation_cutoff_days") // days before check-in for full refund

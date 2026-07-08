@@ -40,6 +40,30 @@
  * One numbered block (Section 1, 2, 3…) inside the settings card, or
  * a standalone card for Seasonal Pricing / Blackout Dates below it.
  */
+/*
+ * .bookingRulesSubPanel
+ * Nested settings block that appears under a Booking Types checkbox
+ * once it's checked (Day Tour / Night Tour hours + price). Indented
+ * and given its own subtle background so it reads as "belongs to the
+ * checkbox above it" rather than a new top-level section.
+ */
+.bookingRulesSubPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-left: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface-hover);
+}
+
+.bookingRulesSubPanelTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
 .bookingRulesSection {
   display: flex;
   flex-direction: column;

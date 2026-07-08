@@ -22,11 +22,10 @@ import "./Sidebar.css";
 const navLinks = [
   { label: "Dashboard", href: "/superAdmin/dashboard" },
   { label: "Bookings", href: "/superAdmin/bookings" },
-  { label: "Rooms", href: "/superAdmin/content/rooms" },
+  { label: "Rooms & Villas", href: "/superAdmin/content/rooms" },
   { label: "Amenities", href: "/superAdmin/content/amenities" },
-  { label: "Resort Shop", href: "/superAdmin/content/shop" },
-  { label: "Activities", href: "/superAdmin/content/activities" },
   { label: "Booking Rules", href: "/superAdmin/settings/booking-rules" },
+  { label: "Security Logs", href: "/superAdmin/security-logs" },
 ];
 
 export default function Sidebar() {
@@ -39,10 +38,8 @@ export default function Sidebar() {
       <ul className="adminSidebarNav">
         {navLinks.map((link) => {
           // Marks the current page's nav link so the admin always
-          // knows where they are in the control center. Sub-routes
-          // (e.g. /content/rooms/new) also count as active for their
-          // parent link, not just an exact match.
-          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+          // knows where they are in the control center.
+          const isActive = pathname === link.href;
           return (
             <li key={link.href}>
               <Link

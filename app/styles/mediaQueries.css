@@ -197,3 +197,16 @@
     align-items: flex-start;
   }
 }
+
+/* ============================================================
+ * BOOKING FORM — app/visitor/booking/BookingForm.css
+ * ============================================================ */
+@media (min-width: 768px) {
+  .bookingFormRow {
+    flex-direction: row;
+  }
+
+  .bookingConfirmSummary dd {
+    text-align: left;
+  }
+}

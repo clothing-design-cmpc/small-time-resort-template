@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PATCH(request, { params }) {
   const session = requireSuperAdmin(request);
@@ -46,6 +47,14 @@ export async function PATCH(request, { params }) {
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: { status: "cancelled" },
+    });
+
+    // Audit trail (Rule 6) — who cancelled which guest's booking, and when.
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session.uid,
+      request,
+      details: `Cancelled booking for ${existingBooking.guestName} (${existingBooking.checkInDate.toISOString().slice(0, 10)} – ${existingBooking.checkOutDate.toISOString().slice(0, 10)}).`,
     });
 
     return NextResponse.json({

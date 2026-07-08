@@ -1,0 +1,371 @@
+/**
+ * FILE: app/visitor/booking/BookingFormClient.jsx
+ * ROLE: Visitor — public, no auth required
+ *
+ * PURPOSE:
+ * The actual booking form: booking type -> room + dates (or a single
+ * tour date) -> guest count -> guest info, with a live price/deposit
+ * preview and full validation against the super-admin's Booking Rules
+ * (min/max nights, advance window, which booking types are enabled,
+ * room capacity, blackout dates) before the guest can submit.
+ *
+ * DATA FLOW:
+ * 1. usePublicBookingRules() + usePublicRooms(false) load on mount
+ * 2. useRoomAvailability(selectedRoomId) refetches whenever the chosen
+ *    room changes, to warn about already-unavailable dates
+ * 3. A debounced effect calls fetchQuote() (services/bookingPricing via
+ *    /api/bookings/quote) whenever enough fields are filled — this is
+ *    a PREVIEW only, nothing is saved yet
+ * 4. On submit, React Hook Form validates guest info client-side, then
+ *    submitBooking() POSTs to /api/bookings, which re-validates
+ *    everything server-side and creates the row
+ * 5. On success, the whole form is replaced with a confirmation panel
+ */
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
+import { usePublicRooms } from "@/hooks/usePublicRooms";
+import { useRoomAvailability } from "@/hooks/useRoomAvailability";
+import { useBookingSubmission } from "@/hooks/useBookingSubmission";
+import "./BookingForm.css";
+
+const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
+const FULL_DATE = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const bookingFormSchema = z
+  .object({
+    bookingType: z.enum(["overnight", "day_tour", "night_tour"]),
+    roomId: z.string().optional(),
+    checkInDate: z.string().min(1, "Select a date."),
+    checkOutDate: z.string().optional(),
+    numberOfGuests: z.coerce.number().int().min(1, "At least 1 guest."),
+    guestName: z.string().trim().min(2, "Enter your full name."),
+    guestEmail: z.string().trim().email("Enter a valid email address."),
+    guestPhone: z.string().trim().min(7, "Enter a valid phone number."),
+    notes: z.string().trim().max(500).optional(),
+  })
+  .refine((data) => data.bookingType !== "overnight" || !!data.roomId, {
+    message: "Please select a room.",
+    path: ["roomId"],
+  })
+  .refine((data) => data.bookingType !== "overnight" || !!data.checkOutDate, {
+    message: "Select a check-out date.",
+    path: ["checkOutDate"],
+  });
+
+export default function BookingFormClient({ initialCheckInDate }) {
+  const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules();
+  const { rooms, isLoading: roomsLoading } = usePublicRooms(false);
+  const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
+
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+  const [confirmedBooking, setConfirmedBooking] = useState(null);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting: isFormValidating },
+  } = useForm({
+    resolver: zodResolver(bookingFormSchema),
+    defaultValues: {
+      bookingType: "overnight",
+      roomId: "",
+      checkInDate: initialCheckInDate || todayKey(),
+      checkOutDate: "",
+      numberOfGuests: 2,
+      guestName: "",
+      guestEmail: "",
+      guestPhone: "",
+      notes: "",
+    },
+  });
+
+  const bookingType = watch("bookingType");
+  const roomId = watch("roomId");
+  const checkInDate = watch("checkInDate");
+  const checkOutDate = watch("checkOutDate");
+  const numberOfGuests = watch("numberOfGuests");
+
+  const { availability } = useRoomAvailability(bookingType === "overnight" ? roomId : null);
+
+  // Which booking types the super-admin currently allows — drives the pill selector below
+  const enabledTypes = useMemo(() => {
+    if (!bookingRules) return [];
+    const types = [];
+    if (bookingRules.allowOvernightStay) types.push({ value: "overnight", label: "Overnight Stay" });
+    if (bookingRules.allowDayTour) types.push({ value: "day_tour", label: "Day Tour" });
+    if (bookingRules.allowNightTour) types.push({ value: "night_tour", label: "Night Tour" });
+    return types;
+  }, [bookingRules]);
+
+  // Whenever the loaded rules change which types are enabled, make sure the
+  // currently selected type is still valid — otherwise fall back to the first enabled one.
+  useEffect(() => {
+    if (enabledTypes.length > 0 && !enabledTypes.some((t) => t.value === bookingType)) {
+      setValue("bookingType", enabledTypes[0].value);
+    }
+  }, [enabledTypes, bookingType, setValue]);
+
+  /* Debounced live quote preview — recalculates whenever the fields that
+     affect price change. Runs the exact same rule checks the final
+     submit will, so any violation shows up before the guest even submits. */
+  useEffect(() => {
+    const hasMinimumInputs =
+      bookingType &&
+      checkInDate &&
+      numberOfGuests > 0 &&
+      (bookingType !== "overnight" || (roomId && checkOutDate));
+
+    if (!hasMinimumInputs) {
+      setQuote(null);
+      setQuoteError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const result = await fetchQuote({
+          bookingType,
+          roomId: bookingType === "overnight" ? roomId : null,
+          checkInDate,
+          checkOutDate: bookingType === "overnight" ? checkOutDate : null,
+          numberOfGuests,
+        });
+        setQuote(result);
+        setQuoteError(null);
+      } catch (error) {
+        setQuote(null);
+        setQuoteError(error.message);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingType, roomId, checkInDate, checkOutDate, numberOfGuests]);
+
+  async function onSubmit(formValues) {
+    setSubmitError(null);
+    try {
+      const result = await submitBooking({
+        ...formValues,
+        roomId: formValues.bookingType === "overnight" ? formValues.roomId : null,
+        checkOutDate: formValues.bookingType === "overnight" ? formValues.checkOutDate : null,
+      });
+      setConfirmedBooking(result);
+    } catch (error) {
+      setSubmitError(error.message);
+    }
+  }
+
+  /* ─── Confirmation panel — replaces the form entirely on success ─────── */
+  if (confirmedBooking) {
+    const { quote: confirmedQuote } = confirmedBooking;
+    return (
+      <div className="bookingConfirmPanel">
+        <span className="bookingConfirmBadge">✓ Booking Confirmed</span>
+        <p className="bookingConfirmMessage">
+          Thank you! We've reserved your dates and sent a confirmation to your email.
+        </p>
+        <dl className="bookingConfirmSummary">
+          {confirmedQuote.room && (
+            <>
+              <dt>Room</dt>
+              <dd>{confirmedQuote.room.name}</dd>
+            </>
+          )}
+          <dt>Check-in</dt>
+          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {confirmedQuote.checkInTime}</dd>
+          {confirmedQuote.nights > 0 && (
+            <>
+              <dt>Check-out</dt>
+              <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkOutDate}T00:00:00`))} at {confirmedQuote.checkOutTime}</dd>
+            </>
+          )}
+          <dt>Total</dt>
+          <dd>{PESO.format(confirmedQuote.total)}</dd>
+          {confirmedQuote.depositRequired && (
+            <>
+              <dt>Deposit due</dt>
+              <dd>{PESO.format(confirmedQuote.depositAmount)}</dd>
+            </>
+          )}
+        </dl>
+        <p className="bookingConfirmPolicy">
+          Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in
+          ({confirmedQuote.refundPercentage}% refund).
+        </p>
+      </div>
+    );
+  }
+
+  if (rulesLoading) {
+    return <p className="bookingFormLoadingText">Loading booking options…</p>;
+  }
+
+  if (enabledTypes.length === 0) {
+    return (
+      <p className="bookingBody">
+        Online booking is temporarily unavailable. Please reach out through our Contact page
+        and our team will help you reserve your villa directly.
+      </p>
+    );
+  }
+
+  return (
+    <form className="bookingForm" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <p className="bookingFormLegend">* Required fields</p>
+
+      {/* Booking type pills */}
+      <div className="bookingFormField">
+        <label className="bookingFormLabel">Booking Type <span aria-hidden="true">*</span></label>
+        <Controller
+          control={control}
+          name="bookingType"
+          render={({ field }) => (
+            <div className="bookingTypePills">
+              {enabledTypes.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  className={`bookingTypePill${field.value === type.value ? " bookingTypePillActive" : ""}`}
+                  onClick={() => field.onChange(type.value)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+          )}
+        />
+      </div>
+
+      {/* Overnight-only: room select */}
+      {bookingType === "overnight" && (
+        <div className="bookingFormField">
+          <label className="bookingFormLabel" htmlFor="roomId">Room / Villa <span aria-hidden="true">*</span></label>
+          <select id="roomId" className="bookingFormInput" {...register("roomId")} disabled={roomsLoading}>
+            <option value="">{roomsLoading ? "Loading rooms…" : "Select a room"}</option>
+            {rooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name} — {PESO.format(room.pricePerNight)}/night (up to {room.capacity} guests)
+              </option>
+            ))}
+          </select>
+          {errors.roomId && <span className="bookingFormError" role="alert">{errors.roomId.message}</span>}
+        </div>
+      )}
+
+      {/* Dates */}
+      <div className="bookingFormRow">
+        <div className="bookingFormField">
+          <label className="bookingFormLabel" htmlFor="checkInDate">
+            {bookingType === "overnight" ? "Check-in" : "Date"} <span aria-hidden="true">*</span>
+          </label>
+          <input
+            id="checkInDate"
+            type="date"
+            className="bookingFormInput"
+            min={todayKey()}
+            autoFocus
+            {...register("checkInDate")}
+          />
+          {errors.checkInDate && <span className="bookingFormError" role="alert">{errors.checkInDate.message}</span>}
+        </div>
+
+        {bookingType === "overnight" && (
+          <div className="bookingFormField">
+            <label className="bookingFormLabel" htmlFor="checkOutDate">Check-out <span aria-hidden="true">*</span></label>
+            <input
+              id="checkOutDate"
+              type="date"
+              className="bookingFormInput"
+              min={checkInDate || todayKey()}
+              {...register("checkOutDate")}
+            />
+            {errors.checkOutDate && <span className="bookingFormError" role="alert">{errors.checkOutDate.message}</span>}
+          </div>
+        )}
+      </div>
+
+      {bookingType === "overnight" && availability?.unavailableDates?.length > 0 && (
+        <p className="bookingFormHint">
+          Heads up: this room already has reservations on some nearby dates — the total above will
+          tell you right away if your chosen range overlaps one.
+        </p>
+      )}
+
+      {/* Guests */}
+      <div className="bookingFormField">
+        <label className="bookingFormLabel" htmlFor="numberOfGuests">Number of Guests <span aria-hidden="true">*</span></label>
+        <input
+          id="numberOfGuests"
+          type="number"
+          min={1}
+          className="bookingFormInput"
+          {...register("numberOfGuests")}
+        />
+        {errors.numberOfGuests && <span className="bookingFormError" role="alert">{errors.numberOfGuests.message}</span>}
+      </div>
+
+      {/* Guest info */}
+      <div className="bookingFormRow">
+        <div className="bookingFormField">
+          <label className="bookingFormLabel" htmlFor="guestName">Full Name <span aria-hidden="true">*</span></label>
+          <input id="guestName" type="text" className="bookingFormInput" {...register("guestName")} />
+          {errors.guestName && <span className="bookingFormError" role="alert">{errors.guestName.message}</span>}
+        </div>
+        <div className="bookingFormField">
+          <label className="bookingFormLabel" htmlFor="guestPhone">Phone <span aria-hidden="true">*</span></label>
+          <input id="guestPhone" type="tel" className="bookingFormInput" {...register("guestPhone")} />
+          {errors.guestPhone && <span className="bookingFormError" role="alert">{errors.guestPhone.message}</span>}
+        </div>
+      </div>
+
+      <div className="bookingFormField">
+        <label className="bookingFormLabel" htmlFor="guestEmail">Email <span aria-hidden="true">*</span></label>
+        <input id="guestEmail" type="email" className="bookingFormInput" {...register("guestEmail")} />
+        {errors.guestEmail && <span className="bookingFormError" role="alert">{errors.guestEmail.message}</span>}
+      </div>
+
+      <div className="bookingFormField">
+        <label className="bookingFormLabel" htmlFor="notes">Notes (optional)</label>
+        <textarea id="notes" className="bookingFormInput bookingFormTextarea" rows={3} {...register("notes")} />
+      </div>
+
+      {/* Live quote panel */}
+      {quoteError && <p className="bookingFormQuoteError" role="alert">{quoteError}</p>}
+      {quote && !quoteError && (
+        <div className="bookingQuotePanel">
+          {quote.nights > 0 && <p className="bookingQuoteRow"><span>Nights</span><span>{quote.nights}</span></p>}
+          <p className="bookingQuoteRow bookingQuoteRowTotal"><span>Total</span><span>{PESO.format(quote.total)}</span></p>
+          {quote.depositRequired && (
+            <p className="bookingQuoteRow"><span>Deposit due now</span><span>{PESO.format(quote.depositAmount)}</span></p>
+          )}
+          <p className="bookingQuotePolicy">
+            Check-in {quote.checkInTime}{quote.nights > 0 ? ` · Check-out ${quote.checkOutTime}` : ""} · Free cancellation
+            up to {quote.cancellationCutoffDays} day(s) before ({quote.refundPercentage}% refund).
+          </p>
+        </div>
+      )}
+
+      {submitError && <p className="bookingFormSubmitError" role="alert">{submitError}</p>}
+
+      <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating}>
+        {isSubmitting ? "Confirming…" : "Confirm Booking"}
+      </button>
+    </form>
+  );
+}

@@ -2,10 +2,13 @@
  * .bookingSection
  * Full-width region, top padding clears the fixed sticky header
  * (Header.jsx uses position: fixed and sits above this content).
+ * align-items: flex-start (not center) since the real booking form is
+ * taller than one viewport on most screens — it needs to scroll, not
+ * be vertically centered and clipped.
  */
 .bookingSection {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 100dvh;
   padding: var(--space-2xl) var(--space-lg);

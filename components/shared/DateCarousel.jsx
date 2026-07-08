@@ -255,7 +255,7 @@ export default function DateCarousel() {
         </button>
       </div>
 
-      <a href="/visitor/booking" className="dateCarouselSubmit">
+      <a href={`/visitor/booking?checkin=${toDateKey(activeDate)}`} className="dateCarouselSubmit">
         Continue with this date
       </a>
     </div>

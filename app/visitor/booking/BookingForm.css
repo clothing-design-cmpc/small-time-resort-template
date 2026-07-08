@@ -1,0 +1,251 @@
+/*
+ * .bookingForm
+ * Vertical stack of fields, generous gap between each — form fields
+ * never touch each other or the container edge (Rule 23.10 spirit
+ * applied to forms, not just cards).
+ */
+.bookingForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  margin-top: var(--space-xl);
+}
+
+.bookingFormLegend {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.bookingFormLoadingText {
+  margin-top: var(--space-xl);
+  color: var(--color-text-secondary);
+}
+
+/*
+ * .bookingFormRow
+ * Two fields side by side on wider screens, stacks to one column on
+ * mobile — mobile-first, no interior min/max-width hacks (Rule 23.5).
+ */
+.bookingFormRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.bookingFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: 100%;
+}
+
+.bookingFormLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.bookingFormLabel span {
+  color: var(--color-error);
+}
+
+/* Minimum 1rem font-size prevents iOS auto-zoom on focus (Rule 29.6) */
+.bookingFormInput {
+  width: 100%;
+  padding: 0.75rem var(--space-md);
+  font-size: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.bookingFormInput:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(63, 125, 82, 0.2);
+}
+
+.bookingFormTextarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.bookingFormError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+}
+
+.bookingFormHint {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+}
+
+/*
+ * .bookingTypePills
+ * Selectable pill row for the three booking types — only ever shows
+ * the types the super-admin currently has enabled.
+ */
+.bookingTypePills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.bookingTypePill {
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.bookingTypePill:hover {
+  border-color: var(--color-border-hover);
+}
+
+.bookingTypePillActive {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/*
+ * .bookingQuotePanel
+ * Live-updating price preview — visually distinct surface so it reads
+ * as a receipt, not just more form fields.
+ */
+.bookingQuotePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.bookingQuoteRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.bookingQuoteRowTotal {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--color-border);
+}
+
+.bookingQuotePolicy {
+  margin-top: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.bookingFormQuoteError,
+.bookingFormSubmitError {
+  font-size: 0.9rem;
+  color: var(--color-error);
+  background-color: rgba(214, 69, 69, 0.08);
+  border: 1px solid rgba(214, 69, 69, 0.24);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+}
+
+/*
+ * .bookingFormSubmit
+ * Full-width primary action, min 44px tap target (Rule 29.1), disabled
+ * state during submission to prevent double-submit (Rule 34.3).
+ */
+.bookingFormSubmit {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.85rem var(--space-lg);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border-radius: 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.bookingFormSubmit:hover:not(:disabled),
+.bookingFormSubmit:focus-visible:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.bookingFormSubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * .bookingConfirmPanel
+ * Replaces the entire form on successful submission — a receipt-style
+ * summary so the guest has everything they need without scrolling
+ * back through the form they just filled in.
+ */
+.bookingConfirmPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  margin-top: var(--space-xl);
+  padding: var(--space-xl);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.bookingConfirmBadge {
+  align-self: flex-start;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-success);
+}
+
+.bookingConfirmMessage {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.bookingConfirmSummary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-xs) var(--space-lg);
+  margin: 0;
+}
+
+.bookingConfirmSummary dt {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.bookingConfirmSummary dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.bookingConfirmPolicy {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}

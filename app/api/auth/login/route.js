@@ -27,6 +27,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { browserClient, adminClient } from "@/services/supabase";
 import { prisma } from "@/services/prisma";
+import { logSecurityEvent } from "@/services/securityLog";
+import { checkRateLimit } from "@/services/rateLimit";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -42,7 +44,27 @@ const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // require HTTPS once actually deployed to production.
 const isProduction = process.env.NODE_ENV === "production";
 
+// Rule 32.1 priority-endpoint limit: 5 attempts per IP every 15 minutes —
+// this is the single most important brute-force guard on the whole app.
+const LOGIN_ATTEMPT_MAX = 5;
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
 export async function POST(request) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed } = checkRateLimit(`login:${ip}`, LOGIN_ATTEMPT_MAX, LOGIN_ATTEMPT_WINDOW_MS);
+  if (!allowed) {
+    await logSecurityEvent({
+      eventType: "rate_limit_hit",
+      actor: null,
+      request,
+      details: `Exceeded ${LOGIN_ATTEMPT_MAX} login attempts within 15 minutes.`,
+    });
+    return NextResponse.json(
+      { success: false, data: null, message: "Too many attempts. Please try again in 15 minutes." },
+      { status: 429 }
+    );
+  }
+
   // Fail fast with a clear message if Supabase env vars were never set —
   // otherwise the SDK throws a low-level fetch error that just looks
   // like "login isn't working" with no indication why.
@@ -95,6 +117,15 @@ export async function POST(request) {
     if (signInError) {
       console.error("[api/auth/login] signInWithPassword failed:", signInError.message);
     }
+    // Logged with the attempted email so repeated failures against the
+    // same address (brute force) or a spread of addresses (credential
+    // stuffing) both show up clearly in the Security Logs page.
+    await logSecurityEvent({
+      eventType: "login_failed",
+      actor: email,
+      request,
+      details: "Invalid email or password.",
+    });
     return NextResponse.json(
       { success: false, data: null, message: "Invalid email or password." },
       { status: 401 }
@@ -122,6 +153,14 @@ export async function POST(request) {
     // Sign the Supabase session back out — the browser must not keep a
     // valid Supabase session for an account that isn't authorized here.
     await adminClient.auth.admin.signOut(signInData.session.access_token).catch(() => {});
+    // This is a MORE serious signal than a plain login_failed — it means
+    // someone had a genuinely valid Supabase password but isn't an admin.
+    await logSecurityEvent({
+      eventType: "admin_login_denied",
+      actor: email,
+      request,
+      details: "Valid Supabase credentials, but this account has no super_admin role.",
+    });
     return NextResponse.json(
       { success: false, data: null, message: "This account does not have admin access." },
       { status: 403 }
@@ -132,6 +171,13 @@ export async function POST(request) {
   const sessionPayload = Buffer.from(
     JSON.stringify({ uid: authUserId, role: adminProfile.role })
   ).toString("base64");
+
+  await logSecurityEvent({
+    eventType: "login_success",
+    actor: email,
+    request,
+    details: `${adminProfile.fullName} signed in.`,
+  });
 
   const response = NextResponse.json({
     success: true,

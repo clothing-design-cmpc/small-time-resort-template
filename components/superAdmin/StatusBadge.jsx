@@ -25,6 +25,12 @@ const STATUS_STYLES = {
   processing: { label: "Processing", color: "#8b5cf6" },
   delivered: { label: "Delivered", color: "#10b981" },
   failed: { label: "Failed", color: "#ef4444" },
+  // Security Logs event types (app/superAdmin/(protected)/security-logs)
+  login_success: { label: "Login Success", color: "#10b981" },
+  login_failed: { label: "Login Failed", color: "#f59e0b" },
+  admin_login_denied: { label: "Access Denied", color: "#ef4444" },
+  rate_limit_hit: { label: "Rate Limited", color: "#ef4444" },
+  admin_action: { label: "Admin Action", color: "#3b82f6" },
 };
 
 export default function StatusBadge({ status }) {

@@ -10,7 +10,13 @@ cart/checkout), Activities/Experiences, Gallery, Testimonials, Location,
 Contact/Inquiry, Footer. Events & Functions and Spa & Wellness are
 intentionally left out for now.
 
-Progress: Hero (done), About (done). Next: Rooms & Villas.
+Progress: Visitor site — Hero (done), About (done). Next: Rooms & Villas.
+Super-Admin CMS (blueprint pages) — Page 1 Rooms (done), Page 2 Amenities
+(done), Page 3 Resort Shop (done), Page 4 Activities (done). Also built
+ahead of the base blueprint: Bookings admin (view/cancel) and Booking
+Rules & Configuration (settings page, incl. Day/Night Tour types and
+Seasonal Pricing). Remaining CMS pages: Page 5 Testimonials, Page 6
+Gallery, Page 8 Policies & Pages, Page 9 Homepage Customization.
 
 2. TECH STACK
 - Next.js 16.2.x (App Router, Turbopack)
@@ -18,16 +24,21 @@ Progress: Hero (done), About (done). Next: Rooms & Villas.
 - React 19.2.x
 - CSS Modules / plain CSS (no Tailwind)
 - axios (installed, for client-side calls to external APIs)
+- react-hook-form + zod (super-admin CMS forms)
+- lucide-react (icons, e.g. IconPicker for Amenities)
 - Backend service: Supabase (connected — @supabase/supabase-js, direct + session pooler)
 
 3. ACCOUNT TYPES
 - visitor    — public, no auth required (scaffolded)
-- superAdmin — protected, auth required (not yet scaffolded)
+- superAdmin — protected, auth required (scaffolded — login, dashboard,
+               bookings, content management (rooms/amenities/shop/
+               activities), booking-rules settings)
 
 4. DATABASE OVERVIEW
 Supabase Postgres, schema managed via Prisma (prisma/schema.prisma) --
 NEVER the Supabase SQL Editor. Tables: rooms, amenities, store_products,
-bookings, admin_profiles. Prisma 7 note: connection URLs are NOT in schema.prisma --
+shop_config, activities, bookings, admin_profiles, booking_rules,
+seasonal_prices, blackout_dates. Prisma 7 note: connection URLs are NOT in schema.prisma --
 they live in prisma.config.mjs (CLI: db push/generate/seed, uses
 DIRECT_URL) and services/prisma.js (app runtime, uses DATABASE_URL via
 the @prisma/adapter-pg driver adapter -- Prisma 7 requires an adapter,
@@ -44,7 +55,12 @@ SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD.
 5. DATA MODELS OVERVIEW
 - Room           -- name, slug (unique), description, pricePerNight, capacity, imageUrl, isActive, sortOrder
 - Amenity        -- name, description, icon, isActive, sortOrder
-- StoreProduct   -- name, description, price, category, imageUrl, isActive, sortOrder
+- StoreProduct   -- name, description, price, category, imageUrl, imageKey, inStock,
+                    quantityOnHand, isActive, sortOrder (blueprint Page 3 — Resort Shop)
+- ShopConfig     -- singleton (id "singleton"): shopHours, shopLocation, alcoholWarningText
+                    (blueprint Page 3 configuration panel)
+- Activity       -- name, description, duration, minGroupSize, maxGroupSize, imageUrl,
+                    imageKey, isFeatured, isActive, sortOrder (blueprint Page 4)
 - Booking        -- roomId (optional FK -> Room), guestName, checkInDate, checkOutDate
                     (checkOutDate is exclusive -- standard hotel convention), status
                     (confirmed | cancelled). Powers the Booked Dates section and the
@@ -102,6 +118,22 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
   visitor site's Booked Dates / Reserve Your Villa sections read from
 - components/superAdmin/ConfirmationModal.jsx — shared destructive-action confirm dialog
 - components/superAdmin/shared/useToast.js + ToastStack.jsx — admin toast system
+  NOTE: there are two parallel toast implementations. app/superAdmin/(protected)/
+  bookings/page.jsx imports from components/superAdmin/shared/. Every other
+  content-management page (rooms, amenities, shop, activities, booking-rules)
+  imports from app/superAdmin/shared/ instead. Both work independently; when
+  adding a new admin page, match whichever pattern its sibling pages use —
+  don't assume there's only one toast module.
+- app/superAdmin/(protected)/content/shop/ — Resort Shop Management (blueprint
+  Page 3): ShopListClient.jsx (category tabs: All/Alcohol/Snacks/Non-Alcoholic/
+  Essentials/Souvenirs/Ice + product table + Shop Configuration panel),
+  ShopProductForm.jsx (create/edit, image upload aspect 1:1)
+- app/api/superAdmin/content/shop/ — GET/POST product list, [productId]/ GET/PUT/DELETE,
+  config/ GET/PUT for the singleton ShopConfig row
+- app/superAdmin/(protected)/content/activities/ — Activities Management (blueprint
+  Page 4): ActivitiesListClient.jsx, ActivityForm.jsx (create/edit, image upload
+  aspect 16:9, min/max group size cross-field validation)
+- app/api/superAdmin/content/activities/ — GET/POST list, [activityId]/ GET/PUT/DELETE
 - app/api/bookings/dates/route.js — GET, public, returns every currently
   reserved calendar date (expanded from confirmed Booking rows) as a flat
   array of "YYYY-MM-DD" strings. Consumed by both BookedDatesSection.jsx
@@ -130,6 +162,12 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
   (confirmed + cancelled) including room.name.
 - PATCH /api/admin/bookings/{id} — super-admin only. Sets that booking's
   status to "cancelled". No body required.
+- GET/POST   /api/superAdmin/content/shop — super-admin only. List/create shop products.
+- GET/PUT/DELETE /api/superAdmin/content/shop/{productId} — super-admin only.
+- GET/PUT    /api/superAdmin/content/shop/config — super-admin only. Singleton
+  ShopConfig row (shop hours, location, alcohol warning text).
+- GET/POST   /api/superAdmin/content/activities — super-admin only. List/create activities.
+- GET/PUT/DELETE /api/superAdmin/content/activities/{activityId} — super-admin only.
 
 9. COMMON DEBUG POINTS
 - If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
@@ -141,6 +179,14 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - If a cancelled booking's dates don't reopen on the visitor site: check
   GET /api/bookings/dates — it only expands bookings with status: "confirmed", so a
   successful cancel (status -> "cancelled") should free those dates on next fetch.
+- If any /api/superAdmin/content/* route returns data to an unauthenticated
+  request: check middleware.js's matcher includes "/api/superAdmin/:path*" —
+  it was previously missing (only "/api/admin/:path*" was covered), which left
+  rooms/amenities/shop/activities/upload routes unprotected. Fixed; if this
+  regresses, the matcher array is the first thing to check.
+- If Rooms/Amenities/Resort Shop/Activities/Booking Rules don't appear in the
+  admin sidebar: check components/superAdmin/Sidebar.jsx's navLinks array —
+  entries must be added by hand as each page is built, they don't appear automatically.
 - If "Book Now" 404s: confirm app/visitor/booking/page.jsx still exists — Header.jsx
   links directly to /visitor/booking.
 - If "Login" link is missing from the Header: check components/shared/Header.jsx for

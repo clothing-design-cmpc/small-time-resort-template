@@ -1,0 +1,320 @@
+/*
+ * .shopSection
+ * Outer wrapper for the Resort Shop Management page.
+ */
+.shopSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.shopHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.shopEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.shopTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.shopAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.shopAddButton:hover,
+.shopAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+/*
+ * .shopTabRow
+ * Category filter tabs — All / Alcohol / Snacks / Non-Alcoholic /
+ * Essentials / Souvenirs / Ice. Wraps on narrow screens.
+ */
+.shopTabRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+}
+
+.shopTab {
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+
+.shopTab:hover,
+.shopTab:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.shopTab--active {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.shopRowActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.shopRowActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.shopRowActionButton:hover,
+.shopRowActionButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.shopRowActionButton--destructive {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.shopRowActionButton--destructive:hover,
+.shopRowActionButton--destructive:focus-visible {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/*
+ * .shopConfigPanel
+ * Card holding the shop hours/location/alcohol-warning form, sits
+ * below the product table.
+ */
+.shopConfigPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  max-width: 640px;
+}
+
+.shopConfigTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.shopConfigForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.shopFormMutedText {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .shopFormSection / .shopForm / .shopFormField
+ * Product create/edit form — mirrors the Rooms form layout pattern.
+ */
+.shopFormSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 720px;
+}
+
+.shopFormHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.shopForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.shopFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 200px;
+}
+
+.shopFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.shopFormField input[type="text"],
+.shopFormField input[type="number"],
+.shopFormField textarea,
+.shopFormField select {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.shopFormField textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.shopFormRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.shopFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.shopFormImageUpload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.shopFormImagePreviewWrapper {
+  position: relative;
+  width: 140px;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+}
+
+.shopFormToggleRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.shopFormToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.shopFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.shopFormButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.shopFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.shopFormButton--neutral:hover,
+.shopFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.shopFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.shopFormButton--primary:hover,
+.shopFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.shopFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

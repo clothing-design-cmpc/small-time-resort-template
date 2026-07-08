@@ -48,13 +48,14 @@ export function middleware(request) {
   // Login page itself must stay reachable, or nobody could ever sign in.
   const isProtectedRoute =
     (pathname.startsWith("/superAdmin") && pathname !== "/superAdmin/login") ||
-    pathname.startsWith("/api/admin");
+    pathname.startsWith("/api/admin") ||
+    pathname.startsWith("/api/superAdmin");
 
   if (isProtectedRoute) {
     const userRole = decodeRole(sessionToken);
     if (userRole !== "super_admin") {
       // API routes get a JSON 401, not a redirect — a fetch() call can't follow a redirect into an HTML login page.
-      if (pathname.startsWith("/api/admin")) {
+      if (pathname.startsWith("/api/admin") || pathname.startsWith("/api/superAdmin")) {
         return NextResponse.json(
           { success: false, data: null, message: "You don't have permission to do this." },
           { status: 401 }
@@ -79,5 +80,5 @@ export function middleware(request) {
 // Matcher: only run this middleware on super-admin pages + admin API routes
 // — never on static assets, the visitor site, or public API routes.
 export const config = {
-  matcher: ["/superAdmin/:path*", "/api/admin/:path*"],
+  matcher: ["/superAdmin/:path*", "/api/admin/:path*", "/api/superAdmin/:path*"],
 };

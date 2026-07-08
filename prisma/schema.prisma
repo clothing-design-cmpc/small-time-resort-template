@@ -71,20 +71,63 @@ model Amenity {
 }
 
 // ============================================================
-// MODEL: StoreProduct  (Resort Shop — browse-only, no cart/checkout)
+// MODEL: StoreProduct  (Resort Shop — browse-only, no cart/checkout,
+// blueprint Page 3)
 // ============================================================
 model StoreProduct {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
-  category    String   @default("general")
-  imageUrl    String?  @map("image_url")
-  isActive    Boolean  @default(true) @map("is_active")
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(10, 2)
+  category       String   @default("general") // alcohol | snacks | non_alcoholic | essentials | souvenirs | ice
+  imageUrl       String?  @map("image_url")
+  imageKey       String?  @map("image_key") // R2 object key, needed to delete the old file on replace
+  inStock        Boolean  @default(true) @map("in_stock")
+  quantityOnHand Int      @default(0) @map("quantity_on_hand") // informational only — not used for checkout
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("store_products")
+}
+
+// ============================================================
+// MODEL: ShopConfig  (Resort Shop configuration, blueprint Page 3)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "singleton" (see app/api/superAdmin/content/shop/
+// config/route.js), never creates a second row. Matches the same
+// singleton pattern as BookingRules below.
+model ShopConfig {
+  id                 String   @id @default("singleton")
+  shopHours          String?  @map("shop_hours") // e.g. "7:00 AM – 10:00 PM"
+  shopLocation       String?  @map("shop_location") // e.g. "Ground floor, near lobby"
+  alcoholWarningText String?  @map("alcohol_warning_text") @db.Text
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("shop_config")
+}
+
+// ============================================================
+// MODEL: Activity  (Resort Activities, blueprint Page 4)
+// ============================================================
+model Activity {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?  @db.Text
+  duration     String? // free text, e.g. "2 hours"
+  minGroupSize Int      @default(1) @map("min_group_size")
+  maxGroupSize Int      @default(10) @map("max_group_size")
+  imageUrl     String?  @map("image_url")
+  imageKey     String?  @map("image_key") // R2 object key, needed to delete the old file on replace
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("activities")
 }
 
 // ============================================================

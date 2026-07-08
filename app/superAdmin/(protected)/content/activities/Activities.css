@@ -1,0 +1,253 @@
+/*
+ * .activitiesSection
+ * Outer wrapper for the Activities Management list view.
+ */
+.activitiesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.activitiesHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.activitiesEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.activitiesTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.activitiesAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.activitiesAddButton:hover,
+.activitiesAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.activitiesRowActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.activitiesRowActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.activitiesRowActionButton:hover,
+.activitiesRowActionButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.activitiesRowActionButton--destructive {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.activitiesRowActionButton--destructive:hover,
+.activitiesRowActionButton--destructive:focus-visible {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/*
+ * .activityFormSection / .activityForm
+ * Create/edit form — mirrors the Rooms form layout pattern.
+ */
+.activityFormSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 720px;
+}
+
+.activityFormHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.activityForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.activityFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 200px;
+}
+
+.activityFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.activityFormField input[type="text"],
+.activityFormField input[type="number"],
+.activityFormField textarea {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.activityFormField textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.activityFormRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.activityFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.activityFormImageUpload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+/*
+ * .activityFormImagePreviewWrapper
+ * 16:9 aspect ratio, per the blueprint's "Activity image (upload to
+ * R2, aspect 16:9)" spec.
+ */
+.activityFormImagePreviewWrapper {
+  position: relative;
+  width: 220px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+}
+
+.activityFormToggleRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.activityFormToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.activityFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.activityFormButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.activityFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.activityFormButton--neutral:hover,
+.activityFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.activityFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.activityFormButton--primary:hover,
+.activityFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.activityFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

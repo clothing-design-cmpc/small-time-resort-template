@@ -335,10 +335,34 @@
   gap: var(--space-lg);
   width: 100%;
   max-width: 480px;
+  max-height: 90vh;
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background-color: var(--color-bg);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   z-index: var(--z-modal);
+  overflow-y: auto;
+  /* Firefox custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* Chromium/WebKit custom scrollbar — kept subtle so it reads as part
+   of the modal chrome rather than a default browser scrollbar. */
+.bookingRulesModalDialog::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bookingRulesModalDialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bookingRulesModalDialog::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 4px;
+}
+
+.bookingRulesModalDialog::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-border-hover);
 }

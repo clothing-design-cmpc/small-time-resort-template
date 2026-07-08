@@ -187,7 +187,7 @@ export default function SeasonalPricingSection({ rooms, showToast }) {
       <div className="bookingRulesSectionHeaderRow">
         <div>
           <h2 className="bookingRulesSectionTitle">Section 5: Seasonal Pricing</h2>
-          <p className="bookingRulesSectionSubtitle">Date-range price overrides per room (peak, shoulder, off-season, etc.).</p>
+          <p className="bookingRulesSectionSubtitle">Charge a different nightly rate for a specific room during a date range — e.g. a higher rate over the holidays.</p>
         </div>
         <button type="button" className="bookingRulesAddButton" onClick={() => setModalTarget({})}>
           + Add Season

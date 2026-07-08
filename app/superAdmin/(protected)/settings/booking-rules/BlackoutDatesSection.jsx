@@ -185,7 +185,7 @@ export default function BlackoutDatesSection({ rooms, showToast }) {
       <div className="bookingRulesSectionHeaderRow">
         <div>
           <h2 className="bookingRulesSectionTitle">Section 6: Blackout Dates</h2>
-          <p className="bookingRulesSectionSubtitle">Dates a room is unavailable regardless of the booking calendar — cleaning, maintenance, or private use.</p>
+          <p className="bookingRulesSectionSubtitle">Take a room off the calendar entirely for a date range — for cleaning, maintenance, or private use — regardless of any other setting.</p>
         </div>
         <button type="button" className="bookingRulesAddButton" onClick={() => setModalTarget({})}>
           + Block Dates

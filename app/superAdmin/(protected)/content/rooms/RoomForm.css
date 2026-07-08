@@ -22,11 +22,65 @@
 .roomForm {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-xl);
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background-color: var(--color-surface);
+}
+
+/*
+ * .roomFormSectionGroup
+ * One labeled group (Basic Details, Pricing & Capacity, etc.) inside
+ * the form, separated by a divider so the room admin can scan the
+ * form by topic instead of one long flat list of fields.
+ */
+.roomFormSectionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.roomFormSectionGroup:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.roomFormSectionTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.roomFormSectionSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: calc(var(--space-xs) * -1);
+}
+
+/*
+ * .roomFormAdvanced
+ * Collapses the URL slug behind a disclosure — it's rarely something
+ * an admin needs to touch, so hiding it by default keeps the Basic
+ * Details section focused on what's actually asked for most often.
+ */
+.roomFormAdvanced summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: var(--space-xs) 0;
+}
+
+.roomFormAdvanced summary:hover,
+.roomFormAdvanced summary:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.roomFormAdvanced[open] summary {
+  margin-bottom: var(--space-sm);
 }
 
 .roomFormField {

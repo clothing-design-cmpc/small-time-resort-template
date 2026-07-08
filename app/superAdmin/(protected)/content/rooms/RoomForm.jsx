@@ -170,126 +170,158 @@ export default function RoomForm({ existingRoom, amenities }) {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="roomForm">
-        <div className="roomFormField">
-          <label htmlFor="roomName">Room Name <span aria-hidden="true">*</span></label>
-          <input
-            id="roomName"
-            type="text"
-            autoFocus
-            {...register("name", { onBlur: handleAutoSlug })}
-          />
-          <p className="roomFormHint">The name shown to guests, e.g. &quot;Garden Suite&quot; or &quot;Ocean View Villa&quot;.</p>
-          {errors.name && <span role="alert" className="roomFormError">{errors.name.message}</span>}
-        </div>
+        {/* --- Basic Details --- */}
+        <div className="roomFormSectionGroup">
+          <h2 className="roomFormSectionTitle">Basic Details</h2>
+          <p className="roomFormSectionSubtitle">What the room is called and how it&apos;s described to guests.</p>
 
-        <div className="roomFormField">
-          <label htmlFor="roomSlug">Slug <span aria-hidden="true">*</span></label>
-          <input id="roomSlug" type="text" {...register("slug")} />
-          <p className="roomFormHint">The room&apos;s URL-friendly ID (auto-filled from the name). Changing it changes the room&apos;s live link — only edit if you know why.</p>
-          {errors.slug && <span role="alert" className="roomFormError">{errors.slug.message}</span>}
-        </div>
-
-        <div className="roomFormField">
-          <label htmlFor="roomDescription">Description</label>
-          <textarea id="roomDescription" rows={4} {...register("description")} />
-          <p className="roomFormHint">Shown on the room&apos;s page on the visitor site — describe the space, view, and what makes it special.</p>
-        </div>
-
-        <div className="roomFormRow">
           <div className="roomFormField">
-            <label htmlFor="roomPrice">Price / Night (₱) <span aria-hidden="true">*</span></label>
-            <input id="roomPrice" type="number" step="0.01" {...register("pricePerNight")} />
-            <p className="roomFormHint">Base rate per night, before any seasonal pricing or surcharges from Booking Rules.</p>
-            {errors.pricePerNight && <span role="alert" className="roomFormError">{errors.pricePerNight.message}</span>}
+            <label htmlFor="roomName">Room Name <span aria-hidden="true">*</span></label>
+            <input
+              id="roomName"
+              type="text"
+              autoFocus
+              {...register("name", { onBlur: handleAutoSlug })}
+            />
+            <p className="roomFormHint">The name shown to guests, e.g. &quot;Garden Suite&quot; or &quot;Ocean View Villa&quot;.</p>
+            {errors.name && <span role="alert" className="roomFormError">{errors.name.message}</span>}
           </div>
 
           <div className="roomFormField">
-            <label htmlFor="roomCapacity">Max Guests <span aria-hidden="true">*</span></label>
-            <input id="roomCapacity" type="number" {...register("capacity")} />
-            <p className="roomFormHint">The most guests allowed in this room at once, regardless of bed count.</p>
-            {errors.capacity && <span role="alert" className="roomFormError">{errors.capacity.message}</span>}
+            <label htmlFor="roomDescription">Description</label>
+            <textarea id="roomDescription" rows={4} {...register("description")} />
+            <p className="roomFormHint">Shown on the room&apos;s page on the visitor site — describe the space, view, and what makes it special.</p>
           </div>
 
+          <details className="roomFormAdvanced">
+            <summary>Advanced: URL slug</summary>
+            <div className="roomFormField">
+              <label htmlFor="roomSlug">Slug <span aria-hidden="true">*</span></label>
+              <input id="roomSlug" type="text" {...register("slug")} />
+              <p className="roomFormHint">Auto-filled from the name. This becomes part of the room&apos;s live web address — only change it if you know it will update the link guests use.</p>
+              {errors.slug && <span role="alert" className="roomFormError">{errors.slug.message}</span>}
+            </div>
+          </details>
+        </div>
+
+        {/* --- Pricing & Capacity --- */}
+        <div className="roomFormSectionGroup">
+          <h2 className="roomFormSectionTitle">Pricing &amp; Capacity</h2>
+          <p className="roomFormSectionSubtitle">What it costs per night and who it&apos;s built for.</p>
+
+          <div className="roomFormRow">
+            <div className="roomFormField">
+              <label htmlFor="roomPrice">Price / Night (₱) <span aria-hidden="true">*</span></label>
+              <input id="roomPrice" type="number" step="0.01" {...register("pricePerNight")} />
+              <p className="roomFormHint">Base rate per night, before any seasonal pricing or surcharges from Booking Rules.</p>
+              {errors.pricePerNight && <span role="alert" className="roomFormError">{errors.pricePerNight.message}</span>}
+            </div>
+
+            <div className="roomFormField">
+              <label htmlFor="roomCapacity">Max Guests <span aria-hidden="true">*</span></label>
+              <input id="roomCapacity" type="number" {...register("capacity")} />
+              <p className="roomFormHint">The most guests allowed in this room at once, regardless of bed count.</p>
+              {errors.capacity && <span role="alert" className="roomFormError">{errors.capacity.message}</span>}
+            </div>
+
+            <div className="roomFormField">
+              <label htmlFor="roomBedType">Bed Type</label>
+              <select id="roomBedType" {...register("bedType")}>
+                {BED_TYPES.map((bedType) => (
+                  <option key={bedType} value={bedType}>{bedType}</option>
+                ))}
+              </select>
+              <p className="roomFormHint">The main bed configuration shown on the room card.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* --- Photo --- */}
+        <div className="roomFormSectionGroup">
+          <h2 className="roomFormSectionTitle">Photo</h2>
           <div className="roomFormField">
-            <label htmlFor="roomBedType">Bed Type</label>
-            <select id="roomBedType" {...register("bedType")}>
-              {BED_TYPES.map((bedType) => (
-                <option key={bedType} value={bedType}>{bedType}</option>
+            <label htmlFor="roomImage">Main Image</label>
+            <div className="roomFormImageUpload">
+              {imagePreviewUrl && (
+                <div className="roomFormImagePreviewWrapper">
+                  {/* unoptimized for a freshly-selected local file — its blob: URL
+                      is never a configured remote host for next/image to optimize */}
+                  <Image
+                    src={imagePreviewUrl}
+                    alt="Room preview"
+                    fill
+                    sizes="200px"
+                    style={{ objectFit: "cover" }}
+                    unoptimized={Boolean(selectedImageFile)}
+                  />
+                </div>
+              )}
+              <input id="roomImage" type="file" accept="image/*" onChange={handleImageChange} />
+            </div>
+            <p className="roomFormHint">The cover photo used on the room list, homepage (if featured), and booking cards. Recommended 16:9.</p>
+          </div>
+        </div>
+
+        {/* --- Amenities --- */}
+        <div className="roomFormSectionGroup">
+          <h2 className="roomFormSectionTitle">Amenities</h2>
+          <div className="roomFormField">
+            <label>Room Amenities</label>
+            <p className="roomFormHint">Check every amenity available in this specific room — these show as icons on the room&apos;s page. Manage the amenity list itself under Content &gt; Amenities.</p>
+            <div className="roomFormAmenityGrid">
+              {amenities.length === 0 && <p className="roomFormMutedText">No amenities created yet.</p>}
+              {amenities.map((amenity) => (
+                <label key={amenity.id} className="roomFormAmenityCheckbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedAmenityIds.includes(amenity.id)}
+                    onChange={() => toggleAmenity(amenity.id)}
+                  />
+                  {amenity.name}
+                </label>
               ))}
-            </select>
-            <p className="roomFormHint">The main bed configuration shown on the room card.</p>
+            </div>
           </div>
         </div>
 
-        <div className="roomFormField">
-          <label htmlFor="roomImage">Main Image</label>
-          <div className="roomFormImageUpload">
-            {imagePreviewUrl && (
-              <div className="roomFormImagePreviewWrapper">
-                {/* unoptimized for a freshly-selected local file — its blob: URL
-                    is never a configured remote host for next/image to optimize */}
-                <Image
-                  src={imagePreviewUrl}
-                  alt="Room preview"
-                  fill
-                  sizes="200px"
-                  style={{ objectFit: "cover" }}
-                  unoptimized={Boolean(selectedImageFile)}
-                />
-              </div>
-            )}
-            <input id="roomImage" type="file" accept="image/*" onChange={handleImageChange} />
-          </div>
-          <p className="roomFormHint">The cover photo used on the room list, homepage (if featured), and booking cards. Recommended 16:9.</p>
-        </div>
-
-        <div className="roomFormField">
-          <label>Room Amenities</label>
-          <p className="roomFormHint">Check every amenity available in this specific room — these show as icons on the room&apos;s page. Manage the amenity list itself under Content &gt; Amenities.</p>
-          <div className="roomFormAmenityGrid">
-            {amenities.length === 0 && <p className="roomFormMutedText">No amenities created yet.</p>}
-            {amenities.map((amenity) => (
-              <label key={amenity.id} className="roomFormAmenityCheckbox">
-                <input
-                  type="checkbox"
-                  checked={selectedAmenityIds.includes(amenity.id)}
-                  onChange={() => toggleAmenity(amenity.id)}
-                />
-                {amenity.name}
-              </label>
-            ))}
+        {/* --- Booking Limits --- */}
+        <div className="roomFormSectionGroup">
+          <h2 className="roomFormSectionTitle">Booking Limits</h2>
+          <p className="roomFormSectionSubtitle">Overrides just for this room — leave at the resort-wide default (set in Booking Rules) unless this room needs different limits.</p>
+          <div className="roomFormRow">
+            <div className="roomFormField">
+              <label htmlFor="roomMinNights">Min Nights / Booking</label>
+              <input id="roomMinNights" type="number" {...register("minNightsPerBooking")} />
+              <p className="roomFormHint">The fewest nights a guest can book this room for in one reservation, e.g. 2 to discourage single-night stays.</p>
+            </div>
+            <div className="roomFormField">
+              <label htmlFor="roomMaxNights">Max Nights / Booking</label>
+              <input id="roomMaxNights" type="number" {...register("maxNightsPerBooking")} />
+              <p className="roomFormHint">The longest a single reservation can run, e.g. 30 to prevent open-ended long-term stays.</p>
+            </div>
+            <div className="roomFormField">
+              <label htmlFor="roomMinGuests">Min Guests Allowed</label>
+              <input id="roomMinGuests" type="number" {...register("minGuestsAllowed")} />
+              <p className="roomFormHint">The fewest guests required to book — usually 1, unless this room is priced for groups only.</p>
+            </div>
           </div>
         </div>
 
-        <div className="roomFormRow">
-          <div className="roomFormField">
-            <label htmlFor="roomMinNights">Min Nights / Booking</label>
-            <input id="roomMinNights" type="number" {...register("minNightsPerBooking")} />
-            <p className="roomFormHint">The fewest nights a guest can book this room for in one reservation, e.g. 2 to discourage single-night stays.</p>
+        {/* --- Visibility --- */}
+        <div className="roomFormSectionGroup">
+          <h2 className="roomFormSectionTitle">Visibility</h2>
+          <div className="roomFormToggleRow">
+            <label className="roomFormToggle">
+              <input type="checkbox" {...register("isFeatured")} />
+              Featured on homepage
+            </label>
+            <label className="roomFormToggle">
+              <input type="checkbox" {...register("isActive")} />
+              Visible to guests (active)
+            </label>
           </div>
-          <div className="roomFormField">
-            <label htmlFor="roomMaxNights">Max Nights / Booking</label>
-            <input id="roomMaxNights" type="number" {...register("maxNightsPerBooking")} />
-            <p className="roomFormHint">The longest a single reservation can run, e.g. 30 to prevent open-ended long-term stays.</p>
-          </div>
-          <div className="roomFormField">
-            <label htmlFor="roomMinGuests">Min Guests Allowed</label>
-            <input id="roomMinGuests" type="number" {...register("minGuestsAllowed")} />
-            <p className="roomFormHint">The fewest guests required to book — usually 1, unless this room is priced for groups only.</p>
-          </div>
+          <p className="roomFormHint">Featured rooms appear in the homepage highlights. Turning off &quot;Active&quot; hides the room from guests without deleting it.</p>
         </div>
-
-        <div className="roomFormToggleRow">
-          <label className="roomFormToggle">
-            <input type="checkbox" {...register("isFeatured")} />
-            Featured on homepage
-          </label>
-          <label className="roomFormToggle">
-            <input type="checkbox" {...register("isActive")} />
-            Visible to guests (active)
-          </label>
-        </div>
-        <p className="roomFormHint">Featured rooms appear in the homepage highlights. Turning off &quot;Active&quot; hides the room from guests without deleting it.</p>
 
         <div className="roomFormActions">
           <button type="button" className="roomFormButton roomFormButton--neutral" onClick={() => router.push("/superAdmin/content/rooms")}>

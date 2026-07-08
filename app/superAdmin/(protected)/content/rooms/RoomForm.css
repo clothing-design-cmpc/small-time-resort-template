@@ -1,0 +1,182 @@
+/*
+ * .roomFormSection
+ * Outer wrapper for the create/edit form view.
+ */
+.roomFormSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 720px;
+}
+
+.roomFormHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/*
+ * .roomForm
+ * Vertical stack of fields with generous gap so nothing feels cramped.
+ */
+.roomForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.roomFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex: 1 1 200px;
+}
+
+.roomFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.roomFormField input[type="text"],
+.roomFormField input[type="number"],
+.roomFormField textarea,
+.roomFormField select {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.roomFormField textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+/*
+ * .roomFormRow
+ * Groups related short fields (price/guests/bed type) side by side on
+ * desktop, wrapping to a single column on narrow screens.
+ */
+.roomFormRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.roomFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.roomFormImageUpload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.roomFormImagePreviewWrapper {
+  position: relative;
+  width: 160px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+}
+
+/*
+ * .roomFormAmenityGrid
+ * Auto-responsive checkbox grid for amenities — reflows without any
+ * breakpoints needed.
+ */
+.roomFormAmenityGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-sm);
+}
+
+.roomFormAmenityCheckbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.roomFormMutedText {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.roomFormToggleRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.roomFormToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.roomFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.roomFormButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.roomFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.roomFormButton--neutral:hover,
+.roomFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.roomFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.roomFormButton--primary:hover,
+.roomFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.roomFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

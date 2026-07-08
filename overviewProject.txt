@@ -163,3 +163,80 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)
 - NEXT_PUBLIC_SUPABASE_ANON_KEY  (blank — Supabase not yet connected)
 - SUPABASE_SERVICE_ROLE_KEY      (blank — Supabase not yet connected)
+- CLOUDFLARE_R2_ACCOUNT_ID              (blank — needed for room image uploads)
+- CLOUDFLARE_R2_ACCESS_KEY_ID           (blank)
+- CLOUDFLARE_R2_SECRET_ACCESS_KEY       (blank)
+- CLOUDFLARE_R2_BUCKET_NAME             (blank)
+- NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL  (blank — public CDN base URL)
+
+================================================================================
+11. SUPER-ADMIN CONTENT MANAGEMENT (from super-admin-frontend-master-template.txt)
+================================================================================
+Source spec: super-admin-frontend-master-template.txt (Super-Admin CMS
+blueprint — 9 content pages total). Built one feature at a time per
+protocol; do not scaffold future pages ahead of being asked.
+
+STATUS: Page 1 of 9 built — ROOMS MANAGEMENT.
+Remaining (build only when instructed): Amenities, Resort Shop,
+Activities, Testimonials, Gallery, Booking Rules & Configuration,
+Policies & Pages, Homepage Customization.
+
+=== PAGE 1: ROOMS MANAGEMENT (DONE) ===
+URL: /superAdmin/content/rooms (list), /new (create), /[roomId] (edit)
+
+Room model extended (prisma/schema.prisma) with: imageKey, bedType,
+isFeatured, minNightsPerBooking, maxNightsPerBooking, minGuestsAllowed,
+amenityIds (String[] of Amenity.id), updatedBy.
+
+=== PROCESS: Create/Edit Room ===
+Step 1 : Admin opens /superAdmin/content/rooms/new or clicks "Edit" on
+         a row in /superAdmin/content/rooms
+Step 2 : Server Component (page.jsx / [roomId]/page.jsx) fetches
+         active amenities (and the room, in edit mode) directly via
+         Prisma — no API round-trip needed for the initial load
+Step 3 : RoomForm.jsx (Client) renders the form with React Hook Form +
+         Zod validation; if a new image file is chosen, a local
+         object-URL preview shows immediately
+Step 4 : On submit, if a new image was selected it's uploaded first to
+         POST /api/superAdmin/content/upload (resizes to 1600px max,
+         converts to WebP, stores in Cloudflare R2 under rooms/)
+Step 5 : Room payload (including the returned image url/key and
+         selected amenityIds) is POSTed (create) or PUT (edit) to
+         /api/superAdmin/content/rooms
+Step 6 : API route runs a pre-save duplicate check on slug (create) or
+         re-checks slug uniqueness excluding itself (edit); on image
+         replace, the old R2 file is deleted via deleteFromR2()
+Step 7 : Toast confirms success/failure; on success the admin is
+         redirected back to the Rooms list, which refetches via
+         useRooms()
+
+FILE MAP ADDITIONS:
+- services/r2.js                       — Cloudflare R2 client + uploadToR2/deleteFromR2
+- utils/imageProcessor.js              — sharp resize/compress/WebP pipeline
+- app/api/superAdmin/content/upload/route.js         — shared image upload endpoint (all future content pages reuse this)
+- app/api/superAdmin/content/rooms/route.js          — GET list, POST create
+- app/api/superAdmin/content/rooms/[roomId]/route.js — GET one, PUT update, DELETE
+- hooks/useRooms.js                    — client fetch + delete for the Rooms list
+- app/superAdmin/shared/useToast.js    — shared toast hook (all future content pages reuse this)
+- app/superAdmin/shared/ToastStack.jsx — shared toast renderer
+- app/superAdmin/shared/toast-stack.css
+- app/superAdmin/(protected)/content/rooms/page.jsx           — list route (server shell)
+- app/superAdmin/(protected)/content/rooms/RoomsListClient.jsx — list table, delete modal, toasts
+- app/superAdmin/(protected)/content/rooms/Rooms.css
+- app/superAdmin/(protected)/content/rooms/RoomForm.jsx        — shared create/edit form
+- app/superAdmin/(protected)/content/rooms/RoomForm.css
+- app/superAdmin/(protected)/content/rooms/new/page.jsx        — create route (server shell, fetches amenities)
+- app/superAdmin/(protected)/content/rooms/[roomId]/page.jsx   — edit route (server shell, fetches room + amenities)
+- app/superAdmin/(protected)/content/rooms/[roomId]/not-found.jsx
+- app/superAdmin/(protected)/content/rooms/error.jsx
+
+DEBUG POINTS:
+- Image upload fails with 500 -> confirm the 5 CLOUDFLARE_R2_* env vars
+  are set and the bucket exists.
+- "sharp" or "@aws-sdk/client-s3" module not found -> run `npm install`
+  after this update (both were added to package.json dependencies).
+- Room save fails with 409 -> the slug is already taken by another room;
+  edit the slug field.
+- Amenity checkboxes are empty on the form -> no Amenity rows exist yet
+  (Amenities Management page — Page 2 — is not built yet; amenities must
+  currently be added directly via `npx prisma studio` or SQL for testing).

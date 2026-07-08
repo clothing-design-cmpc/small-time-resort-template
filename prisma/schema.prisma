@@ -33,8 +33,19 @@ model Room {
   pricePerNight  Decimal   @map("price_per_night") @db.Decimal(10, 2)
   capacity       Int       @default(2)
   imageUrl       String?   @map("image_url")
+  imageKey       String?   @map("image_key") // R2 object key, needed to delete the old file on replace
   isActive       Boolean   @default(true) @map("is_active")
   sortOrder      Int       @default(0) @map("sort_order")
+
+  // --- Content Management fields (Super-Admin Rooms Management, blueprint Page 1) ---
+  bedType             String    @default("King") @map("bed_type") // "King", "Twin", "Double", "Sofa Bed"
+  isFeatured          Boolean   @default(false) @map("is_featured") // shown on visitor homepage
+  minNightsPerBooking Int       @default(1) @map("min_nights_per_booking")
+  maxNightsPerBooking Int       @default(30) @map("max_nights_per_booking")
+  minGuestsAllowed    Int       @default(1) @map("min_guests_allowed")
+  amenityIds          String[]  @default([]) @map("amenity_ids") // Amenity.id values mapped to this room
+  updatedBy           String?   @map("updated_by") // super-admin user id who last saved this room
+
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
   bookings       Booking[]

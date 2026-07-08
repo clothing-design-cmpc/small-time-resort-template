@@ -9,6 +9,16 @@ const nextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      // Cloudflare R2 public CDN — serves room/amenity/shop/activity/gallery
+      // images uploaded via the super-admin content-management pages.
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "**.r2.cloudflarestorage.com",
+      },
     ],
   },
 };

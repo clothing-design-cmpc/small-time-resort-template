@@ -1,15 +1,36 @@
 cmpc.business@g.c
 supabase : M4qIivMY1lrk7DKo
-cloudflare r2
+cloudflare r2 : 
+Token value - cfat_R0tz7BjdsyZdwCBzbAsjzTCdFwok9Rxdlxgpw0uQ245dd5b1
+Access Key ID - f38c0b00d613489fc83c84a61d4033ac
+Secret Access Key - f4883cfc40e9eb81b16c74a13b47f50c3b1d6a1698d80e8b1a23a5ccdeeab010
+default - https://d7f52b107751ba37853c60b046c27fe3.r2.cloudflarestorage.com
 emailjs
 github
 
+env : 
 NEXT_PUBLIC_SUPABASE_URL=https://zblvfhcxzpcvdqxjbxdb.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpibHZmaGN4enBjdmRxeGpieGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NzkzNDAsImV4cCI6MjA5NzM1NTM0MH0.Inu2K3G-wIa8q3yS77B4B6zO9xe-9PzPZpZuWuE5DsY
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpibHZmaGN4enBjdmRxeGpieGRiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTc3OTM0MCwiZXhwIjoyMDk3MzU1MzQwfQ.S-6z_nv85IZVewhQPc0Pg1GblJQfITbTziNOHt7qsBI
 
-# Transaction pooler (port 6543) — used for short-lived queries, serverless/edge functions
-DATABASE_URL_DIRECT=postgresql://postgres.zblvfhcxzpcvdqxjbxdb:M4qIivMY1lrk7DKo@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
+# Transaction pooler (port 6543) — used by Prisma Client at runtime for all
+# normal queries (short-lived, serverless-friendly). Referenced as DATABASE_URL
+# in prisma/schema.prisma's datasource "url".
+DATABASE_URL=postgresql://postgres.zblvfhcxzpcvdqxjbxdb:M4qIivMY1lrk7DKo@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres
 
-# Session pooler (port 5432) — used for persistent/auth/session-based server queries
-DATABASE_URL_SESSION=postgresql://postgres.zblvfhcxzpcvdqxjbxdb:M4qIivMY1lrk7DKo@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
+# Session/direct connection (port 5432) — required by `prisma db push` /
+# `prisma migrate` because the transaction pooler doesn't support the
+# prepared statements Prisma needs for schema changes. Referenced as
+# DIRECT_URL in prisma/schema.prisma's datasource "directUrl".
+DIRECT_URL=postgresql://postgres.zblvfhcxzpcvdqxjbxdb:M4qIivMY1lrk7DKo@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
+
+# Cloudflare R2 — villa-azure-resort-small-time bucket
+CLOUDFLARE_R2_ACCOUNT_ID=d7f52b107751ba37853c60b046c27fe3
+CLOUDFLARE_R2_ACCESS_KEY_ID=f38c0b00d613489fc83c84a61d4033ac
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=f4883cfc40e9eb81b16c74a13b47f50c3b1d6a1698d80e8b1a23a5ccdeeab010
+CLOUDFLARE_R2_BUCKET_NAME=villa-azure-resort-small-time
+NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL=https://pub-dea2e6637dae472eabc60becc3675edf.r2.dev
+
+# Super-admin seed credentials — used once by prisma/seed.js to create the Auth user
+SEED_ADMIN_EMAIL=superadmin@villaazure.com
+SEED_ADMIN_PASSWORD=superadmin123

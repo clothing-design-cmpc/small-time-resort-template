@@ -128,43 +128,6 @@ async function seedStoreProducts() {
 }
 
 /**
- * seedBookings
- * Clears and re-inserts sample confirmed bookings so the visitor site's
- * Booked Dates section and Reserve Your Villa date picker (both wired to
- * GET /api/bookings/dates) have real data to display instead of the old
- * hardcoded BOOKED_DATES array. Dates are generated relative to "today"
- * so the sample data always looks current, however far in the future
- * this seed script is run.
- */
-async function seedBookings() {
-  const oceanViewVilla = await prisma.room.findUnique({ where: { slug: "ocean-view-villa" } });
-  const gardenSuite = await prisma.room.findUnique({ where: { slug: "garden-suite" } });
-  const familyBeachHouse = await prisma.room.findUnique({ where: { slug: "family-beach-house" } });
-
-  // Helper: today + offsetDays, normalized to midnight local time
-  function daysFromNow(offsetDays) {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + offsetDays);
-    return date;
-  }
-
-  const bookings = [
-    { roomId: oceanViewVilla?.id ?? null, guestName: "Marisol Reyes", checkInDate: daysFromNow(2), checkOutDate: daysFromNow(5) },
-    { roomId: gardenSuite?.id ?? null, guestName: "Kevin Tan", checkInDate: daysFromNow(7), checkOutDate: daysFromNow(9) },
-    { roomId: familyBeachHouse?.id ?? null, guestName: "The Villanueva Family", checkInDate: daysFromNow(12), checkOutDate: daysFromNow(18) },
-    { roomId: oceanViewVilla?.id ?? null, guestName: "Grace Lim", checkInDate: daysFromNow(21), checkOutDate: daysFromNow(24) },
-    { roomId: gardenSuite?.id ?? null, guestName: "Marco dela Cruz", checkInDate: daysFromNow(30), checkOutDate: daysFromNow(33) },
-  ];
-
-  await prisma.booking.deleteMany();
-  await prisma.booking.createMany({
-    data: bookings.map((b) => ({ ...b, status: "confirmed" })),
-  });
-  console.log(`✓ Seeded ${bookings.length} bookings`);
-}
-
-/**
  * seedSuperAdmin
  * Creates the super-admin Auth user via the Supabase Admin API if it
  * doesn't already exist. If it already exists, its password and email
@@ -225,7 +188,6 @@ async function main() {
   await seedRooms();
   await seedAmenities();
   await seedStoreProducts();
-  await seedBookings();
   await seedSuperAdmin();
 }
 

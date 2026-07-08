@@ -1,10 +1,9 @@
 cmpc.business@g.c
 supabase : M4qIivMY1lrk7DKo
 cloudflare r2 : 
-T-value - cfat_R0tz7BjdsyZdwCBzbAsjzTCdFwok9Rxdlxgpw0uQ245dd5b1
-A-K-ID - f38c0b00d613489fc83c84a61d4033ac
-S-A-Key - f4883cfc40e9eb81b16c74a13b47f50c3b1d6a1698d80e8b1a23a5ccdeeab010
-default - https://d7f52b107751ba37853c60b046c27fe3.r2.cloudflarestorage.com
+cfat_R0tz7BjdsyZdwCBzbAsjzTCdFwok9Rxdlxgpw0uQ245dd5b1 |
+f38c0b00d613489fc83c84a61d4033ac | f4883cfc40e9eb81b16c74a13b47f50c3b1d6a1698d80e8b1a23a5ccdeeab010 | 
+https://d7f52b107751ba37853c60b046c27fe3.r2.cloudflarestorage.com
 emailjs
 github
 
@@ -25,11 +24,11 @@ DATABASE_URL=postgresql://postgres.zblvfhcxzpcvdqxjbxdb:M4qIivMY1lrk7DKo@aws-1-a
 DIRECT_URL=postgresql://postgres.zblvfhcxzpcvdqxjbxdb:M4qIivMY1lrk7DKo@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
 
 # Cloudflare R2 — villa-azure-resort-small-time bucket
-ID=d7f52b107751ba37853c60b046c27fe3
-ID=f38c0b00d613489fc83c84a61d4033ac
-KEY=f4883cfc40e9eb81b16c74a13b47f50c3b1d6a1698d80e8b1a23a5ccdeeab010
-NAME=villa-azure-resort-small-time
-URL=https://pub-dea2e6637dae472eabc60becc3675edf.r2.dev
+d7f52b107751ba37853c60b046c27fe3
+f38c0b00d613489fc83c84a61d4033ac
+f4883cfc40e9eb81b16c74a13b47f50c3b1d6a1698d80e8b1a23a5ccdeeab010
+villa-azure-resort-small-time
+https://pub-dea2e6637dae472eabc60becc3675edf.r2.dev
 
 # Super-admin seed credentials — used once by prisma/seed.js to create the Auth user
 SEED_ADMIN_EMAIL=superadmin@villaazure.com

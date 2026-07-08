@@ -73,6 +73,9 @@
   padding: var(--space-xs) var(--space-sm);
   border-radius: 6px;
   color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
 }
 
 .adminUserMenuTrigger:hover {
@@ -117,10 +120,20 @@
 
 .adminUserMenuSignOut {
   width: 100%;
+  display: flex;
+  align-items: center;
   text-align: left;
   padding: var(--space-sm) var(--space-md);
+  min-height: 44px;
   font-size: 0.9rem;
   color: var(--color-error);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.adminUserMenuSignOut:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .adminUserMenuSignOut:hover {

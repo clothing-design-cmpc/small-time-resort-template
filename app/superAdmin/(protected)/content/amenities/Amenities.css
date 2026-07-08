@@ -1,0 +1,258 @@
+/*
+ * .amenitiesSection
+ * Outer wrapper for the Amenities Management list view — vertical
+ * stack of the header row and the data table below it.
+ */
+.amenitiesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/*
+ * .amenitiesHeaderRow
+ * Eyebrow + title on the left, "Create New" button on the right.
+ */
+.amenitiesHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.amenitiesEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.amenitiesTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.amenitiesAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.amenitiesAddButton:hover,
+.amenitiesAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+/*
+ * .amenitiesIconCell
+ * Small centered swatch showing the amenity's chosen icon in the
+ * Icon column of the data table.
+ */
+.amenitiesIconCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+}
+
+/*
+ * .amenitiesRowActions
+ * Edit/Delete buttons inside a table row.
+ */
+.amenitiesRowActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.amenitiesRowActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.amenitiesRowActionButton:hover,
+.amenitiesRowActionButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.amenitiesRowActionButton--destructive {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.amenitiesRowActionButton--destructive:hover,
+.amenitiesRowActionButton--destructive:focus-visible {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================
+ * CREATE / EDIT MODAL
+ * ============================================================ */
+
+.amenityModalBackdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: rgba(9, 9, 11, 0.5);
+  z-index: var(--z-modal-backdrop);
+}
+
+.amenityModalDialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 480px;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: var(--z-modal);
+}
+
+.amenityForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.amenityFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.amenityFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.amenityFormField input[type="text"],
+.amenityFormField textarea {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.amenityFormField textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.amenityFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+/*
+ * .amenityFormHint
+ * Short explanatory line under a field, telling the admin what it
+ * controls and where it shows up — never just restating the label.
+ */
+.amenityFormHint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.amenityFormToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.amenityFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.amenityFormButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.amenityFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.amenityFormButton--neutral:hover,
+.amenityFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.amenityFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.amenityFormButton--primary:hover,
+.amenityFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.amenityFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

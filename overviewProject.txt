@@ -177,9 +177,9 @@ blueprint — 9 content pages total). Built one feature at a time per
 protocol; do not scaffold future pages ahead of being asked.
 
 STATUS: Page 1 of 9 built — ROOMS MANAGEMENT.
-Remaining (build only when instructed): Amenities, Resort Shop,
-Activities, Testimonials, Gallery, Booking Rules & Configuration,
-Policies & Pages, Homepage Customization.
+Remaining (build only when instructed): Resort Shop, Activities,
+Testimonials, Gallery, Booking Rules & Configuration, Policies & Pages,
+Homepage Customization.
 
 === PAGE 1: ROOMS MANAGEMENT (DONE) ===
 URL: /superAdmin/content/rooms (list), /new (create), /[roomId] (edit)
@@ -230,6 +230,64 @@ FILE MAP ADDITIONS:
 - app/superAdmin/(protected)/content/rooms/[roomId]/not-found.jsx
 - app/superAdmin/(protected)/content/rooms/error.jsx
 
+=== PAGE 2: AMENITIES MANAGEMENT (DONE) ===
+URL: /superAdmin/content/amenities (list — create/edit happen in a
+modal on this same page, no separate routes; amenities only have 3
+fields so a modal was simpler than Rooms' dedicated new/[id] routes)
+
+Amenity model (prisma/schema.prisma) already existed: name,
+description, icon (Lucide icon name string), isActive, sortOrder.
+No schema changes were needed for this page.
+
+=== PROCESS: Create/Edit/Delete Amenity ===
+Step 1 : Admin clicks "Create New" (opens AmenityFormModal in create
+         mode) or a row's "Edit" button (opens it pre-filled) on
+         /superAdmin/content/amenities
+Step 2 : AmenitiesListClient.jsx (Client) owns the amenities list via
+         useAmenities(); AmenityFormModal.jsx renders the name /
+         description / icon / active fields with React Hook Form + Zod
+Step 3 : IconPicker.jsx shows a live thumbnail preview next to a native
+         <select> of a curated set of Lucide icons (resort-relevant
+         names only — wifi, waves/pool, dumbbell/gym, spa, etc.)
+Step 4 : On submit, AmenitiesListClient calls createAmenity/
+         updateAmenity from useAmenities(), which POSTs/PUTs to
+         /api/superAdmin/content/amenities(/[amenityId])
+Step 5 : API route runs a pre-save duplicate check on name (case-
+         insensitive) — create checks all amenities, edit excludes
+         itself
+Step 6 : Toast confirms success/failure; on success the modal closes
+         and the list refetches via useAmenities()
+Step 7 : Delete follows the same ConfirmationModal pattern as Rooms —
+         confirms, calls deleteAmenity(), shows a toast
+
+FILE MAP ADDITIONS:
+- components/superAdmin/IconPicker.jsx — Lucide icon <select> with
+  live preview thumbnail; exports getIconByName() for read-only icon
+  rendering elsewhere (e.g. the amenities table's Icon column)
+- components/superAdmin/IconPicker.css
+- hooks/useAmenities.js — client fetch + create/update/delete for the
+  Amenities list
+- app/api/superAdmin/content/amenities/route.js          — GET list, POST create
+- app/api/superAdmin/content/amenities/[amenityId]/route.js — PUT update, DELETE
+- app/superAdmin/(protected)/content/amenities/page.jsx           — route shell (server)
+- app/superAdmin/(protected)/content/amenities/AmenitiesListClient.jsx — list table, create/edit + delete modals, toasts
+- app/superAdmin/(protected)/content/amenities/AmenityFormModal.jsx — shared create/edit modal form
+- app/superAdmin/(protected)/content/amenities/Amenities.css
+- app/superAdmin/(protected)/content/amenities/error.jsx
+- package.json — added "lucide-react" dependency
+- components/superAdmin/Sidebar.jsx — added "Amenities" nav link
+
+DEBUG POINTS:
+- Amenity save fails with 409 -> the name is already taken by another
+  amenity (case-insensitive check); edit the name field.
+- Icon shows as the default sparkle -> the stored `icon` string doesn't
+  match any name in IconPicker.jsx's ICON_OPTIONS list; either pick a
+  valid one from the dropdown or add the new icon+import to that file.
+- "lucide-react" module not found -> run `npm install` after this
+  update (it was added to package.json dependencies).
+- Room form's amenity checkboxes are empty -> no active Amenity rows
+  exist yet; create some on /superAdmin/content/amenities first.
+
 DEBUG POINTS:
 - Image upload fails with 500 -> confirm the 5 CLOUDFLARE_R2_* env vars
   are set and the bucket exists.
@@ -237,6 +295,3 @@ DEBUG POINTS:
   after this update (both were added to package.json dependencies).
 - Room save fails with 409 -> the slug is already taken by another room;
   edit the slug field.
-- Amenity checkboxes are empty on the form -> no Amenity rows exist yet
-  (Amenities Management page — Page 2 — is not built yet; amenities must
-  currently be added directly via `npx prisma studio` or SQL for testing).

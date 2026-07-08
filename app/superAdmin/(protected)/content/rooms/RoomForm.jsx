@@ -178,30 +178,35 @@ export default function RoomForm({ existingRoom, amenities }) {
             autoFocus
             {...register("name", { onBlur: handleAutoSlug })}
           />
+          <p className="roomFormHint">The name shown to guests, e.g. &quot;Garden Suite&quot; or &quot;Ocean View Villa&quot;.</p>
           {errors.name && <span role="alert" className="roomFormError">{errors.name.message}</span>}
         </div>
 
         <div className="roomFormField">
           <label htmlFor="roomSlug">Slug <span aria-hidden="true">*</span></label>
           <input id="roomSlug" type="text" {...register("slug")} />
+          <p className="roomFormHint">The room&apos;s URL-friendly ID (auto-filled from the name). Changing it changes the room&apos;s live link — only edit if you know why.</p>
           {errors.slug && <span role="alert" className="roomFormError">{errors.slug.message}</span>}
         </div>
 
         <div className="roomFormField">
           <label htmlFor="roomDescription">Description</label>
           <textarea id="roomDescription" rows={4} {...register("description")} />
+          <p className="roomFormHint">Shown on the room&apos;s page on the visitor site — describe the space, view, and what makes it special.</p>
         </div>
 
         <div className="roomFormRow">
           <div className="roomFormField">
             <label htmlFor="roomPrice">Price / Night (₱) <span aria-hidden="true">*</span></label>
             <input id="roomPrice" type="number" step="0.01" {...register("pricePerNight")} />
+            <p className="roomFormHint">Base rate per night, before any seasonal pricing or surcharges from Booking Rules.</p>
             {errors.pricePerNight && <span role="alert" className="roomFormError">{errors.pricePerNight.message}</span>}
           </div>
 
           <div className="roomFormField">
             <label htmlFor="roomCapacity">Max Guests <span aria-hidden="true">*</span></label>
             <input id="roomCapacity" type="number" {...register("capacity")} />
+            <p className="roomFormHint">The most guests allowed in this room at once, regardless of bed count.</p>
             {errors.capacity && <span role="alert" className="roomFormError">{errors.capacity.message}</span>}
           </div>
 
@@ -212,6 +217,7 @@ export default function RoomForm({ existingRoom, amenities }) {
                 <option key={bedType} value={bedType}>{bedType}</option>
               ))}
             </select>
+            <p className="roomFormHint">The main bed configuration shown on the room card.</p>
           </div>
         </div>
 
@@ -234,10 +240,12 @@ export default function RoomForm({ existingRoom, amenities }) {
             )}
             <input id="roomImage" type="file" accept="image/*" onChange={handleImageChange} />
           </div>
+          <p className="roomFormHint">The cover photo used on the room list, homepage (if featured), and booking cards. Recommended 16:9.</p>
         </div>
 
         <div className="roomFormField">
           <label>Room Amenities</label>
+          <p className="roomFormHint">Check every amenity available in this specific room — these show as icons on the room&apos;s page. Manage the amenity list itself under Content &gt; Amenities.</p>
           <div className="roomFormAmenityGrid">
             {amenities.length === 0 && <p className="roomFormMutedText">No amenities created yet.</p>}
             {amenities.map((amenity) => (
@@ -257,14 +265,17 @@ export default function RoomForm({ existingRoom, amenities }) {
           <div className="roomFormField">
             <label htmlFor="roomMinNights">Min Nights / Booking</label>
             <input id="roomMinNights" type="number" {...register("minNightsPerBooking")} />
+            <p className="roomFormHint">The fewest nights a guest can book this room for in one reservation, e.g. 2 to discourage single-night stays.</p>
           </div>
           <div className="roomFormField">
             <label htmlFor="roomMaxNights">Max Nights / Booking</label>
             <input id="roomMaxNights" type="number" {...register("maxNightsPerBooking")} />
+            <p className="roomFormHint">The longest a single reservation can run, e.g. 30 to prevent open-ended long-term stays.</p>
           </div>
           <div className="roomFormField">
             <label htmlFor="roomMinGuests">Min Guests Allowed</label>
             <input id="roomMinGuests" type="number" {...register("minGuestsAllowed")} />
+            <p className="roomFormHint">The fewest guests required to book — usually 1, unless this room is priced for groups only.</p>
           </div>
         </div>
 
@@ -278,6 +289,7 @@ export default function RoomForm({ existingRoom, amenities }) {
             Visible to guests (active)
           </label>
         </div>
+        <p className="roomFormHint">Featured rooms appear in the homepage highlights. Turning off &quot;Active&quot; hides the room from guests without deleting it.</p>
 
         <div className="roomFormActions">
           <button type="button" className="roomFormButton roomFormButton--neutral" onClick={() => router.push("/superAdmin/content/rooms")}>

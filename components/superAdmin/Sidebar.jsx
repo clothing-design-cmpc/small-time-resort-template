@@ -18,12 +18,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import "./Sidebar.css";
 
-/* Add entries here as new admin pages are built. Rooms is the first
-   Content Management page (blueprint Page 1) — more will be appended
-   as each subsequent page is built, one at a time. */
+/* Add entries here as new admin pages are built. Rooms (Page 1) and
+   Amenities (Page 2) are built — more will be appended as each
+   subsequent page is built, one at a time. */
 const navLinks = [
   { label: "Dashboard", href: "/superAdmin/dashboard" },
   { label: "Rooms", href: "/superAdmin/content/rooms" },
+  { label: "Amenities", href: "/superAdmin/content/amenities" },
 ];
 
 export default function Sidebar() {

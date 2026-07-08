@@ -1,0 +1,42 @@
+/*
+ * .iconPicker
+ * Preview thumbnail + native select sitting side by side. The select
+ * stays native (not a custom listbox) for full keyboard/screen-reader
+ * support — the preview is purely decorative feedback next to it.
+ */
+.iconPicker {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .iconPickerPreview
+ * Small square swatch showing the currently selected icon, so the
+ * admin sees the result without opening the dropdown.
+ */
+.iconPickerPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.iconPickerSelect {
+  flex: 1 1 200px;
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}

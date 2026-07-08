@@ -78,6 +78,18 @@
   color: var(--color-error);
 }
 
+/*
+ * .roomFormHint
+ * Short explanatory line under a field/label, telling the admin what
+ * the field is for or how it affects the visitor site — never just
+ * restating the label.
+ */
+.roomFormHint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
 .roomFormImageUpload {
   display: flex;
   flex-direction: row;

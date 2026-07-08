@@ -242,3 +242,73 @@
   color: var(--color-text-primary);
   border-bottom-color: var(--color-text-secondary);
 }
+
+/*
+ * skeletonBlock
+ * Shared pulse animation for the loading placeholder cards. Defined
+ * locally rather than relying on another section's stylesheet, since
+ * plain CSS class names aren't scoped per-component.
+ */
+@keyframes skeletonPulse {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeletonBlock {
+  background: linear-gradient(90deg, var(--color-skeleton-base) 25%, var(--color-skeleton-shine) 50%, var(--color-skeleton-base) 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite;
+}
+
+/*
+ * .roomCardSkeleton
+ * Same footprint as a real .roomCard so the grid doesn't jump when the
+ * real cards replace the skeletons.
+ */
+.roomCardSkeleton {
+  min-height: 420px;
+  border-radius: 12px;
+}
+
+/*
+ * .featuredRoomsErrorState / .featuredRoomsEmptyState
+ * Centered message block shown in place of the grid — never a blank
+ * section with no feedback (Rule 25.3 / 25.4).
+ */
+.featuredRoomsErrorState,
+.featuredRoomsEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.featuredRoomsErrorMessage,
+.featuredRoomsEmptyTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.featuredRoomsEmptySubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.featuredRoomsRetryButton {
+  min-height: 44px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border-radius: 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.featuredRoomsRetryButton:hover,
+.featuredRoomsRetryButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}

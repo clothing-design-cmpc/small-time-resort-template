@@ -1,0 +1,165 @@
+.bookingsHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.bookingsEyebrow {
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.bookingsTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ============================================================
+ * DATA TABLE — per the super-admin data table component spec
+ * ============================================================ */
+.bookingsTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.bookingsTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.bookingsTable thead th {
+  height: 44px;
+  background-color: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border-strong);
+  font-size: 0.85rem;
+  font-family: monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: left;
+  padding: 0 1rem;
+  position: sticky;
+  top: 0;
+}
+
+.bookingsTable tbody tr {
+  height: 48px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bookingsTable tbody tr:nth-child(even) {
+  background-color: var(--color-surface);
+}
+
+.bookingsTable tbody tr:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.bookingsTable td {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.bookingsActionsCell {
+  text-align: right;
+}
+
+/*
+ * .bookingsStatusBadge
+ * Light-tint background + full-saturation text, no border — per the
+ * status badge component spec.
+ */
+.bookingsStatusBadge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.bookingsStatusBadge--confirmed {
+  background-color: rgba(16, 185, 129, 0.13);
+  color: var(--color-success);
+}
+
+.bookingsStatusBadge--cancelled {
+  background-color: rgba(239, 68, 68, 0.13);
+  color: var(--color-error);
+}
+
+.bookingsCancelButton {
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  border-radius: 6px;
+  border: 1px solid var(--color-error);
+  background-color: transparent;
+  color: var(--color-error);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.bookingsCancelButton:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================
+ * LOADING / EMPTY / ERROR STATES
+ * No animation here — per the super-admin static design principle,
+ * this is intentionally a plain, instant text state, not a skeleton.
+ * ============================================================ */
+.bookingsLoadingText {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  padding: var(--space-lg) 0;
+}
+
+.bookingsErrorState,
+.bookingsEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+}
+
+.bookingsErrorMessage {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.bookingsRetryButton {
+  padding: var(--space-sm) var(--space-lg);
+  min-height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.bookingsRetryButton:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.bookingsEmptyTitle {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.bookingsEmptySubtitle {
+  color: var(--color-text-secondary);
+}

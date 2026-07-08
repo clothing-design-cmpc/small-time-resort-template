@@ -1,0 +1,48 @@
+/*
+ * .adminToastStack
+ * Fixed top-center stack, per the toast position standard. pointerEvents
+ * is none on the wrapper so toasts never block clicks underneath them —
+ * each individual toast re-enables pointer events so it can still be
+ * dismissed early by clicking it.
+ *
+ * No slide-in/fade keyframes here — the super-admin section follows a
+ * static design principle (zero animations, matching Sidebar.css and
+ * StatCard.css), so toasts simply appear and disappear instantly.
+ */
+.adminToastStack {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.adminToastItem {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+.adminToastItem--success {
+  border-color: var(--color-success);
+}
+
+.adminToastItem--error {
+  border-color: var(--color-error);
+}
+
+.adminToastItem--warning {
+  border-color: var(--color-warning);
+}

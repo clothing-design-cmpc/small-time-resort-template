@@ -1,104 +1,88 @@
 /*
- * .confirmationModalBackdrop
- * Full-viewport dark overlay, centers the dialog box via flexbox,
- * per the Modals & Dialogs spec.
+ * .adminModalBackdrop
+ * Full-viewport dark overlay behind the confirmation dialog.
  */
-.confirmationModalBackdrop {
+.adminModalBackdrop {
   position: fixed;
   inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-lg);
-  background-color: rgba(0, 0, 0, 0.6);
-  z-index: var(--z-modal-backdrop);
 }
 
 /*
- * .confirmationModalDialog
- * Narrow, constrained dialog box — max-width 500px per spec (Rule 23.3
- * exception: max-width is explicitly permitted for constrained dialogs).
+ * .adminModalDialog
+ * Centered, width-constrained dialog box per the modal spec.
  */
-.confirmationModalDialog {
-  position: relative;
+.adminModalDialog {
   width: 100%;
-  max-width: 500px;
-  padding: var(--space-xl);
+  max-width: 480px;
   background-color: var(--color-surface-elevated);
   border: 1px solid var(--color-border-strong);
   border-radius: 12px;
   box-shadow: var(--shadow-xl);
+  padding: 2rem;
   z-index: var(--z-modal);
 }
 
-.confirmationModalClose {
-  position: absolute;
-  top: var(--space-md);
-  right: var(--space-md);
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--color-text-secondary);
-}
-
-.confirmationModalClose:hover {
-  background-color: var(--color-surface-hover);
-  color: var(--color-text-primary);
-}
-
-.confirmationModalTitle {
+.adminModalTitle {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-text-primary);
   margin-bottom: var(--space-sm);
-  padding-right: var(--space-xl);
 }
 
-.confirmationModalDescription {
+.adminModalDescription {
   font-size: 0.95rem;
-  line-height: 1.6;
   color: var(--color-text-secondary);
+  line-height: 1.6;
   margin-bottom: var(--space-lg);
 }
 
-.confirmationModalActions {
+.adminModalActions {
   display: flex;
+  flex-direction: row;
   justify-content: flex-end;
   gap: var(--space-sm);
 }
 
-.confirmationModalButton {
-  padding: 0.65rem 1.25rem;
+.adminModalButtonNeutral,
+.adminModalButtonDestructive {
+  padding: 0.75rem 1.5rem;
   border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
 }
 
-.confirmationModalButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.confirmationModalButton--neutral {
+.adminModalButtonNeutral {
+  background-color: transparent;
+  color: var(--color-text-secondary);
   border: 1px solid var(--color-border-strong);
+}
+
+.adminModalButtonNeutral:hover {
+  background-color: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
 
-.confirmationModalButton--neutral:hover:not(:disabled) {
-  background-color: var(--color-surface-hover);
-}
-
-/* Confirm button is always red (error color) — never the accent color, per Rule 34.4 */
-.confirmationModalButton--destructive {
+.adminModalButtonDestructive {
   background-color: var(--color-error);
-  color: #fff;
+  color: #ffffff;
+  border: none;
 }
 
-.confirmationModalButton--destructive:hover:not(:disabled) {
+.adminModalButtonDestructive:hover {
   background-color: #dc2626;
+}
+
+.adminModalButtonNeutral:disabled,
+.adminModalButtonDestructive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

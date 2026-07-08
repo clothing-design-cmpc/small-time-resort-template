@@ -18,14 +18,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import "./Sidebar.css";
 
-/* Add entries here as new admin pages are built. Rooms (Page 1),
-   Amenities (Page 2), and Booking Rules (Page 7) are built — more
-   will be appended as each subsequent page is built, one at a time. */
+/* Add entries here as new admin pages are built */
 const navLinks = [
   { label: "Dashboard", href: "/superAdmin/dashboard" },
-  { label: "Rooms", href: "/superAdmin/content/rooms" },
-  { label: "Amenities", href: "/superAdmin/content/amenities" },
-  { label: "Booking Rules", href: "/superAdmin/settings/booking-rules" },
+  { label: "Bookings", href: "/superAdmin/bookings" },
 ];
 
 export default function Sidebar() {
@@ -38,10 +34,8 @@ export default function Sidebar() {
       <ul className="adminSidebarNav">
         {navLinks.map((link) => {
           // Marks the current page's nav link so the admin always
-          // knows where they are in the control center. Sub-routes
-          // (e.g. /content/rooms/new) also count as active for their
-          // parent link, not just an exact match.
-          const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+          // knows where they are in the control center.
+          const isActive = pathname === link.href;
           return (
             <li key={link.href}>
               <Link

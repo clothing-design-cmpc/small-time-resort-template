@@ -43,8 +43,6 @@ async function seedRooms() {
         "A private villa with an infinity pool overlooking the bay, floor-to-ceiling windows, and a king-size bed.",
       pricePerNight: 18500.0,
       capacity: 2,
-      bedType: "King",
-      isFeatured: true,
       imageUrl:
         "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 1,
@@ -56,8 +54,6 @@ async function seedRooms() {
         "A quiet suite surrounded by tropical gardens, with an outdoor rain shower and a private lanai.",
       pricePerNight: 9800.0,
       capacity: 2,
-      bedType: "King",
-      isFeatured: true,
       imageUrl:
         "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 2,
@@ -69,8 +65,6 @@ async function seedRooms() {
         "A two-bedroom beachfront house with a full kitchen, living area, and direct beach access — ideal for families.",
       pricePerNight: 26500.0,
       capacity: 6,
-      bedType: "2 Bedrooms",
-      isFeatured: true,
       imageUrl:
         "https://images.unsplash.com/photo-1602343168117-bb8ffe3e2e9f?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 3,

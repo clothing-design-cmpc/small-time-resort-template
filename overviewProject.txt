@@ -27,8 +27,7 @@ Progress: Hero (done), About (done). Next: Rooms & Villas.
 4. DATABASE OVERVIEW
 Supabase Postgres, schema managed via Prisma (prisma/schema.prisma) --
 NEVER the Supabase SQL Editor. Tables: rooms, amenities, store_products,
-bookings, admin_profiles, booking_rules, seasonal_prices, blackout_dates.
-Prisma 7 note: connection URLs are NOT in schema.prisma --
+bookings, admin_profiles. Prisma 7 note: connection URLs are NOT in schema.prisma --
 they live in prisma.config.mjs (CLI: db push/generate/seed, uses
 DIRECT_URL) and services/prisma.js (app runtime, uses DATABASE_URL via
 the @prisma/adapter-pg driver adapter -- Prisma 7 requires an adapter,
@@ -55,17 +54,6 @@ SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD.
                     email/password for every admin account lives in Supabase Auth's
                     built-in auth.users table (not managed by Prisma); admin_profiles
                     only stores role/profile metadata keyed to that same user id.
-- BookingRules   -- singleton row (id always "singleton"). Resort-wide booking
-                    settings: min/max nights, advance booking window, check-in/out
-                    time, booking types (allowOvernightStay/allowDayTour/
-                    allowNightTour), cancellation policy, deposit %, pricing
-                    modifiers (weekend surcharge, last-minute discount, group
-                    discount), seasonalPricingEnabled toggle.
-- SeasonalPrice  -- roomId (FK -> Room, cascade delete), seasonName, startDate,
-                    endDate, pricePerNight (overrides the room's default rate
-                    for that date range).
-- BlackoutDate   -- roomId (FK -> Room, cascade delete), startDate, endDate,
-                    reason (Cleaning | Maintenance | Private | Custom).
 
 6. PROCESS FLOW
 
@@ -88,7 +76,12 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - app/page.jsx                 — root route, redirects to /visitor
 - app/styles/globals.css       — CSS design tokens (color, spacing, z-index, transitions) + reset
 - app/styles/mediaQueries.css  — empty, ready for breakpoints
-- middleware.js                 — auth guard shell, matcher currently covers /superAdmin only
+- middleware.js                 — auth guard, matcher covers /superAdmin/* pages
+                                   and /api/admin/* routes; checks role "super_admin"
+                                   decoded from the "session" HttpOnly cookie
+- services/adminSession.js      — requireSuperAdmin(request) helper used inside
+                                   /api/admin/* route handlers, since middleware's
+                                   matcher is the page-level guard, not a DB check
 - next.config.mjs             — remotePatterns allows next/image to load
                                 Unsplash placeholder photos (images.unsplash.com)
 - app/visitor/layout.jsx        — visitor account shell, public
@@ -100,18 +93,23 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - components/About.css          — About section styles, auto-fill differentiator grid
 - components/shared/Header.jsx  — sticky nav: logo, links, Login link, Book Now CTA
 - app/visitor/booking/page.jsx  — booking holding page (Book Now CTA target, full form not built yet)
-- app/superAdmin/login/page.jsx — admin sign-in form (static, no Supabase auth wired yet)
-- app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages, includes skip-to-content link
+- app/superAdmin/login/page.jsx — admin sign-in form, wired to Supabase Auth via /api/auth/login
+- app/superAdmin/(protected)/layout.jsx — Sidebar + AdminHeader shell, wraps only authenticated admin pages
 - app/superAdmin/(protected)/page.jsx — redirects to dashboard
-- app/superAdmin/(protected)/dashboard/page.jsx — admin dashboard
-- app/superAdmin/SuperAdmin.css — enterprise dark theme tokens (colors, chart colors, admin font-family scoping, skip-link styles), scoped to .superAdminRoot only
-- components/superAdmin/StatusBadge.jsx — reusable colored status pill (active/suspended/banned/pending/processing/delivered/failed), used by any future data table
-- components/superAdmin/DataTable.jsx — reusable paginated table with loading skeleton, empty, and error states; used by any future list page (Users, Orders, Audit Logs, Support Tickets)
-- components/superAdmin/ConfirmationModal.jsx — shared destructive-action confirmation dialog (delete/ban/cancel actions)
+- app/superAdmin/(protected)/dashboard/page.jsx — admin dashboard (KPI cards still placeholder data)
+- app/superAdmin/(protected)/bookings/page.jsx — lists every Booking row (confirmed +
+  cancelled) with a Cancel booking action; reads/writes the same Booking table the
+  visitor site's Booked Dates / Reserve Your Villa sections read from
+- components/superAdmin/ConfirmationModal.jsx — shared destructive-action confirm dialog
+- components/superAdmin/shared/useToast.js + ToastStack.jsx — admin toast system
 - app/api/bookings/dates/route.js — GET, public, returns every currently
   reserved calendar date (expanded from confirmed Booking rows) as a flat
   array of "YYYY-MM-DD" strings. Consumed by both BookedDatesSection.jsx
   and DateCarousel.jsx.
+- app/api/admin/bookings/route.js — GET, super-admin only, returns every
+  Booking row (any status) with its room name, for the Bookings admin page.
+- app/api/admin/bookings/[id]/route.js — PATCH, super-admin only, cancels
+  a single booking (soft delete via status: "cancelled").
 - components/sections/BookedDatesSection.jsx — fetches booked dates from
   the API above (loading/empty/error states); carousel + mini calendar
   render only once the fetch resolves.
@@ -120,32 +118,34 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
   date that's already reserved.
 
 8. API ENDPOINTS
-- POST /api/auth/login  — body { email, password }; verifies against
+- POST  /api/auth/login  — body { email, password }; verifies against
   Supabase Auth + admin_profiles, sets the "session" HttpOnly cookie.
-- POST /api/auth/logout — clears the "session" cookie.
-- GET  /logout — public; clears the "session" cookie and redirects to
-  /superAdmin/login. Lets an admin log out by typing /logout directly
-  into the browser URL bar, without needing the AdminHeader button.
-- GET  /api/bookings/dates — public; no input. Returns
+- POST  /api/auth/logout — clears the "session" cookie.
+- GET   /api/bookings/dates — public; no input. Returns
   { success, data: { bookedDates: ["YYYY-MM-DD", ...] }, message }.
   Expands every confirmed Booking's [checkInDate, checkOutDate) range
   server-side and returns a deduplicated, sorted list.
+- GET   /api/admin/bookings — super-admin only. Returns
+  { success, data: { bookings: [...] }, message } — every Booking row
+  (confirmed + cancelled) including room.name.
+- PATCH /api/admin/bookings/{id} — super-admin only. Sets that booking's
+  status to "cancelled". No body required.
 
 9. COMMON DEBUG POINTS
 - If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
 - If styles missing: confirm globals.css and mediaQueries.css are imported in app/layout.jsx.
-- If superAdmin routes are reachable without auth: middleware.js has no real session
-  check yet — this is expected until superAdmin login is built.
+- If /api/admin/* routes return 401 for a logged-in admin: confirm the "session" cookie
+  actually has role "super_admin" — requireSuperAdmin() in services/adminSession.js
+  rejects anything else, and middleware.js's matcher (["/superAdmin/:path*",
+  "/api/admin/:path*"]) blocks unauthenticated requests before the route even runs.
+- If a cancelled booking's dates don't reopen on the visitor site: check
+  GET /api/bookings/dates — it only expands bookings with status: "confirmed", so a
+  successful cancel (status -> "cancelled") should free those dates on next fetch.
 - If "Book Now" 404s: confirm app/visitor/booking/page.jsx still exists — Header.jsx
   links directly to /visitor/booking.
 - If "Login" link is missing from the Header: check components/shared/Header.jsx for
   the headerLoginLink (desktop) and headerMobileLoginLink (mobile) elements, both
   pointing to /superAdmin/login.
-- If the browser shows "Module not found: Can't resolve '../SuperAdmin.css'" pointing
-  at ./app/layout.jsx: the root app/layout.jsx (fonts + <html>/<body> shell) and
-  app/superAdmin/(protected)/layout.jsx (Sidebar + AdminHeader shell, the file that
-  actually imports "../SuperAdmin.css") got swapped or merged. Restore each file to
-  its own exact path — root app/layout.jsx never imports SuperAdmin.css.
 - If Sidebar/AdminHeader show up on the login page: confirm dashboard and the root
   /superAdmin redirect live under app/superAdmin/(protected)/ — that route group is
   what keeps app/superAdmin/login/ (a sibling folder) from inheriting the Sidebar/
@@ -175,200 +175,3 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)
 - NEXT_PUBLIC_SUPABASE_ANON_KEY  (blank — Supabase not yet connected)
 - SUPABASE_SERVICE_ROLE_KEY      (blank — Supabase not yet connected)
-- CLOUDFLARE_R2_ACCOUNT_ID              (blank — needed for room image uploads)
-- CLOUDFLARE_R2_ACCESS_KEY_ID           (blank)
-- CLOUDFLARE_R2_SECRET_ACCESS_KEY       (blank)
-- CLOUDFLARE_R2_BUCKET_NAME             (blank)
-- NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL  (blank — public CDN base URL)
-
-================================================================================
-11. SUPER-ADMIN CONTENT MANAGEMENT (from super-admin-frontend-master-template.txt)
-================================================================================
-Source spec: super-admin-frontend-master-template.txt (Super-Admin CMS
-blueprint — 9 content pages total). Built one feature at a time per
-protocol; do not scaffold future pages ahead of being asked.
-
-STATUS: Page 1 of 9 built — ROOMS MANAGEMENT.
-Remaining (build only when instructed): Resort Shop, Activities,
-Testimonials, Gallery, Policies & Pages, Homepage Customization.
-
-=== PAGE 1: ROOMS MANAGEMENT (DONE) ===
-URL: /superAdmin/content/rooms (list), /new (create), /[roomId] (edit)
-
-Room model extended (prisma/schema.prisma) with: imageKey, bedType,
-isFeatured, minNightsPerBooking, maxNightsPerBooking, minGuestsAllowed,
-amenityIds (String[] of Amenity.id), updatedBy.
-
-=== PROCESS: Create/Edit Room ===
-Step 1 : Admin opens /superAdmin/content/rooms/new or clicks "Edit" on
-         a row in /superAdmin/content/rooms
-Step 2 : Server Component (page.jsx / [roomId]/page.jsx) fetches
-         active amenities (and the room, in edit mode) directly via
-         Prisma — no API round-trip needed for the initial load
-Step 3 : RoomForm.jsx (Client) renders the form with React Hook Form +
-         Zod validation; if a new image file is chosen, a local
-         object-URL preview shows immediately
-Step 4 : On submit, if a new image was selected it's uploaded first to
-         POST /api/superAdmin/content/upload (resizes to 1600px max,
-         converts to WebP, stores in Cloudflare R2 under rooms/)
-Step 5 : Room payload (including the returned image url/key and
-         selected amenityIds) is POSTed (create) or PUT (edit) to
-         /api/superAdmin/content/rooms
-Step 6 : API route runs a pre-save duplicate check on slug (create) or
-         re-checks slug uniqueness excluding itself (edit); on image
-         replace, the old R2 file is deleted via deleteFromR2()
-Step 7 : Toast confirms success/failure; on success the admin is
-         redirected back to the Rooms list, which refetches via
-         useRooms()
-
-FILE MAP ADDITIONS:
-- services/r2.js                       — Cloudflare R2 client + uploadToR2/deleteFromR2
-- utils/imageProcessor.js              — sharp resize/compress/WebP pipeline
-- app/api/superAdmin/content/upload/route.js         — shared image upload endpoint (all future content pages reuse this)
-- app/api/superAdmin/content/rooms/route.js          — GET list, POST create
-- app/api/superAdmin/content/rooms/[roomId]/route.js — GET one, PUT update, DELETE
-- hooks/useRooms.js                    — client fetch + delete for the Rooms list
-- app/superAdmin/shared/useToast.js    — shared toast hook (all future content pages reuse this)
-- app/superAdmin/shared/ToastStack.jsx — shared toast renderer
-- app/superAdmin/shared/toast-stack.css
-- app/superAdmin/(protected)/content/rooms/page.jsx           — list route (server shell)
-- app/superAdmin/(protected)/content/rooms/RoomsListClient.jsx — list table, delete modal, toasts
-- app/superAdmin/(protected)/content/rooms/Rooms.css
-- app/superAdmin/(protected)/content/rooms/RoomForm.jsx        — shared create/edit form
-- app/superAdmin/(protected)/content/rooms/RoomForm.css
-- app/superAdmin/(protected)/content/rooms/new/page.jsx        — create route (server shell, fetches amenities)
-- app/superAdmin/(protected)/content/rooms/[roomId]/page.jsx   — edit route (server shell, fetches room + amenities)
-- app/superAdmin/(protected)/content/rooms/[roomId]/not-found.jsx
-- app/superAdmin/(protected)/content/rooms/error.jsx
-
-=== PAGE 2: AMENITIES MANAGEMENT (DONE) ===
-URL: /superAdmin/content/amenities (list — create/edit happen in a
-modal on this same page, no separate routes; amenities only have 3
-fields so a modal was simpler than Rooms' dedicated new/[id] routes)
-
-Amenity model (prisma/schema.prisma) already existed: name,
-description, icon (Lucide icon name string), isActive, sortOrder.
-No schema changes were needed for this page.
-
-=== PROCESS: Create/Edit/Delete Amenity ===
-Step 1 : Admin clicks "Create New" (opens AmenityFormModal in create
-         mode) or a row's "Edit" button (opens it pre-filled) on
-         /superAdmin/content/amenities
-Step 2 : AmenitiesListClient.jsx (Client) owns the amenities list via
-         useAmenities(); AmenityFormModal.jsx renders the name /
-         description / icon / active fields with React Hook Form + Zod
-Step 3 : IconPicker.jsx shows a live thumbnail preview next to a native
-         <select> of a curated set of Lucide icons (resort-relevant
-         names only — wifi, waves/pool, dumbbell/gym, spa, etc.)
-Step 4 : On submit, AmenitiesListClient calls createAmenity/
-         updateAmenity from useAmenities(), which POSTs/PUTs to
-         /api/superAdmin/content/amenities(/[amenityId])
-Step 5 : API route runs a pre-save duplicate check on name (case-
-         insensitive) — create checks all amenities, edit excludes
-         itself
-Step 6 : Toast confirms success/failure; on success the modal closes
-         and the list refetches via useAmenities()
-Step 7 : Delete follows the same ConfirmationModal pattern as Rooms —
-         confirms, calls deleteAmenity(), shows a toast
-
-FILE MAP ADDITIONS:
-- components/superAdmin/IconPicker.jsx — Lucide icon <select> with
-  live preview thumbnail; exports getIconByName() for read-only icon
-  rendering elsewhere (e.g. the amenities table's Icon column)
-- components/superAdmin/IconPicker.css
-- hooks/useAmenities.js — client fetch + create/update/delete for the
-  Amenities list
-- app/api/superAdmin/content/amenities/route.js          — GET list, POST create
-- app/api/superAdmin/content/amenities/[amenityId]/route.js — PUT update, DELETE
-- app/superAdmin/(protected)/content/amenities/page.jsx           — route shell (server)
-- app/superAdmin/(protected)/content/amenities/AmenitiesListClient.jsx — list table, create/edit + delete modals, toasts
-- app/superAdmin/(protected)/content/amenities/AmenityFormModal.jsx — shared create/edit modal form
-- app/superAdmin/(protected)/content/amenities/Amenities.css
-- app/superAdmin/(protected)/content/amenities/error.jsx
-- package.json — added "lucide-react" dependency
-- components/superAdmin/Sidebar.jsx — added "Amenities" nav link
-
-DEBUG POINTS:
-- Amenity save fails with 409 -> the name is already taken by another
-  amenity (case-insensitive check); edit the name field.
-- Icon shows as the default sparkle -> the stored `icon` string doesn't
-  match any name in IconPicker.jsx's ICON_OPTIONS list; either pick a
-  valid one from the dropdown or add the new icon+import to that file.
-- "lucide-react" module not found -> run `npm install` after this
-  update (it was added to package.json dependencies).
-- Room form's amenity checkboxes are empty -> no active Amenity rows
-  exist yet; create some on /superAdmin/content/amenities first.
-
-=== PAGE 7: BOOKING RULES & CONFIGURATION (DONE) ===
-URL: /superAdmin/settings/booking-rules
-
-BookingRules is a singleton row (id = "singleton", get-or-created on
-first GET — see app/api/superAdmin/settings/booking-rules/route.js).
-SeasonalPrice and BlackoutDate are per-room (roomId FK, cascade delete
-if the room itself is ever deleted).
-
-Extension beyond the base blueprint: BookingRules also has
-allowOvernightStay / allowDayTour / allowNightTour toggles ("Booking
-Types" under Section 1) — added per admin request so Day Tour / Night
-Tour has a real place to live instead of being confused with a Room's
-per-booking min/max nights fields.
-
-=== PROCESS: Save Booking Rules ===
-Step 1 : Admin opens /superAdmin/settings/booking-rules
-Step 2 : useBookingRules() GETs the singleton row (created with schema
-         defaults on first-ever load); BookingRulesClient resets the
-         form to those real values once loaded
-Step 3 : Admin edits any of Sections 1-5; the Preview Impact panel
-         recalculates live off the first room's price + the current
-         deposit %/surcharge % as the admin types (no button needed)
-Step 4 : "Save All Changes" PUTs the full payload to
-         /api/superAdmin/settings/booking-rules; "Reset to Default"
-         resets the in-memory form to the schema's default values only
-         (nothing is written to the DB until Save is clicked)
-Step 5 : Toast confirms success/failure
-
-=== PROCESS: Add/Edit/Delete Seasonal Price or Blackout Date ===
-Step 1 : Admin clicks "Add Season" / "Block Dates" or a row's "Edit"
-         in the Seasonal Pricing / Blackout Dates section below the
-         main form
-Step 2 : Modal form (React Hook Form + Zod) collects room, date range,
-         and season name/price (or reason, for blackout dates)
-Step 3 : Submits to POST/PUT on the matching API route; list refetches
-         via useSeasonalPricing()/useBlackoutDates()
-Step 4 : Delete follows the same ConfirmationModal pattern as Rooms/
-         Amenities
-
-FILE MAP ADDITIONS:
-- app/api/superAdmin/settings/booking-rules/route.js — GET (get-or-create singleton), PUT update
-- app/api/superAdmin/settings/seasonal-pricing/route.js — GET list, POST create
-- app/api/superAdmin/settings/seasonal-pricing/[seasonId]/route.js — PUT update, DELETE
-- app/api/superAdmin/settings/blackout-dates/route.js — GET list, POST create
-- app/api/superAdmin/settings/blackout-dates/[blackoutId]/route.js — PUT update, DELETE
-- hooks/useBookingRules.js — client fetch + save for the singleton settings row
-- hooks/useSeasonalPricing.js — client fetch + create/update/delete for seasonal prices
-- hooks/useBlackoutDates.js — client fetch + create/update/delete for blackout dates
-- app/superAdmin/(protected)/settings/booking-rules/page.jsx — route shell (server, fetches rooms incl. price for the Preview Impact sample)
-- app/superAdmin/(protected)/settings/booking-rules/BookingRulesClient.jsx — Sections 1-5 form, Preview Impact, Save/Reset
-- app/superAdmin/(protected)/settings/booking-rules/SeasonalPricingSection.jsx — Section 5 list + modal
-- app/superAdmin/(protected)/settings/booking-rules/BlackoutDatesSection.jsx — Section 6 list + modal
-- app/superAdmin/(protected)/settings/booking-rules/BookingRules.css
-- app/superAdmin/(protected)/settings/booking-rules/error.jsx
-- components/superAdmin/Sidebar.jsx — added "Booking Rules" nav link
-
-DEBUG POINTS:
-- "Column does not exist" on any booking-rules/seasonal-pricing/
-  blackout-dates route -> run `npx prisma db push` then
-  `npx prisma generate` (these three tables are new; see Rule 37.2).
-- Preview Impact panel doesn't show -> `rooms` array passed to
-  BookingRulesClient is empty; create at least one Room first.
-- Seasonal price / blackout date save fails with "not found" on edit
-  -> the entry was deleted in another tab; close the modal and refresh
-  the list.
-
-DEBUG POINTS:
-- Image upload fails with 500 -> confirm the 5 CLOUDFLARE_R2_* env vars
-  are set and the bucket exists.
-- "sharp" or "@aws-sdk/client-s3" module not found -> run `npm install`
-  after this update (both were added to package.json dependencies).
-- Room save fails with 409 -> the slug is already taken by another room;
-  edit the slug field.

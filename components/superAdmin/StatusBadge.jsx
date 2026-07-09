@@ -32,6 +32,9 @@ const STATUS_STYLES = {
   rate_limit_hit: { label: "Rate Limited", color: "#ef4444" },
   admin_action: { label: "Admin Action", color: "#3b82f6" },
   sql_injection_attempt: { label: "SQLi Attempt", color: "#dc2626" },
+  // Visitor Log actions (app/superAdmin/(protected)/visitor-logs)
+  page_view: { label: "Page View", color: "#71717a" },
+  booking_submitted: { label: "Booking Submitted", color: "#10b981" },
 };
 
 export default function StatusBadge({ status }) {

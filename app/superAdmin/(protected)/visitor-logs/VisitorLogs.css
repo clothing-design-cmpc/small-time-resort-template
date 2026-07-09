@@ -1,0 +1,68 @@
+/*
+ * .visitorLogsHeaderRow
+ * Matches the Security Logs / Bookings page header pattern (eyebrow ->
+ * title) for visual consistency across all super-admin list pages.
+ */
+.visitorLogsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.visitorLogsHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.visitorLogsEyebrow {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.visitorLogsTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.visitorLogsSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  max-width: 65ch;
+}
+
+/*
+ * .visitorLogsFilterRow
+ * Pill-style action filter — same interaction pattern as the Security
+ * Logs event-type filter, kept consistent across the admin area rather
+ * than introducing a dropdown here.
+ */
+.visitorLogsFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.visitorLogsFilterPill {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
+}
+
+.visitorLogsFilterPill:hover {
+  border-color: var(--color-border-strong);
+}
+
+.visitorLogsFilterPillActive {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}

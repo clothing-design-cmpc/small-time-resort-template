@@ -246,15 +246,18 @@ export default function BookedDatesSection() {
           </div>
         )}
 
-        {/* Empty state — no active bookings in the database yet */}
+        {/* Empty state — no active bookings in the database yet. The
+            carousel/readout have nothing to show, but the calendar below
+            still renders (every day just shows as available, no red). */}
         {!isLoading && !loadError && bookedDateObjects.length === 0 && (
           <div className="bookedDatesEmptyState">
             <p className="bookedDatesEmptyTitle">No dates are booked yet.</p>
-            <p className="bookedDatesEmptySubtitle">Every villa is currently available — check the Reserve Your Villa section below to pick a date.</p>
+            <p className="bookedDatesEmptySubtitle">Every villa is currently available — check the calendar below or the Reserve Your Villa section to pick a date.</p>
           </div>
         )}
 
-        {/* Loaded — carousel + calendar */}
+        {/* Carousel + "Viewing" readout — only meaningful once there's at
+            least one booked date to slide through. */}
         {!isLoading && !loadError && bookedDateObjects.length > 0 && (
           <>
             {/* Selected date readout */}
@@ -313,9 +316,15 @@ export default function BookedDatesSection() {
                 </svg>
               </button>
             </div>
+          </>
+        )}
 
-            {/* Mini calendar */}
-            <div className="miniCalendar" aria-label={`Calendar for ${calLabel}`}>
+        {/* Mini calendar — always shown once loaded, regardless of whether
+            any dates are booked. With zero bookings every day just renders
+            as plain/available (no red), which is exactly what "no dates
+            booked yet" should look like on a calendar. */}
+        {!isLoading && !loadError && (
+          <div className="miniCalendar" aria-label={`Calendar for ${calLabel}`}>
               <div className="miniCalendarHeader">
                 <button
                   type="button"
@@ -384,8 +393,7 @@ export default function BookedDatesSection() {
                   Available
                 </span>
               </div>
-            </div>
-          </>
+          </div>
         )}
 
       </div>

@@ -428,3 +428,27 @@ model SystemSettings {
 
   @@map("system_settings")
 }
+
+// ============================================================
+// MODEL: VisitorLog  (Visitor traffic + transaction tracking)
+// ============================================================
+// Separate from SecurityLog on purpose: SecurityLog is an
+// incident-focused audit trail (logins, denied access, rate limits) that
+// an admin scans when something looks wrong. VisitorLog is high-volume
+// traffic analytics (page views + notable actions like submitting a
+// booking) — mixing the two would bury real security incidents under
+// routine browsing noise. See services/visitorLog.js for how rows here
+// get written, and app/superAdmin/(protected)/visitor-logs for the UI.
+model VisitorLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent") @db.Text
+  path      String? // the page path visited, e.g. "/visitor/booking"
+  action    String   @default("page_view") // page_view | booking_submitted
+  details   String?  @db.Text // human-readable summary, e.g. "Booked Ocean View Villa, Jul 16-18"
+  city      String? // best-effort IP geolocation — null if lookup failed/skipped (e.g. localhost)
+  country   String? // best-effort IP geolocation — null if lookup failed/skipped
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("visitor_logs")
+}

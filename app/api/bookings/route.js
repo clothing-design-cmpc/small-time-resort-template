@@ -24,6 +24,7 @@ import { prisma } from "@/services/prisma";
 import { validateAndQuoteBooking } from "@/services/bookingPricing";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
+import { logVisitorActivity } from "@/services/visitorLog";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 
 const BOOKING_SUBMIT_MAX = 10;
@@ -113,6 +114,17 @@ export async function POST(request) {
         notes: payload.notes || null,
         status: "confirmed",
       },
+    });
+
+    // Records this as a notable visitor "transaction" — unlike routine
+    // page views, this one runs the IP geolocation lookup since knowing
+    // roughly where a real booking came from is useful for an admin.
+    await logVisitorActivity({
+      request,
+      action: "booking_submitted",
+      path: "/visitor/booking",
+      details: `${payload.guestName} booked ${quote.checkInDate} to ${quote.checkOutDate}`,
+      withLocation: true,
     });
 
     return NextResponse.json({

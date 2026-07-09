@@ -75,6 +75,23 @@ export default function DateCarousel() {
   const centerCardInTrack = useCallback((track, card, behavior) => {
     if (!track || !card) return;
     const targetLeft = card.offsetLeft - track.clientWidth / 2 + card.clientWidth / 2;
+
+    // .dateCarouselTrack sets `scroll-behavior: smooth` in CSS (for
+    // arrow/click-driven scrolls). Requesting a "smooth" scrollTo for the
+    // very first, mount-time centering call was letting the CSS-driven
+    // animation get interrupted before it fully settled, leaving the
+    // carousel opened on the wrong card with no visible active state.
+    // Forcing the CSS property itself to "auto" for that one call
+    // guarantees an immediate, exact jump; every later click still
+    // animates smoothly as before.
+    if (behavior === "auto") {
+      const previousScrollBehavior = track.style.scrollBehavior;
+      track.style.scrollBehavior = "auto";
+      track.scrollTo({ left: targetLeft, behavior: "auto" });
+      track.style.scrollBehavior = previousScrollBehavior;
+      return;
+    }
+
     track.scrollTo({ left: targetLeft, behavior });
   }, []);
 
@@ -84,17 +101,17 @@ export default function DateCarousel() {
    * Sets isProgrammaticScroll so the scroll listener below doesn't
    * fight this animated scroll while it's in flight.
    */
-  const scrollToIndex = useCallback((index) => {
+  const scrollToIndex = useCallback((index, behavior = "smooth") => {
     const track = trackRef.current;
     if (!track) return;
     const card = track.children[index];
     if (!card) return;
 
     isProgrammaticScroll.current = true;
-    centerCardInTrack(track, card, "smooth");
+    centerCardInTrack(track, card, behavior);
     setActiveIndex(index);
 
-    // Release the guard once the smooth scroll has had time to settle
+    // Release the guard once the scroll has had time to settle
     window.clearTimeout(releaseScrollGuardTimer.current);
     releaseScrollGuardTimer.current = window.setTimeout(() => {
       isProgrammaticScroll.current = false;
@@ -189,10 +206,17 @@ export default function DateCarousel() {
     };
   }, []);
 
-  // Center the first available date on mount so the carousel opens with an active selection already centered
+  // Center the first available date on mount so the carousel opens with
+  // an active selection already centered. Uses "auto" (immediate jump)
+  // rather than "smooth" — a mount-time animated scroll was getting cut
+  // short before landing on the target card. Deferred one frame so the
+  // 45 rendered cards have finished laying out before we measure them.
   useEffect(() => {
-    const startIndex = findNextAvailableIndex(0, 1);
-    scrollToIndex(startIndex);
+    const rafId = window.requestAnimationFrame(() => {
+      const startIndex = findNextAvailableIndex(0, 1);
+      scrollToIndex(startIndex, "auto");
+    });
+    return () => window.cancelAnimationFrame(rafId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookedDateSet]);
 

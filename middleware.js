@@ -40,9 +40,38 @@ function decodeRole(sessionToken) {
   }
 }
 
-export function middleware(request) {
+export function middleware(request, event) {
   const sessionToken = request.cookies.get("session")?.value;
   const { pathname } = request.nextUrl;
+
+  // --- VISITOR PAGE VIEW TRACKING ---
+  // Fire-and-forget: never awaited, so it can't add latency to the
+  // actual page response. event.waitUntil keeps the Edge function alive
+  // long enough for the fetch to actually go out before the runtime
+  // recycles it. Only real visitor pages are tracked — not the
+  // super-admin area, not API routes, not the login page.
+  const isTrackableVisitorPage =
+    request.method === "GET" &&
+    (pathname === "/" || pathname.startsWith("/visitor")) &&
+    !pathname.startsWith("/api");
+
+  if (isTrackableVisitorPage) {
+    const trackingRequest = fetch(new URL("/api/visitor-log/track", request.url), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Forward the visitor's real IP/user-agent through to the Node
+        // route, which can't otherwise see the original client request.
+        "x-forwarded-for": request.headers.get("x-forwarded-for") ?? request.ip ?? "",
+        "user-agent": request.headers.get("user-agent") ?? "",
+      },
+      body: JSON.stringify({ path: pathname }),
+    }).catch(() => {
+      // Best-effort telemetry — a failed tracking call must never affect the visitor.
+    });
+
+    if (event?.waitUntil) event.waitUntil(trackingRequest);
+  }
 
   // --- SUPER-ADMIN PAGES + API ROUTES: only accessible by role "super_admin" ---
   // Login page itself must stay reachable, or nobody could ever sign in.
@@ -77,8 +106,9 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
-// Matcher: only run this middleware on super-admin pages + admin API routes
-// — never on static assets, the visitor site, or public API routes.
+// Matcher: super-admin pages + admin API routes (auth guard), plus the
+// visitor site's own pages (page-view tracking only — no auth guard
+// applies there). Never runs on static assets.
 export const config = {
-  matcher: ["/superAdmin/:path*", "/api/admin/:path*", "/api/superAdmin/:path*"],
+  matcher: ["/superAdmin/:path*", "/api/admin/:path*", "/api/superAdmin/:path*", "/", "/visitor/:path*"],
 };

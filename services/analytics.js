@@ -1,0 +1,97 @@
+/**
+ * FILE: services/analytics.js
+ * ROLE: Rule 41 — Anonymized Traffic Analytics
+ *
+ * PURPOSE:
+ * Resolves a request's country (from IP, in-memory only — the IP itself
+ * is NEVER written anywhere) and device type, then upserts a running
+ * counter row on PageViewDaily. This is aggregate-only: no session id,
+ * no visitor id, no per-person row ever exists in this table. Logging
+ * must NEVER break the request it's attached to — same pattern as
+ * services/securityLog.js.
+ *
+ * DATA FLOW:
+ * 1. app/api/analytics/track/route.js calls recordPageView() with the
+ *    incoming Request and the path the visitor is on
+ * 2. resolveCountryCode() looks up the request IP against the bundled
+ *    geoip-lite dataset (pure local lookup, zero network calls,
+ *    zero storage of the IP) and returns only a 2-letter country code
+ * 3. resolveDeviceType() classifies the User-Agent into mobile/tablet/desktop
+ * 4. A daily counter row is upserted (created at viewCount 1, or
+ *    incremented) keyed on [date, path, referrerHost, deviceType, countryCode]
+ */
+import geoip from "geoip-lite";
+import { prisma } from "@/services/prisma";
+
+/**
+ * resolveCountryCode
+ * Looks up the request's IP against the local geoip-lite dataset and
+ * returns only the 2-letter country code. The IP itself is read once
+ * into this function's local variable and discarded — it is never
+ * passed to logSecurityEvent, never written to any table, and never
+ * returned to the caller.
+ */
+function resolveCountryCode(request) {
+  const ipAddress = request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
+  if (!ipAddress) return null;
+
+  try {
+    const lookup = geoip.lookup(ipAddress);
+    return lookup?.country ?? null; // ISO 3166-1 alpha-2, e.g. "PH"
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * resolveDeviceType
+ * Simple User-Agent classification — good enough for traffic-shape
+ * insight (Rule 41 scope), not meant to be a precise device fingerprint.
+ */
+function resolveDeviceType(request) {
+  const userAgent = request?.headers?.get("user-agent") ?? "";
+  if (/tablet|ipad/i.test(userAgent)) return "tablet";
+  if (/mobi|android|iphone/i.test(userAgent)) return "mobile";
+  return "desktop";
+}
+
+/**
+ * recordPageView
+ * Upserts today's counter row for this path/referrer/device/country
+ * combination. Never throws — a failed analytics write must not affect
+ * the visitor's page load.
+ *
+ * @param {Request} request - incoming Request, used only in-memory to
+ *   resolve country + device (never persisted)
+ * @param {string} path - the page path being viewed, e.g. "/visitor/booking"
+ * @param {string|null} referrerHost - hostname of document.referrer, or
+ *   null for direct traffic
+ */
+export async function recordPageView({ request, path, referrerHost = null }) {
+  try {
+    const countryCode = resolveCountryCode(request);
+    const deviceType = resolveDeviceType(request);
+
+    // Truncate to a date-only value (midnight) so all views on the same
+    // calendar day roll into the same counter row.
+    const today = new Date();
+    const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+    await prisma.pageViewDaily.upsert({
+      where: {
+        date_path_referrerHost_deviceType_countryCode: {
+          date,
+          path,
+          referrerHost,
+          deviceType,
+          countryCode,
+        },
+      },
+      update: { viewCount: { increment: 1 } },
+      create: { date, path, referrerHost, deviceType, countryCode, viewCount: 1 },
+    });
+  } catch (error) {
+    // Analytics must never break the visitor's request — surface it server-side only.
+    console.error("[analytics] Failed to record page view:", error.message);
+  }
+}

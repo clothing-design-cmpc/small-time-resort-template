@@ -26,7 +26,8 @@ const navLinks = [
   { label: "Amenities", href: "/superAdmin/content/amenities" },
   { label: "Booking Rules", href: "/superAdmin/settings/booking-rules" },
   { label: "Security Logs", href: "/superAdmin/security-logs" },
-  { label: "Visitor Logs", href: "/superAdmin/visitor-logs" },
+  { label: "Analytics", href: "/superAdmin/analytics" },
+  { label: "Account Activity", href: "/superAdmin/account-activity" },
 ];
 
 export default function Sidebar() {

@@ -219,6 +219,41 @@ to the client are the main defenses against that. On top of that:
      GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
      GOOGLE_DRIVE_BACKUP_FOLDER_ID
 
+FILE MAP additions (Anonymized Traffic Analytics — Rule 41):
+- services/analytics.js — recordPageView(): resolves country (geoip-lite,
+  local lookup, IP never stored) + device type, upserts a PageViewDaily
+  counter row. Never a per-visitor record.
+- app/api/analytics/track/route.js — public beacon endpoint, no auth.
+- components/shared/AnalyticsBeacon.jsx — mounted in the PUBLIC root
+  layout (app/layout.jsx) so it covers all visitor traffic, anonymous
+  by design.
+- app/api/admin/analytics/route.js — protected, aggregate reads only.
+- app/superAdmin/(protected)/analytics/ — Analytics dashboard (total
+  views, daily trend, top pages, top referrers, device/country breakdown).
+- prisma/schema.prisma — added PageViewDaily model.
+
+FILE MAP additions (Account Activity Log — Rule 42, authenticated
+super-admin/staff accounts only, never anonymous visitors):
+- services/accountActivity.js — recordAccountActivity(): requires an
+  accountId, resolves city/country + device from the request, inserts
+  an AccountActivityLog row.
+- app/api/account-activity/track/route.js — requires a valid
+  requireSuperAdmin() session; rejects anonymous requests outright.
+- components/superAdmin/AccountActivityBeacon.jsx — mounted ONLY inside
+  app/superAdmin/(protected)/layout.jsx (the authenticated shell) —
+  structurally cannot fire for a logged-out visitor.
+- app/api/admin/account-activity/route.js — protected, paginated read,
+  joins AdminProfile for a readable actor name.
+- app/superAdmin/(protected)/account-activity/ — Account Activity page:
+  separate from Security Logs (Rule 38, login/attack events) and
+  Analytics (Rule 41, anonymous aggregate) — three distinct pages for
+  three distinct purposes, per protocol Rule 38.1's separation principle.
+- prisma/schema.prisma — added AccountActivityLog model.
+- components/superAdmin/Sidebar.jsx — added "Analytics" and "Account
+  Activity" nav links.
+- package.json — added geoip-lite dependency (local IP->country/city
+  lookup, no external API calls, no IP ever stored).
+
 FILE MAP additions (Database Backup — Rule 40):
 - services/googleDrive.js — uploadToDrive()/deleteFromDrive() using a Google
   service account (no OAuth). Server-side only.
@@ -329,59 +364,3 @@ DEBUG POINTS:
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)
 - NEXT_PUBLIC_SUPABASE_ANON_KEY  (blank — Supabase not yet connected)
 - SUPABASE_SERVICE_ROLE_KEY      (blank — Supabase not yet connected)
-11. CHANGELOG — 2026-07-09 (Blueprint Verification Audit follow-up)
-See blueprint-verification-audit.txt for the full findings this entry
-is based on. Two items from that audit were actioned this session:
-
-11.1 — Fixed Resort Shop Management (blueprint Page 3) DB bugs:
-  - StoreProduct model was missing inStock/quantityOnHand — the
-    ShopProductForm UI and shop API routes already used both fields,
-    so every product save was failing at the DB layer. Added both
-    fields to prisma/schema.prisma.
-  - ShopConfig model did not exist at all, but
-    app/api/superAdmin/content/shop/config/route.js already called
-    prisma.shopConfig on every request. Added the ShopConfig singleton
-    model (id "shop_config").
-  - Removed the duplicate shopHours/shopLocation/alcoholWarning fields
-    from SystemSettings (they were dead weight from an earlier wrong
-    assumption — ShopConfig is now the single source of truth for
-    shop config).
-  - Run in terminal after pulling this change: npx prisma db push
-    then npx prisma generate.
-
-11.2 — Completed Rooms Management (blueprint Page 1) — added the two
-  missing sub-pages the blueprint calls for:
-  - Room Gallery sub-page: new RoomImage model (roomId, imageUrl,
-    imageKey, caption, displayOrder, isFeatured), new API at
-    app/api/superAdmin/content/rooms/[roomId]/gallery/ (list/add) and
-    .../gallery/[imageId]/ (update — including "Set as Main", which
-    copies the image onto the parent Room row — and delete), new hook
-    hooks/useRoomGallery.js, and a new page at
-    app/superAdmin/(protected)/content/rooms/[roomId]/gallery/.
-  - Room Availability Calendar sub-page: reuses the existing
-    BlackoutDate model/API (app/api/superAdmin/settings/blackout-dates)
-    rather than adding a parallel one — filters client-side by roomId.
-    New page at
-    app/superAdmin/(protected)/content/rooms/[roomId]/availability/
-    with a click-to-toggle month grid, "Block This Week" / "Block Next
-    2 Weeks" / "Clear All Blocks" bulk actions, and a read-only list of
-    the room's upcoming confirmed bookings (fetched server-side).
-  - Both sub-pages are linked from the Rooms list row actions and from
-    the room edit form header ("Manage Gallery" / "Manage Availability").
-  - Run in terminal after pulling this change: npx prisma db push
-    then npx prisma generate.
-
-DEBUG POINTS (new):
-- If gallery upload succeeds but the image doesn't appear: check that
-  npx prisma generate was re-run after the RoomImage model was added —
-  a stale Prisma Client will throw "Unknown model" silently caught as
-  a generic 500 on the gallery POST route.
-- "Set as Main" updates Room.imageUrl/imageKey directly but does NOT
-  delete the room's previous main image from R2 if it wasn't itself a
-  RoomImage row (e.g. the original upload from the room form) — this
-  is intentional, since that file may still be referenced elsewhere;
-  only RoomImage deletions clean up R2.
-- Availability calendar blackout clicks operate on whatever BlackoutDate
-  range covers that day, even if it's a multi-day range created via a
-  bulk action — clicking any day inside a "Block This Week" range
-  deletes the entire range, not just that one day.

@@ -1,0 +1,266 @@
+/*
+ * FILE: app/superAdmin/(protected)/analytics/Analytics.css
+ * Follows the same header/panel pattern as SecurityLogs.css for visual
+ * consistency across super-admin pages.
+ */
+
+.analyticsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.analyticsHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.analyticsEyebrow {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.analyticsTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.analyticsSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  max-width: 70ch;
+}
+
+/*
+ * .analyticsTotalCard
+ * Single headline metric card — total views over the window, sits
+ * above the detail panels so it's the first thing an admin sees.
+ */
+.analyticsTotalCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg) var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.analyticsTotalLabel {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.analyticsTotalValue {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .analyticsPanel
+ * Shared card wrapper for every chart/list block on the page.
+ */
+.analyticsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.analyticsPanelTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .analyticsPanelGrid
+ * Four detail panels reflow from a 2-column grid down to a single
+ * column on narrower viewports.
+ */
+.analyticsPanelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
+}
+
+.analyticsEmptyMessage {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .analyticsBarChart
+ * Simple CSS-only bar chart for the daily trend — no charting
+ * dependency needed for this scope.
+ */
+.analyticsBarChart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-xs);
+  height: 160px;
+  overflow-x: auto;
+  padding-top: var(--space-md);
+}
+
+.analyticsBarColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  min-width: 28px;
+  height: 100%;
+}
+
+.analyticsBar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background-color: var(--color-accent);
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.analyticsBarLabel {
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/*
+ * .analyticsBarList / .analyticsSimpleList
+ * Horizontal bar-list rows for Top Pages, and plain value-list rows
+ * for referrers/device/country breakdowns.
+ */
+.analyticsBarList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.analyticsBarListRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.analyticsBarListLabel {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyticsBarListTrack {
+  height: 8px;
+  border-radius: 4px;
+  background-color: var(--color-surface-hover);
+  overflow: hidden;
+}
+
+.analyticsBarListFill {
+  height: 100%;
+  border-radius: 4px;
+  background-color: var(--color-accent);
+}
+
+.analyticsBarListValue {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.8rem;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.analyticsSimpleList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.analyticsSimpleListRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.analyticsSimpleListRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.analyticsSimpleListValue {
+  font-family: var(--font-admin-mono), monospace;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .analyticsSkeleton
+ * Loading state — mirrors the shape of the total card while data loads.
+ */
+.analyticsSkeleton {
+  height: 100px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base) 25%,
+    var(--color-skeleton-shine) 50%,
+    var(--color-skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite;
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.analyticsErrorState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  color: var(--color-error);
+}
+
+.analyticsRetryButton {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.analyticsRetryButton:hover,
+.analyticsRetryButton:focus-visible {
+  background-color: var(--color-surface-hover);
+}

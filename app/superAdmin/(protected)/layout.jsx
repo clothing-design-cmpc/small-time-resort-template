@@ -23,6 +23,7 @@
 import "../SuperAdmin.css";
 import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
+import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
 
 export const metadata = {
   title: "Super-Admin | Villa Azure Resort",
@@ -34,6 +35,10 @@ export default function SuperAdminLayout({ children }) {
     // superAdminRoot scopes the dark enterprise color tokens (SuperAdmin.css)
     // so they never leak into the visitor site's light theme.
     <div className="superAdminRoot">
+      {/* Records this admin's page navigation for the Account Activity Log
+          (Rule 42) — only ever mounted here, inside the authenticated shell,
+          never in the public root layout, so it can never log an anonymous visitor. */}
+      <AccountActivityBeacon />
       <a href="#mainContent" className="superAdminSkipLink">
         Skip to main content
       </a>

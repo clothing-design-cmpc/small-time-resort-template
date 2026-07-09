@@ -1,25 +1,27 @@
 # FILE: .github/workflows/database-backup.yml
 # PURPOSE:
-# Runs scripts/backupDatabase.mjs nightly at 2:00 AM Philippine Time
-# (18:00 UTC the previous day) on a GitHub-hosted runner — completely
-# separate infrastructure from the app's Vercel hosting, so it never
-# competes with live guest traffic for resources (Rule 40.1).
+# Runs scripts/runBackup.js on GitHub's own cloud runners — entirely
+# separate infrastructure from the app's hosting (Vercel) — on a
+# nightly schedule during the lowest-traffic window. This is what
+# keeps backups fully decoupled from live guest traffic (Rule 40.1):
+# nothing here ever touches or slows down a booking request.
 #
-# Also runnable manually via the Actions tab ("workflow_dispatch") for
-# an on-demand backup, e.g. right before a risky schema change.
-
+# Schedule: 18:00 UTC = 2:00 AM Philippine Time (UTC+8) every day.
+# Also runs on-demand via the "Run workflow" button in the Actions tab
+# (workflow_dispatch) — this is the ONLY approved way to trigger a
+# manual backup (Rule 40.6 forbids a "Run Backup Now" button in the app itself).
 name: Nightly Database Backup
 
 on:
   schedule:
-    - cron: "0 18 * * *" # 18:00 UTC = 2:00 AM Asia/Manila (UTC+8)
+    - cron: "0 18 * * *"
   workflow_dispatch: {}
 
 jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -27,20 +29,23 @@ jobs:
         with:
           node-version: "24"
 
+      # pg_dump ships with the postgresql-client package, not with Node —
+      # the Ubuntu runner doesn't have it preinstalled.
       - name: Install PostgreSQL client (pg_dump)
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
       - name: Install dependencies
-        run: npm install --omit=dev --no-save @aws-sdk/client-s3 googleapis pg
+        run: npm ci
 
       - name: Run backup script
+        run: npm run backup
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL }}
           GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
           GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
-          GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
-        run: node scripts/backupDatabase.mjs
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}

@@ -1,0 +1,63 @@
+/*
+ * .backupsHeaderRow
+ * Matches the Security Logs / Bookings page header pattern (eyebrow ->
+ * title -> subtitle) for visual consistency across super-admin pages.
+ */
+.backupsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.backupsHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.backupsEyebrow {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.backupsTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.backupsSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  max-width: 70ch;
+}
+
+/*
+ * .backupsDestinationLinks
+ * R2 + Google Drive links side by side per row — a missing
+ * destination shows a muted dash instead of just disappearing, so a
+ * partial-failure run is immediately obvious at a glance.
+ */
+.backupsDestinationLinks {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.backupsDestinationLink {
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.backupsDestinationLink:hover {
+  color: var(--color-primary-hover);
+}
+
+.backupsDestinationMissing {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}

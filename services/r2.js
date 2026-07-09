@@ -1,15 +1,12 @@
 /**
  * FILE: services/r2.js
  * PURPOSE:
- * Initializes the Cloudflare R2 client (S3-compatible) and exports
- * uploadToR2 / deleteFromR2 helpers used by every content-management
- * image upload across the super-admin (rooms, amenities, shop,
- * activities, testimonials, gallery, homepage).
- *
- * SERVER-SIDE ONLY — never import this in a "use client" file. R2
- * credentials must never reach the browser bundle.
+ * Cloudflare R2 client (S3-compatible) for uploading files server-side.
+ * Currently used by scripts/runBackup.js to store nightly database dump
+ * files. Server/script-side only — never import in a "use client" file
+ * or expose these credentials to the browser.
  */
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 export const r2Client = new S3Client({
   region: "auto",
@@ -22,9 +19,12 @@ export const r2Client = new S3Client({
 
 /**
  * uploadToR2
- * Uploads a processed file buffer to the configured bucket and returns
- * the public CDN URL. The key is the file's path inside the bucket
- * (e.g. "rooms/<uuid>.webp").
+ * Uploads a file buffer to the configured bucket under `key` and
+ * returns its public CDN URL (built from NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL).
+ *
+ * @param {string} key - object path in the bucket, e.g. "backups/2026-07-09.sql.gz"
+ * @param {Buffer} buffer
+ * @param {string} contentType - e.g. "application/gzip"
  */
 export async function uploadToR2(key, buffer, contentType) {
   await r2Client.send(
@@ -37,20 +37,4 @@ export async function uploadToR2(key, buffer, contentType) {
   );
 
   return `${process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL}/${key}`;
-}
-
-/**
- * deleteFromR2
- * Permanently deletes a file from R2. Called whenever a room image is
- * replaced or a room is deleted, so the bucket never accumulates
- * orphaned files.
- */
-export async function deleteFromR2(key) {
-  if (!key) return;
-  await r2Client.send(
-    new DeleteObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
-      Key: key,
-    })
-  );
 }

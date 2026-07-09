@@ -183,91 +183,72 @@ FILE MAP additions (Security Logs):
   routes, e.g. content/rooms and content/amenities create/update/delete, to
   extend the audit trail per Rule 6).
 
-DATA BACKUP / DISASTER RECOVERY (implemented — Rule 40):
+DATA BACKUP / DISASTER RECOVERY NOTE (not yet implemented — infra decision,
+not code):
 Getting into the app (even as super_admin) does NOT automatically wipe the
 database — data loss only happens if the attacker's access lets them run
 actual DELETE/DROP operations (e.g. a leaked SUPABASE_SERVICE_ROLE_KEY, or
 a SQL injection bypassing Prisma). RLS + never exposing the service role key
-to the client are the main defenses against that. On top of that:
-  1. Supabase Point-in-Time Recovery (PITR) — enable on the Supabase paid
-     plan (Dashboard -> Settings -> Backups). Restores the DB to any minute
-     in the last N days. Runs at the DB engine level, zero app code.
-  2. Scheduled offsite backup (implemented) — GitHub Actions cron
-     (.github/workflows/database-backup.yml) runs nightly at 2:00 AM
-     Asia/Manila on its own runner, completely separate from the app's
-     Vercel hosting. It executes scripts/backupDatabase.mjs, which:
-       a. Runs `pg_dump` against DIRECT_URL (session pooler), gzips the
-          output
-       b. Uploads the archive to Cloudflare R2 under the "backups/" key
-          prefix (services/r2.js's generic uploadToR2, reused)
-       c. Uploads the same archive to Google Drive via
-          services/googleDrive.js (service account, no OAuth)
-       d. Inserts a security_logs row (event_type: "admin_action", actor:
-          "System (Scheduled Backup)") so the run is visible on
-          /superAdmin/security-logs without any extra UI
-     This is the second, independent backup destination outside Supabase —
-     so a compromised Supabase project alone can't take out both the live
-     DB and its only backup at the same time (the "3-2-1" rule). Can also
-     be triggered manually: GitHub repo -> Actions -> "Nightly Database
-     Backup" -> "Run workflow", or locally with `npm run backup:db` (needs
-     pg_dump installed locally and the same env vars in .env.local).
+to the client are the main defenses against that.
 
-  Required GitHub repo secrets (Settings -> Secrets and variables ->
-  Actions) — separate from .env.local, these are read by the workflow:
-     DIRECT_URL, CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID,
-     CLOUDFLARE_R2_SECRET_ACCESS_KEY, CLOUDFLARE_R2_BUCKET_NAME,
-     GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-     GOOGLE_DRIVE_BACKUP_FOLDER_ID
+=== PROCESS: Nightly Database Backup (implements protocol Rule 40) ===
+Step 1 : GitHub Actions runs .github/workflows/database-backup.yml on its own
+         schedule (18:00 UTC / 2:00 AM PHT) — entirely separate infrastructure
+         from the app's hosting, so this never competes with live traffic
+Step 2 : The workflow installs postgresql-client (for pg_dump), then runs
+         `npm run backup`, which executes scripts/runBackup.js
+Step 3 : runBackup.js creates a BackupLog row with status "running", then
+         shells out to `pg_dump` against DIRECT_URL (session pooler — pg_dump
+         needs a stable session the transaction pooler doesn't reliably give)
+Step 4 : The dump is gzipped in memory, then uploaded to Cloudflare R2
+         (services/r2.js) AND Google Drive (services/googleDrive.js)
+         independently — one destination failing does not stop the attempt
+         at the other
+Step 5 : The same BackupLog row is updated with status "success" (if at
+         least one destination succeeded) or "failed" (if both failed),
+         plus file size, both destination links, and any error message
+Step 6 : Super-admin reviews backup history at /superAdmin/backups — a
+         strictly READ-ONLY page (GET /api/admin/backup-logs); there is
+         intentionally no "Run Backup Now" button anywhere in the app —
+         a manual run is triggered via GitHub Actions' own "Run workflow"
+         button on database-backup.yml, never through this app itself
 
-FILE MAP additions (Anonymized Traffic Analytics — Rule 41):
-- services/analytics.js — recordPageView(): resolves country (geoip-lite,
-  local lookup, IP never stored) + device type, upserts a PageViewDaily
-  counter row. Never a per-visitor record.
-- app/api/analytics/track/route.js — public beacon endpoint, no auth.
-- components/shared/AnalyticsBeacon.jsx — mounted in the PUBLIC root
-  layout (app/layout.jsx) so it covers all visitor traffic, anonymous
-  by design.
-- app/api/admin/analytics/route.js — protected, aggregate reads only.
-- app/superAdmin/(protected)/analytics/ — Analytics dashboard (total
-  views, daily trend, top pages, top referrers, device/country breakdown).
-- prisma/schema.prisma — added PageViewDaily model.
+FILE MAP additions (Backups):
+- prisma/schema.prisma — BackupLog model (status, fileSizeBytes, r2Key/r2Url,
+  driveFileId/driveViewLink, errorMessage, startedAt, completedAt).
+- services/r2.js — Cloudflare R2 upload helper (S3-compatible client).
+- services/googleDrive.js — Google Drive upload helper via a Service
+  Account (see setup steps in that file's header comment — the target
+  Drive folder must be manually shared with the service account's email
+  before uploads will succeed).
+- scripts/runBackup.js — the standalone backup script itself. NEVER
+  imported by any Next.js route — run only via `npm run backup` or the
+  GitHub Actions workflow.
+- .github/workflows/database-backup.yml — nightly cron (2 AM PHT) +
+  manual workflow_dispatch trigger.
+- app/api/admin/backup-logs/route.js — GET-only, super-admin, paginated.
+- app/superAdmin/(protected)/backups/page.jsx + BackupLogsClient.jsx +
+  Backups.css — the read-only Backups admin page.
 
-FILE MAP additions (Account Activity Log — Rule 42, authenticated
-super-admin/staff accounts only, never anonymous visitors):
-- services/accountActivity.js — recordAccountActivity(): requires an
-  accountId, resolves city/country + device from the request, inserts
-  an AccountActivityLog row.
-- app/api/account-activity/track/route.js — requires a valid
-  requireSuperAdmin() session; rejects anonymous requests outright.
-- components/superAdmin/AccountActivityBeacon.jsx — mounted ONLY inside
-  app/superAdmin/(protected)/layout.jsx (the authenticated shell) —
-  structurally cannot fire for a logged-out visitor.
-- app/api/admin/account-activity/route.js — protected, paginated read,
-  joins AdminProfile for a readable actor name.
-- app/superAdmin/(protected)/account-activity/ — Account Activity page:
-  separate from Security Logs (Rule 38, login/attack events) and
-  Analytics (Rule 41, anonymous aggregate) — three distinct pages for
-  three distinct purposes, per protocol Rule 38.1's separation principle.
-- prisma/schema.prisma — added AccountActivityLog model.
-- components/superAdmin/Sidebar.jsx — added "Analytics" and "Account
-  Activity" nav links.
-- package.json — added geoip-lite dependency (local IP->country/city
-  lookup, no external API calls, no IP ever stored).
-
-FILE MAP additions (Database Backup — Rule 40):
-- services/googleDrive.js — uploadToDrive()/deleteFromDrive() using a Google
-  service account (no OAuth). Server-side only.
-- scripts/backupDatabase.mjs — standalone script (not part of the Next.js
-  app process): pg_dump -> gzip -> upload to R2 + Google Drive -> log
-  result to security_logs. Self-contained (own R2/Drive/pg clients) so it
-  runs with plain `node` on a GitHub Actions runner.
-- .github/workflows/database-backup.yml — nightly cron (2 AM Asia/Manila)
-  + manual "Run workflow" trigger. Installs postgresql-client for pg_dump,
-  runs the script with secrets injected as env vars.
-- overviewProject.txt (this file) — Data Backup / Disaster Recovery section
-  updated from "not yet implemented" to documented + implemented.
+8b. API ENDPOINTS (Backups)
+- GET /api/admin/backup-logs — super-admin only. Query param ?page=
+  (default 1). Returns
+  { success, data: { backupLogs, page, pageSize, totalCount, totalPages }, message }.
+  GET-only by design — see Step 6 above for why there is no POST here.
 
 9. COMMON DEBUG POINTS
+- "pg_dump: command not found" when testing scripts/runBackup.js locally:
+  install the postgresql-client package for your OS — pg_dump is a system
+  binary, not an npm package, so `npm install` alone will never provide it.
+- Google Drive upload fails with a 404/permission error: the target folder
+  was not shared with the service account's email
+  (GOOGLE_SERVICE_ACCOUNT_EMAIL) as an Editor — a service account has no
+  Drive storage of its own and can only write into folders explicitly
+  shared with it (see services/googleDrive.js header comment).
+- A BackupLog row stuck on status "running" forever: the GitHub Actions
+  run crashed or was cancelled mid-script before reaching the final
+  prisma.backupLog.update() call — check the workflow's run log in the
+  GitHub Actions tab for the actual error.
 - If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
 - If styles missing: confirm globals.css and mediaQueries.css are imported in app/layout.jsx.
 - If /api/admin/* routes return 401 for a logged-in admin: confirm the "session" cookie
@@ -306,17 +287,6 @@ FILE MAP additions (Database Backup — Rule 40):
   mount, never scrollIntoView() — scrollIntoView also scrolls the page's
   vertical axis to bring an off-screen section into view, which is what
   caused this bug originally.
-- If the nightly backup GitHub Action fails: check the Actions tab run log first —
-  most common causes are a missing/expired repo secret (Settings -> Secrets and
-  variables -> Actions — see the 8 required secrets in the Data Backup section
-  above), pg_dump version mismatch (the workflow installs the runner's default
-  postgresql-client; bump the apt package if Supabase upgrades its Postgres major
-  version), or GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY losing its \n line breaks when
-  pasted into the GitHub secret (must be the raw PEM with literal \n, matching what
-  services/googleDrive.js and scripts/backupDatabase.mjs expect to .replace()).
-  Whether it succeeds or fails, check /superAdmin/security-logs for the
-  "System (Scheduled Backup)" admin_action row — the details field states exactly
-  what happened.
 
 === PROCESS: Real Visitor Booking Flow (replaces the old static /visitor/booking placeholder) ===
 Step 1 : Visitor reaches /visitor/booking either via Header's "Book Now" link
@@ -364,3 +334,14 @@ DEBUG POINTS:
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)
 - NEXT_PUBLIC_SUPABASE_ANON_KEY  (blank — Supabase not yet connected)
 - SUPABASE_SERVICE_ROLE_KEY      (blank — Supabase not yet connected)
+- DATABASE_URL                   (transaction pooler, used by the app at runtime)
+- DIRECT_URL                     (session pooler, used by Prisma CLI + scripts/runBackup.js)
+- CLOUDFLARE_R2_ACCOUNT_ID / CLOUDFLARE_R2_ACCESS_KEY_ID /
+  CLOUDFLARE_R2_SECRET_ACCESS_KEY / CLOUDFLARE_R2_BUCKET_NAME /
+  NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL  (backup destination #1)
+- GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY /
+  GOOGLE_DRIVE_FOLDER_ID          (backup destination #2 — the folder must be
+  manually shared with the service account email as an Editor first)
+- For GitHub Actions: add all of the above (except the NEXT_PUBLIC_ ones,
+  which can stay the same) as repo Secrets under Settings → Secrets and
+  variables → Actions, so database-backup.yml can read them.

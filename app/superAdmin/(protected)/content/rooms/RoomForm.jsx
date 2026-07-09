@@ -20,6 +20,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -167,6 +168,16 @@ export default function RoomForm({ existingRoom, amenities }) {
       <div className="roomFormHeaderRow">
         <span className="roomsEyebrow">Content Management</span>
         <h1 className="roomsTitle">{isEditMode ? "Edit Room" : "Add Room"}</h1>
+        {isEditMode && (
+          <div className="roomFormSubPageLinks">
+            <Link href={`/superAdmin/content/rooms/${existingRoom.id}/gallery`} className="roomsRowActionButton">
+              Manage Gallery
+            </Link>
+            <Link href={`/superAdmin/content/rooms/${existingRoom.id}/availability`} className="roomsRowActionButton">
+              Manage Availability
+            </Link>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="roomForm">

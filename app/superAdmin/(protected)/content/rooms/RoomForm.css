@@ -16,6 +16,19 @@
 }
 
 /*
+ * .roomFormSubPageLinks
+ * "Manage Gallery" / "Manage Availability" quick links shown only in
+ * edit mode, once a room actually exists to link into.
+ */
+.roomFormSubPageLinks {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+/*
  * .roomForm
  * Vertical stack of fields with generous gap so nothing feels cramped.
  */

@@ -1,0 +1,77 @@
+/*
+ * .roomGalleryUploadField
+ * The "Add Image" file input, styled to match the rest of the room
+ * form fields (roomForm* classes come from RoomForm.css already
+ * loaded globally via the rooms bundle).
+ */
+.roomGalleryUploadField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.roomGalleryUploadField label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.roomGalleryUploadField input[type="file"] {
+  font-size: 1rem;
+}
+
+/*
+ * .roomGalleryGrid
+ * Responsive card grid for the room's gallery images — auto-fills
+ * columns so it reflows cleanly from mobile to desktop with no
+ * breakpoints needed.
+ */
+.roomGalleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-lg);
+}
+
+.roomGalleryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.roomGalleryImageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.roomGalleryFeaturedBadge {
+  position: absolute;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  z-index: var(--z-raised, 10);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.roomGalleryCardActions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}

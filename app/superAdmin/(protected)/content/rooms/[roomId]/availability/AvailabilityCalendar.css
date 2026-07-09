@@ -1,0 +1,186 @@
+/*
+ * .availabilityBulkActionsRow
+ * "Block This Week" / "Block Next 2 Weeks" / "Clear All Blocks"
+ * shortcut buttons, wrapping cleanly on narrow screens.
+ */
+.availabilityBulkActionsRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+/*
+ * .availabilityCalendarCard
+ * Elevated container for the month grid — matches the card standard
+ * (padding, border, layered background) used across the admin.
+ */
+.availabilityCalendarCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.availabilityCalendarNavRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.availabilityCalendarMonthLabel {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.availabilityCalendarWeekdayRow,
+.availabilityCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-xs);
+}
+
+.availabilityCalendarWeekdayLabel {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.availabilityCalendarCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.availabilityCalendarCell:hover:not(:disabled),
+.availabilityCalendarCell:focus-visible:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+.availabilityCalendarCell--blank {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.availabilityCalendarCell--available {
+  background-color: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.availabilityCalendarCell--blocked {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.availabilityCalendarCell--booked {
+  background-color: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #3b82f6;
+  cursor: default;
+}
+
+.availabilityCalendarLegend {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.availabilityLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.availabilityLegendSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.availabilityLegendSwatch--available {
+  background-color: #10b981;
+}
+
+.availabilityLegendSwatch--blocked {
+  background-color: #ef4444;
+}
+
+.availabilityLegendSwatch--booked {
+  background-color: #3b82f6;
+}
+
+/*
+ * .availabilityBookingsPanel
+ * Read-only reference list of this room's upcoming confirmed
+ * bookings — never editable from here, just informational context
+ * while the admin is deciding what to block.
+ */
+.availabilityBookingsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.availabilityBookingsTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.availabilityBookingsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.availabilityBookingsRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.availabilityBookingsGuest {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.availabilityBookingsDates,
+.availabilityBookingsGuests {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}

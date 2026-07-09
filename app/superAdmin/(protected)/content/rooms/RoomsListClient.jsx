@@ -69,6 +69,20 @@ export default function RoomsListClient() {
         >
           Edit
         </Link>
+        <Link
+          href={`/superAdmin/content/rooms/${room.id}/gallery`}
+          className="roomsRowActionButton"
+          onClick={(event) => event.stopPropagation()}
+        >
+          Gallery
+        </Link>
+        <Link
+          href={`/superAdmin/content/rooms/${room.id}/availability`}
+          className="roomsRowActionButton"
+          onClick={(event) => event.stopPropagation()}
+        >
+          Availability
+        </Link>
         <button
           type="button"
           className="roomsRowActionButton roomsRowActionButton--destructive"

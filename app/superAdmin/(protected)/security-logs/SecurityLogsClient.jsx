@@ -36,6 +36,7 @@ const EVENT_TYPE_FILTERS = [
   { value: "admin_login_denied", label: "Access Denied" },
   { value: "rate_limit_hit", label: "Rate Limited" },
   { value: "admin_action", label: "Admin Action" },
+  { value: "sql_injection_attempt", label: "SQLi Attempt" },
 ];
 
 const columns = [

@@ -31,6 +31,7 @@ const STATUS_STYLES = {
   admin_login_denied: { label: "Access Denied", color: "#ef4444" },
   rate_limit_hit: { label: "Rate Limited", color: "#ef4444" },
   admin_action: { label: "Admin Action", color: "#3b82f6" },
+  sql_injection_attempt: { label: "SQLi Attempt", color: "#dc2626" },
 };
 
 export default function StatusBadge({ status }) {

@@ -29,6 +29,7 @@ import { browserClient, adminClient } from "@/services/supabase";
 import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
+import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -86,6 +87,22 @@ export async function POST(request) {
   try {
     payload = loginRequestSchema.parse(await request.json());
   } catch {
+    return NextResponse.json(
+      { success: false, data: null, message: "Enter a valid email and password." },
+      { status: 400 }
+    );
+  }
+
+  // Defense-in-depth detection layer (Prisma already makes real SQL
+  // injection structurally impossible — this just logs the attempt).
+  const sqliHit = scanForSqlInjection(payload);
+  if (sqliHit) {
+    await logSecurityEvent({
+      eventType: "sql_injection_attempt",
+      actor: typeof payload.email === "string" ? payload.email : null,
+      request,
+      details: `Suspicious pattern detected in field "${sqliHit}" on login.`,
+    });
     return NextResponse.json(
       { success: false, data: null, message: "Enter a valid email and password." },
       { status: 400 }

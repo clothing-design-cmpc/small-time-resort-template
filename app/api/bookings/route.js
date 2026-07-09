@@ -24,6 +24,7 @@ import { prisma } from "@/services/prisma";
 import { validateAndQuoteBooking } from "@/services/bookingPricing";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
+import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -63,6 +64,23 @@ export async function POST(request) {
     const firstIssue = validationError?.issues?.[0]?.message;
     return NextResponse.json(
       { success: false, data: null, message: firstIssue || "Please check the booking form for errors." },
+      { status: 400 }
+    );
+  }
+
+  // Defense-in-depth detection layer (Prisma already makes real SQL
+  // injection structurally impossible — this just logs the attempt so
+  // it shows up in Security Logs instead of silently failing zod validation).
+  const sqliHit = scanForSqlInjection(payload);
+  if (sqliHit) {
+    await logSecurityEvent({
+      eventType: "sql_injection_attempt",
+      actor: typeof payload.guestEmail === "string" ? payload.guestEmail : null,
+      request,
+      details: `Suspicious pattern detected in field "${sqliHit}" on booking submission.`,
+    });
+    return NextResponse.json(
+      { success: false, data: null, message: "Please check the booking form for errors." },
       { status: 400 }
     );
   }

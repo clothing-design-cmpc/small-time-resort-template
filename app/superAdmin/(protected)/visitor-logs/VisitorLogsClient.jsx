@@ -137,7 +137,7 @@ export default function VisitorLogsClient() {
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
-        pageSize={25}
+        pageSize={10}
         onPageChange={setPage}
       />
     </section>

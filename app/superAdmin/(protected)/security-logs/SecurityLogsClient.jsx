@@ -219,7 +219,7 @@ export default function SecurityLogsClient() {
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}
-        pageSize={25}
+        pageSize={10}
         onPageChange={setPage}
         renderExpandedRow={renderSecurityLogDetail}
       />

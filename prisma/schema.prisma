@@ -52,6 +52,10 @@ model Room {
   seasonalPrices SeasonalPrice[]
   blackoutDates  BlackoutDate[]
 
+  // Index for the visitor "Rooms" list and homepage featured-rooms query —
+  // both filter by isActive/isFeatured on every no-cache request.
+  @@index([isActive])
+  @@index([isFeatured])
   @@map("rooms")
 }
 
@@ -67,6 +71,7 @@ model Amenity {
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
 
+  @@index([isActive])
   @@map("amenities")
 }
 
@@ -84,6 +89,10 @@ model StoreProduct {
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
 
+  // Shop page filters by category tab and hides inactive products —
+  // both hit on every visitor no-cache request.
+  @@index([category])
+  @@index([isActive])
   @@map("store_products")
 }
 
@@ -115,6 +124,11 @@ model Booking {
 
   room Room? @relation(fields: [roomId], references: [id])
 
+  // Availability calendar and blackout checks filter by roomId + status/date
+  // range on every booking-form load — this is the hottest query path.
+  @@index([roomId])
+  @@index([status])
+  @@index([checkInDate, checkOutDate])
   @@map("bookings")
 }
 
@@ -226,6 +240,7 @@ model SeasonalPrice {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
+  @@index([roomId])
   @@map("seasonal_prices")
 }
 
@@ -242,5 +257,127 @@ model BlackoutDate {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  @@index([roomId])
   @@map("blackout_dates")
+}
+
+// ============================================================
+// MODEL: Activity  (Activities Management, blueprint Page 4)
+// ============================================================
+model Activity {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?
+  duration     String   @default("") // e.g. "2 hours", "Half day"
+  minGroupSize Int      @default(1) @map("min_group_size")
+  maxGroupSize Int      @default(10) @map("max_group_size")
+  imageUrl     String?  @map("image_url")
+  imageKey     String?  @map("image_key") // R2 object key, needed to delete the old file on replace
+  isActive     Boolean  @default(true) @map("is_active")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  sortOrder    Int      @default(0) @map("sort_order")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this activity
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("activities")
+}
+
+// ============================================================
+// MODEL: Testimonial  (Testimonials Management, blueprint Page 5)
+// ============================================================
+model Testimonial {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guestName    String   @map("guest_name")
+  guestPhoto   String?  @map("guest_photo") // R2 image URL, optional
+  guestPhotoKey String? @map("guest_photo_key") // R2 object key, needed to delete the old file on replace
+  rating       Int      @default(5) // 1-5 stars
+  quote        String   @db.VarChar(500)
+  isFeatured   Boolean  @default(false) @map("is_featured") // shown on homepage
+  displayOrder Int      @default(0) @map("display_order")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this testimonial
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([isFeatured])
+  @@index([displayOrder])
+  @@map("testimonials")
+}
+
+// ============================================================
+// MODEL: GalleryImage  (Gallery Management, blueprint Page 6)
+// ============================================================
+model GalleryImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category     String   @default("common_area") // "bedroom" | "bathroom" | "common_area" | "outdoor" | "amenity"
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  isFeatured   Boolean  @default(false) @map("is_featured") // shows on homepage/featured section
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this image
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([displayOrder])
+  @@index([isFeatured])
+  @@map("gallery_images")
+}
+
+// ============================================================
+// MODEL: SystemSettings  (Shop Config, Policies, Homepage,
+// Contact Info & SEO — blueprint Pages 3, 8, 9)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "singleton" (same pattern as BookingRules above),
+// never creates a second row.
+model SystemSettings {
+  id String @id @default("singleton")
+
+  // --- Shop Config (Page 3) ---
+  shopHours       String? @default("7:00 AM – 10:00 PM") @map("shop_hours")
+  shopLocation    String? @default("Ground floor, near main lobby") @map("shop_location")
+  alcoholWarning  String? @map("alcohol_warning") // rich text
+
+  // --- Policies & Pages (Page 8) — rich text / markdown content ---
+  houseRules         String? @map("house_rules")
+  cancellationPolicy String? @map("cancellation_policy")
+  termsOfService      String? @map("terms_of_service")
+  privacyPolicy       String? @map("privacy_policy")
+  aboutPageContent    String? @map("about_page_content")
+
+  // --- Contact Info ---
+  resortPhone   String? @map("resort_phone")
+  resortEmail   String? @map("resort_email")
+  resortAddress String? @map("resort_address")
+
+  // --- Homepage Customization (Page 9) ---
+  heroTagline       String? @default("Experience Luxury") @map("hero_tagline")
+  heroImageUrl      String? @map("hero_image_url")
+  heroImageKey      String? @map("hero_image_key") // R2 object key, needed to delete the old file on replace
+  ctaSectionHeading String? @map("cta_section_heading")
+  ctaSectionSubtext String? @map("cta_section_subtext")
+  ctaButtonText     String? @default("Plan Your Stay") @map("cta_button_text")
+  ctaSectionVisible Boolean @default(true) @map("cta_section_visible")
+
+  // Featured room selection for the homepage — up to 3 Room IDs, in order.
+  featuredRoomIds String[] @default([]) @map("featured_room_ids")
+
+  testimonialsSectionEnabled  Boolean @default(true) @map("testimonials_section_enabled")
+  testimonialsSectionCount    Int     @default(3) @map("testimonials_section_count") // 3, 6, or 9
+  testimonialsFeaturedOnly    Boolean @default(true) @map("testimonials_featured_only")
+
+  // --- SEO & Metadata ---
+  siteTitle       String? @default("Villa Azure Resort") @map("site_title")
+  siteDescription String? @map("site_description")
+  ogImageUrl      String? @map("og_image_url")
+  ogImageKey      String? @map("og_image_key") // R2 object key, needed to delete the old file on replace
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved these settings
+
+  @@map("system_settings")
 }

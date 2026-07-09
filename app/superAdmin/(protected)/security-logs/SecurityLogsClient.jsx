@@ -36,6 +36,23 @@ const FULL_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeStyle: "long",
 });
 
+// Loopback addresses show up on every request made from the same
+// machine the dev server is running on — normal in local development,
+// but "::1" reads like a mistake to anyone not expecting it. Labeling
+// it explicitly avoids that confusion without hiding the real value.
+const LOOPBACK_ADDRESSES = new Set(["::1", "127.0.0.1", "::ffff:127.0.0.1"]);
+
+/**
+ * formatIpAddress
+ * Appends a "(this device)" hint next to loopback addresses so the
+ * table reads clearly instead of showing a bare "::1" with no context.
+ * Every other IP address is shown exactly as recorded.
+ */
+function formatIpAddress(ipAddress) {
+  if (!ipAddress) return "—";
+  return LOOPBACK_ADDRESSES.has(ipAddress) ? `${ipAddress} (this device)` : ipAddress;
+}
+
 const EVENT_TYPE_FILTERS = [
   { value: "all", label: "All events" },
   { value: "login_success", label: "Login Success" },
@@ -101,7 +118,7 @@ export default function SecurityLogsClient() {
     id: log.id,
     eventType: <StatusBadge status={log.eventType} />,
     actor: log.actor || "—",
-    ipAddress: log.ipAddress || "—",
+    ipAddress: formatIpAddress(log.ipAddress),
     details: log.details || "—",
     createdAt: DATE_FORMATTER.format(new Date(log.createdAt)),
     // Kept off the columns list so it never renders as its own cell —
@@ -131,7 +148,14 @@ export default function SecurityLogsClient() {
         <div className="securityLogDetailField">
           <span className="securityLogDetailLabel">IP address</span>
           <span className="securityLogDetailValue adminMono">
-            {log.ipAddress ? (
+            {!log.ipAddress ? (
+              "—"
+            ) : LOOPBACK_ADDRESSES.has(log.ipAddress) ? (
+              // A whois lookup on a loopback address returns nothing
+              // useful — it just means "this same machine," so it's
+              // labeled directly instead of offering a dead-end link.
+              <span>{log.ipAddress} (this device — no whois lookup available)</span>
+            ) : (
               <a
                 href={`https://whois.com/whois/${log.ipAddress}`}
                 target="_blank"
@@ -141,8 +165,6 @@ export default function SecurityLogsClient() {
               >
                 {log.ipAddress} ↗
               </a>
-            ) : (
-              "—"
             )}
           </span>
         </div>

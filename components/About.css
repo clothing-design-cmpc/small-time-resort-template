@@ -5,6 +5,8 @@
  * it never touches the Hero above or the section below.
  */
 .aboutSection {
+  /* Offsets the fixed header so jumping here via the nav (#anchor) never hides the section title underneath it. */
+  scroll-margin-top: 96px;
   display: flex;
   flex-direction: column;
   align-items: center;

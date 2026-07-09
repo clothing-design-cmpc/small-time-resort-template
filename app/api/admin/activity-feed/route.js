@@ -27,7 +27,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 export async function GET(request) {
   const session = requireSuperAdmin(request);

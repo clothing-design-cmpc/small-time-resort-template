@@ -17,13 +17,24 @@ import { useState } from "react";
 import Link from "next/link";
 import "./Header.css";
 
+/*
+ * navLinks
+ * "Rooms", "Amenities", "Shop", "About", and "Contact" are sections on
+ * the one-page homepage (app/visitor/page.jsx) — not separate routes —
+ * so they link to /visitor#<sectionId>, matching the real <section
+ * id="..."> elements already rendered there (and the same pattern the
+ * Footer's quick links already use). Only "Policies" is an actual
+ * standalone page. Previously these pointed at /visitor/rooms,
+ * /visitor/amenities, etc., which don't exist as routes — every one of
+ * those 404'd.
+ */
 const navLinks = [
-  { label: "Rooms", href: "/visitor/rooms" },
-  { label: "Amenities", href: "/visitor/amenities" },
-  { label: "Gallery", href: "/visitor/gallery" },
-  { label: "About", href: "/visitor/about" },
+  { label: "Rooms", href: "/visitor#rooms" },
+  { label: "Amenities", href: "/visitor#amenities" },
+  { label: "Shop", href: "/visitor#shop" },
+  { label: "About", href: "/visitor#about" },
   { label: "Policies", href: "/visitor/policies" },
-  { label: "Contact", href: "/visitor/contact" },
+  { label: "Contact", href: "/visitor#contact" },
 ];
 
 export default function Header() {

@@ -7,6 +7,8 @@
 
 /* ─── Section wrapper ───────────────────────────────────────────────── */
 .miniStoreSection {
+  /* Offsets the fixed header so jumping here via the nav (#anchor) never hides the section title underneath it. */
+  scroll-margin-top: 96px;
   width: 100%;
   padding: var(--space-2xl) var(--space-lg);
   border-top: 1px solid var(--color-border);

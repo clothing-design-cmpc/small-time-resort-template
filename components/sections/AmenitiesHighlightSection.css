@@ -4,6 +4,8 @@
  * from the rooms section above.
  */
 .amenitiesHighlightSection {
+  /* Offsets the fixed header so jumping here via the nav (#anchor) never hides the section title underneath it. */
+  scroll-margin-top: 96px;
   width: 100%;
   padding: var(--space-2xl) var(--space-lg);
 }

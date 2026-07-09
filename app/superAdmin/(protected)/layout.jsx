@@ -24,6 +24,7 @@ import "../SuperAdmin.css";
 import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
 import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
+import SessionCloseGuard from "@/components/superAdmin/SessionCloseGuard";
 
 export const metadata = {
   title: "Super-Admin | Villa Azure Resort",
@@ -39,6 +40,9 @@ export default function SuperAdminLayout({ children }) {
           (Rule 42) — only ever mounted here, inside the authenticated shell,
           never in the public root layout, so it can never log an anonymous visitor. */}
       <AccountActivityBeacon />
+      {/* Signs the admin out the instant this tab or the browser itself
+          is closed — see SessionCloseGuard's file header for details. */}
+      <SessionCloseGuard />
       <a href="#mainContent" className="superAdminSkipLink">
         Skip to main content
       </a>

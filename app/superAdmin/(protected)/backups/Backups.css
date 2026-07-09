@@ -37,6 +37,18 @@
 }
 
 /*
+ * .backupsSubtitleNote
+ * Secondary explanatory line beneath the main subtitle — kept visually
+ * quieter (muted color, smaller) since it's supporting detail about
+ * the manual on-demand path, not the main point of the page.
+ */
+.backupsSubtitleNote {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  max-width: 70ch;
+}
+
+/*
  * .backupsDestinationLinks
  * R2 + Google Drive links side by side per row — a missing
  * destination shows a muted dash instead of just disappearing, so a

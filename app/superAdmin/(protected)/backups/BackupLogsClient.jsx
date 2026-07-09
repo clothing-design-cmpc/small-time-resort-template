@@ -40,6 +40,23 @@ function formatFileSize(bytes) {
   return megabytes >= 1 ? `${megabytes.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
 }
 
+/**
+ * getNextScheduledRunLabel
+ * The workflow runs at 18:00 UTC (2:00 AM Philippine time) every day.
+ * Computes a friendly "tonight at 2:00 AM" / "tomorrow at 2:00 AM"
+ * label so the empty state explains WHEN the first backup will
+ * actually appear, instead of just saying "no backups yet" with no
+ * context for whether that's expected or broken.
+ */
+function getNextScheduledRunLabel() {
+  const now = new Date();
+  const nextRunUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 18, 0, 0));
+  if (nextRunUtc <= now) nextRunUtc.setUTCDate(nextRunUtc.getUTCDate() + 1);
+
+  const isTonight = nextRunUtc.getUTCDate() === now.getUTCDate();
+  return `${isTonight ? "tonight" : "tomorrow"} at 2:00 AM (Philippine time)`;
+}
+
 const columns = [
   { key: "status", label: "Status" },
   { key: "startedAt", label: "Started", mono: true },
@@ -115,9 +132,16 @@ export default function BackupLogsClient() {
         <span className="backupsEyebrow">Disaster Recovery</span>
         <h1 className="backupsTitle">Backups</h1>
         <p className="backupsSubtitle">
-          Nightly database backup history — runs automatically on GitHub Actions, completely
-          separate from live site traffic. Read-only; to run one on demand, use the "Run workflow"
-          button on the database-backup.yml workflow in GitHub Actions.
+          This page is fully automatic — nothing here needs to be clicked or triggered. Every
+          night at 2:00 AM (Philippine time), GitHub Actions runs a database backup on its own
+          servers, completely separate from the live site, and the result appears below.
+        </p>
+        <p className="backupsSubtitleNote">
+          This list is read-only by design — there's no "Run Backup Now" button in the app on
+          purpose, so a manual click here can never slow down the live site. To run one early,
+          go to the repository's <span className="adminMono">Actions</span> tab, open{" "}
+          <span className="adminMono">database-backup.yml</span>, and click{" "}
+          <span className="adminMono">Run workflow</span>.
         </p>
       </div>
 
@@ -126,7 +150,7 @@ export default function BackupLogsClient() {
         rows={rows}
         isLoading={isLoading}
         error={loadError}
-        emptyMessage="No backups have run yet."
+        emptyMessage={`No backups have run yet — that's expected on a brand-new project. The first one runs automatically ${getNextScheduledRunLabel()}; this page will fill in on its own after that.`}
         page={page}
         totalPages={totalPages}
         totalCount={totalCount}

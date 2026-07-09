@@ -15,16 +15,21 @@ import "./Footer.css";
 
 /*
  * quickLinks
- * All hrefs point to anchor IDs on the visitor homepage.
- * #gallery will resolve once the Gallery section is added to the page.
+ * Hrefs use "/visitor#sectionId" (not a bare "#sectionId") so they
+ * work no matter which page the visitor is currently on — a bare hash
+ * only scrolls within the CURRENT page, so clicking "Rooms" from
+ * /visitor/policies previously did nothing (no id="rooms" exists
+ * there). "/visitor#rooms" always navigates to the homepage first,
+ * then scrolls to that section. "Gallery" was removed — there's no
+ * Gallery section on the page yet, so it was a dead link either way.
+ * Add it back here once a Gallery section with id="gallery" is built.
  */
 const quickLinks = [
-  { label: "Rooms & Villas", href: "#rooms" },
-  { label: "Amenities",      href: "#amenities" },
-  { label: "Shop",           href: "#shop" },
-  { label: "Gallery",        href: "#gallery" },
-  { label: "About Us",       href: "#about" },
-  { label: "Contact",        href: "#contact" },
+  { label: "Rooms & Villas", href: "/visitor#rooms" },
+  { label: "Amenities",      href: "/visitor#amenities" },
+  { label: "Shop",           href: "/visitor#shop" },
+  { label: "About Us",       href: "/visitor#about" },
+  { label: "Contact",        href: "/visitor#contact" },
 ];
 
 export default function Footer() {
@@ -55,8 +60,11 @@ export default function Footer() {
           </ul>
         </nav>
 
-        {/* Column 3 — Contact Info */}
-        <div className="footerContact">
+        {/* Column 3 — Contact Info. id="contact" is the actual scroll
+            target for every "#contact" link in this app (Header nav,
+            this footer's own Contact link, and the legal links below) —
+            without it those links silently do nothing. */}
+        <div className="footerContact" id="contact">
           <span className="footerNavLabel">Contact</span>
           <ul className="footerContactList">
             <li className="footerContactItem">
@@ -87,10 +95,11 @@ export default function Footer() {
       <div className="footerBottom">
         <div className="footerBottomContainer">
           <span className="footerCopyright">© {currentYear} Villa Azure Resort. All rights reserved.</span>
-          {/* Privacy Policy and Terms link to #contact until a dedicated policies page is built */}
+          {/* app/visitor/policies now exists, so both legal links go
+              straight there instead of the old placeholder (#contact). */}
           <div className="footerLegalLinks">
-            <Link href="#contact" className="footerLegalLink">Privacy Policy</Link>
-            <Link href="#contact" className="footerLegalLink">Terms &amp; Conditions</Link>
+            <Link href="/visitor/policies" className="footerLegalLink">Privacy Policy</Link>
+            <Link href="/visitor/policies" className="footerLegalLink">Terms &amp; Conditions</Link>
           </div>
         </div>
       </div>

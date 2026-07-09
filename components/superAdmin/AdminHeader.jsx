@@ -26,7 +26,12 @@ import axios from "axios";
 import { LogOut, ChevronDown } from "lucide-react";
 import "./AdminHeader.css";
 
-/* Add an entry here whenever a new admin page is built */
+/* Add an entry here whenever a new admin page is built.
+   Every route under app/superAdmin/(protected)/ must have a matching
+   entry — a missing one silently falls back to the generic
+   "Villa Azure Admin" label below, which reads like a bug (the header
+   then shows the same text on every page instead of telling the admin
+   where they are). */
 const PAGE_TITLES = {
   "/superAdmin/dashboard": "Dashboard",
   "/superAdmin/bookings": "Bookings",
@@ -34,8 +39,46 @@ const PAGE_TITLES = {
   "/superAdmin/content/amenities": "Amenities",
   "/superAdmin/content/shop": "Resort Shop",
   "/superAdmin/content/activities": "Activities",
+  "/superAdmin/content/testimonials": "Testimonials",
+  "/superAdmin/content/gallery": "Gallery",
+  "/superAdmin/content/homepage": "Homepage Customization",
+  "/superAdmin/content/policies": "Policies",
   "/superAdmin/settings/booking-rules": "Booking Rules",
+  "/superAdmin/analytics": "Analytics",
+  "/superAdmin/activity-feed": "Activity Feed",
+  "/superAdmin/visitor-logs": "Visitor Logs",
+  "/superAdmin/account-activity": "Account Activity",
+  "/superAdmin/security-logs": "Security Logs",
+  "/superAdmin/backups": "Backups",
 };
+
+/*
+ * PAGE_TITLE_PREFIXES
+ * Covers dynamic sub-routes (edit/new/nested pages) that can't be
+ * matched by exact pathname above — e.g. /superAdmin/content/rooms/abc123
+ * or /superAdmin/content/rooms/new. Checked longest-prefix-first so a
+ * more specific match (rooms/new) wins over a shorter one (rooms).
+ */
+const PAGE_TITLE_PREFIXES = [
+  { prefix: "/superAdmin/content/rooms/new", label: "Add Room" },
+  { prefix: "/superAdmin/content/shop/new", label: "Add Product" },
+  { prefix: "/superAdmin/content/activities/new", label: "Add Activity" },
+  { prefix: "/superAdmin/content/rooms", label: "Rooms" },
+  { prefix: "/superAdmin/content/shop", label: "Resort Shop" },
+  { prefix: "/superAdmin/content/activities", label: "Activities" },
+];
+
+/**
+ * resolvePageTitle
+ * Looks up the exact pathname first, then falls back to the closest
+ * matching prefix for dynamic routes, then finally to the generic
+ * "Villa Azure Admin" label if nothing matches at all.
+ */
+function resolvePageTitle(pathname) {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  const prefixMatch = PAGE_TITLE_PREFIXES.find((entry) => pathname.startsWith(entry.prefix));
+  return prefixMatch?.label ?? "Villa Azure Admin";
+}
 
 export default function AdminHeader() {
   const pathname = usePathname();
@@ -46,7 +89,7 @@ export default function AdminHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const pageTitle = PAGE_TITLES[pathname] ?? "Villa Azure Admin";
+  const pageTitle = resolvePageTitle(pathname);
 
   // Loads the signed-in admin's name once on mount for the user menu.
   // Fails silently to a generic "Admin" label — a failed name fetch

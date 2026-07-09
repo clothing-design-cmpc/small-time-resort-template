@@ -33,7 +33,9 @@ const navLinks = [
   { label: "Booking Rules", href: "/superAdmin/settings/booking-rules" },
   { label: "Security Logs", href: "/superAdmin/security-logs" },
   { label: "Analytics", href: "/superAdmin/analytics" },
+  { label: "Activity Feed", href: "/superAdmin/activity-feed" },
   { label: "Account Activity", href: "/superAdmin/account-activity" },
+  { label: "Visitor Logs", href: "/superAdmin/visitor-logs" },
 ];
 
 export default function Sidebar() {

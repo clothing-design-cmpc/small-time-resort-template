@@ -36,7 +36,28 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  padding: var(--space-md) 0;
+  padding: var(--space-xs) 0 var(--space-md);
+}
+
+/*
+ * .adminSidebarGroup / .adminSidebarGroupLabel
+ * Section grouping (Overview, Content, Settings, Insights, Security) —
+ * added once the flat link list grew past ~7 items and became hard to
+ * scan. Label is small/muted/uppercase so it reads as a section divider,
+ * not another clickable row.
+ */
+.adminSidebarGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.adminSidebarGroupLabel {
+  padding: var(--space-sm) var(--space-lg) var(--space-xs);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 /*

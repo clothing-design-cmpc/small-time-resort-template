@@ -129,6 +129,23 @@ export default function BookedDatesSection() {
   function centerCardInTrack(track, card, behavior) {
     if (!track || !card) return;
     const targetLeft = card.offsetLeft - track.clientWidth / 2 + card.clientWidth / 2;
+
+    // .bookedCarouselTrack sets `scroll-behavior: smooth` in CSS (for the
+    // arrow/click-driven scrolls). Passing behavior: "instant" to scrollTo()
+    // does not reliably override that CSS on every browser — the jump can
+    // get smooth-animated and cut short by the very next effect run, which
+    // was leaving the very first render scrolled to the wrong card instead
+    // of the active one. Forcing the CSS property itself to "auto" for the
+    // instant case guarantees a true, immediate jump; the smooth case is
+    // untouched so arrow/card clicks keep animating as before.
+    if (behavior === "instant") {
+      const previousScrollBehavior = track.style.scrollBehavior;
+      track.style.scrollBehavior = "auto";
+      track.scrollTo({ left: targetLeft, behavior: "auto" });
+      track.style.scrollBehavior = previousScrollBehavior;
+      return;
+    }
+
     track.scrollTo({ left: targetLeft, behavior });
   }
 
@@ -165,7 +182,15 @@ export default function BookedDatesSection() {
     const track = trackRef.current;
     if (!track || bookedDateObjects.length === 0) return;
     const card = track.children[0];
-    centerCardInTrack(track, card, "instant");
+    if (!card) return;
+
+    // Wait one frame so the browser has finished laying out all 45+ cards
+    // before we read offsetLeft — measuring too early (same tick as the
+    // state update that grew the list) can return stale/zeroed values.
+    const rafId = window.requestAnimationFrame(() => {
+      centerCardInTrack(track, card, "instant");
+    });
+    return () => window.cancelAnimationFrame(rafId);
   }, [bookedDateObjects.length]);
 
   /* ─── Calendar derived state ─────────────────────────────────── */

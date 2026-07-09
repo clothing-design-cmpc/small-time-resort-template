@@ -183,19 +183,54 @@ FILE MAP additions (Security Logs):
   routes, e.g. content/rooms and content/amenities create/update/delete, to
   extend the audit trail per Rule 6).
 
-DATA BACKUP / DISASTER RECOVERY NOTE (not yet implemented — infra decision,
-not code):
+DATA BACKUP / DISASTER RECOVERY (implemented — Rule 40):
 Getting into the app (even as super_admin) does NOT automatically wipe the
 database — data loss only happens if the attacker's access lets them run
 actual DELETE/DROP operations (e.g. a leaked SUPABASE_SERVICE_ROLE_KEY, or
 a SQL injection bypassing Prisma). RLS + never exposing the service role key
-to the client are the main defenses against that. On top of that, enable:
-  1. Supabase Point-in-Time Recovery (PITR) — restores the DB to any minute
-     in the last N days, available on paid Supabase plans.
-  2. A second, independent backup destination outside Supabase entirely —
-     e.g. a scheduled `pg_dump` pushed to Cloudflare R2 or Google Cloud
-     Storage — so a compromised Supabase project alone can't take out both
-     the live DB and its only backup at the same time (the "3-2-1" rule).
+to the client are the main defenses against that. On top of that:
+  1. Supabase Point-in-Time Recovery (PITR) — enable on the Supabase paid
+     plan (Dashboard -> Settings -> Backups). Restores the DB to any minute
+     in the last N days. Runs at the DB engine level, zero app code.
+  2. Scheduled offsite backup (implemented) — GitHub Actions cron
+     (.github/workflows/database-backup.yml) runs nightly at 2:00 AM
+     Asia/Manila on its own runner, completely separate from the app's
+     Vercel hosting. It executes scripts/backupDatabase.mjs, which:
+       a. Runs `pg_dump` against DIRECT_URL (session pooler), gzips the
+          output
+       b. Uploads the archive to Cloudflare R2 under the "backups/" key
+          prefix (services/r2.js's generic uploadToR2, reused)
+       c. Uploads the same archive to Google Drive via
+          services/googleDrive.js (service account, no OAuth)
+       d. Inserts a security_logs row (event_type: "admin_action", actor:
+          "System (Scheduled Backup)") so the run is visible on
+          /superAdmin/security-logs without any extra UI
+     This is the second, independent backup destination outside Supabase —
+     so a compromised Supabase project alone can't take out both the live
+     DB and its only backup at the same time (the "3-2-1" rule). Can also
+     be triggered manually: GitHub repo -> Actions -> "Nightly Database
+     Backup" -> "Run workflow", or locally with `npm run backup:db` (needs
+     pg_dump installed locally and the same env vars in .env.local).
+
+  Required GitHub repo secrets (Settings -> Secrets and variables ->
+  Actions) — separate from .env.local, these are read by the workflow:
+     DIRECT_URL, CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID,
+     CLOUDFLARE_R2_SECRET_ACCESS_KEY, CLOUDFLARE_R2_BUCKET_NAME,
+     GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+     GOOGLE_DRIVE_BACKUP_FOLDER_ID
+
+FILE MAP additions (Database Backup — Rule 40):
+- services/googleDrive.js — uploadToDrive()/deleteFromDrive() using a Google
+  service account (no OAuth). Server-side only.
+- scripts/backupDatabase.mjs — standalone script (not part of the Next.js
+  app process): pg_dump -> gzip -> upload to R2 + Google Drive -> log
+  result to security_logs. Self-contained (own R2/Drive/pg clients) so it
+  runs with plain `node` on a GitHub Actions runner.
+- .github/workflows/database-backup.yml — nightly cron (2 AM Asia/Manila)
+  + manual "Run workflow" trigger. Installs postgresql-client for pg_dump,
+  runs the script with secrets injected as env vars.
+- overviewProject.txt (this file) — Data Backup / Disaster Recovery section
+  updated from "not yet implemented" to documented + implemented.
 
 9. COMMON DEBUG POINTS
 - If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
@@ -236,6 +271,17 @@ to the client are the main defenses against that. On top of that, enable:
   mount, never scrollIntoView() — scrollIntoView also scrolls the page's
   vertical axis to bring an off-screen section into view, which is what
   caused this bug originally.
+- If the nightly backup GitHub Action fails: check the Actions tab run log first —
+  most common causes are a missing/expired repo secret (Settings -> Secrets and
+  variables -> Actions — see the 8 required secrets in the Data Backup section
+  above), pg_dump version mismatch (the workflow installs the runner's default
+  postgresql-client; bump the apt package if Supabase upgrades its Postgres major
+  version), or GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY losing its \n line breaks when
+  pasted into the GitHub secret (must be the raw PEM with literal \n, matching what
+  services/googleDrive.js and scripts/backupDatabase.mjs expect to .replace()).
+  Whether it succeeds or fails, check /superAdmin/security-logs for the
+  "System (Scheduled Backup)" admin_action row — the details field states exactly
+  what happened.
 
 === PROCESS: Real Visitor Booking Flow (replaces the old static /visitor/booking placeholder) ===
 Step 1 : Visitor reaches /visitor/booking either via Header's "Book Now" link

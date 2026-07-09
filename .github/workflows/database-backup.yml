@@ -1,0 +1,46 @@
+# FILE: .github/workflows/database-backup.yml
+# PURPOSE:
+# Runs scripts/backupDatabase.mjs nightly at 2:00 AM Philippine Time
+# (18:00 UTC the previous day) on a GitHub-hosted runner — completely
+# separate infrastructure from the app's Vercel hosting, so it never
+# competes with live guest traffic for resources (Rule 40.1).
+#
+# Also runnable manually via the Actions tab ("workflow_dispatch") for
+# an on-demand backup, e.g. right before a risky schema change.
+
+name: Nightly Database Backup
+
+on:
+  schedule:
+    - cron: "0 18 * * *" # 18:00 UTC = 2:00 AM Asia/Manila (UTC+8)
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install PostgreSQL client (pg_dump)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install dependencies
+        run: npm install --omit=dev --no-save @aws-sdk/client-s3 googleapis pg
+
+      - name: Run backup script
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          GOOGLE_DRIVE_BACKUP_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_BACKUP_FOLDER_ID }}
+        run: node scripts/backupDatabase.mjs

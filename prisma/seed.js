@@ -184,10 +184,26 @@ async function seedSuperAdmin() {
   console.log(`✓ Linked admin_profiles for ${email}`);
 }
 
+/**
+ * clearStaleBookings
+ * Wipes every row in the Booking table. Bookings are guest-submitted
+ * data, not seed data, so they are never re-created here — this only
+ * clears out leftover rows from an earlier version of this script that
+ * used to seed fake bookings (seedBookings was removed, but the rows it
+ * had already written stayed in the DB forever since nothing deleted
+ * them on later runs). Safe to re-run: after the first pass there is
+ * nothing left to delete unless new (real) bookings come in.
+ */
+async function clearStaleBookings() {
+  const { count } = await prisma.booking.deleteMany();
+  console.log(`✓ Cleared ${count} booking record(s)`);
+}
+
 async function main() {
   await seedRooms();
   await seedAmenities();
   await seedStoreProducts();
+  await clearStaleBookings();
   await seedSuperAdmin();
 }
 

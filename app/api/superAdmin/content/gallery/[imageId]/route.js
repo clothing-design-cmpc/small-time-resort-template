@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PUT(request, { params }) {
   const { imageId } = await params;
@@ -37,6 +39,20 @@ export async function PUT(request, { params }) {
       },
     });
 
+    // Audit trail (Rule 6) — only log meaningful edits, not the Move Up/Down
+    // reorder clicks (those only ever send { displayOrder }, which would
+    // otherwise flood the log with two rows per drag).
+    const isReorderOnly = Object.keys(body).every((key) => key === "displayOrder");
+    if (!isReorderOnly) {
+      const session = requireSuperAdmin(request);
+      await logSecurityEvent({
+        eventType: "admin_action",
+        actor: session?.uid ?? null,
+        request,
+        details: `Updated gallery image in category "${updatedImage.category}".`,
+      });
+    }
+
     return NextResponse.json({ success: true, data: updatedImage, message: "Gallery image updated successfully." });
   } catch (error) {
     console.error("[Gallery] Failed to update:", error);
@@ -58,6 +74,15 @@ export async function DELETE(request, { params }) {
 
     await prisma.galleryImage.delete({ where: { id: imageId } });
     await deleteFromR2(image.imageKey);
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted a gallery image from category "${image.category}".`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Gallery image deleted successfully." });
   } catch (error) {

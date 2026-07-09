@@ -15,12 +15,18 @@
  *    DataTable itself never fetches or mutates data
  * 3. Pagination is fully controlled — DataTable only renders the UI and
  *    calls onPageChange; the consumer's hook owns the actual page state
+ * 4. Expandable row details are opt-in: if the consumer passes
+ *    `renderExpandedRow`, an expand (˅) button column is added and
+ *    clicking it toggles an inline detail row below that record.
+ *    Pages that don't pass this prop are completely unaffected.
  */
+import { Fragment, useState } from "react";
 import "./DataTable.css";
 
 /**
  * columns shape: [{ key: "name", label: "Name", align: "left" | "right" | "center", mono: bool }]
- * rows shape: [{ id: string, [columnKey]: ReactNode }]
+ * rows shape: [{ id: string, [columnKey]: ReactNode, ...anything else the consumer wants
+ *   available to renderExpandedRow, e.g. row.raw = the original record }]
  */
 export default function DataTable({
   columns,
@@ -34,7 +40,18 @@ export default function DataTable({
   totalCount = 0,
   pageSize = 20,
   onPageChange,
+  renderExpandedRow,
 }) {
+  // Tracks which single row is currently expanded (accordion-style — only
+  // one detail panel open at a time keeps the table from growing unbounded).
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
+  function toggleExpandedRow(rowId) {
+    setExpandedRowId((current) => (current === rowId ? null : rowId));
+  }
+
+  const columnCount = columns.length + (renderExpandedRow ? 1 : 0);
+
   // Error state — user-friendly message only, never raw error text (Rule 25.4)
   if (error) {
     return (
@@ -93,24 +110,52 @@ export default function DataTable({
                 {col.label}
               </th>
             ))}
+            {renderExpandedRow && (
+              <th className="dataTableHeadCell dataTableAlign--right" aria-label="Expand row" />
+            )}
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr
-              key={row.id}
-              className={onRowClick ? "dataTableRow dataTableRow--clickable" : "dataTableRow"}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-            >
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className={`dataTableCell dataTableAlign--${col.align ?? "left"}${col.mono ? " adminMono" : ""}`}
-                >
-                  {row[col.key]}
-                </td>
-              ))}
-            </tr>
+            <Fragment key={row.id}>
+              <tr
+                className={onRowClick ? "dataTableRow dataTableRow--clickable" : "dataTableRow"}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={`dataTableCell dataTableAlign--${col.align ?? "left"}${col.mono ? " adminMono" : ""}`}
+                  >
+                    {row[col.key]}
+                  </td>
+                ))}
+                {renderExpandedRow && (
+                  <td className="dataTableCell dataTableAlign--right">
+                    <button
+                      type="button"
+                      className="dataTableExpandButton"
+                      aria-expanded={expandedRowId === row.id}
+                      aria-label={expandedRowId === row.id ? "Collapse row details" : "Expand row details"}
+                      onClick={(event) => {
+                        // Stop the click from also triggering onRowClick on the parent <tr>.
+                        event.stopPropagation();
+                        toggleExpandedRow(row.id);
+                      }}
+                    >
+                      {expandedRowId === row.id ? "▲" : "▼"}
+                    </button>
+                  </td>
+                )}
+              </tr>
+              {renderExpandedRow && expandedRowId === row.id && (
+                <tr className="dataTableExpandedRow">
+                  <td className="dataTableExpandedCell" colSpan={columnCount}>
+                    {renderExpandedRow(row)}
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>

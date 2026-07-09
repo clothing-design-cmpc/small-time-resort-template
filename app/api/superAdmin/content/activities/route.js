@@ -1,78 +1,136 @@
 /**
- * FILE: app/api/superAdmin/content/activities/route.js
+ * FILE: app/api/superAdmin/content/activities/[activityId]/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * GET  -> returns every activity for the Activities Management list page.
- * POST -> creates a new activity. Name is checked for uniqueness before
- *         insert (Rule 6 — pre-save duplicate check).
+ * GET    -> fetch a single activity for the edit form.
+ * PUT    -> update an activity. Re-checks name uniqueness (excluding
+ *           itself) and deletes the old R2 image if it was replaced.
+ * DELETE -> deletes the activity and its R2 image.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
-export async function GET() {
+export async function GET(request, { params }) {
+  const { activityId } = await params;
+
   try {
-    const activities = await prisma.activity.findMany({
-      orderBy: { sortOrder: "asc" },
-    });
-    return NextResponse.json({ success: true, data: activities, message: "Activities fetched successfully." });
+    const activity = await prisma.activity.findUnique({ where: { id: activityId } });
+
+    if (!activity) {
+      return NextResponse.json({ success: false, data: null, message: "Activity not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: activity, message: "Activity fetched successfully." });
   } catch (error) {
     console.error("[Activities] Failed to fetch:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't load the activities. Please try again." },
+      { success: false, data: null, message: "We couldn't load this activity. Please try again." },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request) {
+export async function PUT(request, { params }) {
+  const { activityId } = await params;
+
   try {
     const body = await request.json();
     const name = body.name?.trim();
 
-    if (!name) {
-      return NextResponse.json(
-        { success: false, data: null, message: "Activity name is required." },
-        { status: 400 }
-      );
+    const existingActivity = await prisma.activity.findUnique({ where: { id: activityId } });
+    if (!existingActivity) {
+      return NextResponse.json({ success: false, data: null, message: "Activity not found." }, { status: 404 });
     }
 
-    // Pre-save duplicate check — never rely on the DB unique constraint alone.
-    const existingActivity = await prisma.activity.findFirst({
-      where: { name: { equals: name, mode: "insensitive" } },
-    });
-    if (existingActivity) {
-      return NextResponse.json(
-        { success: false, data: null, message: "An activity with this name already exists." },
-        { status: 409 }
-      );
+    // Duplicate check excludes this activity's own current name.
+    if (name && name.toLowerCase() !== existingActivity.name.toLowerCase()) {
+      const nameTaken = await prisma.activity.findFirst({
+        where: { name: { equals: name, mode: "insensitive" }, NOT: { id: activityId } },
+      });
+      if (nameTaken) {
+        return NextResponse.json(
+          { success: false, data: null, message: "An activity with this name already exists." },
+          { status: 409 }
+        );
+      }
     }
 
-    const activity = await prisma.activity.create({
+    const updatedActivity = await prisma.activity.update({
+      where: { id: activityId },
       data: {
-        name,
-        description: body.description || null,
-        duration: body.duration || null,
-        minGroupSize: body.minGroupSize ?? 1,
-        maxGroupSize: body.maxGroupSize ?? 10,
-        imageUrl: body.imageUrl || null,
-        imageKey: body.imageKey || null,
-        isFeatured: body.isFeatured ?? false,
-        isActive: body.isActive ?? true,
-        sortOrder: body.sortOrder ?? 0,
+        name: name || existingActivity.name,
+        description: body.description ?? null,
+        duration: body.duration ?? null,
+        minGroupSize: body.minGroupSize,
+        maxGroupSize: body.maxGroupSize,
+        imageUrl: body.imageUrl ?? existingActivity.imageUrl,
+        imageKey: body.imageKey ?? existingActivity.imageKey,
+        isFeatured: body.isFeatured,
+        isActive: body.isActive,
+        sortOrder: body.sortOrder ?? existingActivity.sortOrder,
       },
     });
 
-    return NextResponse.json(
-      { success: true, data: activity, message: "Activity created successfully." },
-      { status: 201 }
-    );
+    // The image was replaced with a new upload — remove the old R2 file
+    // so the bucket never accumulates orphaned images.
+    if (body.imageKey && existingActivity.imageKey && body.imageKey !== existingActivity.imageKey) {
+      await deleteFromR2(existingActivity.imageKey);
+    }
+
+    // Audit trail (Rule 6) — track activity edits, including renames.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated activity "${existingActivity.name}"${updatedActivity.name !== existingActivity.name ? ` → "${updatedActivity.name}"` : ""}.`,
+    });
+
+    return NextResponse.json({ success: true, data: updatedActivity, message: "Activity updated successfully." });
   } catch (error) {
-    console.error("[Activities] Failed to create:", error);
+    console.error("[Activities] Failed to update:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't create the activity. Please try again." },
+      { success: false, data: null, message: "We couldn't save the changes. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const { activityId } = await params;
+
+  try {
+    const activity = await prisma.activity.findUnique({ where: { id: activityId } });
+    if (!activity) {
+      return NextResponse.json({ success: false, data: null, message: "Activity not found." }, { status: 404 });
+    }
+
+    await prisma.activity.delete({ where: { id: activityId } });
+
+    if (activity.imageKey) {
+      await deleteFromR2(activity.imageKey);
+    }
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted activity "${activity.name}".`,
+    });
+
+    return NextResponse.json({ success: true, data: null, message: "Activity deleted successfully." });
+  } catch (error) {
+    console.error("[Activities] Failed to delete:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "We couldn't delete this activity. Please try again." },
       { status: 500 }
     );
   }

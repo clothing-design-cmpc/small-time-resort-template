@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET(request, { params }) {
   const { productId } = await params;
@@ -83,6 +85,15 @@ export async function PUT(request, { params }) {
       await deleteFromR2(existingProduct.imageKey);
     }
 
+    // Audit trail (Rule 6) — price changes on shop products are explicitly called out.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated product "${existingProduct.name}" (₱${existingProduct.price} → ₱${updatedProduct.price}).`,
+    });
+
     return NextResponse.json({ success: true, data: updatedProduct, message: "Product updated successfully." });
   } catch (error) {
     console.error("[Shop] Failed to update:", error);
@@ -107,6 +118,15 @@ export async function DELETE(request, { params }) {
     if (product.imageKey) {
       await deleteFromR2(product.imageKey);
     }
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted product "${product.name}".`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Product deleted successfully." });
   } catch (error) {

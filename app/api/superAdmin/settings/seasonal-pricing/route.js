@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET() {
   try {
@@ -52,6 +54,15 @@ export async function POST(request) {
         pricePerNight: body.pricePerNight,
       },
       include: { room: { select: { name: true } } },
+    });
+
+    // Audit trail (Rule 6) — dynamic pricing changes directly affect revenue.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Added seasonal price "${seasonalPrice.seasonName}" for "${seasonalPrice.room.name}" (₱${seasonalPrice.pricePerNight}/night).`,
     });
 
     return NextResponse.json(

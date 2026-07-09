@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET(request, { params }) {
   const { roomId } = await params;
@@ -85,6 +87,15 @@ export async function PUT(request, { params }) {
       await deleteFromR2(existingRoom.imageKey);
     }
 
+    // Audit trail (Rule 6) — who changed this room, and what price moved.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated room "${existingRoom.name}" (₱${existingRoom.pricePerNight} → ₱${updatedRoom.pricePerNight}).`,
+    });
+
     return NextResponse.json({ success: true, data: updatedRoom, message: "Room updated successfully." });
   } catch (error) {
     console.error("[Rooms] Failed to update:", error);
@@ -109,6 +120,15 @@ export async function DELETE(request, { params }) {
     if (room.imageKey) {
       await deleteFromR2(room.imageKey);
     }
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted room "${room.name}".`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Room deleted successfully." });
   } catch (error) {

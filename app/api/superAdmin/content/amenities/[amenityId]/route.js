@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PUT(request, { params }) {
   const { amenityId } = await params;
@@ -56,6 +58,15 @@ export async function PUT(request, { params }) {
       },
     });
 
+    // Audit trail (Rule 6) — track amenity edits, including renames.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated amenity "${existingAmenity.name}"${name !== existingAmenity.name ? ` → "${name}"` : ""}.`,
+    });
+
     return NextResponse.json({ success: true, data: updatedAmenity, message: "Amenity updated successfully." });
   } catch (error) {
     console.error("[Amenities] Failed to update:", error);
@@ -76,6 +87,15 @@ export async function DELETE(request, { params }) {
     }
 
     await prisma.amenity.delete({ where: { id: amenityId } });
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted amenity "${amenity.name}".`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Amenity deleted successfully." });
   } catch (error) {

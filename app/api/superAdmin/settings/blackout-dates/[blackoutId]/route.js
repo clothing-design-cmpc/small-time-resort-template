@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 const VALID_REASONS = ["Cleaning", "Maintenance", "Private", "Custom"];
 
@@ -36,6 +38,15 @@ export async function PUT(request, { params }) {
       include: { room: { select: { name: true } } },
     });
 
+    // Audit trail (Rule 6) — blackout dates directly affect availability.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated blackout range for "${updatedEntry.room.name}" (${body.startDate} – ${body.endDate}).`,
+    });
+
     return NextResponse.json({ success: true, data: updatedEntry, message: "Blackout range updated successfully." });
   } catch (error) {
     console.error("[BlackoutDates] Failed to update:", error);
@@ -56,6 +67,15 @@ export async function DELETE(request, { params }) {
     }
 
     await prisma.blackoutDate.delete({ where: { id: blackoutId } });
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted a blackout range (${existingEntry.startDate.toISOString().slice(0, 10)} – ${existingEntry.endDate.toISOString().slice(0, 10)}).`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Blackout range deleted successfully." });
   } catch (error) {

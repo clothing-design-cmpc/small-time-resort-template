@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET(request, { params }) {
   const { activityId } = await params;
@@ -81,6 +83,15 @@ export async function PUT(request, { params }) {
       await deleteFromR2(existingActivity.imageKey);
     }
 
+    // Audit trail (Rule 6) — track activity edits, including renames.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated activity "${existingActivity.name}"${updatedActivity.name !== existingActivity.name ? ` → "${updatedActivity.name}"` : ""}.`,
+    });
+
     return NextResponse.json({ success: true, data: updatedActivity, message: "Activity updated successfully." });
   } catch (error) {
     console.error("[Activities] Failed to update:", error);
@@ -105,6 +116,15 @@ export async function DELETE(request, { params }) {
     if (activity.imageKey) {
       await deleteFromR2(activity.imageKey);
     }
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted activity "${activity.name}".`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Activity deleted successfully." });
   } catch (error) {

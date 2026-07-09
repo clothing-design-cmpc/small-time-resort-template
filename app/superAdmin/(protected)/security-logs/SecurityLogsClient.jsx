@@ -29,6 +29,13 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
+// Used inside the expanded row detail panel — includes seconds and the
+// UTC offset so a full timestamp is unambiguous during incident review.
+const FULL_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "long",
+});
+
 const EVENT_TYPE_FILTERS = [
   { value: "all", label: "All events" },
   { value: "login_success", label: "Login Success" },
@@ -97,7 +104,65 @@ export default function SecurityLogsClient() {
     ipAddress: log.ipAddress || "—",
     details: log.details || "—",
     createdAt: DATE_FORMATTER.format(new Date(log.createdAt)),
+    // Kept off the columns list so it never renders as its own cell —
+    // only renderExpandedRow reads this, for the full-detail panel below.
+    raw: log,
   }));
+
+  /**
+   * renderSecurityLogDetail
+   * Expanded-row content for one Security Log entry: the full user-agent
+   * string (truncated to one line in the main table via StatusBadge, but
+   * shown in full here), the raw event type, IP with a whois lookup link,
+   * and the exact timestamp down to the second.
+   */
+  function renderSecurityLogDetail(row) {
+    const log = row.raw;
+    return (
+      <div className="securityLogDetailPanel">
+        <div className="securityLogDetailField">
+          <span className="securityLogDetailLabel">Event type</span>
+          <span className="securityLogDetailValue adminMono">{log.eventType}</span>
+        </div>
+        <div className="securityLogDetailField">
+          <span className="securityLogDetailLabel">Actor</span>
+          <span className="securityLogDetailValue">{log.actor || "— (not authenticated)"}</span>
+        </div>
+        <div className="securityLogDetailField">
+          <span className="securityLogDetailLabel">IP address</span>
+          <span className="securityLogDetailValue adminMono">
+            {log.ipAddress ? (
+              <a
+                href={`https://whois.com/whois/${log.ipAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="securityLogDetailLink"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {log.ipAddress} ↗
+              </a>
+            ) : (
+              "—"
+            )}
+          </span>
+        </div>
+        <div className="securityLogDetailField">
+          <span className="securityLogDetailLabel">Timestamp</span>
+          <span className="securityLogDetailValue adminMono">{FULL_DATE_FORMATTER.format(new Date(log.createdAt))}</span>
+        </div>
+        <div className="securityLogDetailField securityLogDetailField--full">
+          <span className="securityLogDetailLabel">Full user-agent string</span>
+          <span className="securityLogDetailValue securityLogDetailValue--wrap adminMono">
+            {log.userAgent || "— (not recorded)"}
+          </span>
+        </div>
+        <div className="securityLogDetailField securityLogDetailField--full">
+          <span className="securityLogDetailLabel">Full details</span>
+          <span className="securityLogDetailValue securityLogDetailValue--wrap">{log.details || "—"}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="securityLogsSection">
@@ -134,6 +199,7 @@ export default function SecurityLogsClient() {
         totalCount={totalCount}
         pageSize={25}
         onPageChange={setPage}
+        renderExpandedRow={renderSecurityLogDetail}
       />
     </section>
   );

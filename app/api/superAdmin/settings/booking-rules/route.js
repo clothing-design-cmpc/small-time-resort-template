@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET() {
   try {
@@ -67,6 +69,15 @@ export async function PUT(request) {
         updatedBy: body.updatedBy || null,
       },
       create: { id: "singleton", ...body },
+    });
+
+    // Audit trail (Rule 6) — booking_rule.updated, a high-impact setting.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: "Updated booking rules configuration.",
     });
 
     return NextResponse.json({ success: true, data: updatedRules, message: "Booking rules saved successfully." });

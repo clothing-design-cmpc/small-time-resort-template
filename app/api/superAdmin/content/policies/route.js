@@ -17,6 +17,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET() {
   try {
@@ -41,6 +43,10 @@ export async function GET() {
 export async function PUT(request) {
   try {
     const body = await request.json();
+
+    // Fetched before the upsert so we can name exactly which policy
+    // section(s) changed in the audit trail (Rule 6).
+    const previousSettings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } });
 
     const updatedSettings = await prisma.systemSettings.upsert({
       where: { id: "singleton" },
@@ -67,6 +73,32 @@ export async function PUT(request) {
         resortAddress: body.resortAddress ?? null,
         updatedBy: body.updatedBy || null,
       },
+    });
+
+    // Name which policy section(s) actually changed rather than a generic
+    // "policies updated" — matches the blueprint's diff-aware audit intent.
+    const POLICY_FIELD_LABELS = {
+      houseRules: "House Rules",
+      cancellationPolicy: "Cancellation Policy",
+      termsOfService: "Terms & Conditions",
+      privacyPolicy: "Privacy Policy",
+      aboutPageContent: "About Page",
+      resortPhone: "Contact Info (phone)",
+      resortEmail: "Contact Info (email)",
+      resortAddress: "Contact Info (address)",
+    };
+    const changedFields = Object.keys(POLICY_FIELD_LABELS).filter(
+      (field) => previousSettings?.[field] !== updatedSettings[field]
+    );
+
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: changedFields.length
+        ? `Updated policy section(s): ${changedFields.map((f) => POLICY_FIELD_LABELS[f]).join(", ")}.`
+        : "Saved policies (no field changes detected).",
     });
 
     return NextResponse.json({ success: true, data: updatedSettings, message: "Policies saved successfully." });

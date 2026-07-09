@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET() {
   try {
@@ -56,6 +58,15 @@ export async function POST(request) {
         displayOrder: body.displayOrder ?? nextDisplayOrder,
         updatedBy: body.updatedBy || null,
       },
+    });
+
+    // Audit trail (Rule 6) — who added which testimonial.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Added testimonial from "${testimonial.guestName}".`,
     });
 
     return NextResponse.json(

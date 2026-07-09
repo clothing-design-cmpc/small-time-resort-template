@@ -1,42 +1,31 @@
 /**
- * FILE: app/api/superAdmin/content/amenities/route.js
+ * FILE: app/api/superAdmin/content/amenities/[amenityId]/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * GET  -> returns every amenity, in display order, for the Amenities
- *         Management list page.
- * POST -> creates a new amenity. Name is checked for uniqueness before
- *         insert (Rule 6 — pre-save duplicate check) since two
- *         identically-named amenities would confuse the room-edit
- *         multi-select checkboxes.
+ * PUT    -> updates an amenity. Re-checks name uniqueness (excluding
+ *           itself) before saving.
+ * DELETE -> deletes the amenity outright. Amenities have no R2 image
+ *           to clean up (icon is a Lucide name, not an uploaded file).
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
-export async function GET() {
-  try {
-    const amenities = await prisma.amenity.findMany({
-      orderBy: { sortOrder: "asc" },
-    });
-    return NextResponse.json({ success: true, data: amenities, message: "Amenities fetched successfully." });
-  } catch (error) {
-    console.error("[Amenities] Failed to fetch:", error);
-    return NextResponse.json(
-      { success: false, data: null, message: "We couldn't load the amenities. Please try again." },
-      { status: 500 }
-    );
-  }
-}
+export async function PUT(request, { params }) {
+  const { amenityId } = await params;
 
-export async function POST(request) {
   try {
     const body = await request.json();
-
-    // Normalize the name before the duplicate check so casing/whitespace
-    // differences never slip past it (Rule 6 — field normalization).
     const name = body.name?.trim();
+
+    const existingAmenity = await prisma.amenity.findUnique({ where: { id: amenityId } });
+    if (!existingAmenity) {
+      return NextResponse.json({ success: false, data: null, message: "Amenity not found." }, { status: 404 });
+    }
 
     if (!name) {
       return NextResponse.json(
@@ -45,35 +34,74 @@ export async function POST(request) {
       );
     }
 
-    // Pre-save duplicate check — never rely on a DB unique constraint alone.
-    const existingAmenity = await prisma.amenity.findFirst({
-      where: { name: { equals: name, mode: "insensitive" } },
-    });
-    if (existingAmenity) {
-      return NextResponse.json(
-        { success: false, data: null, message: "An amenity with this name already exists." },
-        { status: 409 }
-      );
+    // Duplicate check excludes this amenity's own current name.
+    if (name.toLowerCase() !== existingAmenity.name.toLowerCase()) {
+      const nameTaken = await prisma.amenity.findFirst({
+        where: { name: { equals: name, mode: "insensitive" } },
+      });
+      if (nameTaken) {
+        return NextResponse.json(
+          { success: false, data: null, message: "An amenity with this name already exists." },
+          { status: 409 }
+        );
+      }
     }
 
-    const amenity = await prisma.amenity.create({
+    const updatedAmenity = await prisma.amenity.update({
+      where: { id: amenityId },
       data: {
         name,
-        description: body.description || null,
-        icon: body.icon || "sparkles",
-        isActive: body.isActive ?? true,
-        sortOrder: body.sortOrder ?? 0,
+        description: body.description ?? null,
+        icon: body.icon || existingAmenity.icon,
+        isActive: body.isActive ?? existingAmenity.isActive,
+        sortOrder: body.sortOrder ?? existingAmenity.sortOrder,
       },
     });
 
-    return NextResponse.json(
-      { success: true, data: amenity, message: "Amenity created successfully." },
-      { status: 201 }
-    );
+    // Audit trail (Rule 6) — track amenity edits, including renames.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated amenity "${existingAmenity.name}"${name !== existingAmenity.name ? ` → "${name}"` : ""}.`,
+    });
+
+    return NextResponse.json({ success: true, data: updatedAmenity, message: "Amenity updated successfully." });
   } catch (error) {
-    console.error("[Amenities] Failed to create:", error);
+    console.error("[Amenities] Failed to update:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't create the amenity. Please try again." },
+      { success: false, data: null, message: "We couldn't save the changes. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const { amenityId } = await params;
+
+  try {
+    const amenity = await prisma.amenity.findUnique({ where: { id: amenityId } });
+    if (!amenity) {
+      return NextResponse.json({ success: false, data: null, message: "Amenity not found." }, { status: 404 });
+    }
+
+    await prisma.amenity.delete({ where: { id: amenityId } });
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted amenity "${amenity.name}".`,
+    });
+
+    return NextResponse.json({ success: true, data: null, message: "Amenity deleted successfully." });
+  } catch (error) {
+    console.error("[Amenities] Failed to delete:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "We couldn't delete this amenity. Please try again." },
       { status: 500 }
     );
   }

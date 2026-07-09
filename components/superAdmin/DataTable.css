@@ -175,3 +175,38 @@
   font-size: 0.85rem;
   color: var(--color-text-secondary);
 }
+
+/*
+ * .dataTableExpandButton
+ * Small ghost button in the last column that toggles the inline detail
+ * row below it. Kept minimal (no border) so it doesn't compete visually
+ * with real data columns.
+ */
+.dataTableExpandButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dataTableExpandButton:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+/*
+ * .dataTableExpandedRow / .dataTableExpandedCell
+ * Full-width detail panel rendered directly below an expanded row.
+ * Slightly recessed background distinguishes it from regular data rows.
+ */
+.dataTableExpandedRow {
+  background-color: var(--color-surface-elevated);
+}
+
+.dataTableExpandedCell {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}

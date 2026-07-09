@@ -66,3 +66,52 @@
   border-color: var(--color-primary);
   color: #fff;
 }
+
+/*
+ * .securityLogDetailPanel
+ * Grid layout for the expanded-row detail fields (Event type, Actor,
+ * IP, Timestamp as a 2-4 column grid; user-agent and details span the
+ * full width below since they're long free-text values).
+ */
+.securityLogDetailPanel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md) var(--space-lg);
+}
+
+.securityLogDetailField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.securityLogDetailField--full {
+  grid-column: 1 / -1;
+}
+
+.securityLogDetailLabel {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.securityLogDetailValue {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.securityLogDetailValue--wrap {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.securityLogDetailLink {
+  color: var(--color-primary);
+}
+
+.securityLogDetailLink:hover {
+  text-decoration: underline;
+}

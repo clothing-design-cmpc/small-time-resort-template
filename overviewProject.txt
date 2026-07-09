@@ -173,15 +173,34 @@ FILE MAP additions (Security Logs):
 - app/api/admin/security-logs/route.js — paginated read for the admin page.
 - app/superAdmin/(protected)/security-logs/page.jsx + SecurityLogsClient.jsx
   + SecurityLogs.css — the Security Logs admin page (DataTable + StatusBadge
-  + pill filter by event type).
+  + pill filter by event type + expandable row detail panel, see below).
 - components/superAdmin/Sidebar.jsx — was missing links to the already-built
   Rooms, Amenities, and Booking Rules pages (they existed but were
   unreachable from the nav); added those plus the new Security Logs link.
 - Currently logged events: login_success, login_failed, admin_login_denied,
-  rate_limit_hit (login + booking endpoints), admin_action (booking cancel
-  so far — apply the same logSecurityEvent() call to other admin mutation
-  routes, e.g. content/rooms and content/amenities create/update/delete, to
-  extend the audit trail per Rule 6).
+  rate_limit_hit (login + booking endpoints), admin_action — now applied to
+  ALL content management routes (rooms + room gallery, amenities, shop
+  products + shop config, activities, testimonials, gallery, policies,
+  homepage customization, booking rules, blackout dates, seasonal pricing),
+  in addition to the original booking-cancel coverage. Every create/update/
+  delete on those routes calls logSecurityEvent({ eventType: "admin_action",
+  actor: session.uid, request, details }) with a human-readable one-liner
+  naming exactly what changed (e.g. old price → new price). Gallery image
+  reorder (Move Up/Down) intentionally does NOT log — those PUT calls only
+  ever send { displayOrder } and would otherwise flood the log with two
+  rows per drag; real edits (category/caption/isFeatured) still log.
+- components/superAdmin/DataTable.jsx — gained an opt-in `renderExpandedRow`
+  prop. When a consumer passes it, an extra "expand" (▼/▲) button column
+  appears; clicking it toggles a full-width detail row directly below that
+  record (accordion-style — only one row expanded at a time). Every other
+  page using DataTable (Users, Bookings, Rooms, Amenities, etc.) does NOT
+  pass this prop and is completely unaffected.
+- app/superAdmin/(protected)/security-logs/SecurityLogsClient.jsx — each
+  row now carries the raw log object (row.raw) alongside its display
+  columns; renderSecurityLogDetail() renders the expanded panel: full
+  event type, actor, IP address (linked to whois.com), full timestamp
+  (date + time + seconds), the complete user-agent string, and full
+  details text — all fields the compact table row truncates or omits.
 
 DATA BACKUP / DISASTER RECOVERY NOTE (not yet implemented — infra decision,
 not code):

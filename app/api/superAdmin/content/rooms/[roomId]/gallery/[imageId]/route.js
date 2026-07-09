@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PUT(request, { params }) {
   const { roomId, imageId } = await params;
@@ -33,6 +35,16 @@ export async function PUT(request, { params }) {
         where: { id: roomId },
         data: { imageUrl: existingImage.imageUrl, imageKey: existingImage.imageKey },
       });
+
+      // Audit trail (Rule 6) — this changes what visitors see as the room's main photo.
+      const session = requireSuperAdmin(request);
+      await logSecurityEvent({
+        eventType: "admin_action",
+        actor: session?.uid ?? null,
+        request,
+        details: `Set a gallery image as the main photo for room ID ${roomId}.`,
+      });
+
       return NextResponse.json({ success: true, data: existingImage, message: "Set as the room's main image." });
     }
 
@@ -68,6 +80,15 @@ export async function DELETE(request, { params }) {
     if (image.imageKey) {
       await deleteFromR2(image.imageKey);
     }
+
+    // Audit trail (Rule 6) — room image deletions are tracked per blueprint.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted a gallery image from room ID ${roomId}.`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Gallery image deleted successfully." });
   } catch (error) {

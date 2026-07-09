@@ -18,6 +18,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET() {
   try {
@@ -79,6 +81,15 @@ export async function PUT(request) {
     if (body.ogImageKey && existingSettings.ogImageKey && body.ogImageKey !== existingSettings.ogImageKey) {
       await deleteFromR2(existingSettings.ogImageKey);
     }
+
+    // Audit trail (Rule 6) — homepage.customized action.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: "Updated homepage customization (hero, CTA, featured rooms, or SEO metadata).",
+    });
 
     return NextResponse.json({ success: true, data: updatedSettings, message: "Homepage settings saved successfully." });
   } catch (error) {

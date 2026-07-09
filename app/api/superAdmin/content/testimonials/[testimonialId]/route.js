@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PUT(request, { params }) {
   const { testimonialId } = await params;
@@ -52,6 +54,15 @@ export async function PUT(request, { params }) {
       await deleteFromR2(existingTestimonial.guestPhotoKey);
     }
 
+    // Audit trail (Rule 6) — track testimonial edits.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Updated testimonial from "${existingTestimonial.guestName}".`,
+    });
+
     return NextResponse.json({ success: true, data: updatedTestimonial, message: "Testimonial updated successfully." });
   } catch (error) {
     console.error("[Testimonials] Failed to update:", error);
@@ -77,6 +88,15 @@ export async function DELETE(request, { params }) {
     if (testimonial.guestPhotoKey) {
       await deleteFromR2(testimonial.guestPhotoKey);
     }
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted testimonial from "${testimonial.guestName}".`,
+    });
 
     return NextResponse.json({ success: true, data: null, message: "Testimonial deleted successfully." });
   } catch (error) {

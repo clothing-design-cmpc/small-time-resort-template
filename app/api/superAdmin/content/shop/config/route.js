@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { logSecurityEvent } from "@/services/securityLog";
 
 const SHOP_CONFIG_ID = "shop_config";
 
@@ -52,6 +54,15 @@ export async function PUT(request) {
         shopLocation: body.shopLocation ?? null,
         alcoholWarningText: body.alcoholWarningText ?? null,
       },
+    });
+
+    // Audit trail (Rule 6) — shop hours/location/warning text changes.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: "Updated shop configuration (hours, location, or alcohol warning text).",
     });
 
     return NextResponse.json({ success: true, data: config, message: "Shop configuration saved successfully." });

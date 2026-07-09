@@ -80,6 +80,19 @@
 }
 
 /*
+ * .headerActions
+ * Groups Login + Book Now so they read as one cluster on the right —
+ * a small, fixed gap between them, independent of headerContainer's
+ * space-between (which spaces logo / nav / this group apart).
+ */
+.headerActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/*
  * .headerLoginLink
  * Quiet text link to /superAdmin/login — desktop only. Deliberately not
  * styled as a filled button so it never visually competes with the

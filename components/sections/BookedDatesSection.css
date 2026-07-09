@@ -80,6 +80,7 @@
  * soft finish rather than a hard clip.
  */
 .bookedCarouselTrack {
+  position: relative;
   display: flex;
   flex-direction: row;
   gap: var(--space-sm);

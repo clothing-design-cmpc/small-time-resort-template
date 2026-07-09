@@ -46,16 +46,22 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Staff/admin login — desktop. Kept visually quiet (text link, not
-            a filled button) so it never competes with the Book Now CTA. */}
-        <Link href="/superAdmin/login" className="headerLoginLink">
-          Login
-        </Link>
+        {/* Login + Book Now grouped together so the container's
+            justify-content: space-between spaces out logo / nav / this
+            group as a whole — not Login and Book Now individually,
+            which was leaving a huge gap between the two. */}
+        <div className="headerActions">
+          {/* Staff/admin login — desktop. Kept visually quiet (text link,
+              not a filled button) so it never competes with the Book Now CTA. */}
+          <Link href="/superAdmin/login" className="headerLoginLink">
+            Login
+          </Link>
 
-        {/* Book Now CTA — desktop */}
-        <Link href="/visitor/booking" className="headerBookButton">
-          Book Now
-        </Link>
+          {/* Book Now CTA — desktop */}
+          <Link href="/visitor/booking" className="headerBookButton">
+            Book Now
+          </Link>
+        </div>
 
         {/* Hamburger — mobile only */}
         <button

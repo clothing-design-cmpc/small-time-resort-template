@@ -49,6 +49,7 @@
  * the arrow buttons and drag/swipe are the intended controls.
  */
 .dateCarouselTrack {
+  position: relative;
   display: flex;
   flex-direction: row;
   gap: var(--space-sm);

@@ -1,0 +1,357 @@
+/*
+ * .gallerySection
+ * Outer wrapper for the Gallery Management view — header, tabs, and
+ * grid stacked vertically.
+ */
+.gallerySection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.galleryHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.galleryEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.galleryTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.galleryAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.galleryAddButton:hover,
+.galleryAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+/*
+ * .galleryTabs
+ * Category filter row — switches which images the grid below shows,
+ * entirely client-side (no re-fetch per tab).
+ */
+.galleryTabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+}
+
+.galleryTab {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+
+.galleryTab:hover,
+.galleryTab:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.galleryTab--active {
+  background-color: var(--color-surface-active);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.galleryStateMessage {
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.galleryStateMessage--error {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/*
+ * .galleryGrid
+ * Auto-responsive card grid for gallery images — no breakpoints
+ * needed, minmax handles reflow down to mobile.
+ */
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-lg);
+}
+
+.galleryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.galleryCard--skeleton {
+  min-height: 220px;
+  background: linear-gradient(90deg, var(--color-skeleton-base, rgba(255,255,255,0.06)) 25%, var(--color-skeleton-shine, rgba(255,255,255,0.12)) 50%, var(--color-skeleton-base, rgba(255,255,255,0.06)) 75%);
+  background-size: 200% 100%;
+  animation: gallerySkeletonPulse 1.5s infinite;
+}
+
+@keyframes gallerySkeletonPulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.galleryCardImageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.galleryFeaturedTag {
+  position: absolute;
+  top: var(--space-xs);
+  left: var(--space-xs);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.galleryCardMeta {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.galleryCardOrder {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.galleryCardCaption {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.galleryCardActions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.galleryCardActionButton {
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.galleryCardActionButton:hover,
+.galleryCardActionButton:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.galleryCardActionButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.galleryCardActionButton--destructive {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.galleryCardActionButton--destructive:hover,
+.galleryCardActionButton--destructive:focus-visible {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================
+ * UPLOAD MODAL
+ * ============================================================ */
+
+.galleryModalBackdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: rgba(9, 9, 11, 0.5);
+  z-index: var(--z-modal-backdrop);
+}
+
+.galleryModalDialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: var(--z-modal);
+  overflow-y: auto;
+}
+
+.galleryUploadForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.galleryFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.galleryFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.galleryFormField input[type="text"],
+.galleryFormField select {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.galleryFormImageUpload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.galleryFormImagePreviewWrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.galleryFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.galleryFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.galleryFormButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.galleryFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.galleryFormButton--neutral:hover,
+.galleryFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.galleryFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.galleryFormButton--primary:hover,
+.galleryFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.galleryFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,0 +1,302 @@
+/*
+ * .testimonialsSection
+ * Outer wrapper for the Testimonials Management list view.
+ */
+.testimonialsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.testimonialsHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.testimonialsEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.testimonialsTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.testimonialsAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.testimonialsAddButton:hover,
+.testimonialsAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+/*
+ * .testimonialsStarCell
+ * Filled stars in the accent color, empty stars muted, so the list
+ * gives an at-a-glance sense of the rating without opening the row.
+ */
+.testimonialsStarCell {
+  color: var(--color-primary);
+  letter-spacing: 1px;
+}
+
+.testimonialsStarCell--empty {
+  color: var(--color-text-muted);
+}
+
+.testimonialsQuotePreview {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.testimonialsRowActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.testimonialsRowActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.testimonialsRowActionButton:hover,
+.testimonialsRowActionButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.testimonialsRowActionButton--destructive {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.testimonialsRowActionButton--destructive:hover,
+.testimonialsRowActionButton--destructive:focus-visible {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================
+ * CREATE / EDIT MODAL
+ * ============================================================ */
+
+.testimonialModalBackdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: rgba(9, 9, 11, 0.5);
+  z-index: var(--z-modal-backdrop);
+}
+
+.testimonialModalDialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-bg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  z-index: var(--z-modal);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.testimonialModalDialog::-webkit-scrollbar {
+  width: 8px;
+}
+
+.testimonialModalDialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.testimonialModalDialog::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 4px;
+}
+
+.testimonialForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.testimonialFormRow {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.testimonialFormRow > .testimonialFormField {
+  flex: 1 1 160px;
+}
+
+.testimonialFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.testimonialFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.testimonialFormField input[type="text"],
+.testimonialFormField input[type="number"],
+.testimonialFormField select,
+.testimonialFormField textarea {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.testimonialFormField textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.testimonialFormCharCount {
+  text-align: right;
+}
+
+.testimonialFormError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.testimonialFormHint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .testimonialFormPhotoUpload
+ * Row of the current/preview photo thumbnail next to the file input.
+ */
+.testimonialFormPhotoUpload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.testimonialFormPhotoPreviewWrapper {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.testimonialFormToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.testimonialFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.testimonialFormButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.testimonialFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.testimonialFormButton--neutral:hover,
+.testimonialFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.testimonialFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.testimonialFormButton--primary:hover,
+.testimonialFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.testimonialFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

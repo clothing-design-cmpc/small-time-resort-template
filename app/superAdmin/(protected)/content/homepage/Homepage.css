@@ -1,0 +1,244 @@
+/*
+ * .homepageSection
+ * Outer wrapper for the Homepage Customization form — header followed
+ * by a vertical stack of section panels.
+ */
+.homepageSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.homepageHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  padding-block: var(--space-sm);
+  background-color: var(--color-bg);
+}
+
+.homepageEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.homepageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.homepageSaveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.homepageSaveButton:hover,
+.homepageSaveButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.homepageSaveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * .homepagePanel
+ * One section card (Hero, Featured Rooms, Testimonials, CTA, SEO) —
+ * each panel is visually distinct so the long form reads as clear
+ * chunks instead of one wall of fields.
+ */
+.homepagePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.homepagePanelTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.homepageFormRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-lg);
+}
+
+.homepageFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.homepageFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.homepageFormField input[type="text"],
+.homepageFormField input[type="email"],
+.homepageFormField select,
+.homepageFormField textarea {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.homepageFormField textarea {
+  resize: vertical;
+}
+
+.homepageFormHint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.homepageFormCharCount {
+  text-align: right;
+}
+
+.homepageFormToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+/*
+ * .homepageImageUpload / .homepageImagePreviewWrapper
+ * Shared layout for the Hero and OG image fields — thumbnail preview
+ * next to the file input, same pattern as every other content-form
+ * image upload in the admin.
+ */
+.homepageImageUpload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.homepageImagePreviewWrapper {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.homepageImagePreviewWrapper--wide {
+  width: 220px;
+  height: 110px;
+}
+
+/*
+ * .homepageRoomPicker
+ * Checkbox grid for selecting up to 3 featured rooms — selected
+ * options get a highlighted border so the 3-room limit is easy to
+ * track at a glance.
+ */
+.homepageRoomPicker {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.homepageRoomOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.homepageRoomOption:hover,
+.homepageRoomOption:focus-within {
+  background-color: var(--color-surface-hover);
+}
+
+.homepageRoomOption--selected {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-surface-active);
+}
+
+.homepageStateMessage {
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.homepageStateMessage--error {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.homepageSkeleton {
+  min-height: 400px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--color-skeleton-base, rgba(255,255,255,0.06)) 25%, var(--color-skeleton-shine, rgba(255,255,255,0.12)) 50%, var(--color-skeleton-base, rgba(255,255,255,0.06)) 75%);
+  background-size: 200% 100%;
+  animation: homepageSkeletonPulse 1.5s infinite;
+}
+
+@keyframes homepageSkeletonPulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

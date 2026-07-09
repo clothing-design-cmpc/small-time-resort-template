@@ -1,46 +1,96 @@
+// FILE: prisma/schema.prisma
+// PURPOSE:
+// Defines the database schema for Villa Azure Resort using Prisma ORM
+// against the Supabase Postgres database. All schema changes go through
+// `npx prisma db push` (terminal only) — never the Supabase SQL Editor.
+//
+// Connection setup (Prisma 7 — connection URLs live in prisma.config.mjs,
+// NOT in this file):
+//   prisma.config.mjs -> datasource.url = DIRECT_URL (session pooler,
+//                        port 5432) — used by the CLI for db push/generate.
+//   services/prisma.js -> runtime PrismaClient uses a driver adapter
+//                        (@prisma/adapter-pg) pointed at DATABASE_URL
+//                        (transaction pooler, port 6543).
+
 generator client {
   provider = "prisma-client-js"
 }
 
+// Prisma 7: connection URLs are defined in prisma.config.mjs (datasource.url),
+// NOT here. Keeping url/directUrl in this block causes P1012 validation error.
 datasource db {
   provider = "postgresql"
 }
 
+// ============================================================
+// MODEL: Room  (Rooms & Villas section)
+// ============================================================
 model Room {
-  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                String
-  slug                String          @unique
-  description         String?
-  pricePerNight       Decimal         @map("price_per_night") @db.Decimal(10, 2)
-  capacity            Int             @default(2)
-  imageUrl            String?         @map("image_url")
-  isActive            Boolean         @default(true) @map("is_active")
-  sortOrder           Int             @default(0) @map("sort_order")
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at")
-  amenityIds          String[]        @default([]) @map("amenity_ids")
-  bedType             String          @default("King") @map("bed_type")
-  imageKey            String?         @map("image_key")
-  isFeatured          Boolean         @default(false) @map("is_featured")
-  maxNightsPerBooking Int             @default(30) @map("max_nights_per_booking")
-  minGuestsAllowed    Int             @default(1) @map("min_guests_allowed")
-  minNightsPerBooking Int             @default(1) @map("min_nights_per_booking")
-  updatedBy           String?         @map("updated_by")
-  blackoutDates       BlackoutDate[]
-  bookings            Booking[]
-  room_images         room_images[]
-  seasonalPrices      SeasonalPrice[]
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String    @unique
+  description    String?
+  pricePerNight  Decimal   @map("price_per_night") @db.Decimal(10, 2)
+  capacity       Int       @default(2)
+  imageUrl       String?   @map("image_url")
+  imageKey       String?   @map("image_key") // R2 object key, needed to delete the old file on replace
+  isActive       Boolean   @default(true) @map("is_active")
+  sortOrder      Int       @default(0) @map("sort_order")
 
+  // --- Content Management fields (Super-Admin Rooms Management, blueprint Page 1) ---
+  bedType             String    @default("King") @map("bed_type") // "King", "Twin", "Double", "Sofa Bed"
+  isFeatured          Boolean   @default(false) @map("is_featured") // shown on visitor homepage
+  minNightsPerBooking Int       @default(1) @map("min_nights_per_booking")
+  maxNightsPerBooking Int       @default(30) @map("max_nights_per_booking")
+  minGuestsAllowed    Int       @default(1) @map("min_guests_allowed")
+  amenityIds          String[]  @default([]) @map("amenity_ids") // Amenity.id values mapped to this room
+  updatedBy           String?   @map("updated_by") // super-admin user id who last saved this room
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  bookings       Booking[]
+  seasonalPrices SeasonalPrice[]
+  blackoutDates  BlackoutDate[]
+  roomImages     RoomImage[]
+
+  // Index for the visitor "Rooms" list and homepage featured-rooms query —
+  // both filter by isActive/isFeatured on every no-cache request.
   @@index([isActive])
   @@index([isFeatured])
   @@map("rooms")
 }
 
+// ============================================================
+// MODEL: RoomImage  (Rooms Management — Room Gallery sub-page,
+// blueprint Page 1)
+// ============================================================
+// Multi-image gallery per room, separate from Room.imageUrl (the
+// single "Main Image" shown on cards/lists). setMain copies a
+// RoomImage's url/key onto the parent Room row; isFeatured marks an
+// image for the room's featured highlights strip on the visitor page.
+model RoomImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId       String   @map("room_id") @db.Uuid
+  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([roomId])
+  @@map("room_images")
+}
+
+// ============================================================
+// MODEL: Amenity  (Resort Amenities section)
+// ============================================================
 model Amenity {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
   description String?
-  icon        String?
+  icon        String?  // icon identifier (e.g. lucide icon name) rendered by the frontend
   isActive    Boolean  @default(true) @map("is_active")
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -49,47 +99,95 @@ model Amenity {
   @@map("amenities")
 }
 
+// ============================================================
+// MODEL: StoreProduct  (Resort Shop — browse-only, no cart/checkout)
+// ============================================================
 model StoreProduct {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name             String
-  description      String?
-  price            Decimal  @db.Decimal(10, 2)
-  category         String   @default("general")
-  imageUrl         String?  @map("image_url")
-  isActive         Boolean  @default(true) @map("is_active")
-  sortOrder        Int      @default(0) @map("sort_order")
-  createdAt        DateTime @default(now()) @map("created_at")
-  in_stock         Boolean  @default(true)
-  quantity_on_hand Int      @default(0)
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(10, 2)
+  category       String   @default("general")
+  imageUrl       String?  @map("image_url")
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  // Shop Management form (blueprint Page 3) reads/writes these two on
+  // every create and update — see app/api/superAdmin/content/shop/route.js
+  // and ShopProductForm.jsx. Previously missing from this model, which
+  // caused every product save to fail with a Prisma "Unknown argument" error.
+  inStock        Boolean  @default(true) @map("in_stock")
+  quantityOnHand Int      @default(0) @map("quantity_on_hand")
+  createdAt      DateTime @default(now()) @map("created_at")
 
+  // Shop page filters by category tab and hides inactive products —
+  // both hit on every visitor no-cache request.
   @@index([category])
   @@index([isActive])
   @@map("store_products")
 }
 
+// ============================================================
+// MODEL: ShopConfig  (Resort Shop — Shop Configuration panel,
+// blueprint Page 3)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "shop_config" (same pattern as BookingRules and
+// SystemSettings below), never creates a second row. Was previously
+// referenced by app/api/superAdmin/content/shop/config/route.js with
+// no matching model, which caused every config read/save to fail.
+model ShopConfig {
+  id                 String   @id @default("shop_config")
+  shopHours          String?  @map("shop_hours")
+  shopLocation       String?  @map("shop_location")
+  alcoholWarningText String?  @map("alcohol_warning_text")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("shop_config")
+}
+
+// ============================================================
+// MODEL: Booking  (Booked Dates section + Reserve Your Villa date picker)
+// ============================================================
+// A single confirmed stay: checkInDate (inclusive) through checkOutDate
+// (exclusive, standard hotel convention — the checkout day itself is not
+// "occupied" and can be someone else's check-in day). The Booked Dates
+// carousel/calendar and the Reserve Your Villa date picker both derive
+// their "already reserved" dates by expanding every active Booking's
+// range server-side (see app/api/bookings/dates/route.js) instead of the
+// old module-level BOOKED_DATES constant.
 model Booking {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   roomId         String?  @map("room_id") @db.Uuid
   guestName      String   @map("guest_name")
-  checkInDate    DateTime @map("check_in_date") @db.Date
-  checkOutDate   DateTime @map("check_out_date") @db.Date
-  status         String   @default("confirmed")
-  createdAt      DateTime @default(now()) @map("created_at")
-  bookingType    String   @default("overnight") @map("booking_type")
-  depositAmount  Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
   guestEmail     String   @default("") @map("guest_email")
   guestPhone     String   @default("") @map("guest_phone")
-  notes          String?
   numberOfGuests Int      @default(1) @map("number_of_guests")
+  bookingType    String   @default("overnight") @map("booking_type") // overnight | day_tour | night_tour — mirrors BookingRules.allow* flags
+  checkInDate    DateTime @map("check_in_date") @db.Date
+  checkOutDate   DateTime @map("check_out_date") @db.Date
   totalAmount    Decimal  @default(0) @map("total_amount") @db.Decimal(10, 2)
-  room           Room?    @relation(fields: [roomId], references: [id])
+  depositAmount  Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
+  notes          String?
+  status         String   @default("confirmed") // confirmed | cancelled
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  @@index([checkInDate, checkOutDate])
+  room Room? @relation(fields: [roomId], references: [id])
+
+  // Availability calendar and blackout checks filter by roomId + status/date
+  // range on every booking-form load — this is the hottest query path.
   @@index([roomId])
   @@index([status])
+  @@index([checkInDate, checkOutDate])
   @@map("bookings")
 }
 
+// ============================================================
+// MODEL: AdminProfile  (Super Admin accounts)
+// ============================================================
+// The `id` must match an existing Supabase Auth user's UID (created via
+// Supabase Auth, not via this table). Prisma does not manage the
+// auth.users table directly — this table only stores role/profile
+// metadata for a user that already exists in Supabase Auth.
 model AdminProfile {
   id        String   @id @db.Uuid
   fullName  String   @map("full_name")
@@ -99,193 +197,256 @@ model AdminProfile {
   @@map("admin_profiles")
 }
 
+// ============================================================
+// MODEL: SecurityLog  (Security event / audit log — see services/securityLog.js)
+// ============================================================
+// Append-only. Every row is one security-relevant event: a login
+// attempt (success or failure), a rate limit being hit, or a
+// super-admin performing a sensitive create/update/delete. Never
+// updated or deleted by the app itself — this is the record an admin
+// reviews after the fact to answer "what happened and who did it."
 model SecurityLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType String   @map("event_type")
-  actor     String?
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt
+  actor     String?  // email attempted/used, or the admin's full name for admin_action rows
   ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  details   String?
+  userAgent String?  @map("user_agent") @db.Text
+  details   String?  @db.Text // human-readable summary, e.g. "Cancelled booking for Juan Dela Cruz"
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("security_logs")
 }
 
+// ============================================================
+// MODEL: BookingRules  (Booking Rules & Configuration, blueprint Page 7)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "singleton" (see app/api/superAdmin/settings/
+// booking-rules/route.js), never creates a second row.
 model BookingRules {
-  id                        String   @id @default("singleton")
-  minNightsRequired         Int      @default(1) @map("min_nights_required")
-  maxNightsAllowed          Int      @default(30) @map("max_nights_allowed")
-  advanceBookingDays        Int      @default(365) @map("advance_booking_days")
-  checkInTime               String   @default("14:00") @map("check_in_time")
-  checkOutTime              String   @default("11:00") @map("check_out_time")
-  allowOvernightStay        Boolean  @default(true) @map("allow_overnight_stay")
-  allowDayTour              Boolean  @default(false) @map("allow_day_tour")
-  allowNightTour            Boolean  @default(false) @map("allow_night_tour")
-  refundPercentage          Int      @default(100) @map("refund_percentage")
-  cancellationCutoffDays    Int      @default(7) @map("cancellation_cutoff_days")
-  depositRequired           Boolean  @default(true) @map("deposit_required")
-  depositPercentage         Int      @default(50) @map("deposit_percentage")
-  weekendSurchargePercent   Int      @default(0) @map("weekend_surcharge_percent")
-  lastMinuteDiscountPercent Int      @default(0) @map("last_minute_discount_percent")
-  groupDiscountThreshold    Int      @default(3) @map("group_discount_threshold")
-  groupDiscountPercent      Int      @default(0) @map("group_discount_percent")
-  seasonalPricingEnabled    Boolean  @default(true) @map("seasonal_pricing_enabled")
-  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at")
-  updatedBy                 String?  @map("updated_by")
-  dayTourEndTime            String   @default("17:00") @map("day_tour_end_time")
-  dayTourPricePerGuest      Decimal  @default(500) @map("day_tour_price_per_guest") @db.Decimal(10, 2)
-  dayTourStartTime          String   @default("08:00") @map("day_tour_start_time")
-  nightTourEndTime          String   @default("23:00") @map("night_tour_end_time")
-  nightTourPricePerGuest    Decimal  @default(600) @map("night_tour_price_per_guest") @db.Decimal(10, 2)
-  nightTourStartTime        String   @default("18:00") @map("night_tour_start_time")
+  id String @id @default("singleton")
+
+  // --- Section 1: General Booking Settings ---
+  minNightsRequired  Int    @default(1) @map("min_nights_required")
+  maxNightsAllowed   Int    @default(30) @map("max_nights_allowed")
+  advanceBookingDays Int    @default(365) @map("advance_booking_days") // guests can book at most this many days ahead
+  checkInTime        String @default("14:00") @map("check_in_time") // 24h "HH:mm"
+  checkOutTime       String @default("11:00") @map("check_out_time") // 24h "HH:mm"
+
+  // --- Booking Types (extension beyond the base blueprint, per admin request) ---
+  allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
+  allowDayTour       Boolean @default(false) @map("allow_day_tour")
+  allowNightTour     Boolean @default(false) @map("allow_night_tour")
+
+  // --- Day Tour settings — only meaningful when allowDayTour is true.
+  //     A Day Tour is a same-day, no-room, no-overnight visit (guest
+  //     uses the pool/facilities during these hours only, at a flat
+  //     per-guest rate — not the room's per-night price). ---
+  dayTourStartTime      String  @default("08:00") @map("day_tour_start_time") // 24h "HH:mm"
+  dayTourEndTime        String  @default("17:00") @map("day_tour_end_time") // 24h "HH:mm"
+  dayTourPricePerGuest  Decimal @default(500) @map("day_tour_price_per_guest") @db.Decimal(10, 2)
+
+  // --- Night Tour settings — only meaningful when allowNightTour is
+  //     true. Same idea as Day Tour but for an evening window. ---
+  nightTourStartTime     String  @default("18:00") @map("night_tour_start_time") // 24h "HH:mm"
+  nightTourEndTime       String  @default("23:00") @map("night_tour_end_time") // 24h "HH:mm"
+  nightTourPricePerGuest Decimal @default(600) @map("night_tour_price_per_guest") @db.Decimal(10, 2)
+
+  // --- Section 2: Cancellation Policy ---
+  refundPercentage       Int @default(100) @map("refund_percentage") // % refunded if cancelled before the cutoff
+  cancellationCutoffDays Int @default(7) @map("cancellation_cutoff_days") // days before check-in for full refund
+
+  // --- Section 3: Deposit & Payment ---
+  depositRequired   Boolean @default(true) @map("deposit_required")
+  depositPercentage Int     @default(50) @map("deposit_percentage") // % of total held as deposit
+
+  // --- Section 4: Pricing Modifiers ---
+  weekendSurchargePercent   Int @default(0) @map("weekend_surcharge_percent") // extra % on Fri/Sat nights
+  lastMinuteDiscountPercent Int @default(0) @map("last_minute_discount_percent") // % off if booked within a few days
+  groupDiscountThreshold    Int @default(3) @map("group_discount_threshold") // min rooms booked together to qualify
+  groupDiscountPercent      Int @default(0) @map("group_discount_percent")
+
+  // --- Section 5: Seasonal Pricing toggle ---
+  seasonalPricingEnabled Boolean @default(true) @map("seasonal_pricing_enabled")
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
 
   @@map("booking_rules")
 }
 
+// ============================================================
+// MODEL: SeasonalPrice  (Booking Rules — Section 5: Seasonal Pricing)
+// ============================================================
 model SeasonalPrice {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   roomId        String   @map("room_id") @db.Uuid
-  seasonName    String   @map("season_name")
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  seasonName    String   @map("season_name") // "Peak Season", "Shoulder", "Off-Season", etc.
   startDate     DateTime @map("start_date") @db.Date
   endDate       DateTime @map("end_date") @db.Date
-  pricePerNight Decimal  @map("price_per_night") @db.Decimal(10, 2)
+  pricePerNight Decimal  @map("price_per_night") @db.Decimal(10, 2) // overrides the room's default price for this range
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
-  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
   @@map("seasonal_prices")
 }
 
+// ============================================================
+// MODEL: BlackoutDate  (Booking Rules — Section 6: Blackout Dates)
+// ============================================================
 model BlackoutDate {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   roomId    String   @map("room_id") @db.Uuid
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   startDate DateTime @map("start_date") @db.Date
   endDate   DateTime @map("end_date") @db.Date
-  reason    String   @default("Custom")
+  reason    String   @default("Custom") // "Cleaning" | "Maintenance" | "Private" | "Custom"
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
   @@map("blackout_dates")
 }
 
-model activities {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String
-  description    String?
-  duration       String   @default("")
-  min_group_size Int      @default(1)
-  max_group_size Int      @default(10)
-  image_url      String?
-  image_key      String?
-  is_active      Boolean  @default(true)
-  is_featured    Boolean  @default(false)
-  sort_order     Int      @default(0)
-  updated_by     String?
-  created_at     DateTime @default(now())
-  updated_at     DateTime @default(now())
+// ============================================================
+// MODEL: Activity  (Activities Management, blueprint Page 4)
+// ============================================================
+model Activity {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?
+  duration     String   @default("") // e.g. "2 hours", "Half day"
+  minGroupSize Int      @default(1) @map("min_group_size")
+  maxGroupSize Int      @default(10) @map("max_group_size")
+  imageUrl     String?  @map("image_url")
+  imageKey     String?  @map("image_key") // R2 object key, needed to delete the old file on replace
+  isActive     Boolean  @default(true) @map("is_active")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  sortOrder    Int      @default(0) @map("sort_order")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this activity
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
-  @@index([is_active])
-  @@index([is_featured])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("activities")
 }
 
-model gallery_images {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  category      String   @default("common_area")
-  image_url     String
-  image_key     String
-  caption       String?
-  display_order Int      @default(0)
-  is_featured   Boolean  @default(false)
-  updated_by    String?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now())
+// ============================================================
+// MODEL: Testimonial  (Testimonials Management, blueprint Page 5)
+// ============================================================
+model Testimonial {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guestName    String   @map("guest_name")
+  guestPhoto   String?  @map("guest_photo") // R2 image URL, optional
+  guestPhotoKey String? @map("guest_photo_key") // R2 object key, needed to delete the old file on replace
+  rating       Int      @default(5) // 1-5 stars
+  quote        String   @db.VarChar(500)
+  isFeatured   Boolean  @default(false) @map("is_featured") // shown on homepage
+  displayOrder Int      @default(0) @map("display_order")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this testimonial
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([isFeatured])
+  @@index([displayOrder])
+  @@map("testimonials")
+}
+
+// ============================================================
+// MODEL: GalleryImage  (Gallery Management, blueprint Page 6)
+// ============================================================
+model GalleryImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category     String   @default("common_area") // "bedroom" | "bathroom" | "common_area" | "outdoor" | "amenity"
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  isFeatured   Boolean  @default(false) @map("is_featured") // shows on homepage/featured section
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this image
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([category])
-  @@index([display_order])
-  @@index([is_featured])
+  @@index([displayOrder])
+  @@index([isFeatured])
+  @@map("gallery_images")
 }
 
-model room_images {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  room_id       String   @db.Uuid
-  image_url     String
-  image_key     String
-  caption       String?
-  display_order Int      @default(0)
-  is_featured   Boolean  @default(false)
-  created_at    DateTime @default(now())
-  rooms         Room     @relation(fields: [room_id], references: [id], onDelete: Cascade)
+// ============================================================
+// MODEL: SystemSettings  (Shop Config, Policies, Homepage,
+// Contact Info & SEO — blueprint Pages 3, 8, 9)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "singleton" (same pattern as BookingRules above),
+// never creates a second row.
+model SystemSettings {
+  id String @id @default("singleton")
 
-  @@index([room_id])
+  // Shop Config (hours/location/alcohol warning) lives on the ShopConfig
+  // model above, not here — see ShopConfig for that data.
+
+  // --- Policies & Pages (Page 8) — rich text / markdown content ---
+  houseRules         String? @map("house_rules")
+  cancellationPolicy String? @map("cancellation_policy")
+  termsOfService      String? @map("terms_of_service")
+  privacyPolicy       String? @map("privacy_policy")
+  aboutPageContent    String? @map("about_page_content")
+
+  // --- Contact Info ---
+  resortPhone   String? @map("resort_phone")
+  resortEmail   String? @map("resort_email")
+  resortAddress String? @map("resort_address")
+
+  // --- Homepage Customization (Page 9) ---
+  heroTagline       String? @default("Experience Luxury") @map("hero_tagline")
+  heroImageUrl      String? @map("hero_image_url")
+  heroImageKey      String? @map("hero_image_key") // R2 object key, needed to delete the old file on replace
+  ctaSectionHeading String? @map("cta_section_heading")
+  ctaSectionSubtext String? @map("cta_section_subtext")
+  ctaButtonText     String? @default("Plan Your Stay") @map("cta_button_text")
+  ctaSectionVisible Boolean @default(true) @map("cta_section_visible")
+
+  // Featured room selection for the homepage — up to 3 Room IDs, in order.
+  featuredRoomIds String[] @default([]) @map("featured_room_ids")
+
+  testimonialsSectionEnabled  Boolean @default(true) @map("testimonials_section_enabled")
+  testimonialsSectionCount    Int     @default(3) @map("testimonials_section_count") // 3, 6, or 9
+  testimonialsFeaturedOnly    Boolean @default(true) @map("testimonials_featured_only")
+
+  // --- SEO & Metadata ---
+  siteTitle       String? @default("Villa Azure Resort") @map("site_title")
+  siteDescription String? @map("site_description")
+  ogImageUrl      String? @map("og_image_url")
+  ogImageKey      String? @map("og_image_key") // R2 object key, needed to delete the old file on replace
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved these settings
+
+  @@map("system_settings")
 }
 
-model shop_config {
-  id                   String   @id @default("shop_config")
-  shop_hours           String?
-  shop_location        String?
-  alcohol_warning_text String?
-  updated_at           DateTime @default(now())
-}
+// ============================================================
+// MODEL: VisitorLog  (visitor page-view + notable-action tracking)
+// ============================================================
+// One row per tracked visitor event — either a routine page view or a
+// notable transaction (e.g. submitting a booking). Includes a
+// best-effort city/country lookup for the Visitor Logs admin page.
+model VisitorLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  path      String?
+  action    String   @default("page_view")
+  details   String?
+  city      String?
+  country   String?
+  createdAt DateTime @default(now()) @map("created_at")
 
-model system_settings {
-  id                           String   @id @default("singleton")
-  house_rules                  String?
-  cancellation_policy          String?
-  terms_of_service             String?
-  privacy_policy               String?
-  about_page_content           String?
-  resort_phone                 String?
-  resort_email                 String?
-  resort_address               String?
-  hero_tagline                 String?  @default("Experience Luxury")
-  hero_image_url               String?
-  hero_image_key               String?
-  cta_section_heading          String?
-  cta_section_subtext          String?
-  cta_button_text              String?  @default("Plan Your Stay")
-  cta_section_visible          Boolean  @default(true)
-  featured_room_ids            String[] @default([])
-  testimonials_section_enabled Boolean  @default(true)
-  testimonials_section_count   Int      @default(3)
-  testimonials_featured_only   Boolean  @default(true)
-  site_title                   String?  @default("Villa Azure Resort")
-  site_description             String?
-  og_image_url                 String?
-  og_image_key                 String?
-  updated_at                   DateTime @default(now())
-  updated_by                   String?
-}
-
-model testimonials {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  guest_name      String
-  guest_photo     String?
-  guest_photo_key String?
-  rating          Int      @default(5)
-  quote           String   @db.VarChar(500)
-  is_featured     Boolean  @default(false)
-  display_order   Int      @default(0)
-  updated_by      String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @default(now())
-
-  @@index([display_order])
-  @@index([is_featured])
-}
-
-model visitor_logs {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ip_address String?
-  user_agent String?
-  path       String?
-  action     String   @default("page_view")
-  details    String?
-  city       String?
-  country    String?
-  created_at DateTime @default(now())
+  @@map("visitor_logs")
 }
 
 // ============================================================
@@ -293,9 +454,9 @@ model visitor_logs {
 // ============================================================
 // Per-account navigation/action trail — ONLY for authenticated accounts
 // (currently: super-admin/staff via AdminProfile). Never used for
-// anonymous public visitors — that's the existing visitor_logs table's
-// job. accountId is never nullable here: a row with no logged-in
-// account doesn't belong in this table.
+// anonymous public visitors — that's VisitorLog's job. accountId is
+// never nullable here: a row with no logged-in account doesn't belong
+// in this table.
 model AccountActivityLog {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   accountId  String   @map("account_id")
@@ -319,10 +480,10 @@ model AccountActivityLog {
 // unique combination of date + path + referrerHost + deviceType +
 // countryCode with a running viewCount — never a raw IP, never a
 // session id, never anything that ties a row back to one visitor.
-// NOTE: this is intentionally separate from the existing visitor_logs
-// table, which already stores raw per-visit IP/path/city/country rows —
-// PageViewDaily exists for fast aggregate dashboard queries without
-// needing to scan/group visitor_logs on every page load.
+// Intentionally separate from VisitorLog, which already stores raw
+// per-visit IP/path/city/country rows — PageViewDaily exists for fast
+// aggregate dashboard queries without needing to scan/group
+// VisitorLog on every page load.
 model PageViewDaily {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   date         DateTime @db.Date

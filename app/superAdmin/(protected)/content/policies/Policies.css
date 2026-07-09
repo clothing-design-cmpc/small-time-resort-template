@@ -1,0 +1,210 @@
+/*
+ * .policiesSection
+ * Outer wrapper for the Policies & Content Pages editor.
+ */
+.policiesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.policiesHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.policiesEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.policiesTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.policiesHeaderActions {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+}
+
+.policiesPreviewButton,
+.policiesSaveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.policiesPreviewButton {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.policiesPreviewButton:hover,
+.policiesPreviewButton:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.policiesSaveButton {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.policiesSaveButton:hover,
+.policiesSaveButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.policiesSaveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.policiesTabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+}
+
+.policiesTab {
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+
+.policiesTab:hover,
+.policiesTab:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.policiesTab--active {
+  background-color: var(--color-surface-active);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.policiesTabPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.policiesFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.policiesFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.policiesFormField input[type="text"],
+.policiesFormField input[type="email"],
+.policiesFormField textarea {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.policiesFormField textarea {
+  resize: vertical;
+}
+
+.policiesTextEditor {
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  padding: var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  resize: vertical;
+}
+
+.policiesPreview {
+  padding: var(--space-md);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  line-height: 1.7;
+  max-width: 70ch;
+}
+
+.policiesPreviewEmpty {
+  color: var(--color-text-muted);
+}
+
+.policiesSkeleton {
+  min-height: 320px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--color-skeleton-base, rgba(255,255,255,0.06)) 25%, var(--color-skeleton-shine, rgba(255,255,255,0.12)) 50%, var(--color-skeleton-base, rgba(255,255,255,0.06)) 75%);
+  background-size: 200% 100%;
+  animation: policiesSkeletonPulse 1.5s infinite;
+}
+
+@keyframes policiesSkeletonPulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.policiesStateMessage {
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.policiesStateMessage--error {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.35);
+}

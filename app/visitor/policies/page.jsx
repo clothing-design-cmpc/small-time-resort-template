@@ -247,6 +247,9 @@ export default function PoliciesPage() {
                 Guest information is stored securely and retained only for as long as required by applicable law or operational necessity. You may request access to or deletion of your personal data at any time by contacting us directly at <a href="mailto:hello@villaazure.com" className="policiesInlineLink">hello@villaazure.com</a>.
               </p>
               <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
+                For account security, Villa Azure Resort also records limited technical information whenever you or our staff sign in to a resort account — including IP address, device/browser type, and an approximate geographic location (city and country, derived from IP address, never precise GPS coordinates). This information is used solely to detect suspicious sign-ins, such as an account being accessed from an unexpected location or an unrecognized device, and is retained only for a limited period before being automatically and permanently deleted.
+              </p>
+              <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
                 By making a reservation with Villa Azure Resort, you consent to the collection and use of your information as described above. This policy was last updated in July 2026.
               </p>
             </section>

@@ -207,13 +207,35 @@ model AdminProfile {
 // reviews after the fact to answer "what happened and who did it."
 model SecurityLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge
   actor     String?  // email attempted/used, or the admin's full name for admin_action rows
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent") @db.Text
   details   String?  @db.Text // human-readable summary, e.g. "Cancelled booking for Juan Dela Cruz"
+
+  // --- Device Fingerprinting (Rule 38) — parsed from userAgent at write time ---
+  deviceType        String? @map("device_type") // desktop | mobile | tablet | bot | unknown
+  browserName       String? @map("browser_name")
+  osName            String? @map("os_name")
+  deviceFingerprint String? @map("device_fingerprint") // sha256(userAgent + actor), used for new-device detection
+  isNewDevice       Boolean @default(false) @map("is_new_device") // true if this fingerprint was never seen before for this actor
+
+  // --- Geolocation (Rule 38) — resolved via self-hosted MaxMind GeoIP2, see services/geoip.js ---
+  country     String? // full country name, e.g. "Philippines"
+  countryCode String? @map("country_code") // ISO 3166-1 alpha-2, e.g. "PH"
+  city        String?
+  latitude    Float?
+  longitude   Float?
+
+  // --- Anomaly Detection (Rule 38) — impossible-travel and new-device flags computed in services/securityLog.js ---
+  isAnomalous   Boolean @default(false) @map("is_anomalous")
+  anomalyReason String? @map("anomaly_reason") @db.Text // e.g. "Impossible travel: Manila -> Berlin in 4 minutes (implies 9800 km/h)"
+
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Speeds up the two queries the anomaly detector runs on every write:
+  // "most recent row for this actor" and "most recent fingerprint for this actor".
+  @@index([actor, createdAt])
   @@map("security_logs")
 }
 

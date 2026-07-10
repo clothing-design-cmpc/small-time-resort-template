@@ -8,13 +8,39 @@
  * only console.error'd, never re-thrown, so a DB hiccup on the log
  * write can't turn into a failed login or a failed booking.
  *
+ * Beyond the base event fields, every write is enriched with:
+ *   - Device info (deviceType/browserName/osName) parsed from the UA
+ *   - A device fingerprint, compared against the actor's last known
+ *     fingerprint to flag isNewDevice
+ *   - Geolocation (country/city/lat/long) via self-hosted MaxMind
+ *     GeoIP2 (services/geoip.js)
+ *   - Anomaly detection: flags isAnomalous + anomalyReason when a
+ *     login implies impossible travel (too far, too fast since the
+ *     actor's last successful login) or comes from a brand-new device
+ *
  * DATA FLOW:
  * 1. A route handler (login, rate-limited routes, admin mutation
  *    routes) calls logSecurityEvent() after the outcome is known
  * 2. IP/user-agent are read straight off the incoming Request here so
  *    every call site doesn't have to repeat that extraction logic
+ * 3. For login_success events only, this queries the actor's most
+ *    recent prior row to run anomaly detection before writing the new one
  */
 import { prisma } from "@/services/prisma";
+import { parseDeviceInfo, generateDeviceFingerprint } from "@/services/deviceFingerprint";
+import { lookupGeoLocation, haversineDistanceKm } from "@/services/geoip";
+
+// Anomaly detection only makes sense for events that represent a real,
+// successful session start — flagging every failed attempt as
+// "impossible travel" would just be noise (failed logins from many
+// locations are expected, e.g. credential-stuffing attempts).
+const ANOMALY_ELIGIBLE_EVENT_TYPES = new Set(["login_success"]);
+
+// A login is only flagged as impossible travel if the implied speed
+// exceeds commercial air travel by a wide margin — this avoids false
+// positives from a guest genuinely flying somewhere and logging in
+// again shortly after landing.
+const IMPOSSIBLE_TRAVEL_SPEED_KMH = 900;
 
 /**
  * getRequestMeta
@@ -29,10 +55,76 @@ function getRequestMeta(request) {
 }
 
 /**
+ * detectAnomalies
+ * Compares the incoming event against the actor's most recent prior
+ * SecurityLog row and returns { isNewDevice, isAnomalous, anomalyReason }.
+ * Never throws — any failure here just means the row gets written
+ * without an anomaly flag rather than blocking the login.
+ *
+ * @param {string} actor
+ * @param {string} deviceFingerprint
+ * @param {{latitude: number|null, longitude: number|null, city: string|null, country: string|null}} geo
+ */
+async function detectAnomalies(actor, deviceFingerprint, geo) {
+  const result = { isNewDevice: false, isAnomalous: false, anomalyReason: null };
+  if (!actor) return result;
+
+  try {
+    const previousLogin = await prisma.securityLog.findFirst({
+      where: { actor, eventType: "login_success" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!previousLogin) return result;
+
+    // New device: this fingerprint has never been recorded for this actor before.
+    if (previousLogin.deviceFingerprint && previousLogin.deviceFingerprint !== deviceFingerprint) {
+      result.isNewDevice = true;
+      result.isAnomalous = true;
+      result.anomalyReason = "New device: sign-in from a device/browser not seen for this account before.";
+    }
+
+    // Impossible travel: both logins have coordinates, and the implied
+    // speed between them exceeds what's physically plausible.
+    if (
+      previousLogin.latitude != null &&
+      previousLogin.longitude != null &&
+      geo.latitude != null &&
+      geo.longitude != null
+    ) {
+      const distanceKm = haversineDistanceKm(
+        previousLogin.latitude,
+        previousLogin.longitude,
+        geo.latitude,
+        geo.longitude
+      );
+      const hoursElapsed = Math.max(
+        (Date.now() - new Date(previousLogin.createdAt).getTime()) / (1000 * 60 * 60),
+        1 / 60 // floor at one minute so a same-minute login never divides by ~0
+      );
+      const impliedSpeedKmh = distanceKm / hoursElapsed;
+
+      if (distanceKm > 300 && impliedSpeedKmh > IMPOSSIBLE_TRAVEL_SPEED_KMH) {
+        const fromLabel = previousLogin.city ? `${previousLogin.city}, ${previousLogin.country}` : previousLogin.country ?? "an unknown location";
+        const toLabel = geo.city ? `${geo.city}, ${geo.country}` : geo.country ?? "an unknown location";
+        result.isAnomalous = true;
+        result.anomalyReason = `Impossible travel: ${fromLabel} -> ${toLabel} in ${hoursElapsed.toFixed(2)}h (implies ~${Math.round(impliedSpeedKmh)} km/h).`;
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error("[securityLog] Anomaly detection failed:", error.message);
+    return result;
+  }
+}
+
+/**
  * logSecurityEvent
  * @param {object} input
  * @param {string} input.eventType - "login_success" | "login_failed" |
- *   "admin_login_denied" | "rate_limit_hit" | "admin_action"
+ *   "admin_login_denied" | "rate_limit_hit" | "admin_action" |
+ *   "sql_injection_attempt" | "system_retention_purge"
  * @param {string|null} input.actor - email or admin name tied to the event
  * @param {Request|null} input.request - incoming Request, for IP/user-agent
  * @param {string|null} input.details - human-readable one-line summary
@@ -41,8 +133,35 @@ export async function logSecurityEvent({ eventType, actor = null, request = null
   const { ipAddress, userAgent } = getRequestMeta(request);
 
   try {
+    const { deviceType, browserName, osName } = parseDeviceInfo(userAgent);
+    const deviceFingerprint = generateDeviceFingerprint(actor, userAgent);
+    const geo = await lookupGeoLocation(ipAddress);
+
+    let anomaly = { isNewDevice: false, isAnomalous: false, anomalyReason: null };
+    if (ANOMALY_ELIGIBLE_EVENT_TYPES.has(eventType)) {
+      anomaly = await detectAnomalies(actor, deviceFingerprint, geo);
+    }
+
     await prisma.securityLog.create({
-      data: { eventType, actor, ipAddress, userAgent, details },
+      data: {
+        eventType,
+        actor,
+        ipAddress,
+        userAgent,
+        details,
+        deviceType,
+        browserName,
+        osName,
+        deviceFingerprint,
+        isNewDevice: anomaly.isNewDevice,
+        country: geo.country,
+        countryCode: geo.countryCode,
+        city: geo.city,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+        isAnomalous: anomaly.isAnomalous,
+        anomalyReason: anomaly.anomalyReason,
+      },
     });
   } catch (error) {
     // Logging must never take down the actual request — just surface it server-side.

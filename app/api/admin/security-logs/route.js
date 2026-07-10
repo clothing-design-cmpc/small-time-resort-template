@@ -9,11 +9,11 @@
  *
  * DATA FLOW:
  * 1. app/superAdmin/(protected)/security-logs/page.jsx fetches this on
- *    mount and whenever the page/eventType filter changes
+ *    mount and whenever the page/eventType/deviceType/country filter changes
  * 2. requireSuperAdmin() checks the session — this route is never
  *    protected by middleware.js (its matcher only covers page routes)
- * 3. Optional ?eventType= filters to one event type; otherwise all
- *    events are returned, newest first
+ * 3. Optional ?eventType=, ?deviceType=, ?country= narrow the result;
+ *    otherwise all events are returned, newest first
  */
 export const dynamic = "force-dynamic";
 
@@ -35,9 +35,16 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const eventType = searchParams.get("eventType");
+  const deviceType = searchParams.get("deviceType");
+  const country = searchParams.get("country");
 
   try {
-    const where = eventType && eventType !== "all" ? { eventType } : {};
+    // Built incrementally so each filter is only applied when actually
+    // set — an unset filter must never accidentally narrow the result.
+    const where = {};
+    if (eventType && eventType !== "all") where.eventType = eventType;
+    if (deviceType && deviceType !== "all") where.deviceType = deviceType;
+    if (country && country !== "all") where.country = country;
 
     const [logs, totalCount] = await Promise.all([
       prisma.securityLog.findMany({

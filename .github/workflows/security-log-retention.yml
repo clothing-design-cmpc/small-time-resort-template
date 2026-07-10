@@ -1,0 +1,37 @@
+# FILE: .github/workflows/security-log-retention.yml
+# PURPOSE:
+# Runs scripts/purgeSecurityLogs.js on GitHub's own cloud runners —
+# entirely separate infrastructure from the app's hosting — on a
+# weekly schedule, enforcing the GDPR data-retention window (Rule 38.9)
+# for the SecurityLog table without touching live traffic.
+#
+# Schedule: 17:00 UTC every Sunday = 1:00 AM Philippine Time (UTC+8).
+# Also runs on-demand via the "Run workflow" button in the Actions tab
+# (workflow_dispatch) for manual/ad-hoc retention cleanup.
+name: Weekly Security Log Retention Purge
+
+on:
+  schedule:
+    - cron: "0 17 * * 0"
+  workflow_dispatch: {}
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run retention purge script
+        run: npm run purge-security-logs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECURITY_LOG_RETENTION_DAYS: ${{ vars.SECURITY_LOG_RETENTION_DAYS }}

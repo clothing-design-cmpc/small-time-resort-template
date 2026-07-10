@@ -173,34 +173,15 @@ FILE MAP additions (Security Logs):
 - app/api/admin/security-logs/route.js — paginated read for the admin page.
 - app/superAdmin/(protected)/security-logs/page.jsx + SecurityLogsClient.jsx
   + SecurityLogs.css — the Security Logs admin page (DataTable + StatusBadge
-  + pill filter by event type + expandable row detail panel, see below).
+  + pill filter by event type).
 - components/superAdmin/Sidebar.jsx — was missing links to the already-built
   Rooms, Amenities, and Booking Rules pages (they existed but were
   unreachable from the nav); added those plus the new Security Logs link.
 - Currently logged events: login_success, login_failed, admin_login_denied,
-  rate_limit_hit (login + booking endpoints), admin_action — now applied to
-  ALL content management routes (rooms + room gallery, amenities, shop
-  products + shop config, activities, testimonials, gallery, policies,
-  homepage customization, booking rules, blackout dates, seasonal pricing),
-  in addition to the original booking-cancel coverage. Every create/update/
-  delete on those routes calls logSecurityEvent({ eventType: "admin_action",
-  actor: session.uid, request, details }) with a human-readable one-liner
-  naming exactly what changed (e.g. old price → new price). Gallery image
-  reorder (Move Up/Down) intentionally does NOT log — those PUT calls only
-  ever send { displayOrder } and would otherwise flood the log with two
-  rows per drag; real edits (category/caption/isFeatured) still log.
-- components/superAdmin/DataTable.jsx — gained an opt-in `renderExpandedRow`
-  prop. When a consumer passes it, an extra "expand" (▼/▲) button column
-  appears; clicking it toggles a full-width detail row directly below that
-  record (accordion-style — only one row expanded at a time). Every other
-  page using DataTable (Users, Bookings, Rooms, Amenities, etc.) does NOT
-  pass this prop and is completely unaffected.
-- app/superAdmin/(protected)/security-logs/SecurityLogsClient.jsx — each
-  row now carries the raw log object (row.raw) alongside its display
-  columns; renderSecurityLogDetail() renders the expanded panel: full
-  event type, actor, IP address (linked to whois.com), full timestamp
-  (date + time + seconds), the complete user-agent string, and full
-  details text — all fields the compact table row truncates or omits.
+  rate_limit_hit (login + booking endpoints), admin_action (booking cancel
+  so far — apply the same logSecurityEvent() call to other admin mutation
+  routes, e.g. content/rooms and content/amenities create/update/delete, to
+  extend the audit trail per Rule 6).
 
 DATA BACKUP / DISASTER RECOVERY NOTE (not yet implemented — infra decision,
 not code):
@@ -364,3 +345,42 @@ DEBUG POINTS:
 - For GitHub Actions: add all of the above (except the NEXT_PUBLIC_ ones,
   which can stay the same) as repo Secrets under Settings → Secrets and
   variables → Actions, so database-backup.yml can read them.
+- RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY
+  (reseller license check. Values are issued per client deployment by
+  the owner's separate License Manager project, not yet built.)
+
+=== PROCESS: Reseller License Check (owner-only feature, not client-facing) ===
+Step 1 : Every request to a matched route hits middleware.js first
+Step 2 : middleware.js calls checkLicense(hostname) from services/licenseGuard.js
+Step 3 : licenseGuard.js sends { license_key: RESORT_LICENSE_KEY, domain: hostname }
+         to a Postgres RPC function (validate_license) hosted on a SEPARATE
+         Supabase project ("License Manager") that only the owner controls —
+         not this project's own Supabase
+Step 4 : The RPC checks if the key exists, is "active", and if the domain
+         matches what's on record for that key. Returns { valid, reason }
+Step 5 : Result is cached in-memory for 6 hours to avoid hitting the
+         license server on every page load
+Step 6 : If invalid -> redirect to /license-invalid (plain, non-technical
+         notice). If the license server is unreachable/erroring -> fails
+         OPEN (site stays up) so a temporary outage never locks out a
+         paying client; the failure is still console.error'd for review
+Step 7 : If a client resells the template on an unauthorized domain, the
+         RPC call reports the mismatched domain, giving the owner
+         visibility via the (not yet built) License Manager dashboard
+
+STATUS: This project (Villa Azure Resort / the sold template) now makes
+the validation call. The License Manager itself — where license keys are
+actually generated, stored, and reviewed — is a separate React (Vite) +
+Supabase project to be built next. Until that project exists, leave
+RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY blank —
+licenseGuard.js fails OPEN (site stays fully usable) whenever those vars
+are unset, so this master/dev copy is never locked out. The check only
+becomes "live" (able to actually block) once a real key + the License
+Manager's RPC both exist and RESORT_LICENSE_KEY is filled in.
+
+DEBUG POINTS:
+- Site redirects to /license-invalid unexpectedly -> check
+  RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY are
+  set correctly in .env.local for this deployment's domain
+- Check console for "[licenseGuard]" logs — distinguishes a real
+  "invalid" verdict from a network/server error (which fails open)

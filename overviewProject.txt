@@ -368,6 +368,19 @@ Step 7 : If a client resells the template on an unauthorized domain, the
          RPC call reports the mismatched domain, giving the owner
          visibility via the (not yet built) License Manager dashboard
 
+MULTI-POINT ENFORCEMENT (defense in depth, added after middleware-only
+version): the same checkLicense() is also called directly, via the
+requireLicensedRequest(request) helper, inside:
+  - app/api/bookings/route.js  (POST — booking creation)
+  - app/api/auth/login/route.js (POST — super-admin login)
+This means removing the license block from middleware.js alone is no
+longer enough to disable enforcement — a developer would have to also
+find and remove it from each of these route handlers independently,
+since both revenue-generating actions (taking a booking, signing in)
+check it themselves. All three call sites share the same in-memory
+cache in services/licenseGuard.js, so this does NOT triple the number
+of validation calls to the license server.
+
 STATUS: This project (Villa Azure Resort / the sold template) now makes
 the validation call. The License Manager itself — where license keys are
 actually generated, stored, and reviewed — is a separate React (Vite) +

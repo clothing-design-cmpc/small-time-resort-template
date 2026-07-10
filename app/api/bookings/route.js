@@ -26,6 +26,7 @@ import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { logVisitorActivity } from "@/services/visitorLog";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
+import { requireLicensedRequest } from "@/services/licenseGuard";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -43,6 +44,12 @@ const bookingRequestSchema = z.object({
 });
 
 export async function POST(request) {
+  // Independent enforcement point (see services/licenseGuard.js) --
+  // even if the check in middleware.js is ever removed, booking
+  // creation itself still refuses to run on an unlicensed domain.
+  const licenseBlock = await requireLicensedRequest(request);
+  if (licenseBlock) return licenseBlock;
+
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const { allowed } = checkRateLimit(`booking:${ip}`, BOOKING_SUBMIT_MAX, BOOKING_SUBMIT_WINDOW_MS);
   if (!allowed) {

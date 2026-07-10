@@ -1,6 +1,7 @@
 /**
  * FILE: services/licenseGuard.js
- * ROLE: Used by middleware.js on every matched request — no account-specific role
+ * ROLE: Used by middleware.js AND directly inside sensitive API route
+ *       handlers (booking, login) — no account-specific role
  *
  * PURPOSE:
  * Confirms this deployment is running under a valid, currently-authorized
@@ -8,6 +9,16 @@
  * Resort is a reusable template sold to clients — this is how the owner
  * (not the client) finds out if a client resells the template to someone
  * else on a different domain than the one it was licensed for.
+ *
+ * WHY THIS IS CHECKED IN MULTIPLE PLACES (not just middleware.js):
+ * middleware.js is a single file. A developer working on a resold copy
+ * could find and delete the one block in middleware.js that calls this.
+ * Calling requireLicensedRequest() again inside the booking and login
+ * route handlers means that removing the check in middleware.js alone
+ * is no longer enough -- the site's actual revenue-generating features
+ * (taking bookings, signing in) still enforce it independently. Someone
+ * would need to find and remove the check in multiple unrelated files
+ * to fully disable it.
  *
  * DATA FLOW:
  * 1. middleware.js calls checkLicense(domain) on every matched request
@@ -29,6 +40,8 @@
  * this key by reading the deployed code, but that only lets them ask
  * "is my own key valid" -- it can't reveal or forge someone else's key.
  */
+
+import { NextResponse } from "next/server";
 
 const LICENSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -110,4 +123,38 @@ export async function checkLicense(domain) {
     cachedAt = now;
     return result;
   }
+}
+
+/**
+ * requireLicensedRequest
+ * Convenience wrapper for use directly inside Node-runtime API route
+ * handlers (booking creation, login) -- a second, independent
+ * enforcement point on top of middleware.js. Reads the domain straight
+ * off the incoming request, runs the same checkLicense() used by
+ * middleware.js (shares its in-memory cache -- calling this here does
+ * not double the number of validation calls), and returns a ready-to-use
+ * NextResponse when the license is invalid.
+ *
+ * Usage inside a route handler:
+ *   const licenseBlock = await requireLicensedRequest(request);
+ *   if (licenseBlock) return licenseBlock;
+ *
+ * @param request - the incoming Request/NextRequest object
+ * @returns NextResponse to return immediately if invalid, otherwise null
+ */
+export async function requireLicensedRequest(request) {
+  const hostname = new URL(request.url).hostname;
+  const license = await checkLicense(hostname);
+
+  if (!license.valid) {
+    // Deliberately the same generic, non-technical message as the
+    // /license-invalid page -- never expose "reason" here, this
+    // response is reachable by anyone hitting the API directly.
+    return NextResponse.json(
+      { success: false, data: null, message: "This site is temporarily unavailable. Please contact the site owner." },
+      { status: 403 }
+    );
+  }
+
+  return null;
 }

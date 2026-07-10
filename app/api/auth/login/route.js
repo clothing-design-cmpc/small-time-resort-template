@@ -30,6 +30,7 @@ import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
+import { requireLicensedRequest } from "@/services/licenseGuard";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -51,6 +52,12 @@ const LOGIN_ATTEMPT_MAX = 5;
 const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request) {
+  // Independent enforcement point (see services/licenseGuard.js) --
+  // even if the check in middleware.js is ever removed, admin login
+  // itself still refuses to work on an unlicensed domain.
+  const licenseBlock = await requireLicensedRequest(request);
+  if (licenseBlock) return licenseBlock;
+
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const { allowed } = checkRateLimit(`login:${ip}`, LOGIN_ATTEMPT_MAX, LOGIN_ATTEMPT_WINDOW_MS);
   if (!allowed) {

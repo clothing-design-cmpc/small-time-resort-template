@@ -32,6 +32,7 @@ const STATUS_STYLES = {
   rate_limit_hit: { label: "Rate Limited", color: "#ef4444" },
   admin_action: { label: "Admin Action", color: "#3b82f6" },
   sql_injection_attempt: { label: "SQLi Attempt", color: "#dc2626" },
+  system_retention_purge: { label: "Retention Purge", color: "#71717a" },
   // Backup Logs page (app/superAdmin/(protected)/backups)
   success: { label: "Success", color: "#10b981" },
   running: { label: "Running", color: "#3b82f6" },

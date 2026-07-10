@@ -162,26 +162,82 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
   outcome (login_success, login_failed, admin_login_denied, rate_limit_hit)
   to SecurityLog via services/securityLog.js.
 - GET   /api/admin/security-logs — super-admin only. Query params:
-  ?page= (default 1), ?eventType= (default "all"). Returns
-  { success, data: { logs, page, pageSize, totalCount, totalPages }, message }.
+  ?page= (default 1), ?eventType=, ?deviceType=, ?country= (all default
+  "all"). Returns { success, data: { logs, page, pageSize, totalCount,
+  totalPages }, message }.
+- GET   /api/admin/security-logs/geo-summary — super-admin only. No
+  filters (always reflects full log history). Returns
+  { heatmap: [{country, countryCode, count}] (top 12), countries: [...] }
+  — powers both the Geo Heatmap and the Country filter's option list.
+- GET   /api/admin/security-logs/export?format=csv|json — super-admin
+  only. Same eventType/deviceType/country filters as the main route,
+  unpaginated (capped at 10,000 rows). Streams a downloadable file with
+  Content-Disposition: attachment. Logs its own admin_action row.
 
 FILE MAP additions (Security Logs):
-- prisma/schema.prisma — SecurityLog model (append-only; eventType, actor,
-  ipAddress, userAgent, details, createdAt).
-- services/securityLog.js — logSecurityEvent() helper; every call is wrapped
-  in try/catch so a logging failure never breaks the request it's attached to.
-- app/api/admin/security-logs/route.js — paginated read for the admin page.
+- prisma/schema.prisma — SecurityLog model: base fields (eventType,
+  actor, ipAddress, userAgent, details, createdAt) plus device
+  fingerprinting (deviceType, browserName, osName, deviceFingerprint,
+  isNewDevice) and geolocation (country, countryCode, city, latitude,
+  longitude) and anomaly detection (isAnomalous, anomalyReason).
+- services/deviceFingerprint.js — parseDeviceInfo() (regex-based UA
+  parsing, no external library) + generateDeviceFingerprint()
+  (sha256 of actor + user-agent).
+- services/geoip.js — lookupGeoLocation() via self-hosted MaxMind
+  GeoIP2 (.mmdb file at MAXMIND_DB_PATH, no external API call) +
+  haversineDistanceKm() for impossible-travel detection. Fails safe to
+  null geolocation if MAXMIND_DB_PATH is unset or the file is missing.
+- services/securityLog.js — logSecurityEvent() helper; enriches every
+  write with device/geo/anomaly data, wrapped in try/catch so a logging
+  failure never breaks the request it's attached to. detectAnomalies()
+  flags a brand-new device fingerprint or implied travel speed over
+  900 km/h since the actor's last successful login (only checked for
+  login_success events).
+- scripts/purgeSecurityLogs.js + .github/workflows/security-log-retention.yml
+  — weekly GDPR retention purge (SECURITY_LOG_RETENTION_DAYS, default
+  90 days), runs on GitHub's own infra, writes its own
+  system_retention_purge summary row.
+- app/api/admin/security-logs/route.js — paginated read, now with
+  deviceType/country filters.
+- app/api/admin/security-logs/export/route.js — CSV/JSON export.
+- app/api/admin/security-logs/geo-summary/route.js — heatmap + country
+  list aggregation.
 - app/superAdmin/(protected)/security-logs/page.jsx + SecurityLogsClient.jsx
-  + SecurityLogs.css — the Security Logs admin page (DataTable + StatusBadge
-  + pill filter by event type).
+  + SecurityLogs.css — event-type pill filter + Device type/Country
+  dropdown filters, SecurityGeoHeatmap, Export CSV/JSON buttons, Device
+  and Location table columns (with a "New" badge for isNewDevice and a
+  ⚠ icon for isAnomalous rows), expanded-row detail panel including
+  device/location/anomaly reason. Page size is 10 (matches the API's
+  PAGE_SIZE — keep these two in sync if either changes).
+- components/superAdmin/SecurityGeoHeatmap.jsx + .css — horizontal bar
+  heatmap by country, fed by the geo-summary endpoint.
 - components/superAdmin/Sidebar.jsx — was missing links to the already-built
   Rooms, Amenities, and Booking Rules pages (they existed but were
   unreachable from the nav); added those plus the new Security Logs link.
 - Currently logged events: login_success, login_failed, admin_login_denied,
-  rate_limit_hit (login + booking endpoints), admin_action (booking cancel
-  so far — apply the same logSecurityEvent() call to other admin mutation
-  routes, e.g. content/rooms and content/amenities create/update/delete, to
-  extend the audit trail per Rule 6).
+  rate_limit_hit (login + booking endpoints), admin_action (booking cancel,
+  security log exports), sql_injection_attempt, system_retention_purge.
+  Not yet extended to other admin mutation routes (e.g. content/rooms,
+  content/amenities create/update/delete) — apply the same
+  logSecurityEvent() call there to widen the audit trail per Rule 6.
+
+STILL MISSING for a complete Rule 38 implementation: no Audit Logs page/
+AuditLog model exists yet (content edits — room price changes, policy
+text updates — aren't tracked anywhere; SecurityLog only covers auth/
+security events). DataTable itself has no page-size selector or
+jump-to-page input — every admin list page is hardcoded to whatever
+pageSize its client component passes.
+
+DEBUG POINTS (Security Logs):
+- Every row shows "Unknown" location -> MAXMIND_DB_PATH is unset or the
+  .mmdb file wasn't downloaded; check for "[geoip]" logs in the server
+  console (fails safe, never blocks login)
+- Country filter dropdown is empty -> geo-summary hasn't resolved any
+  countries yet, which is expected until MAXMIND_DB_PATH is configured
+- Anomaly never fires -> detectAnomalies() only runs for eventType
+  "login_success" and needs a PRIOR login_success row for that same
+  actor with valid lat/long — the very first login for any admin can
+  never be flagged
 
 DATA BACKUP / DISASTER RECOVERY NOTE (not yet implemented — infra decision,
 not code):
@@ -348,6 +404,16 @@ DEBUG POINTS:
 - RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY
   (reseller license check. Values are issued per client deployment by
   the owner's separate License Manager project, not yet built.)
+- MAXMIND_DB_PATH (path to a downloaded GeoLite2-City.mmdb file, e.g.
+  "./data/GeoLite2-City.mmdb" — free with a MaxMind account at
+  maxmind.com. Powers services/geoip.js for Security Log geolocation.
+  Missing/unset -> geoip.js fails safe: every log row just gets null
+  country/city/lat/long, login/booking flows are never blocked.)
+- SECURITY_LOG_RETENTION_DAYS (optional, defaults to 90 if unset. Read
+  by scripts/purgeSecurityLogs.js, run weekly via
+  .github/workflows/security-log-retention.yml. For GitHub Actions, add
+  as a repo *Variable* — not Secret — under Settings → Secrets and
+  variables → Actions → Variables, since it isn't sensitive.)
 
 === PROCESS: Reseller License Check (owner-only feature, not client-facing) ===
 Step 1 : Every request to a matched route hits middleware.js first

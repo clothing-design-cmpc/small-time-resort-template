@@ -47,14 +47,16 @@ export async function POST(request) {
       );
     }
 
-    // Guard against an inverted or zero-length range — without this,
-    // the availability calendar would silently block nothing (or
-    // everything, depending on how the query compares the dates).
+    // Guard against an inverted range — without this, the availability
+    // calendar would silently block nothing (or everything, depending
+    // on how the query compares the dates). Equal start/end IS valid —
+    // it's a single-day block, which is exactly what clicking one day
+    // on the calendar creates.
     const startDate = new Date(body.startDate);
     const endDate = new Date(body.endDate);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
       return NextResponse.json(
-        { success: false, data: null, message: "End date must be after the start date." },
+        { success: false, data: null, message: "End date must be on or after the start date." },
         { status: 400 }
       );
     }

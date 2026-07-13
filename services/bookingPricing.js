@@ -142,12 +142,14 @@ export async function validateAndQuoteBooking({
       throw new Error("Check-out date must be after check-in date.");
     }
 
-    // Effective bounds = the tighter of the resort-wide rule and this
-    // room's own override (a room can be MORE restrictive than the
-    // resort default, e.g. a villa that requires a 3-night minimum,
-    // but never less restrictive than the resort-wide policy).
-    const effectiveMinNights = Math.max(rules.minNightsRequired, room.minNightsPerBooking);
-    const effectiveMaxNights = Math.min(rules.maxNightsAllowed, room.maxNightsPerBooking);
+    // Room-level Min/Max Nights are a per-room OVERRIDE of the resort-
+    // wide Booking Rules default — not a "must be tighter than" clamp.
+    // The Room record always carries a concrete value (defaults match
+    // BookingRules' own defaults at creation), so once an admin edits a
+    // room's own limits in Content > Rooms, that value is what applies
+    // here, regardless of what Settings > Booking Rules currently says.
+    const effectiveMinNights = room.minNightsPerBooking;
+    const effectiveMaxNights = room.maxNightsPerBooking;
 
     if (nights < effectiveMinNights) {
       throw new Error(`This stay requires a minimum of ${effectiveMinNights} night(s).`);

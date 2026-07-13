@@ -1,0 +1,78 @@
+/*
+ * .aboutSection
+ * Standard content section — generous vertical padding, content
+ * capped at --max-width-narrow for comfortable reading line length.
+ */
+.aboutSection {
+  padding: var(--space-2xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.aboutContainer {
+  width: 100%;
+  max-width: var(--max-width-narrow);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: var(--space-md);
+}
+
+.aboutEyebrow {
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.aboutTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.aboutBody {
+  color: var(--color-text-secondary);
+  max-width: 70ch;
+}
+
+.aboutDifferentiators {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+/*
+ * .aboutDifferentiatorCard
+ * Elevated card per the card standard — visible border, layered
+ * surface background, generous padding on all sides.
+ */
+.aboutDifferentiatorCard {
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  transition: background-color var(--transition-base), border-color var(--transition-base);
+}
+
+.aboutDifferentiatorCard:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.aboutDifferentiatorTitle {
+  font-size: 1.05rem;
+  margin-bottom: var(--space-sm);
+}
+
+.aboutDifferentiatorBody {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}

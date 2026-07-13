@@ -1,9 +1,31 @@
 /**
  * mediaQueries.css
  * All responsive breakpoints for the project live here — never inside
- * individual component/module CSS files. Empty for now; add rules here
- * as sections are built.
+ * individual component/module CSS files.
  *
  * Standard breakpoints: 480px (phones), 768px (tablets),
  * 1024px (small laptops), 1280px (desktop), 1536px (large screens).
  */
+
+/* Mobile base (below 768px): hide the desktop nav/CTA, show the hamburger toggle */
+.headerNav,
+.headerCta {
+  display: none;
+}
+
+.headerMobileToggle {
+  display: flex;
+}
+
+/* Tablet and up: show the full nav + CTA, hide the hamburger toggle and any open mobile menu */
+@media (min-width: 768px) {
+  .headerNav,
+  .headerCta {
+    display: flex;
+  }
+
+  .headerMobileToggle,
+  .headerMobileMenu {
+    display: none;
+  }
+}

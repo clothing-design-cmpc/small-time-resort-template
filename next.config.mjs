@@ -1,11 +1,23 @@
 /**
  * FILE: next.config.mjs
  * PURPOSE:
- * Root Next.js configuration. Currently minimal — no custom rewrites,
- * headers, or image domains configured yet. Add settings here as
- * features (Cloudflare R2 image serving, Supabase Storage, etc.)
- * are wired in.
+ * Root Next.js configuration.
+ *
+ * images.remotePatterns: next/image blocks any remote host that isn't
+ * explicitly whitelisted. images.unsplash.com is here because Hero.jsx
+ * uses a placeholder Unsplash photo — replace with the Cloudflare R2
+ * public host once real resort photography is uploaded (Rule 35.6),
+ * and remove this entry then.
  */
-const nextConfig = {};
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
+};
 
 export default nextConfig;

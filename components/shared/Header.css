@@ -1,0 +1,143 @@
+/*
+ * .siteHeader
+ * Fixed to the top of the viewport so it stays visible while scrolling
+ * past the fullscreen Hero. Uses the surface token at low opacity plus
+ * a subtle border, per the layered-surface standard, instead of a flat
+ * fill or heavy shadow.
+ */
+.siteHeader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sticky);
+  height: var(--header-height);
+  background-color: rgba(248, 250, 243, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headerContainer {
+  max-width: var(--max-width-content);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.headerLogo {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerNav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.headerNavLink {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.headerNavLink:hover,
+.headerNavLink:focus-visible,
+.headerNavLink:active {
+  color: var(--color-text-primary);
+}
+
+.headerCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-lg);
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.headerCta:hover,
+.headerCta:focus-visible,
+.headerCta:active {
+  background-color: var(--color-accent-hover);
+}
+
+/*
+ * .headerMobileToggle
+ * Hidden by default (desktop/tablet) — mediaQueries.css shows it and
+ * hides .headerNav / .headerCta below the tablet breakpoint instead.
+ */
+.headerMobileToggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.headerMobileToggleBar {
+  width: 22px;
+  height: 2px;
+  background-color: var(--color-text-primary);
+  border-radius: 2px;
+}
+
+.headerMobileMenu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  gap: var(--space-md);
+  background-color: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headerMobileMenuLink {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: var(--space-sm) 0;
+}
+
+.headerMobileMenuLink:hover,
+.headerMobileMenuLink:focus-visible,
+.headerMobileMenuLink:active {
+  color: var(--color-text-primary);
+}
+
+.headerMobileMenuCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}

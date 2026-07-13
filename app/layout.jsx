@@ -13,9 +13,25 @@
  *    this layout's {children}
  * 2. Global stylesheet (globals.css) is imported once here so
  *    design tokens and resets apply everywhere
+ * 3. next/font loads Fraunces (headings) and Inter (body) and exposes
+ *    them as the --font-heading / --font-body CSS variables that
+ *    globals.css already references
  */
+import { Fraunces, Inter } from "next/font/google";
 import "./styles/globals.css";
 import "./styles/mediaQueries.css";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata = {
   title: "Villa Azure Resort",
@@ -24,7 +40,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body>{children}</body>
     </html>
   );

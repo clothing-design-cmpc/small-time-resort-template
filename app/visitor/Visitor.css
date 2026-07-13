@@ -1,0 +1,22 @@
+/*
+ * .visitorShell
+ * Root wrapper for the whole visitor section — full-height column so
+ * the footer naturally sits at the bottom even on short pages.
+ */
+.visitorShell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/*
+ * .visitorContent
+ * padding-top matches --header-height so page content is never hidden
+ * behind the fixed header. The homepage's Hero is its own fullscreen
+ * section with position: relative, so this padding sits above it —
+ * inner pages (booking, policies) rely on this padding directly.
+ */
+.visitorContent {
+  flex: 1;
+  padding-top: var(--header-height);
+}

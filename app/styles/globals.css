@@ -93,6 +93,11 @@ video {
   --max-width-content: 1280px;
   --max-width-narrow: 720px;
 
+  /* Sticky header height — referenced by Header.css (its own height) and
+     Visitor.css (padding-top on non-fullscreen pages) so content never
+     sits behind the fixed header. */
+  --header-height: 76px;
+
   /* Z-index scale — never use raw numbers in component CSS */
   --z-base: 0;
   --z-raised: 10;

@@ -1,0 +1,133 @@
+/* ============================================================
+ * GLOBAL RESET
+ * ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  /* Smooth anchor scrolling — Dynamic design tier (see design doc).
+     Applies to in-page nav links (#rooms, #amenities, etc.) and any
+     scrollIntoView() calls; does not affect scroll-linked motion effects,
+     those are handled per-component via the motion library. */
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Heading & eyebrow typography
+ * Every h1–h3, section eyebrow, and the site wordmark uses the display
+ * serif (Fraunces) instead of the body sans — this is the pairing that
+ * gives the resort brand an editorial, hand-designed feel rather than
+ * reading as a single-font template. Never applied to body copy,
+ * buttons, or nav links — those stay on the sans body font for clarity.
+ */
+h1,
+h2,
+h3,
+.headerLogo,
+.footerLogoText {
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+img,
+video {
+  max-width: 100%;
+  display: block;
+}
+
+/* ============================================================
+ * COLOR TOKENS
+ * Welcoming light theme — warm ivory-green background with a
+ * forest-green accent, per client request (no dark theme).
+ * ============================================================ */
+:root {
+  --color-bg: #f8faf3;
+  --color-surface: rgba(45, 106, 62, 0.05);
+  --color-surface-hover: rgba(45, 106, 62, 0.09);
+  --color-surface-active: rgba(45, 106, 62, 0.14);
+
+  --color-border: rgba(27, 66, 38, 0.12);
+  --color-border-hover: rgba(27, 66, 38, 0.24);
+
+  --color-text-primary: #1c2b20;
+  --color-text-secondary: rgba(28, 43, 32, 0.64);
+  --color-text-muted: rgba(28, 43, 32, 0.44);
+
+  /* Accent — resort's signature forest green, used only on CTAs and active states */
+  --color-accent: #3f7d52;
+  --color-accent-hover: #2f5f3d;
+  --color-on-accent: #fbfdf9;
+
+  --color-success: #2f9e5b;
+  --color-warning: #d98a24;
+  --color-error: #d64545;
+  --color-info: #3b82f6;
+
+  --color-skeleton-base: rgba(27, 66, 38, 0.08);
+  --color-skeleton-shine: rgba(27, 66, 38, 0.15);
+
+  /* Card elevation — soft shadow so cards read as lifted on the light surface, not just bordered */
+  --shadow-card: 0 1px 2px rgba(28, 43, 32, 0.04), 0 6px 16px rgba(28, 43, 32, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(28, 43, 32, 0.05), 0 10px 24px rgba(28, 43, 32, 0.09);
+
+  /* Spacing scale — all gap/padding/margin values reference these */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  --max-width-content: 1280px;
+  --max-width-narrow: 720px;
+
+  /* Z-index scale — never use raw numbers in component CSS */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-drawer: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+
+  /* Transition tokens — never hardcode raw transition values */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+  --transition-slow: 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ============================================================
+ * FOCUS-VISIBLE STANDARD
+ * Keyboard-only focus ring — mouse clicks never trigger it.
+ * ============================================================ */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(63, 125, 82, 0.2);
+}

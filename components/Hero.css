@@ -1,0 +1,171 @@
+/*
+ * .heroSection
+ * Full-screen intro section. min-height is justified here per the
+ * full-screen section exception — this is the resort's landing view.
+ * position: relative so the background photo and overlay (both
+ * position: absolute) can layer correctly behind .heroContainer.
+ */
+.heroSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  width: 100%;
+  padding: var(--space-xl) var(--space-lg);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/*
+ * .heroBackgroundWrapper
+ * Positioned taller than the section itself (inset -10% top/bottom) so
+ * that when useScroll/useTransform (Hero.jsx) translates it up to 15%
+ * during scroll, the drifting photo never reveals empty space at the
+ * section's top or bottom edge. will-change hints the GPU to prepare
+ * the transform ahead of time (Dynamic tier scroll parallax).
+ */
+.heroBackgroundWrapper {
+  position: absolute;
+  inset: -10% 0;
+  z-index: var(--z-base);
+  will-change: transform;
+}
+
+/*
+ * .heroBackgroundImage
+ * next/image with `fill` — stretches to cover .heroBackgroundWrapper.
+ * Sits behind .heroOverlay and .heroContainer via z-index stacking.
+ */
+.heroBackgroundImage {
+  object-fit: cover;
+}
+
+/*
+ * .heroOverlay
+ * Dark gradient layered on top of the background photo so the white
+ * text in .heroContainer stays readable regardless of the photo's
+ * own brightness or color.
+ */
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(63, 125, 82, 0.18), transparent 55%),
+    radial-gradient(circle at 80% 75%, rgba(63, 125, 82, 0.1), transparent 60%),
+    linear-gradient(180deg, rgba(10, 16, 11, 0.5) 0%, rgba(10, 16, 11, 0.72) 60%, rgba(10, 16, 11, 0.9) 100%);
+  z-index: var(--z-raised);
+}
+
+/*
+ * .heroContainer
+ * Constrains hero copy to a readable width and stacks content
+ * vertically with consistent spacing between eyebrow, title,
+ * subtitle, and CTA row. position: relative + z-index lifts it
+ * above .heroBackgroundImage and .heroOverlay in the stacking order.
+ */
+.heroContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  max-width: var(--max-width-narrow);
+  position: relative;
+  z-index: var(--z-sticky);
+}
+
+/*
+ * Hero text colors are hardcoded light values, not the global text tokens.
+ * The hero always sits over a dark photo + gradient overlay for contrast,
+ * independent of the site's light theme everywhere else.
+ */
+.heroEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.heroTitle {
+  font-size: 3.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.heroSubtitle {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 60ch;
+}
+
+/*
+ * .heroActions
+ * Row of CTA buttons. Wraps to a column on narrow viewports via
+ * mediaQueries.css — never declared here.
+ */
+.heroActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+/*
+ * .heroCtaPrimary
+ * Main call to action — solid accent fill, highest visual weight.
+ * transition is declared on the base state so it animates both
+ * on hover-in and hover-out.
+ */
+.heroCtaPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.heroCtaPrimary:hover,
+.heroCtaPrimary:focus,
+.heroCtaPrimary:active {
+  background-color: var(--color-accent-hover);
+}
+
+/*
+ * .heroCtaSecondary
+ * Secondary action — outlined, lower visual weight than primary.
+ */
+.heroCtaSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.heroCtaSecondary:hover,
+.heroCtaSecondary:focus,
+.heroCtaSecondary:active {
+  border-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.12);
+}

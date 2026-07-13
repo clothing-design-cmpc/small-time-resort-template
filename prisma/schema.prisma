@@ -1,0 +1,20 @@
+// FILE: prisma/schema.prisma
+// PURPOSE: Database schema for Villa Azure Resort.
+// No models yet — added one at a time as features are built
+// (per protocol: never scaffold future features in advance).
+//
+// Uses Supabase Postgres via two connection strings:
+//   DATABASE_URL = Transaction Pooler (used by the app at runtime)
+//   DIRECT_URL   = Session Pooler (used by `npx prisma db push`)
+// NEVER run `prisma migrate dev/deploy` against Supabase — always
+// use `npx prisma db push` (see overviewProject.txt).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}

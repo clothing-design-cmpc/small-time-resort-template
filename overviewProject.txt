@@ -1,0 +1,94 @@
+=================================================================
+VILLA AZURE RESORT — PROJECT OVERVIEW
+=================================================================
+
+1. PROJECT NAME & PURPOSE
+-----------------------------------------------------------------
+Villa Azure Resort. A resort management CMS built as a resellable
+template product — licensed separately to each resort client.
+Currently only the visitor-facing marketing/booking site exists.
+Account types: visitor only (member/admin not built yet).
+
+2. TECH STACK
+-----------------------------------------------------------------
+- Next.js 16 (App Router)
+- React 19
+- Prisma 7 + @prisma/adapter-pg (Postgres)
+- Supabase (Database + Auth)
+- Cloudflare R2 (website-served images/video)
+- Google Drive (documents, e.g. invoices/receipts — not images)
+- motion (Framer Motion successor) — page transitions, scroll reveals
+- react-hook-form + zod — form handling/validation
+- lucide-react — icons
+- geoip-lite / maxmind — IP geolocation (security logging, not yet wired)
+- sharp — image processing before R2 upload
+
+3. DATABASE OVERVIEW
+-----------------------------------------------------------------
+No tables yet. prisma/schema.prisma has datasource + generator only.
+Add models here as features are built.
+
+4. DATA MODELS OVERVIEW
+-----------------------------------------------------------------
+None yet.
+
+5. PROCESS FLOW (STEP-BY-STEP)
+-----------------------------------------------------------------
+=== PROCESS: Visitor lands on the site ===
+Step 1 : Request hits app/page.jsx
+Step 2 : Redirects to /visitor (only account type that exists)
+Step 3 : app/visitor/layout.jsx renders Header, Footer, PageTransition
+Step 4 : Visitor page content renders inside {children}
+
+(Booking flow, checkout, and other processes to be documented here
+as those systems are confirmed built and working.)
+
+6. FILE MAP
+-----------------------------------------------------------------
+app/layout.jsx              — root layout shell, global metadata
+app/page.jsx                — root redirect to /visitor
+app/styles/globals.css      — design tokens + reset
+app/styles/mediaQueries.css — all responsive breakpoints (empty so far)
+app/visitor/layout.jsx      — visitor shell (Header, Footer, PageTransition)
+app/visitor/booking/        — booking page + client form
+app/visitor/policies/       — policies page
+components/                 — Hero, About, marketing sections, shared motion helpers
+prisma/schema.prisma        — DB schema (no models yet)
+
+7. API ENDPOINTS
+-----------------------------------------------------------------
+None yet — app/api/ does not exist.
+
+8. COMMON DEBUG POINTS
+-----------------------------------------------------------------
+- app/visitor/layout.jsx imports the following files that do NOT
+  exist in the repo yet — the visitor section will not compile
+  until these are created:
+    app/visitor/Visitor.css
+    components/shared/Header.jsx
+    components/shared/Footer.jsx
+    components/shared/ScrollToTopOnLoad.jsx
+- app/visitor/booking/page.jsx imports ./Booking.css, which is
+  also missing.
+- No app/visitor/page.jsx (homepage) exists yet, even though
+  components/Hero.jsx and the marketing sections suggest one is
+  intended.
+- Prisma schema has no models — `npx prisma db push` will succeed
+  but create nothing until models are added.
+- .env.local has all keys blank — nothing will connect (DB, R2,
+  Drive) until real credentials are filled in.
+
+9. ENVIRONMENT VARIABLES REQUIRED
+-----------------------------------------------------------------
+DATABASE_URL, DIRECT_URL
+NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+CLOUDFLARE_R2_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+CLOUDFLARE_R2_BUCKET_NAME, NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL
+GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY, GOOGLE_DRIVE_FOLDER_ID
+SECURITY_LOG_RETENTION_DAYS
+
+10. BACKUP & RECOVERY
+-----------------------------------------------------------------
+Not set up yet. No prisma models exist, so there is nothing to
+back up yet. scripts/runBackup.js and scripts/purgeSecurityLogs.js
+are referenced in package.json but do not exist in the repo.

@@ -1,138 +1,97 @@
 /**
- * FILE: app/api/superAdmin/content/shop/[productId]/route.js
+ * FILE: app/api/superAdmin/content/shop/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * GET    -> fetch a single product for the edit form.
- * PUT    -> update a product. Re-checks name uniqueness within its
- *           category (excluding itself) and deletes the old R2 image
- *           if it was replaced.
- * DELETE -> deletes the product and its R2 image.
+ * GET  -> returns every shop product, in display order, for the
+ *         Resort Shop Management list page (blueprint Page 10).
+ * POST -> creates a new product. Rejects a duplicate name within the
+ *         same category (case-insensitive) before saving.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
-export async function GET(request, { params }) {
-  const { productId } = await params;
-
+export async function GET() {
   try {
-    const product = await prisma.storeProduct.findUnique({ where: { id: productId } });
-
-    if (!product) {
-      return NextResponse.json({ success: false, data: null, message: "Product not found." }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true, data: product, message: "Product fetched successfully." });
+    const products = await prisma.storeProduct.findMany({
+      orderBy: { sortOrder: "asc" },
+    });
+    return NextResponse.json({ success: true, data: products, message: "Products fetched successfully." });
   } catch (error) {
     console.error("[Shop] Failed to fetch:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't load this product. Please try again." },
+      { success: false, data: null, message: "We couldn't load the shop products. Please try again." },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request, { params }) {
-  const { productId } = await params;
-
+export async function POST(request) {
   try {
     const body = await request.json();
     const name = body.name?.trim();
+    const category = body.category || "general";
 
-    const existingProduct = await prisma.storeProduct.findUnique({ where: { id: productId } });
-    if (!existingProduct) {
-      return NextResponse.json({ success: false, data: null, message: "Product not found." }, { status: 404 });
+    if (!name) {
+      return NextResponse.json(
+        { success: false, data: null, message: "Product name is required." },
+        { status: 400 }
+      );
     }
 
-    // Duplicate check excludes this product's own current name+category.
-    const category = body.category || existingProduct.category;
-    if (name && (name.toLowerCase() !== existingProduct.name.toLowerCase() || category !== existingProduct.category)) {
-      const nameTaken = await prisma.storeProduct.findFirst({
-        where: { name: { equals: name, mode: "insensitive" }, category, NOT: { id: productId } },
-      });
-      if (nameTaken) {
-        return NextResponse.json(
-          { success: false, data: null, message: "A product with this name already exists in this category." },
-          { status: 409 }
-        );
-      }
+    // Pre-save duplicate check (Rule 6) — case-insensitive, normalized,
+    // scoped to the same category so "Water" can exist in both
+    // "beverages" and "essentials" without colliding.
+    const nameTaken = await prisma.storeProduct.findFirst({
+      where: { name: { equals: name, mode: "insensitive" }, category },
+    });
+    if (nameTaken) {
+      return NextResponse.json(
+        { success: false, data: null, message: "A product with this name already exists in this category." },
+        { status: 409 }
+      );
     }
 
-    const updatedProduct = await prisma.storeProduct.update({
-      where: { id: productId },
+    // New products go to the end of the display order by default so
+    // they don't jump ahead of existing ones on the visitor shop page.
+    const lastProduct = await prisma.storeProduct.findFirst({ orderBy: { sortOrder: "desc" } });
+    const nextSortOrder = (lastProduct?.sortOrder ?? -1) + 1;
+
+    const product = await prisma.storeProduct.create({
       data: {
-        name: name || existingProduct.name,
+        name,
         description: body.description ?? null,
         price: body.price,
         category,
-        imageUrl: body.imageUrl ?? existingProduct.imageUrl,
-        imageKey: body.imageKey ?? existingProduct.imageKey,
-        inStock: body.inStock,
+        imageUrl: body.imageUrl ?? null,
+        inStock: body.inStock ?? true,
         quantityOnHand: body.quantityOnHand ?? 0,
-        isActive: body.isActive,
-        sortOrder: body.sortOrder ?? existingProduct.sortOrder,
+        isActive: body.isActive ?? true,
+        sortOrder: body.sortOrder ?? nextSortOrder,
       },
     });
 
-    // The image was replaced with a new upload — remove the old R2 file
-    // so the bucket never accumulates orphaned images.
-    if (body.imageKey && existingProduct.imageKey && body.imageKey !== existingProduct.imageKey) {
-      await deleteFromR2(existingProduct.imageKey);
-    }
-
-    // Audit trail (Rule 6) — price changes on shop products are explicitly called out.
+    // Audit trail (Rule 6) — who added which product, and at what price.
     const session = requireSuperAdmin(request);
     await logSecurityEvent({
       eventType: "admin_action",
       actor: session?.uid ?? null,
       request,
-      details: `Updated product "${existingProduct.name}" (₱${existingProduct.price} → ₱${updatedProduct.price}).`,
+      details: `Added product "${product.name}" (₱${product.price}).`,
     });
 
-    return NextResponse.json({ success: true, data: updatedProduct, message: "Product updated successfully." });
-  } catch (error) {
-    console.error("[Shop] Failed to update:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't save the changes. Please try again." },
-      { status: 500 }
+      { success: true, data: product, message: "Product added successfully." },
+      { status: 201 }
     );
-  }
-}
-
-export async function DELETE(request, { params }) {
-  const { productId } = await params;
-
-  try {
-    const product = await prisma.storeProduct.findUnique({ where: { id: productId } });
-    if (!product) {
-      return NextResponse.json({ success: false, data: null, message: "Product not found." }, { status: 404 });
-    }
-
-    await prisma.storeProduct.delete({ where: { id: productId } });
-
-    if (product.imageKey) {
-      await deleteFromR2(product.imageKey);
-    }
-
-    // Audit trail (Rule 6) — deletions are the most important action to trace.
-    const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
-      actor: session?.uid ?? null,
-      request,
-      details: `Deleted product "${product.name}".`,
-    });
-
-    return NextResponse.json({ success: true, data: null, message: "Product deleted successfully." });
   } catch (error) {
-    console.error("[Shop] Failed to delete:", error);
+    console.error("[Shop] Failed to create:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't delete this product. Please try again." },
+      { success: false, data: null, message: "We couldn't add this product. Please try again." },
       { status: 500 }
     );
   }

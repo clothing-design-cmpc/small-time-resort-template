@@ -1,94 +1,86 @@
 /**
- * FILE: app/api/superAdmin/content/gallery/[imageId]/route.js
+ * FILE: app/api/superAdmin/content/gallery/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * PUT    -> updates a gallery image's category, caption, display
- *           order, or featured state. Also used by the Move Up/Down
- *           actions (two PUT calls swapping displayOrder between
- *           neighbors) and Set Featured.
- * DELETE -> deletes the gallery image and its R2 file.
+ * GET  -> returns every gallery image, in display order, for the
+ *         Gallery Management page (blueprint Page 6).
+ * POST -> creates a new gallery image record. The file itself is
+ *         already uploaded to R2 by the caller via the shared upload
+ *         endpoint — this just saves the resulting url/key + metadata.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
-export async function PUT(request, { params }) {
-  const { imageId } = await params;
-
+export async function GET() {
   try {
-    const body = await request.json();
-
-    const existingImage = await prisma.galleryImage.findUnique({ where: { id: imageId } });
-    if (!existingImage) {
-      return NextResponse.json({ success: false, data: null, message: "Gallery image not found." }, { status: 404 });
-    }
-
-    const updatedImage = await prisma.galleryImage.update({
-      where: { id: imageId },
-      data: {
-        category: body.category ?? existingImage.category,
-        caption: body.caption ?? existingImage.caption,
-        displayOrder: body.displayOrder ?? existingImage.displayOrder,
-        isFeatured: body.isFeatured ?? existingImage.isFeatured,
-        updatedBy: body.updatedBy || existingImage.updatedBy,
-      },
+    const galleryImages = await prisma.galleryImage.findMany({
+      orderBy: [{ category: "asc" }, { displayOrder: "asc" }],
     });
-
-    // Audit trail (Rule 6) — only log meaningful edits, not the Move Up/Down
-    // reorder clicks (those only ever send { displayOrder }, which would
-    // otherwise flood the log with two rows per drag).
-    const isReorderOnly = Object.keys(body).every((key) => key === "displayOrder");
-    if (!isReorderOnly) {
-      const session = requireSuperAdmin(request);
-      await logSecurityEvent({
-        eventType: "admin_action",
-        actor: session?.uid ?? null,
-        request,
-        details: `Updated gallery image in category "${updatedImage.category}".`,
-      });
-    }
-
-    return NextResponse.json({ success: true, data: updatedImage, message: "Gallery image updated successfully." });
+    return NextResponse.json({ success: true, data: galleryImages, message: "Gallery images fetched successfully." });
   } catch (error) {
-    console.error("[Gallery] Failed to update:", error);
+    console.error("[Gallery] Failed to fetch:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't save the changes. Please try again." },
+      { success: false, data: null, message: "We couldn't load the gallery. Please try again." },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(request, { params }) {
-  const { imageId } = await params;
-
+export async function POST(request) {
   try {
-    const image = await prisma.galleryImage.findUnique({ where: { id: imageId } });
-    if (!image) {
-      return NextResponse.json({ success: false, data: null, message: "Gallery image not found." }, { status: 404 });
+    const body = await request.json();
+
+    if (!body.imageUrl || !body.imageKey) {
+      return NextResponse.json(
+        { success: false, data: null, message: "An uploaded image is required." },
+        { status: 400 }
+      );
     }
 
-    await prisma.galleryImage.delete({ where: { id: imageId } });
-    await deleteFromR2(image.imageKey);
+    const category = body.category || "common_area";
 
-    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    // New images go to the end of the display order within their own
+    // category so they don't jump ahead of existing ones on that tab.
+    const lastImageInCategory = await prisma.galleryImage.findFirst({
+      where: { category },
+      orderBy: { displayOrder: "desc" },
+    });
+    const nextDisplayOrder = (lastImageInCategory?.displayOrder ?? -1) + 1;
+
+    const galleryImage = await prisma.galleryImage.create({
+      data: {
+        category,
+        imageUrl: body.imageUrl,
+        imageKey: body.imageKey,
+        caption: body.caption ?? null,
+        displayOrder: body.displayOrder ?? nextDisplayOrder,
+        isFeatured: body.isFeatured ?? false,
+        updatedBy: body.updatedBy || null,
+      },
+    });
+
+    // Audit trail (Rule 6) — who added an image to which category.
     const session = requireSuperAdmin(request);
     await logSecurityEvent({
       eventType: "admin_action",
       actor: session?.uid ?? null,
       request,
-      details: `Deleted a gallery image from category "${image.category}".`,
+      details: `Added a gallery image to category "${galleryImage.category}".`,
     });
 
-    return NextResponse.json({ success: true, data: null, message: "Gallery image deleted successfully." });
-  } catch (error) {
-    console.error("[Gallery] Failed to delete:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't delete this image. Please try again." },
+      { success: true, data: galleryImage, message: "Gallery image added successfully." },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("[Gallery] Failed to create:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "We couldn't add this image. Please try again." },
       { status: 500 }
     );
   }

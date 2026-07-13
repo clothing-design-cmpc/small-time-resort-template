@@ -45,12 +45,24 @@ export async function POST(request) {
       );
     }
 
+    // Guard against an inverted or zero-length range — an unchecked
+    // range here would silently apply the wrong price for the wrong
+    // dates on the visitor booking calendar.
+    const startDate = new Date(body.startDate);
+    const endDate = new Date(body.endDate);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+      return NextResponse.json(
+        { success: false, data: null, message: "End date must be after the start date." },
+        { status: 400 }
+      );
+    }
+
     const seasonalPrice = await prisma.seasonalPrice.create({
       data: {
         roomId: body.roomId,
         seasonName: body.seasonName,
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
+        startDate,
+        endDate,
         pricePerNight: body.pricePerNight,
       },
       include: { room: { select: { name: true } } },

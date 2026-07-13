@@ -47,13 +47,25 @@ export async function POST(request) {
       );
     }
 
+    // Guard against an inverted or zero-length range — without this,
+    // the availability calendar would silently block nothing (or
+    // everything, depending on how the query compares the dates).
+    const startDate = new Date(body.startDate);
+    const endDate = new Date(body.endDate);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+      return NextResponse.json(
+        { success: false, data: null, message: "End date must be after the start date." },
+        { status: 400 }
+      );
+    }
+
     const reason = VALID_REASONS.includes(body.reason) ? body.reason : "Custom";
 
     const blackoutDate = await prisma.blackoutDate.create({
       data: {
         roomId: body.roomId,
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
+        startDate,
+        endDate,
         reason,
       },
       include: { room: { select: { name: true } } },

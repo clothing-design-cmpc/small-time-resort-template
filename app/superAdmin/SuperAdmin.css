@@ -1,51 +1,74 @@
 /* ============================================================
- * SUPER-ADMIN COLOR TOKENS — ENTERPRISE DARK THEME
- * Scoped to .superAdminRoot only, so the visitor site's light,
- * warm theme (app/styles/globals.css) is never affected. Values
- * per the Super-Admin Control Center design system.
+ * SUPER-ADMIN COLOR TOKENS — RESORT-MATCHED LIGHT THEME
+ * Scoped to .superAdminRoot only. Retinted to reuse the visitor
+ * site's own palette (app/styles/globals.css: warm ivory-green bg,
+ * forest-green accent) so the admin panel reads as part of the same
+ * brand instead of a separate dark enterprise product.
+ *
+ * Spacing is also overridden here (tighter than the visitor's
+ * --space-* scale) since dense data screens (tables, stat grids)
+ * need less breathing room per element than marketing pages do.
  * ============================================================ */
 .superAdminRoot {
-  --color-bg: #0d0e12;
-  --color-surface: rgba(255, 255, 255, 0.02);
-  --color-surface-hover: rgba(255, 255, 255, 0.05);
-  --color-surface-active: rgba(255, 255, 255, 0.10);
-  --color-surface-elevated: rgba(255, 255, 255, 0.15);
+  --color-bg: #f8faf3;
+  --color-surface: rgba(45, 106, 62, 0.05);
+  --color-surface-hover: rgba(45, 106, 62, 0.09);
+  --color-surface-active: rgba(45, 106, 62, 0.14);
+  --color-surface-elevated: #ffffff;
 
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-strong: rgba(255, 255, 255, 0.12);
-  --color-divider: rgba(255, 255, 255, 0.04);
+  --color-border: rgba(27, 66, 38, 0.12);
+  --color-border-strong: rgba(27, 66, 38, 0.22);
+  --color-divider: rgba(27, 66, 38, 0.08);
 
-  --color-text-primary: #f8f9fa;
-  --color-text-secondary: rgba(255, 255, 255, 0.60);
-  --color-text-tertiary: rgba(255, 255, 255, 0.45);
-  --color-text-muted: rgba(255, 255, 255, 0.30);
+  --color-text-primary: #1c2b20;
+  --color-text-secondary: rgba(28, 43, 32, 0.64);
+  --color-text-tertiary: rgba(28, 43, 32, 0.50);
+  --color-text-muted: rgba(28, 43, 32, 0.44);
 
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-primary-light: rgba(59, 130, 246, 0.10);
+  --color-primary: #3f7d52;
+  --color-primary-hover: #2f5f3d;
+  --color-primary-light: rgba(63, 125, 82, 0.10);
 
-  --color-accent: #06b6d4;
-  --color-accent-hover: #0891b2;
-  --color-accent-light: rgba(6, 182, 212, 0.10);
+  --color-accent: #b5791f;
+  --color-accent-hover: #96631a;
+  --color-accent-light: rgba(181, 121, 31, 0.10);
 
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
+  --color-success: #2f9e5b;
+  --color-warning: #d98a24;
+  --color-error: #d64545;
   --color-info: #3b82f6;
-  --color-neutral: rgba(255, 255, 255, 0.3);
+  --color-neutral: rgba(28, 43, 32, 0.4);
 
-  /* Chart/data series colors — Recharts lines, bars, and pie segments */
-  --color-chart-1: #3b82f6;
-  --color-chart-2: #10b981;
-  --color-chart-3: #f59e0b;
-  --color-chart-4: #ef4444;
-  --color-chart-5: #8b5cf6;
-  --color-chart-6: #06b6d4;
+  /* Chart/data series colors — Recharts lines, bars, and pie segments.
+     Earthy/resort-toned palette instead of generic SaaS blues, while
+     staying visually distinct from one another. */
+  --color-chart-1: #3f7d52;
+  --color-chart-2: #b5791f;
+  --color-chart-3: #6b8fb5;
+  --color-chart-4: #d64545;
+  --color-chart-5: #8a6a9c;
+  --color-chart-6: #4f9e8a;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-base: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 2px rgba(28, 43, 32, 0.05);
+  --shadow-base: 0 4px 6px rgba(28, 43, 32, 0.07);
+  --shadow-lg: 0 10px 15px rgba(28, 43, 32, 0.08);
+  --shadow-xl: 0 20px 25px rgba(28, 43, 32, 0.10);
+
+  /* Skeleton loaders — same green-tinted base as the visitor site's own */
+  --color-skeleton-base: rgba(27, 66, 38, 0.08);
+  --color-skeleton-shine: rgba(27, 66, 38, 0.15);
+
+  /* Tighter spacing scale, scoped to admin only — every component in
+     this section already consumes var(--space-*), so overriding the
+     values here (instead of editing each component file) shrinks gaps
+     and padding across the whole admin panel in one place. Roughly
+     30-40% tighter than the visitor site's marketing-page spacing. */
+  --space-xs: 0.2rem;
+  --space-sm: 0.4rem;
+  --space-md: 0.7rem;
+  --space-lg: 1rem;
+  --space-xl: 1.25rem;
+  --space-2xl: 1.75rem;
 
   /* Admin-only font system (Inter/Space Grotesk/JetBrains Mono) — loaded
      as CSS variables in app/layout.jsx, only ever applied within this
@@ -69,24 +92,6 @@
    used by StatusBadge, DataTable, and StatCard eyebrow labels. */
 .superAdminRoot .adminMono {
   font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
-}
-
-/* Light mode override — only applies when the OS prefers light,
-   independent of the visitor site's own theme. */
-@media (prefers-color-scheme: light) {
-  .superAdminRoot {
-    --color-bg: #ffffff;
-    --color-surface: rgba(0, 0, 0, 0.02);
-    --color-surface-hover: rgba(0, 0, 0, 0.05);
-    --color-surface-active: rgba(0, 0, 0, 0.10);
-    --color-surface-elevated: rgba(0, 0, 0, 0.04);
-    --color-border: rgba(0, 0, 0, 0.08);
-    --color-border-strong: rgba(0, 0, 0, 0.16);
-    --color-text-primary: #0f172a;
-    --color-text-secondary: rgba(15, 23, 42, 0.60);
-    --color-text-tertiary: rgba(15, 23, 42, 0.45);
-    --color-text-muted: rgba(15, 23, 42, 0.30);
-  }
 }
 
 /*

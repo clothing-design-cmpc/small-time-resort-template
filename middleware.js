@@ -8,11 +8,6 @@
  * Only the /superAdmin/* route group is protected right now — the
  * visitor site stays fully public.
  *
- * Also runs the reseller license check (services/licenseGuard.js) on
- * every matched request — this is a separate concern from the auth
- * guard below (it doesn't care WHO is visiting, only whether THIS
- * deployment/domain is still an authorized copy of the template).
- *
  * DATA FLOW:
  * 1. Request hits a /superAdmin/* route
  * 2. Middleware reads the "session" HttpOnly cookie set by
@@ -26,7 +21,6 @@
  * against the database — this file only trusts what it already signed.
  */
 import { NextResponse } from "next/server";
-import { checkLicense } from "@/services/licenseGuard";
 
 /**
  * decodeRole
@@ -48,19 +42,7 @@ function decodeRole(sessionToken) {
 
 export async function middleware(request, event) {
   const sessionToken = request.cookies.get("session")?.value;
-  const { pathname, hostname } = request.nextUrl;
-
-  // --- RESELLER LICENSE CHECK ---
-  // Runs before anything else. Confirms this domain is still an
-  // authorized copy of the template. Never runs on its own page (that
-  // would be an infinite redirect loop) or on API routes (an API
-  // consumer expects JSON, not a redirect).
-  if (pathname !== "/license-invalid" && !pathname.startsWith("/api")) {
-    const license = await checkLicense(hostname);
-    if (!license.valid) {
-      return NextResponse.redirect(new URL("/license-invalid", request.url));
-    }
-  }
+  const { pathname } = request.nextUrl;
 
   // --- VISITOR PAGE VIEW TRACKING ---
   // Fire-and-forget: never awaited, so it can't add latency to the

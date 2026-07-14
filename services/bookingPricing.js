@@ -17,6 +17,7 @@
  *     no multi-room cart, so "group" is read as "large party size").
  */
 import { prisma } from "@/services/prisma";
+import { getActiveBookingRule } from "@/services/bookingRules";
 
 const LAST_MINUTE_WINDOW_DAYS = 3;
 
@@ -76,11 +77,7 @@ export async function validateAndQuoteBooking({
   checkOutDate,
   numberOfGuests,
 }) {
-  const rules = await prisma.bookingRules.upsert({
-    where: { id: "singleton" },
-    update: {},
-    create: { id: "singleton" },
-  });
+  const rules = await getActiveBookingRule();
 
   // --- Booking type must be enabled by the admin ---
   if (bookingType === "overnight" && !rules.allowOvernightStay) {
@@ -122,9 +119,6 @@ export async function validateAndQuoteBooking({
     if (numberOfGuests > room.capacity) {
       throw new Error(`This room fits up to ${room.capacity} guest(s).`);
     }
-    if (numberOfGuests < room.minGuestsAllowed) {
-      throw new Error(`This room requires at least ${room.minGuestsAllowed} guest(s).`);
-    }
   }
 
   // --- Overnight-only: nights range, room availability ---
@@ -142,20 +136,14 @@ export async function validateAndQuoteBooking({
       throw new Error("Check-out date must be after check-in date.");
     }
 
-    // Room-level Min/Max Nights are a per-room OVERRIDE of the resort-
-    // wide Booking Rules default — not a "must be tighter than" clamp.
-    // The Room record always carries a concrete value (defaults match
-    // BookingRules' own defaults at creation), so once an admin edits a
-    // room's own limits in Content > Rooms, that value is what applies
-    // here, regardless of what Settings > Booking Rules currently says.
-    const effectiveMinNights = room.minNightsPerBooking;
-    const effectiveMaxNights = room.maxNightsPerBooking;
-
-    if (nights < effectiveMinNights) {
-      throw new Error(`This stay requires a minimum of ${effectiveMinNights} night(s).`);
+    // Nights range now comes only from the currently active BookingRule
+    // (Settings > Booking Rules) — rooms no longer carry their own
+    // override, so there's exactly one place an admin needs to check.
+    if (nights < rules.minNightsRequired) {
+      throw new Error(`This stay requires a minimum of ${rules.minNightsRequired} night(s).`);
     }
-    if (nights > effectiveMaxNights) {
-      throw new Error(`This stay cannot exceed ${effectiveMaxNights} nights.`);
+    if (nights > rules.maxNightsAllowed) {
+      throw new Error(`This stay cannot exceed ${rules.maxNightsAllowed} nights.`);
     }
   }
 

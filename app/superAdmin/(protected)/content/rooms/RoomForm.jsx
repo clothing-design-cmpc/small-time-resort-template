@@ -39,9 +39,6 @@ const roomSchema = z.object({
   pricePerNight: z.coerce.number().min(0, "Price must be 0 or more."),
   capacity: z.coerce.number().min(1, "Max guests must be at least 1."),
   bedType: z.string().min(1),
-  minNightsPerBooking: z.coerce.number().min(1),
-  maxNightsPerBooking: z.coerce.number().min(1),
-  minGuestsAllowed: z.coerce.number().min(1),
   isFeatured: z.boolean(),
   isActive: z.boolean(),
 });
@@ -83,9 +80,6 @@ export default function RoomForm({ existingRoom, amenities }) {
       pricePerNight: existingRoom?.pricePerNight ?? 0,
       capacity: existingRoom?.capacity ?? 2,
       bedType: existingRoom?.bedType ?? "King",
-      minNightsPerBooking: existingRoom?.minNightsPerBooking ?? 1,
-      maxNightsPerBooking: existingRoom?.maxNightsPerBooking ?? 30,
-      minGuestsAllowed: existingRoom?.minGuestsAllowed ?? 1,
       isFeatured: existingRoom?.isFeatured ?? false,
       isActive: existingRoom?.isActive ?? true,
     },
@@ -295,28 +289,13 @@ export default function RoomForm({ existingRoom, amenities }) {
           </div>
         </div>
 
-        {/* --- Booking Limits --- */}
-        <div className="roomFormSectionGroup">
-          <h2 className="roomFormSectionTitle">Booking Limits</h2>
-          <p className="roomFormSectionSubtitle">Overrides just for this room — leave at the resort-wide default (set in Booking Rules) unless this room needs different limits.</p>
-          <div className="roomFormRow">
-            <div className="roomFormField">
-              <label htmlFor="roomMinNights">Min Nights / Booking</label>
-              <input id="roomMinNights" type="number" {...register("minNightsPerBooking")} />
-              <p className="roomFormHint">The fewest nights a guest can book this room for in one reservation, e.g. 2 to discourage single-night stays.</p>
-            </div>
-            <div className="roomFormField">
-              <label htmlFor="roomMaxNights">Max Nights / Booking</label>
-              <input id="roomMaxNights" type="number" {...register("maxNightsPerBooking")} />
-              <p className="roomFormHint">The longest a single reservation can run, e.g. 30 to prevent open-ended long-term stays.</p>
-            </div>
-            <div className="roomFormField">
-              <label htmlFor="roomMinGuests">Min Guests Allowed</label>
-              <input id="roomMinGuests" type="number" {...register("minGuestsAllowed")} />
-              <p className="roomFormHint">The fewest guests required to book — usually 1, unless this room is priced for groups only.</p>
-            </div>
-          </div>
-        </div>
+        {/* --- Booking Limits section removed —
+             this used to let each room override min/max nights and min
+             guests, but the room always carried a concrete default
+             value, so editing Settings > Booking Rules never actually
+             took effect unless every room was also edited by hand.
+             Nights/guest limits are now controlled in one place only:
+             Settings > Booking Rules > (the active rule set). --- */}
 
         {/* --- Visibility --- */}
         <div className="roomFormSectionGroup">

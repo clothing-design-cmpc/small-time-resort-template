@@ -3,32 +3,30 @@
  * ROLE: Public — no auth required, called by the visitor booking form
  *
  * PURPOSE:
- * Read-only view of the super-admin's BookingRules settings, trimmed to
- * only the fields the visitor booking form actually needs (nights
- * range, advance booking window, check-in/out times, which booking
- * types are enabled, tour windows/prices, deposit %, cancellation
- * terms). Deliberately separate from
+ * Read-only view of the currently active BookingRule, trimmed to only
+ * the fields the visitor booking form actually needs (nights range,
+ * advance booking window, check-in/out times, which booking types are
+ * enabled, tour windows/prices, deposit %, cancellation terms).
+ * Deliberately separate from
  * app/api/superAdmin/settings/booking-rules/route.js, which is the
- * admin CRUD route — this route never exposes updatedBy or accepts writes.
+ * admin CRUD route for the full list of rule sets — this route never
+ * exposes updatedBy or accepts writes, and always resolves to the one
+ * rule marked active regardless of how many rule sets exist.
  *
  * DATA FLOW:
  * 1. hooks/usePublicBookingRules.js calls GET /api/booking-rules
- * 2. Get-or-create the singleton row (same as the admin route) so the
- *    visitor form always gets sensible defaults even before an admin
- *    has ever opened the settings page
+ * 2. getActiveBookingRule() resolves the active rule (bootstrapping a
+ *    default one on a brand-new project) so the visitor form always
+ *    gets sensible defaults even before an admin has configured anything
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/services/prisma";
+import { getActiveBookingRule } from "@/services/bookingRules";
 
 export async function GET() {
   try {
-    const rules = await prisma.bookingRules.upsert({
-      where: { id: "singleton" },
-      update: {},
-      create: { id: "singleton" },
-    });
+    const rules = await getActiveBookingRule();
 
     return NextResponse.json({
       success: true,

@@ -17,6 +17,20 @@
   gap: var(--space-xs);
 }
 
+/*
+ * .bookingRulesListHeaderRow
+ * List page only — puts the title block and "Create Rule Set" button
+ * side by side, wrapping to stacked on narrow viewports.
+ */
+.bookingRulesListHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
 .bookingRulesEyebrow {
   display: block;
   font-family: monospace;
@@ -326,6 +340,11 @@
 .bookingRulesRowActionButton:focus-visible {
   background-color: var(--color-surface-hover);
   border-color: var(--color-border-strong);
+}
+
+.bookingRulesRowActionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .bookingRulesRowActionButton--destructive {

@@ -38,11 +38,16 @@ model Room {
   sortOrder      Int       @default(0) @map("sort_order")
 
   // --- Content Management fields (Super-Admin Rooms Management, blueprint Page 1) ---
+  // NOTE: this model used to carry its own minNightsPerBooking /
+  // maxNightsPerBooking / minGuestsAllowed override fields ("Booking
+  // Limits" section on the room edit form). They were removed — every
+  // room silently carried a concrete default value, so editing the
+  // resort-wide Booking Rule never actually took effect unless every
+  // room was also edited by hand. Nights/guest limits now come from
+  // whichever BookingRule is marked active (see model BookingRule) —
+  // a single source of truth, never overwritten by a room's own form.
   bedType             String    @default("King") @map("bed_type") // "King", "Twin", "Double", "Sofa Bed"
   isFeatured          Boolean   @default(false) @map("is_featured") // shown on visitor homepage
-  minNightsPerBooking Int       @default(1) @map("min_nights_per_booking")
-  maxNightsPerBooking Int       @default(30) @map("max_nights_per_booking")
-  minGuestsAllowed    Int       @default(1) @map("min_guests_allowed")
   amenityIds          String[]  @default([]) @map("amenity_ids") // Amenity.id values mapped to this room
   updatedBy           String?   @map("updated_by") // super-admin user id who last saved this room
 
@@ -268,8 +273,18 @@ model BackupLog {
 // Singleton table — the app always reads/writes the single row with
 // the well-known id "singleton" (see app/api/superAdmin/settings/
 // booking-rules/route.js), never creates a second row.
-model BookingRules {
-  id String @id @default("singleton")
+// Previously a locked singleton (id always "singleton", exactly one row).
+// Super-admin could only ever edit "the" settings, never create another
+// set — and the confusing part was that per-room overrides on the Room
+// model could silently take precedence over whatever was configured
+// here. Now a normal multi-row model: super-admin can create as many
+// named rule sets as needed (e.g. "Regular Season", "Peak Season Rules"),
+// edit or delete any of them, and mark exactly one `isActive` — that one
+// alone is what the visitor booking flow and pricing engine read from.
+model BookingRule {
+  id     String  @id @default(cuid())
+  name   String  @unique @default("Default Rules") // e.g. "Default Rules", "Holiday Season Rules"
+  isActive Boolean @default(false) @map("is_active") // exactly one row should be true at a time — enforced in the activate API route, not the DB
 
   // --- Section 1: General Booking Settings ---
   minNightsRequired  Int    @default(1) @map("min_nights_required")
@@ -314,9 +329,11 @@ model BookingRules {
   // --- Section 5: Seasonal Pricing toggle ---
   seasonalPricingEnabled Boolean @default(true) @map("seasonal_pricing_enabled")
 
+  createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
   updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
 
+  @@index([isActive])
   @@map("booking_rules")
 }
 

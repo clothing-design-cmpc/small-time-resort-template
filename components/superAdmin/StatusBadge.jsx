@@ -19,6 +19,7 @@ import "./StatusBadge.css";
    per spec: "Always use background-color (light tint) + text color". */
 const STATUS_STYLES = {
   active: { label: "Active", color: "#10b981" },
+  inactive: { label: "Inactive", color: "#71717a" },
   suspended: { label: "Suspended", color: "#f59e0b" },
   banned: { label: "Banned", color: "#ef4444" },
   pending: { label: "Pending", color: "#3b82f6" },

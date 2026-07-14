@@ -35,6 +35,7 @@ const CATEGORIES = [
   { value: "essentials", label: "Essentials" },
   { value: "souvenirs", label: "Souvenirs" },
   { value: "ice", label: "Ice" },
+  { value: "general", label: "General" },
 ];
 
 const productSchema = z.object({
@@ -55,6 +56,15 @@ export default function ShopProductForm({ existingProduct }) {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(existingProduct?.imageUrl ?? null);
   const [selectedImageFile, setSelectedImageFile] = useState(null);
 
+  // If this product's saved category isn't one of the known options
+  // (e.g. it was created before this list existed, or via direct DB
+  // seed), add it as an extra option so the select shows the real
+  // current value instead of rendering blank with nothing selected.
+  const categoryOptions =
+    existingProduct?.category && !CATEGORIES.some((c) => c.value === existingProduct.category)
+      ? [...CATEGORIES, { value: existingProduct.category, label: existingProduct.category }]
+      : CATEGORIES;
+
   const {
     register,
     handleSubmit,
@@ -63,7 +73,7 @@ export default function ShopProductForm({ existingProduct }) {
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: existingProduct?.name ?? "",
-      category: existingProduct?.category ?? "snacks",
+      category: existingProduct?.category ?? "general",
       price: existingProduct?.price ?? 0,
       description: existingProduct?.description ?? "",
       quantityOnHand: existingProduct?.quantityOnHand ?? 0,
@@ -136,7 +146,7 @@ export default function ShopProductForm({ existingProduct }) {
           <div className="shopFormField">
             <label htmlFor="productCategory">Category <span aria-hidden="true">*</span></label>
             <select id="productCategory" {...register("category")}>
-              {CATEGORIES.map((category) => (
+              {categoryOptions.map((category) => (
                 <option key={category.value} value={category.value}>{category.label}</option>
               ))}
             </select>

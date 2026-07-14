@@ -128,6 +128,26 @@ async function seedStoreProducts() {
 }
 
 /**
+ * seedActivities
+ * Clears and re-inserts sample resort activities/experiences so the
+ * Activities Management admin page (and the visitor site, once wired
+ * to it) isn't empty on a fresh project.
+ */
+async function seedActivities() {
+  const activities = [
+    { name: "Sunset Catamaran Sail", description: "A guided two-hour sail along the coastline as the sun goes down, with light snacks and drinks included.", duration: "2 hours", minGroupSize: 2, maxGroupSize: 12, imageUrl: "https://images.unsplash.com/photo-1500627964684-141351970a7f?auto=format&fit=crop&w=800&q=80", isFeatured: true, sortOrder: 1 },
+    { name: "Guided Snorkeling Tour", description: "Explore the resort's house reef with a certified guide, gear included. Great for beginners and experienced snorkelers alike.", duration: "1.5 hours", minGroupSize: 1, maxGroupSize: 8, imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80", isFeatured: true, sortOrder: 2 },
+    { name: "Island Hopping Day Trip", description: "Visit three nearby islands by outrigger boat, with a beach lunch stop. Departs from the resort's private dock.", duration: "Full day", minGroupSize: 2, maxGroupSize: 15, imageUrl: "https://images.unsplash.com/photo-1544644181-1484b3fdfc32?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 3 },
+    { name: "Sunrise Yoga on the Beach", description: "A gentle, all-levels yoga session on the sand as the sun rises over the water. Mats provided.", duration: "1 hour", minGroupSize: 1, maxGroupSize: 20, imageUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 4 },
+    { name: "Kayak & Mangrove Tour", description: "Paddle through the calm mangrove channels behind the resort with a local guide pointing out native wildlife.", duration: "2 hours", minGroupSize: 1, maxGroupSize: 6, imageUrl: "https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 5 },
+  ];
+
+  await prisma.activity.deleteMany();
+  await prisma.activity.createMany({ data: activities });
+  console.log(`✓ Seeded ${activities.length} activities`);
+}
+
+/**
  * seedSuperAdmin
  * Creates the super-admin Auth user via the Supabase Admin API if it
  * doesn't already exist. If it already exists, its password and email
@@ -203,6 +223,7 @@ async function main() {
   await seedRooms();
   await seedAmenities();
   await seedStoreProducts();
+  await seedActivities();
   await clearStaleBookings();
   await seedSuperAdmin();
 }

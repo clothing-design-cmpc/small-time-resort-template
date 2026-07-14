@@ -114,6 +114,7 @@ model StoreProduct {
   price          Decimal  @db.Decimal(10, 2)
   category       String   @default("general")
   imageUrl       String?  @map("image_url")
+  imageKey       String?  @map("image_key") // R2 object key, needed to delete the old file on replace
   isActive       Boolean  @default(true) @map("is_active")
   sortOrder      Int      @default(0) @map("sort_order")
   // Shop Management form (blueprint Page 3) reads/writes these two on

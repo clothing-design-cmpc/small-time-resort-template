@@ -225,7 +225,12 @@ export default function SecurityLogsClient() {
         </span>
       ),
       actor: log.actor || "—",
-      ipAddress: log.ipAddress || "—",
+      // Loopback/private addresses only ever show up in local dev or
+      // behind an internal proxy (never a real visitor) — labeling them
+      // "This device" instead of the raw "::1" makes it clear this is
+      // expected dev behavior, not a bug, without hiding the real value
+      // (still shown in the expanded row detail panel below).
+      ipAddress: !log.ipAddress ? "—" : isLocalOrPrivateIp(log.ipAddress) ? "This device (::1)" : log.ipAddress,
       device: (
         <span className="securityLogsDeviceCell">
           <span className="securityLogsDeviceIcon" aria-hidden="true">

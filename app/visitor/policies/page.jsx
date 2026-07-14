@@ -9,10 +9,19 @@
  *
  * DATA FLOW:
  * 1. Visitor navigates to /visitor/policies (via footer or header)
- * 2. Server Component renders fully static content — no data fetching
- * 3. Anchor links in the sticky sidebar jump to each policy section
+ * 2. Server Component reads the singleton SystemSettings row directly
+ *    via Prisma (no separate public API route needed — this is a
+ *    Server Component, never a "use client" file) — the same row the
+ *    super-admin edits under Content > Policies (blueprint Page 8)
+ * 3. Whichever sections the admin has actually filled in (houseRules,
+ *    cancellationPolicy, termsOfService, privacyPolicy) render that
+ *    saved text; any section still empty falls back to sensible
+ *    default copy so the page is never blank before an admin opens
+ *    the Policies editor for the first time
+ * 4. Anchor links in the sticky sidebar jump to each policy section
  */
 import "./Policies.css";
+import { prisma } from "@/services/prisma";
 
 export const metadata = {
   title: "Policies | Villa Azure Resort",
@@ -105,7 +114,36 @@ const houseRules = [
 
 /* ─── Component ─────────────────────────────────────────────────── */
 
-export default function PoliciesPage() {
+/**
+ * renderTextBlock
+ * Splits an admin-saved plain-text policy field on blank lines into
+ * paragraphs. Returns null for an empty/whitespace-only value so the
+ * caller can fall back to default static copy instead of rendering
+ * nothing.
+ */
+function renderTextBlock(text) {
+  if (!text || !text.trim()) return null;
+  return text
+    .trim()
+    .split(/\n{2,}/)
+    .map((paragraph, index) => (
+      <p key={index} className="policiesItemBody" style={index > 0 ? { marginTop: "1rem" } : undefined}>
+        {paragraph}
+      </p>
+    ));
+}
+
+export default async function PoliciesPage() {
+  // Read-only fetch of the singleton settings row the super-admin edits
+  // under Content > Policies. Fails safe to null so this public page
+  // never 500s just because the row hasn't been created yet.
+  const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
+
+  const houseRulesText = renderTextBlock(settings?.houseRules);
+  const cancellationPolicyText = renderTextBlock(settings?.cancellationPolicy);
+  const termsOfServiceText = renderTextBlock(settings?.termsOfService);
+  const privacyPolicyText = renderTextBlock(settings?.privacyPolicy);
+
   return (
     <main className="policiesMain">
       {/* Page header */}
@@ -131,6 +169,9 @@ export default function PoliciesPage() {
               <li><a href="#booking-policies" className="policiesSidebarLink">Booking Policies</a></li>
               <li><a href="#refund-policies" className="policiesSidebarLink">Refund & Cancellation</a></li>
               <li><a href="#house-rules" className="policiesSidebarLink">House Rules</a></li>
+              {termsOfServiceText && (
+                <li><a href="#terms" className="policiesSidebarLink">Terms &amp; Conditions</a></li>
+              )}
               <li><a href="#checkin-times" className="policiesSidebarLink">Check-In / Check-Out</a></li>
               <li><a href="#privacy" className="policiesSidebarLink">Privacy Policy</a></li>
             </ul>
@@ -188,14 +229,18 @@ export default function PoliciesPage() {
                 </div>
               </div>
 
-              <ul className="policiesList">
-                {refundPolicies.map((item) => (
-                  <li key={item.id} className="policiesItem">
-                    <h3 className="policiesItemTitle">{item.title}</h3>
-                    <p className="policiesItemBody">{item.body}</p>
-                  </li>
-                ))}
-              </ul>
+              {cancellationPolicyText ? (
+                <div className="policiesItem">{cancellationPolicyText}</div>
+              ) : (
+                <ul className="policiesList">
+                  {refundPolicies.map((item) => (
+                    <li key={item.id} className="policiesItem">
+                      <h3 className="policiesItemTitle">{item.title}</h3>
+                      <p className="policiesItemBody">{item.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
 
             <div className="policiesDivider" />
@@ -206,17 +251,34 @@ export default function PoliciesPage() {
               <p className="policiesSectionIntro">
                 These rules apply to all guests and visitors. Compliance ensures a peaceful experience for everyone on the property.
               </p>
-              <ul className="policiesRulesList">
-                {houseRules.map((rule, index) => (
-                  <li key={index} className="policiesRulesItem">
-                    <span className="policiesRulesNumber">{String(index + 1).padStart(2, "0")}</span>
-                    <p className="policiesRulesText">{rule}</p>
-                  </li>
-                ))}
-              </ul>
+              {houseRulesText ? (
+                <div className="policiesItem">{houseRulesText}</div>
+              ) : (
+                <ul className="policiesRulesList">
+                  {houseRules.map((rule, index) => (
+                    <li key={index} className="policiesRulesItem">
+                      <span className="policiesRulesNumber">{String(index + 1).padStart(2, "0")}</span>
+                      <p className="policiesRulesText">{rule}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
 
             <div className="policiesDivider" />
+
+            {/* ── Terms & Conditions — admin-editable only, no static
+                 fallback content, so the section is simply omitted
+                 until an admin fills it in under Content > Policies ── */}
+            {termsOfServiceText && (
+              <>
+                <section id="terms" className="policiesSection">
+                  <h2 className="policiesSectionTitle">Terms &amp; Conditions</h2>
+                  {termsOfServiceText}
+                </section>
+                <div className="policiesDivider" />
+              </>
+            )}
 
             {/* ── Check-In / Check-Out ── */}
             <section id="checkin-times" className="policiesSection">
@@ -240,18 +302,22 @@ export default function PoliciesPage() {
             {/* ── Privacy Policy ── */}
             <section id="privacy" className="policiesSection">
               <h2 className="policiesSectionTitle">Privacy Policy</h2>
-              <p className="policiesItemBody">
-                Villa Azure Resort collects personal information (name, contact details, and identification) solely for the purpose of processing reservations, managing your stay, and maintaining resort security. We do not sell, rent, or share your personal data with third parties for marketing purposes.
-              </p>
-              <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
-                Guest information is stored securely and retained only for as long as required by applicable law or operational necessity. You may request access to or deletion of your personal data at any time by contacting us directly at <a href="mailto:hello@villaazure.com" className="policiesInlineLink">hello@villaazure.com</a>.
-              </p>
-              <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
-                For account security, Villa Azure Resort also records limited technical information whenever you or our staff sign in to a resort account — including IP address, device/browser type, and an approximate geographic location (city and country, derived from IP address, never precise GPS coordinates). This information is used solely to detect suspicious sign-ins, such as an account being accessed from an unexpected location or an unrecognized device, and is retained only for a limited period before being automatically and permanently deleted.
-              </p>
-              <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
-                By making a reservation with Villa Azure Resort, you consent to the collection and use of your information as described above. This policy was last updated in July 2026.
-              </p>
+              {privacyPolicyText ?? (
+                <>
+                  <p className="policiesItemBody">
+                    Villa Azure Resort collects personal information (name, contact details, and identification) solely for the purpose of processing reservations, managing your stay, and maintaining resort security. We do not sell, rent, or share your personal data with third parties for marketing purposes.
+                  </p>
+                  <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
+                    Guest information is stored securely and retained only for as long as required by applicable law or operational necessity. You may request access to or deletion of your personal data at any time by contacting us directly at <a href="mailto:hello@villaazure.com" className="policiesInlineLink">hello@villaazure.com</a>.
+                  </p>
+                  <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
+                    For account security, Villa Azure Resort also records limited technical information whenever you or our staff sign in to a resort account — including IP address, device/browser type, and an approximate geographic location (city and country, derived from IP address, never precise GPS coordinates). This information is used solely to detect suspicious sign-ins, such as an account being accessed from an unexpected location or an unrecognized device, and is retained only for a limited period before being automatically and permanently deleted.
+                  </p>
+                  <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
+                    By making a reservation with Villa Azure Resort, you consent to the collection and use of your information as described above. This policy was last updated in July 2026.
+                  </p>
+                </>
+              )}
             </section>
 
             {/* Contact prompt */}

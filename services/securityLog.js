@@ -44,12 +44,22 @@ const IMPOSSIBLE_TRAVEL_SPEED_KMH = 900;
 
 /**
  * getRequestMeta
- * Pulls the caller's IP (from the x-forwarded-for header, since Next.js
- * route handlers sit behind a proxy in most deployments) and user-agent
- * off the Request object.
+ * Pulls the caller's IP and user-agent off the Request object.
+ *
+ * Checks x-forwarded-for first (the standard header set by most
+ * reverse proxies/load balancers, e.g. Vercel, Nginx), then falls back
+ * to cf-connecting-ip (Cloudflare) and x-real-ip (Nginx's simpler
+ * single-IP header) since different hosting setups populate different
+ * headers. In local dev with no proxy in front at all, none of these
+ * are set by the browser — ipAddress will be null there, which is
+ * expected (a super-admin testing on localhost is not a real visitor).
  */
 function getRequestMeta(request) {
-  const ipAddress = request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const ipAddress =
+    request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request?.headers?.get("cf-connecting-ip")?.trim() ||
+    request?.headers?.get("x-real-ip")?.trim() ||
+    null;
   const userAgent = request?.headers?.get("user-agent") ?? null;
   return { ipAddress, userAgent };
 }

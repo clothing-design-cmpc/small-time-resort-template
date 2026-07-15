@@ -26,6 +26,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
+import { archiveActivityFeedIfThresholdReached } from "@/services/activityArchive";
 
 const PAGE_SIZE = 10;
 
@@ -44,6 +45,13 @@ export async function GET(request) {
   const windowSize = page * PAGE_SIZE;
 
   try {
+    // Runs before the page data is read — if the combined table has
+    // reached 100 pages, the archive fires and clears the exported
+    // rows first, so everything queried below already reflects the
+    // post-archive state instead of momentarily showing rows that are
+    // about to disappear.
+    const archiveNotice = await archiveActivityFeedIfThresholdReached();
+
     const wantsVisitor = filter === "all" || filter === "visitor";
     const wantsStaff = filter === "all" || filter === "staff";
 
@@ -109,6 +117,16 @@ export async function GET(request) {
         pageSize: PAGE_SIZE,
         totalCount,
         totalPages: Math.max(1, Math.ceil(totalCount / PAGE_SIZE)),
+        // Only present on the one response where an archive just fired —
+        // null on every other request. Client shows the banner + toast
+        // exactly once when this shows up, never on subsequent loads.
+        archiveNotice: archiveNotice
+          ? {
+              fileName: archiveNotice.fileName,
+              driveViewLink: archiveNotice.driveViewLink,
+              recordCount: archiveNotice.recordCount,
+            }
+          : null,
       },
       message: "Activity feed fetched successfully.",
     });

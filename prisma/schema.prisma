@@ -253,6 +253,29 @@ model SecurityLog {
 // traffic" note in scripts/runBackup.js). Lets an admin see backup
 // history and confirm both destinations (R2 + Google Drive) actually
 // received a copy on the Backups admin page.
+// ============================================================
+// MODEL: ActivityArchiveLog  (Activity Feed — 100-page auto-archive)
+// ============================================================
+// One row per automatic Activity Feed archive event. Written by
+// services/activityArchive.js the instant a VisitorLog +
+// AccountActivityLog snapshot has been uploaded to Google Drive AND
+// deleted from both source tables. The Activity Feed page reads the
+// single most recent row here to show the "just archived" banner +
+// Open in Google Drive button after a fresh archive fires.
+model ActivityArchiveLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileName      String   @map("file_name") // e.g. "JulyToAugust-activityfeed-2026.sql"
+  driveFileId   String   @map("drive_file_id")
+  driveViewLink String   @map("drive_view_link") @db.Text
+  recordCount   Int      @map("record_count")
+  rangeStart    DateTime @map("range_start")
+  rangeEnd      DateTime @map("range_end")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("activity_archive_logs")
+}
+
 model BackupLog {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   status         String    @default("running") // running | success | failed

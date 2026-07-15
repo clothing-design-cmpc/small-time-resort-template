@@ -19,6 +19,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import DataTable from "@/components/superAdmin/DataTable";
+import { useToast } from "@/app/superAdmin/shared/useToast";
+import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import "./ActivityFeed.css";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -66,6 +68,11 @@ export default function ActivityFeedClient() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  // Set once when the API reports a fresh archive event, stays visible
+  // as a dismissible banner until the admin closes it — never
+  // re-triggered by simply changing pages or filters afterward.
+  const [archiveNotice, setArchiveNotice] = useState(null);
+  const { toasts, showToast, dismissToast } = useToast();
 
   const fetchFeed = useCallback(async () => {
     setIsLoading(true);
@@ -83,12 +90,23 @@ export default function ActivityFeedClient() {
       setLogs(result.data.logs);
       setTotalPages(result.data.totalPages);
       setTotalCount(result.data.totalCount);
+
+      // A non-null archiveNotice means this exact response is the one
+      // where the 100-page threshold just fired — show the banner and
+      // toast now, once, then let the admin dismiss the banner.
+      if (result.data.archiveNotice) {
+        setArchiveNotice(result.data.archiveNotice);
+        showToast(
+          `✓ ${result.data.archiveNotice.recordCount} records archived to Google Drive.`,
+          "success"
+        );
+      }
     } catch {
       setLoadError("We couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [page, sourceFilter]);
+  }, [page, sourceFilter, showToast]);
 
   useEffect(() => {
     fetchFeed();
@@ -113,6 +131,8 @@ export default function ActivityFeedClient() {
 
   return (
     <section className="activityFeedSection">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
       <div className="activityFeedHeaderRow">
         <span className="activityFeedEyebrow">Staff Oversight</span>
         <h1 className="activityFeedTitle">Activity Feed</h1>
@@ -123,6 +143,33 @@ export default function ActivityFeedClient() {
           Visitor Logs / Account Activity directly for the full detail on either.
         </p>
       </div>
+
+      {archiveNotice && (
+        <div className="activityFeedArchiveBanner" role="status">
+          <div className="activityFeedArchiveBannerText">
+            <strong>Activity feed reached 100 pages.</strong> {archiveNotice.recordCount} records
+            were exported to <strong>{archiveNotice.fileName}</strong> and cleared from this table.
+          </div>
+          <div className="activityFeedArchiveBannerActions">
+            <a
+              href={archiveNotice.driveViewLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="activityFeedArchiveBannerButton"
+            >
+              Open in Google Drive
+            </a>
+            <button
+              type="button"
+              className="activityFeedArchiveBannerDismiss"
+              onClick={() => setArchiveNotice(null)}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="activityFeedFilterRow">
         {SOURCE_FILTERS.map((filter) => (

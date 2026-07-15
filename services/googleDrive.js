@@ -22,13 +22,55 @@
 import { google } from "googleapis";
 import { Readable } from "stream";
 
+/**
+ * normalizePrivateKey
+ * Takes the raw GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY env var and returns
+ * a real PEM string, defensively handling the most common ways this
+ * value gets mangled when copy-pasted from the downloaded JSON key
+ * file into a GitHub Secret or .env.local:
+ *   1. Literal "\n" (two characters) instead of real newlines — the
+ *      JSON file itself stores it this way, so this is expected and
+ *      always converted back.
+ *   2. Accidentally including the JSON field's surrounding double
+ *      quotes (copying `"-----BEGIN...` instead of `-----BEGIN...`) —
+ *      stripped if present.
+ *   3. Leading/trailing whitespace from the paste — trimmed.
+ *
+ * Logs a specific, actionable warning (host names never included —
+ * this never logs the key itself) if the result still doesn't look
+ * like a real PEM key, instead of leaving the person to decode
+ * googleapis/OpenSSL's opaque "error:1E08010C:DECODER
+ * routines::unsupported" on their own.
+ */
+function normalizePrivateKey(rawValue) {
+  if (!rawValue) {
+    console.warn("[googleDrive] GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is not set.");
+    return rawValue;
+  }
+
+  let key = rawValue.trim();
+  if (key.startsWith('"') && key.endsWith('"')) {
+    key = key.slice(1, -1);
+  }
+  key = key.replace(/\\n/g, "\n");
+
+  if (!key.includes("-----BEGIN PRIVATE KEY-----") || !key.includes("-----END PRIVATE KEY-----")) {
+    console.error(
+      "[googleDrive] WARNING: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY doesn't look like a complete PEM key " +
+        '(missing the "-----BEGIN PRIVATE KEY-----" / "-----END PRIVATE KEY-----" markers after normalizing). ' +
+        "This is almost always a copy-paste issue — re-copy the full \"private_key\" value from the service " +
+        "account's downloaded JSON file, including both BEGIN/END lines, into the GitHub secret."
+    );
+  }
+
+  return key;
+}
+
 function getDriveClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      // .env files store the private key with literal "\n" — convert
-      // back to real newlines or the key fails to parse.
-      private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      private_key: normalizePrivateKey(process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
     },
     scopes: ["https://www.googleapis.com/auth/drive"],
   });

@@ -37,6 +37,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # npm ci only installs the @prisma/client package — it does NOT
+      # generate the actual client code (.prisma/client/*) that
+      # `import { PrismaClient } from "@prisma/client"` resolves to.
+      # Without this step the script fails with "Cannot find module
+      # '.prisma/client/default'" the moment it tries to instantiate
+      # PrismaClient. Only needs DIRECT_URL (session pooler) — see
+      # prisma.config.mjs, which is what the CLI reads for generate.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
       - name: Run backup script
         run: npm run backup
         env:

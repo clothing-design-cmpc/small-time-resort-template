@@ -53,9 +53,12 @@ logDbHost("DIRECT_URL", process.env.DIRECT_URL);
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL });
 const prisma = new PrismaClient({ adapter });
 
-function todayFileLabel() {
+function backupFileLabel() {
   const now = new Date();
-  return now.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  // "YYYY-MM-DDTHH-MM-SS" — includes time, not just the date, so two
+  // backups on the same calendar day (e.g. the nightly 2 AM run plus a
+  // manual "Run Backup Now" click) never collide on the same filename.
+  return now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
 }
 
 /**
@@ -105,7 +108,7 @@ async function main() {
   }
 
   const compressed = await gzipAsync(dumpBuffer);
-  const fileName = `villa-azure-backup-${todayFileLabel()}.sql.gz`;
+  const fileName = `villa-azure-backup-${backupFileLabel()}.sql.gz`;
   const r2Key = `backups/${fileName}`;
 
   // Upload to both destinations independently — one failing must not

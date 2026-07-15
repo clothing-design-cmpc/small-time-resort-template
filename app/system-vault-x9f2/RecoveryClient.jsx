@@ -1,6 +1,6 @@
 /**
  * FILE: app/system-vault-x9f2/RecoveryClient.jsx
- * ROLE: Super-admin only — protected by middleware.js (HIDDEN_RECOVERY_PATH)
+ * ROLE: Super-admin only — protected by proxy.js (HIDDEN_RECOVERY_PATH)
  *
  * PURPOSE:
  * The actual recovery workflow: shows which gatekeeper tripped and

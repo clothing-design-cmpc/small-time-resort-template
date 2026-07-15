@@ -1,7 +1,7 @@
 /**
  * FILE: app/api/admin/breach/route.js
  * ROLE: Super-admin only — verified via requireSuperAdmin(), also
- *       covered by middleware.js since this path starts with /api/admin
+ *       covered by proxy.js since this path starts with /api/admin
  *
  * PURPOSE:
  * GET   -> returns the most recent unresolved BreachEvent (if any) plus

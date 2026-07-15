@@ -1,5 +1,5 @@
 /**
- * FILE: middleware.js
+ * FILE: proxy.js
  * ROLE: Applies to all account types (visitor, superAdmin)
  *
  * PURPOSE:
@@ -13,20 +13,24 @@
  * DATA FLOW:
  * 1. Request hits any matched route
  * 2. isIpBlocked() checks the BlockedIp table — 403 immediately if listed
- * 3. Middleware reads the "session" HttpOnly cookie set by
+ * 3. Proxy reads the "session" HttpOnly cookie set by
  *    app/api/auth/login/route.js on successful sign-in
  * 4. No valid session with role "super_admin" on a protected route ->
  *    redirect to /superAdmin/login
  * 5. Valid session -> request continues to the requested page
  *
- * NOTE ON RUNTIME: this file runs on the Node.js middleware runtime
- * (not the default Edge runtime) specifically so step 2 can query
- * Prisma/Postgres directly via the pg driver adapter — the pg package
- * needs real Node APIs (net/tls) that Edge doesn't provide. Next.js 16
- * supports this via `export const config = { runtime: "nodejs", ... }`
- * below. The role-decoding in step 3 still needs no DB call — the
- * login route is the only place that verifies password + role against
- * the database; this file only trusts what it already signed.
+ * WHY THIS FILE IS NAMED proxy.js, NOT middleware.js:
+ * Next.js 16 renamed the middleware.js file convention to proxy.js —
+ * the old name still works for now but is deprecated and scheduled for
+ * removal in a future version (confirmed against Next 16.2.10's own
+ * deprecation warning). The rename is more than cosmetic for this
+ * project specifically: proxy.js ALWAYS runs on the Node.js runtime
+ * and — per Next's own docs — setting `runtime` in a proxy file's
+ * config now throws an error, since it can no longer be configured to
+ * run on Edge. That's exactly what this file needs anyway (the pg
+ * driver adapter behind isIpBlocked() requires real Node APIs Edge
+ * doesn't provide), so this migration only removes a config option
+ * that would otherwise have started throwing — no behavior changed.
  */
 import { NextResponse } from "next/server";
 import { isIpBlocked } from "@/services/ipBlock";
@@ -59,7 +63,7 @@ function decodeRole(sessionToken) {
   }
 }
 
-export async function middleware(request, event) {
+export async function proxy(request, event) {
   const sessionToken = request.cookies.get("session")?.value;
   const { pathname } = request.nextUrl;
 
@@ -69,6 +73,10 @@ export async function middleware(request, event) {
   // Gatekeeper 1 (login brute force) or Gatekeeper 2 (SQL injection
   // attempt) lands here and gets a flat 403 with no further detail —
   // never a reason, never a hint about which gatekeeper caught them.
+  // (Blocking itself can be disabled for local testing via
+  // GATEKEEPER_IP_BLOCK_DISABLED — see services/ipBlock.js's blockIp().
+  // When that's set, isIpBlocked() simply never finds a row to match,
+  // so this check needs no changes of its own to respect the toggle.)
   const requestIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.ip ?? null;
   if (requestIp && (await isIpBlocked(requestIp))) {
     return new NextResponse("Access denied.", { status: 403 });
@@ -76,7 +84,7 @@ export async function middleware(request, event) {
 
   // --- VISITOR PAGE VIEW TRACKING ---
   // Fire-and-forget: never awaited, so it can't add latency to the
-  // actual page response. event.waitUntil keeps the Edge function alive
+  // actual page response. event.waitUntil keeps the function alive
   // long enough for the fetch to actually go out before the runtime
   // recycles it. Only real visitor pages are tracked — not the
   // super-admin area, not API routes, not the login page.
@@ -145,10 +153,10 @@ export async function middleware(request, event) {
 // assets are excluded, since blocking those would break the page shell
 // even for legitimate visitors sharing a CDN edge with a blocked IP is
 // not a concern this app needs to solve.
+//
+// NOTE: no `runtime` option here (unlike the old middleware.js) —
+// proxy.js always runs on Node.js and Next.js throws if you try to
+// configure it. That's exactly the runtime this file needs anyway.
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-  // Node.js middleware runtime (not the default Edge runtime) — required
-  // so the IP block check above can query Prisma/Postgres directly via
-  // the pg driver adapter. See the file header comment for why.
-  runtime: "nodejs",
 };

@@ -5,7 +5,7 @@
  * PURPOSE:
  * Verifies the submitted email/password against Supabase Auth, confirms
  * the signed-in user has a super_admin row in admin_profiles, and sets
- * the HttpOnly "session" cookie that middleware.js reads to guard every
+ * the HttpOnly "session" cookie that proxy.js reads to guard every
  * other /superAdmin/* route.
  *
  * DATA FLOW:
@@ -18,7 +18,7 @@
  *    confirm the account is actually a super_admin — a valid Supabase
  *    login alone is not enough to reach the admin area
  * 5. On success, an HttpOnly/Secure/SameSite=strict "session" cookie is
- *    set containing the user id + role so middleware.js (edge runtime,
+ *    set containing the user id + role so proxy.js (edge runtime,
  *    no DB access) can authorize requests without a network call
  */
 export const dynamic = "force-dynamic";
@@ -56,7 +56,7 @@ export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
   // GATEKEEPER 1 check happens before anything else — an already-blocked
-  // IP should never even reach the rate limiter (middleware.js should
+  // IP should never even reach the rate limiter (proxy.js should
   // have already 403'd it, but this is a second layer of defense in
   // case this route is ever reached directly).
   if (ip !== "unknown" && (await isIpBlocked(ip))) {
@@ -223,7 +223,7 @@ export async function POST(request) {
     );
   }
 
-  // Step 3: set the HttpOnly session cookie middleware.js decodes.
+  // Step 3: set the HttpOnly session cookie proxy.js decodes.
   const sessionPayload = Buffer.from(
     JSON.stringify({ uid: authUserId, role: adminProfile.role })
   ).toString("base64");

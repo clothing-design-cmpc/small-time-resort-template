@@ -1,6 +1,6 @@
 /**
  * FILE: components/superAdmin/BreachAlertBanner.jsx
- * ROLE: Super-admin only — protected by middleware.js auth guard
+ * ROLE: Super-admin only — protected by proxy.js auth guard
  *
  * PURPOSE:
  * Persistent red banner shown at the top of every super-admin page

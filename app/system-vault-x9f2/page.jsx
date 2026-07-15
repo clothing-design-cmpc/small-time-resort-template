@@ -1,6 +1,6 @@
 /**
  * FILE: app/system-vault-x9f2/page.jsx
- * ROLE: Super-admin only — protected by middleware.js (HIDDEN_RECOVERY_PATH),
+ * ROLE: Super-admin only — protected by proxy.js (HIDDEN_RECOVERY_PATH),
  *       NOT part of the app/superAdmin route group and NOT linked from
  *       the Sidebar or anywhere else in the app
  *
@@ -9,7 +9,7 @@
  * (Task 3). Deliberately kept outside app/superAdmin so it can never
  * show up in a route listing alongside the normal admin pages — only
  * a super-admin who already knows this exact URL can reach it, and
- * middleware.js still enforces the same super_admin session check any
+ * proxy.js still enforces the same super_admin session check any
  * other protected route gets (obscurity is the discovery barrier here,
  * not the auth barrier — the auth guard is real and identical to
  * every other admin-only route).

@@ -76,9 +76,13 @@ Step 7 : components/Hero.jsx renders a placeholder background photo via
 - app/page.jsx                 — root route, redirects to /visitor
 - app/styles/globals.css       — CSS design tokens (color, spacing, z-index, transitions) + reset
 - app/styles/mediaQueries.css  — empty, ready for breakpoints
-- middleware.js                 — auth guard, matcher covers /superAdmin/* pages
-                                   and /api/admin/* routes; checks role "super_admin"
-                                   decoded from the "session" HttpOnly cookie
+- proxy.js                      — auth guard + Gatekeeper IP block, matcher is a
+                                   broad catch-all (excludes only static assets);
+                                   checks role "super_admin" decoded from the
+                                   "session" HttpOnly cookie. Renamed from
+                                   middleware.js per Next.js 16's deprecation of
+                                   that file convention — see the 3-Gatekeeper
+                                   Breach Response section below for why.
 - services/adminSession.js      — requireSuperAdmin(request) helper used inside
                                    /api/admin/* route handlers, since middleware's
                                    matcher is the page-level guard, not a DB check
@@ -372,7 +376,7 @@ Step 6 : services/emailAlert.js emails the super-admin via EmailJS's
          REST API (server-side call, not the client-only SDK) - see
          that file's header comment for the required EmailJS dashboard
          template + env vars
-Step 7 : middleware.js checks BlockedIp on EVERY request from here on
+Step 7 : proxy.js checks BlockedIp on EVERY request from here on
          (visitor + super-admin + API routes alike) and returns a flat
          403 with no explanation to any IP found there
 Step 8 : Super-admin sees a persistent red BreachAlertBanner on every
@@ -382,7 +386,7 @@ Step 9 : Super-admin opens the hidden recovery page at
          /system-vault-x9f2 (NOT linked in the Sidebar, NOT part of the
          app/superAdmin route group - only reachable by URL, but still
          guarded by the exact same super_admin session check via
-         middleware.js's HIDDEN_RECOVERY_PATH constant), reviews the
+         proxy.js's HIDDEN_RECOVERY_PATH constant), reviews the
          incident, uploads the pre-breach .sql from Google Drive/R2
          (reuses the existing useSqlImport hook + sql-import pipeline
          unchanged), and once satisfied clicks "End Lockdown"
@@ -394,7 +398,7 @@ FILE MAP additions (3-Gatekeeper Breach Response):
 - prisma/schema.prisma - BlockedIp model, BreachEvent model,
   SystemSettings.breachLockdown + breachActiveEventId fields,
   SecurityLog.eventType gained "gatekeeper_breach" as a documented value.
-- services/ipBlock.js - isIpBlocked() (called by middleware.js on every
+- services/ipBlock.js - isIpBlocked() (called by proxy.js on every
   request) + blockIp() (called by breachResponse.js).
 - services/emailAlert.js - sendBreachAlertEmail() via EmailJS REST API
   (server-side). Requires EMAILJS_SERVICE_ID, EMAILJS_BREACH_TEMPLATE_ID,
@@ -403,7 +407,7 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   must be created in the EmailJS dashboard first (see file header).
 - services/breachResponse.js - triggerGatekeeperBreach(), the single
   orchestrator every gatekeeper trip calls into.
-- middleware.js - now runs on the Node.js middleware runtime (not Edge)
+- proxy.js - now runs on the Node.js middleware runtime (not Edge)
   so it can query Prisma directly; matcher broadened to a catch-all
   (excluding static assets) so the IP block check covers every route;
   HIDDEN_RECOVERY_PATH added to the protected-route list.
@@ -420,7 +424,7 @@ FILE MAP additions (3-Gatekeeper Breach Response):
 - app/system-vault-x9f2/page.jsx + RecoveryClient.jsx + Recovery.css -
   the hidden recovery page. Deliberately outside app/superAdmin and
   never linked from the Sidebar - reachable only by URL, protected by
-  the same middleware.js auth guard as every other admin route.
+  the same proxy.js auth guard as every other admin route.
 
 8c. API ENDPOINTS (3-Gatekeeper Breach Response)
 - GET /api/admin/breach - super-admin only. Returns
@@ -448,7 +452,7 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   BlockedIp; delete the row directly in the database (no admin UI for
   this yet - Rule 40.6-style "no self-service trigger button" caution
   was applied here too, to avoid making unblocking as casual as a toggle).
-- middleware.js throwing at the Prisma import step -> confirm the
+- proxy.js throwing at the Prisma import step -> confirm the
   Next.js version in use still supports `runtime: "nodejs"` in
   middleware's exported config; this was verified against Next 16.2.10.
 
@@ -479,8 +483,8 @@ FILE MAP additions (3-Gatekeeper Breach Response):
 - If styles missing: confirm globals.css and mediaQueries.css are imported in app/layout.jsx.
 - If /api/admin/* routes return 401 for a logged-in admin: confirm the "session" cookie
   actually has role "super_admin" — requireSuperAdmin() in services/adminSession.js
-  rejects anything else, and middleware.js's matcher (["/superAdmin/:path*",
-  "/api/admin/:path*"]) blocks unauthenticated requests before the route even runs.
+  rejects anything else, and proxy.js's matcher (broad catch-all excluding only
+  _next/static, _next/image, favicon.ico) blocks unauthenticated requests before the route even runs.
 - If a cancelled booking's dates don't reopen on the visitor site: check
   GET /api/bookings/dates — it only expands bookings with status: "confirmed", so a
   successful cancel (status -> "cancelled") should free those dates on next fetch.

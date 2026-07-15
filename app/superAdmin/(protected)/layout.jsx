@@ -1,6 +1,6 @@
 /**
  * FILE: app/superAdmin/(protected)/layout.jsx
- * ROLE: Super-admin only — protected by middleware.js auth guard
+ * ROLE: Super-admin only — protected by proxy.js auth guard
  *
  * PURPOSE:
  * Shell for every AUTHENTICATED page under /superAdmin. Renders the
@@ -12,7 +12,7 @@
  * DATA FLOW:
  * 1. Every route under app/superAdmin/(protected)/ renders inside this layout's {children}
  * 2. Sidebar and AdminHeader are rendered once, shared across all admin pages
- * 3. No session check happens here — middleware.js already blocked anyone
+ * 3. No session check happens here — proxy.js already blocked anyone
  *    without a valid superAdmin session before this layout ever renders
  *
  * ACCESSIBILITY:

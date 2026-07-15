@@ -49,6 +49,14 @@ export async function isIpBlocked(ipAddress) {
  * fired) never throws a unique-constraint error — it just refreshes
  * the reason/gatekeeper instead of creating a duplicate row.
  *
+ * TESTING TOGGLE: set GATEKEEPER_IP_BLOCK_DISABLED=true in .env.local
+ * to skip writing the BlockedIp row entirely — everything else in the
+ * breach response (BreachEvent, site lockdown, backup trigger, alert
+ * email) still fires normally, so a developer can manually click
+ * through the full flow in a browser without locking their own IP out
+ * and having to delete rows from BlockedIp between every test run.
+ * *** NEVER set this in production — it disables the actual defense. ***
+ *
  * @param {string} ipAddress
  * @param {string} reason - human-readable, e.g. "Exceeded login rate limit — Gatekeeper 1"
  * @param {number|null} gatekeeper - 1, 2, or 3
@@ -56,6 +64,14 @@ export async function isIpBlocked(ipAddress) {
  */
 export async function blockIp(ipAddress, reason, gatekeeper = null, blockedBy = "system") {
   if (!ipAddress) return null;
+
+  if (process.env.GATEKEEPER_IP_BLOCK_DISABLED === "true") {
+    console.warn(
+      `[ipBlock] GATEKEEPER_IP_BLOCK_DISABLED is true — skipped blocking ${ipAddress}. ` +
+        "Remove this env var before deploying to production."
+    );
+    return null;
+  }
 
   try {
     return await prisma.blockedIp.upsert({

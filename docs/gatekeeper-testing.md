@@ -2,7 +2,7 @@
 
 Covers the feature built in `services/breachResponse.js` and wired into
 `app/api/auth/login/route.js`, `app/api/bookings/route.js`, and
-`middleware.js`. Two ways to test it: the automated checker script
+`proxy.js`. Two ways to test it: the automated checker script
 (fast, repeatable, covers Gatekeepers 1 & 2), and the manual walkthrough
 (covers everything, including the recovery page UI and Gatekeeper 3).
 
@@ -60,7 +60,7 @@ the lockdown screen — things the automated script can't see.
    email" and continues without them.
 2. **Sanity-check the site still loads.** `npm run dev`, then visit the
    homepage and any `/superAdmin` page normally. This confirms the
-   `middleware.js` runtime change (Edge → Node.js) didn't break basic
+   `proxy.js` runtime change (Edge → Node.js) didn't break basic
    routing — the highest-risk change in this feature, so check it first.
 3. **Trip Gatekeeper 1 by hand.** Go to `/superAdmin/login`, enter a
    wrong password 6 times. The 6th should return 429. Check

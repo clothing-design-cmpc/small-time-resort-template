@@ -17,7 +17,7 @@
  *
  * WHAT HAPPENS ON A TRIP (in this exact order):
  * 1. Block the offending IP (services/ipBlock.js) — every future
- *    request from this IP gets a plain 403 from middleware.js, for
+ *    request from this IP gets a plain 403 from proxy.js, for
  *    every route, visitor and super-admin alike.
  * 2. Create a BreachEvent row — the incident record the recovery page
  *    and the super-admin alert banner both read from.

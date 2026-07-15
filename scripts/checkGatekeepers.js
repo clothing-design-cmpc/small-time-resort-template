@@ -48,7 +48,12 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
+// Default is 127.0.0.1, not "localhost" — on some Windows setups
+// (notably Git Bash / MINGW64), Node's fetch resolves "localhost" to
+// the IPv6 loopback (::1) first, which the Next.js dev server usually
+// isn't listening on, and undici reports that as a bare "fetch failed"
+// with no useful detail. 127.0.0.1 sidesteps that resolution entirely.
 
 // RFC 5737 TEST-NET-3 — reserved specifically for documentation and
 // testing, guaranteed to never be a real visitor's or admin's IP.
@@ -104,7 +109,7 @@ async function testGatekeeper1() {
   });
   record("SystemSettings.breachLockdown flipped on", lockdownSettings?.breachLockdown === true);
 
-  // The real proof: does middleware.js actually reject this IP now,
+  // The real proof: does proxy.js actually reject this IP now,
   // on a completely unrelated route?
   const blockedResponse = await fetch(`${BASE_URL}/`, {
     headers: { "x-forwarded-for": TEST_IP_GATEKEEPER_1 },
@@ -174,9 +179,37 @@ async function cleanup() {
   console.log("Removed test BlockedIp/BreachEvent rows and reset breachLockdown to off.");
 }
 
+/**
+ * checkServerIsReachable
+ * Fails fast with a clear, actionable message instead of letting a
+ * connection failure surface deep inside testGatekeeper1() as a bare
+ * "fetch failed" — that error hides its real cause (wrong port, wrong
+ * host, server not running) behind Node's generic wrapper by default.
+ */
+async function checkServerIsReachable() {
+  try {
+    await fetch(BASE_URL);
+    return true;
+  } catch (error) {
+    console.error(`[checkGatekeepers] Could not reach ${BASE_URL}`);
+    console.error(`[checkGatekeepers] Underlying error: ${error.cause?.message || error.message}`);
+    console.error(
+      "[checkGatekeepers] Check: is `npm run dev` actually running? Does the port in its \"Local:\" " +
+        "URL match BASE_URL? If BASE_URL is unset, this script assumes http://127.0.0.1:3000."
+    );
+    return false;
+  }
+}
+
 async function main() {
   console.log(`[checkGatekeepers] Running against ${BASE_URL}`);
   console.log("[checkGatekeepers] NEVER point BASE_URL at production — this trips real breach detectors.\n");
+
+  if (!(await checkServerIsReachable())) {
+    await prisma.$disconnect();
+    process.exitCode = 1;
+    return;
+  }
 
   try {
     await testGatekeeper1();

@@ -66,6 +66,49 @@ function normalizePrivateKey(rawValue) {
   return key;
 }
 
+/**
+ * normalizeFolderId
+ * GOOGLE_DRIVE_FOLDER_ID is supposed to be just the bare ID from the
+ * folder's URL (drive.google.com/drive/folders/<THIS PART>), but it's
+ * easy to accidentally copy the WHOLE address-bar URL instead —
+ * especially since Drive appends tracking query params like
+ * "?dmr=1&ec=wgc-drive-...-goto" that aren't visually obvious as
+ * "extra" text. If that happens, "files.create" gets a parents[] value
+ * that isn't a real ID at all, and Drive returns a generic
+ * "File not found" (a 404, not 403 — Drive deliberately doesn't reveal
+ * whether an ID exists to someone without access to it).
+ *
+ * Handles both shapes:
+ *   - A full URL -> extracts the ID between "/folders/" and the next
+ *     "/", "?", or "#"
+ *   - A bare ID with a stray "?...", "&...", or trailing slash still
+ *     attached -> truncates at the first non-ID character
+ */
+function normalizeFolderId(rawValue) {
+  if (!rawValue) {
+    console.warn("[googleDrive] GOOGLE_DRIVE_FOLDER_ID is not set.");
+    return rawValue;
+  }
+
+  const trimmed = rawValue.trim();
+  const urlMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (urlMatch) {
+    return urlMatch[1];
+  }
+
+  const bareIdMatch = trimmed.match(/^[a-zA-Z0-9_-]+/);
+  const folderId = bareIdMatch ? bareIdMatch[0] : trimmed;
+
+  if (folderId !== trimmed) {
+    console.warn(
+      `[googleDrive] GOOGLE_DRIVE_FOLDER_ID had extra characters after the ID (likely a full URL with ` +
+        `query params was pasted instead of just the ID) — using "${folderId}" and ignoring the rest.`
+    );
+  }
+
+  return folderId;
+}
+
 function getDriveClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -89,11 +132,12 @@ function getDriveClient() {
  */
 export async function uploadToDrive(fileName, buffer, mimeType) {
   const drive = getDriveClient();
+  const folderId = normalizeFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID);
 
   const uploadResponse = await drive.files.create({
     requestBody: {
       name: fileName,
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
+      parents: [folderId],
     },
     media: {
       mimeType,

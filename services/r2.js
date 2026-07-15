@@ -8,6 +8,34 @@
  */
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
+/**
+ * assertR2Configured
+ * Every image upload across the whole admin panel (rooms, gallery,
+ * amenities, shop, activities, testimonials, homepage) routes through
+ * this client. Previously, a missing .env.local key silently built an
+ * endpoint like "https://undefined.r2.cloudflarestorage.com", which
+ * fails deep inside the AWS SDK and surfaces to the admin as nothing
+ * more than a generic "We couldn't upload this image." — impossible to
+ * debug from the UI alone. This check fails fast with the actual
+ * missing key name, logged server-side, before any request is made.
+ */
+function assertR2Configured() {
+  const missing = [
+    "CLOUDFLARE_R2_ACCOUNT_ID",
+    "CLOUDFLARE_R2_ACCESS_KEY_ID",
+    "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+    "CLOUDFLARE_R2_BUCKET_NAME",
+    "NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL",
+  ].filter((key) => !process.env[key]);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Cloudflare R2 is not configured — missing .env.local key(s): ${missing.join(", ")}. ` +
+        "Add these to .env.local and restart the dev server."
+    );
+  }
+}
+
 export const r2Client = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.CLOUDFLARE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -27,6 +55,7 @@ export const r2Client = new S3Client({
  * @param {string} contentType - e.g. "application/gzip"
  */
 export async function uploadToR2(key, buffer, contentType) {
+  assertR2Configured();
   await r2Client.send(
     new PutObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
@@ -52,6 +81,7 @@ export async function uploadToR2(key, buffer, contentType) {
  */
 export async function deleteFromR2(key) {
   if (!key) return; // nothing to delete — record never had an uploaded file
+  assertR2Configured();
   await r2Client.send(
     new DeleteObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,

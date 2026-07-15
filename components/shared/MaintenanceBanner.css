@@ -1,0 +1,41 @@
+/*
+ * .maintenanceBanner
+ * Sticky, high-contrast strip pinned above the Header on every visitor
+ * page. Uses the error/warning token, not the resort's teal/gold
+ * palette, so it never blends in with normal branding — it must always
+ * read as "something is wrong," never as a themed promo banner.
+ */
+.maintenanceBanner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  background-color: var(--color-error);
+  color: #ffffff;
+}
+
+.maintenanceBannerIcon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+/*
+ * .maintenanceBannerText
+ * Stacks the bold headline above the supporting message on mobile,
+ * sits inline on wider screens via mediaQueries.css.
+ */
+.maintenanceBannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.maintenanceBannerText strong {
+  font-size: 0.9rem;
+}

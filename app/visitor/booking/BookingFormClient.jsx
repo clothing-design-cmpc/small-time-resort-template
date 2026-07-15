@@ -31,6 +31,7 @@ import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { useRoomAvailability } from "@/hooks/useRoomAvailability";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
+import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
 import "./BookingForm.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -300,11 +301,23 @@ export default function BookingFormClient({ initialCheckInDate }) {
         )}
       </div>
 
-      {bookingType === "overnight" && availability?.unavailableDates?.length > 0 && (
-        <p className="bookingFormHint">
-          Heads up: this room already has reservations on some nearby dates — the total above will
-          tell you right away if your chosen range overlaps one.
-        </p>
+      {bookingType === "overnight" && roomId && (
+        <div className="bookingFormField">
+          <label className="bookingFormLabel">Pick your dates on the calendar</label>
+          <RoomAvailabilityCalendar
+            unavailableDates={availability?.unavailableDates ?? []}
+            checkInDate={checkInDate}
+            checkOutDate={checkOutDate}
+            onSelectRange={(nextCheckIn, nextCheckOut) => {
+              setValue("checkInDate", nextCheckIn, { shouldValidate: true });
+              setValue("checkOutDate", nextCheckOut, { shouldValidate: true });
+            }}
+          />
+          <p className="bookingFormHint">
+            Red days are already booked or blocked. Click an available day to set check-in, then
+            another to set check-out.
+          </p>
+        </div>
       )}
 
       {/* Guests */}

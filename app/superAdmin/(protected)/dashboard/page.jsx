@@ -15,6 +15,7 @@
  */
 import "./Dashboard.css";
 import StatCard from "@/components/superAdmin/StatCard";
+import MaintenanceToggleClient from "./MaintenanceToggleClient";
 
 /* Placeholder KPI data — replace with live Supabase counts once wired */
 const STAT_CARDS = [
@@ -38,6 +39,9 @@ export default function DashboardPage() {
           <StatCard key={stat.id} {...stat} />
         ))}
       </div>
+
+      {/* Task 4 breach response — site-wide maintenance banner toggle */}
+      <MaintenanceToggleClient />
     </section>
   );
 }

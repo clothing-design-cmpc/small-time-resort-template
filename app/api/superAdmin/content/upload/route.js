@@ -66,9 +66,13 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("[Upload] Failed:", error);
-    return NextResponse.json(
-      { success: false, data: null, message: "We couldn't upload this image. Please try again." },
-      { status: 500 }
-    );
+    // This is an internal super-admin-only tool (never visitor-facing), so
+    // surfacing the real reason — e.g. missing R2 env vars — is genuinely
+    // more helpful than Rule 34.1's generic guest-facing message would be.
+    // Falls back to the generic message if the error has no useful text.
+    const detail = error?.message?.startsWith("Cloudflare R2 is not configured")
+      ? error.message
+      : "We couldn't upload this image. Please try again.";
+    return NextResponse.json({ success: false, data: null, message: detail }, { status: 500 });
   }
 }

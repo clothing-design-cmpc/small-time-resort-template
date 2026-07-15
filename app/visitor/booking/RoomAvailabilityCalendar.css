@@ -1,0 +1,98 @@
+/*
+ * .roomAvailabilityCalendar
+ * Compact month-grid calendar shown under the date fields once a room
+ * is selected for an overnight stay. Mirrors the super-admin's own
+ * Availability Calendar color language (green/red) so guests and staff
+ * read the same visual system.
+ */
+.roomAvailabilityCalendar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.roomAvailabilityCalendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.roomAvailabilityCalendarHeader button {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: var(--space-xs) var(--space-sm);
+  cursor: pointer;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.roomAvailabilityCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.roomAvailabilityCalendarWeekday {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding-bottom: var(--space-xs);
+}
+
+.roomAvailabilityDay {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-success);
+  color: #ffffff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 36px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.roomAvailabilityDay--disabled {
+  background-color: var(--color-error);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.roomAvailabilityDay--selected {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent-hover);
+}
+
+.roomAvailabilityDay--inRange {
+  background-color: var(--color-accent-hover);
+  opacity: 0.7;
+}
+
+.roomAvailabilityCalendarLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.roomAvailabilityLegendDot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+}
+
+.roomAvailabilityLegendDot--available { background-color: var(--color-success); }
+.roomAvailabilityLegendDot--unavailable { background-color: var(--color-error); }
+.roomAvailabilityLegendDot--selected { background-color: var(--color-accent); }

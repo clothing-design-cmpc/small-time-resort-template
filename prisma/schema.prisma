@@ -476,6 +476,14 @@ model SystemSettings {
   // Shop Config (hours/location/alcohol warning) lives on the ShopConfig
   // model above, not here — see ShopConfig for that data.
 
+  // --- Maintenance Mode (breach response / planned downtime banner) ---
+  // When true, every /visitor page renders a full-site banner via
+  // components/shared/MaintenanceBanner.jsx instead of hiding the
+  // problem from guests. Toggled from the Dashboard's Maintenance Mode
+  // card — see app/api/superAdmin/settings/maintenance/route.js.
+  maintenanceMode    Boolean @default(false) @map("maintenance_mode")
+  maintenanceMessage String? @map("maintenance_message")
+
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")
   cancellationPolicy String? @map("cancellation_policy")

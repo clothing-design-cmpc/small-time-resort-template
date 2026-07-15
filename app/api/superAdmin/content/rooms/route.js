@@ -16,7 +16,15 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
-export async function GET() {
+export async function GET(request) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to view this page." },
+      { status: 401 }
+    );
+  }
+
   try {
     const rooms = await prisma.room.findMany({
       orderBy: { sortOrder: "asc" },

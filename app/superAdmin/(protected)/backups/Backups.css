@@ -73,3 +73,53 @@
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
+
+/* .backupsRunNowButton - shared button style for "Run Backup Now" and
+   the "Choose SQL File..." label (wraps a hidden native file input). */
+.backupsRunNowButton {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.backupsRunNowButton:hover,
+.backupsRunNowButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+.backupsRunNowButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* .backupsImportSection - breathing room above the Import SQL block
+   so it reads as its own section, not a continuation of the table. */
+.backupsImportSection {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--color-border);
+}
+
+/* .backupsFileInput - native file input hidden; its paired label
+   (.backupsFileInputLabel + .backupsRunNowButton) is the visible control. */
+.backupsFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.backupsFileInputLabel {
+  display: inline-flex;
+  align-items: center;
+}

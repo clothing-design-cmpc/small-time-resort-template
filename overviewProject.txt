@@ -263,11 +263,30 @@ Step 4 : The dump is gzipped in memory, then uploaded to Cloudflare R2
 Step 5 : The same BackupLog row is updated with status "success" (if at
          least one destination succeeded) or "failed" (if both failed),
          plus file size, both destination links, and any error message
-Step 6 : Super-admin reviews backup history at /superAdmin/backups — a
-         strictly READ-ONLY page (GET /api/admin/backup-logs); there is
-         intentionally no "Run Backup Now" button anywhere in the app —
-         a manual run is triggered via GitHub Actions' own "Run workflow"
-         button on database-backup.yml, never through this app itself
+Step 6 : Super-admin reviews backup history at /superAdmin/backups, and can
+         also start a run early with the "Run Backup Now" button - this
+         calls POST /api/admin/backup-logs/trigger, which uses
+         services/github.js to remotely fire a workflow_dispatch on
+         database-backup.yml. The pg_dump itself still only ever runs on
+         GitHub's runner - the button never runs it inside this app.
+
+=== PROCESS: Import SQL to Fix Database (manual restore) ===
+Step 1 : Super-admin picks a .sql/.sql.gz file on /superAdmin/backups and
+         confirms the destructive-action modal
+Step 2 : POST /api/admin/sql-import uploads the raw file to Cloudflare R2
+         under sql-imports/, creates a SqlImportLog row (status "running"),
+         then calls services/github.js to dispatch
+         .github/workflows/database-restore.yml with { sql_file_url,
+         import_log_id }
+Step 3 : The workflow runs scripts/runRestore.js on GitHub's own runner -
+         downloads the file, gunzips it if needed, and applies it with
+         `psql --single-transaction --set ON_ERROR_STOP=1` against
+         DIRECT_URL so a mid-file failure rolls back instead of leaving
+         the database half-restored
+Step 4 : runRestore.js updates the SqlImportLog row to "success" or
+         "failed" (+ errorMessage) when done
+Step 5 : Super-admin sees the result in the import history table beneath
+         the upload control on the same Backups page
 
 FILE MAP additions (Backups):
 - prisma/schema.prisma — BackupLog model (status, fileSizeBytes, r2Key/r2Url,
@@ -280,17 +299,44 @@ FILE MAP additions (Backups):
 - scripts/runBackup.js — the standalone backup script itself. NEVER
   imported by any Next.js route — run only via `npm run backup` or the
   GitHub Actions workflow.
-- .github/workflows/database-backup.yml — nightly cron (2 AM PHT) +
+- .github/workflows/database-backup.yml - nightly cron (2 AM PHT) +
   manual workflow_dispatch trigger.
-- app/api/admin/backup-logs/route.js — GET-only, super-admin, paginated.
+- app/api/admin/backup-logs/route.js - GET-only, super-admin, paginated.
+- app/api/admin/backup-logs/trigger/route.js - POST-only, super-admin.
+  Fires workflow_dispatch on database-backup.yml via services/github.js.
 - app/superAdmin/(protected)/backups/page.jsx + BackupLogsClient.jsx +
-  Backups.css — the read-only Backups admin page.
+  Backups.css - the Backups admin page (history + Run Backup Now +
+  Import SQL upload + import history).
+- services/github.js - server-side GitHub Actions workflow_dispatch
+  helper, shared by both the manual backup trigger and SQL import.
+- prisma/schema.prisma - SqlImportLog model (status, fileName,
+  fileSizeBytes, sourceUrl, triggeredBy, errorMessage, startedAt,
+  completedAt).
+- app/api/admin/sql-import/route.js - GET (paginated history) + POST
+  (upload .sql/.sql.gz to R2, create SqlImportLog row, dispatch
+  database-restore.yml).
+- .github/workflows/database-restore.yml - workflow_dispatch only
+  (never scheduled) - applies an uploaded SQL file via psql.
+- scripts/runRestore.js - downloads the uploaded file, gunzips if
+  needed, runs `psql --single-transaction --set ON_ERROR_STOP=1`, and
+  updates the SqlImportLog row. NEVER imported by any Next.js route.
+- hooks/useSqlImport.js - client hook for the import history +
+  uploadSqlFile mutation.
 
 8b. API ENDPOINTS (Backups)
-- GET /api/admin/backup-logs — super-admin only. Query param ?page=
+- GET /api/admin/backup-logs - super-admin only. Query param ?page=
   (default 1). Returns
   { success, data: { backupLogs, page, pageSize, totalCount, totalPages }, message }.
-  GET-only by design — see Step 6 above for why there is no POST here.
+- POST /api/admin/backup-logs/trigger - super-admin only. No body.
+  Dispatches database-backup.yml and returns
+  { success, data: null, message }.
+- GET /api/admin/sql-import - super-admin only. Query param ?page=
+  (default 1). Returns
+  { success, data: { importLogs, page, pageSize, totalCount, totalPages }, message }.
+- POST /api/admin/sql-import - super-admin only. multipart/form-data
+  with a `file` field (.sql or .sql.gz, max 100MB). Uploads to R2,
+  creates a SqlImportLog row, dispatches database-restore.yml, returns
+  { success, data: <SqlImportLog row>, message }.
 
 9. COMMON DEBUG POINTS
 - "pg_dump: command not found" when testing scripts/runBackup.js locally:
@@ -298,6 +344,16 @@ FILE MAP additions (Backups):
   binary, not an npm package, so `npm install` alone will never provide it.
 - Google Drive upload fails with a 404/permission error: the target folder
   was not shared with the service account's email
+- "Run Backup Now" / "Import SQL" toast says it couldn't start: check
+  GITHUB_ACTIONS_TOKEN / GITHUB_REPO_OWNER / GITHUB_REPO_NAME /
+  GITHUB_WORKFLOW_REF are all set - services/github.js throws immediately
+  if any are missing.
+- SQL import row stuck on "running" for a long time: check the
+  "Database Restore (SQL Import)" run under the repo's Actions tab -
+  psql failures (bad SQL, wrong DIRECT_URL) show there even if the
+  SqlImportLog row update itself never fired.
+- "psql: command not found" when testing scripts/runRestore.js locally:
+  same as pg_dump above - install the postgresql-client system package.
   (GOOGLE_SERVICE_ACCOUNT_EMAIL) as an Editor — a service account has no
   Drive storage of its own and can only write into folders explicitly
   shared with it (see services/googleDrive.js header comment).
@@ -399,8 +455,18 @@ DEBUG POINTS:
   GOOGLE_DRIVE_FOLDER_ID          (backup destination #2 — the folder must be
   manually shared with the service account email as an Editor first)
 - For GitHub Actions: add all of the above (except the NEXT_PUBLIC_ ones,
-  which can stay the same) as repo Secrets under Settings → Secrets and
-  variables → Actions, so database-backup.yml can read them.
+  which can stay the same) as repo Secrets under Settings -> Secrets and
+  variables -> Actions, so database-backup.yml and database-restore.yml
+  can read them.
+- GITHUB_REPO_OWNER / GITHUB_REPO_NAME (app runtime, e.g. the org and
+  repo name of this project) - used by services/github.js to build the
+  workflow_dispatch API URL.
+- GITHUB_ACTIONS_TOKEN (app runtime - a GitHub Personal Access Token
+  with `repo` + `workflow` scope. Create under GitHub Settings ->
+  Developer settings -> Personal access tokens. Needed for the "Run
+  Backup Now" button and the "Import SQL" feature to dispatch workflows.)
+- GITHUB_WORKFLOW_REF (app runtime, optional - defaults to "static".
+  The branch database-backup.yml/database-restore.yml should run from.)
 - RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY
   (reseller license check. Values are issued per client deployment by
   the owner's separate License Manager project, not yet built.)

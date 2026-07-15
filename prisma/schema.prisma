@@ -269,6 +269,30 @@ model BackupLog {
 }
 
 // ============================================================
+// MODEL: SqlImportLog  (Backups page — "Import SQL to Fix Database")
+// ============================================================
+// One row per SQL restore triggered by a super-admin. The row is
+// created with status "running" by the API route the instant the
+// upload finishes, then updated to "success"/"failed" by
+// scripts/runRestore.js once GitHub Actions actually applies the file
+// against DIRECT_URL — same "decoupled from live traffic" pattern as
+// BackupLog (Rule 40.1): the actual psql restore never runs inside a
+// live Next.js request.
+model SqlImportLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status         String    @default("running") // running | success | failed
+  fileName       String    @map("file_name")
+  fileSizeBytes  Int?      @map("file_size_bytes")
+  sourceUrl      String    @map("source_url") @db.Text // R2 URL of the uploaded .sql/.sql.gz file
+  triggeredBy    String?   @map("triggered_by") // super-admin uid who uploaded the file
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+
+  @@map("sql_import_logs")
+}
+
+// ============================================================
 // MODEL: BookingRules  (Booking Rules & Configuration, blueprint Page 7)
 // ============================================================
 // Singleton table — the app always reads/writes the single row with

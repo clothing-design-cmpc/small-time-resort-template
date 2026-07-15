@@ -1,0 +1,52 @@
+# FILE: .github/workflows/database-restore.yml
+# PURPOSE:
+# Restores the database from a super-admin-uploaded SQL file. Triggered
+# ONLY via workflow_dispatch — either manually from the Actions tab, or
+# remotely by app/api/admin/sql-import/route.js after the admin uploads
+# a .sql/.sql.gz file through the Backups page. Runs on GitHub's own
+# runners, same as database-backup.yml, so a restore never touches the
+# app's live request cycle (Rule 40.1).
+#
+# inputs:
+#   sql_file_url  - public R2 URL of the uploaded .sql or .sql.gz file
+#   import_log_id - id of the SqlImportLog row to update when done
+name: Database Restore (SQL Import)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sql_file_url:
+        description: "Public URL of the uploaded .sql or .sql.gz file"
+        required: true
+        type: string
+      import_log_id:
+        description: "SqlImportLog row id to update with the result"
+        required: true
+        type: string
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # psql ships with the postgresql-client package, not with Node —
+      # the Ubuntu runner doesn't have it preinstalled.
+      - name: Install PostgreSQL client (psql)
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run restore script
+        run: node scripts/runRestore.js
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          SQL_FILE_URL: ${{ inputs.sql_file_url }}
+          IMPORT_LOG_ID: ${{ inputs.import_log_id }}

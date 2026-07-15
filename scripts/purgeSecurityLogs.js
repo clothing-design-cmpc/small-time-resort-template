@@ -39,9 +39,11 @@ import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { withRetry } from "./lib/withRetry.js";
+import { logDbHost } from "./lib/logDbHost.js";
 
 const DEFAULT_RETENTION_DAYS = 90;
 
+logDbHost("DATABASE_URL", process.env.DATABASE_URL);
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 

@@ -37,10 +37,12 @@ import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { withRetry } from "./lib/withRetry.js";
+import { logDbHost } from "./lib/logDbHost.js";
 
 const execFileAsync = promisify(execFile);
 const gunzipAsync = promisify(gunzip);
 
+logDbHost("DIRECT_URL", process.env.DIRECT_URL);
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL });
 const prisma = new PrismaClient({ adapter });
 

@@ -41,6 +41,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { uploadToR2 } from "../services/r2.js";
 import { uploadToDrive } from "../services/googleDrive.js";
 import { withRetry } from "./lib/withRetry.js";
+import { logDbHost } from "./lib/logDbHost.js";
 
 const execFileAsync = promisify(execFile);
 const gzipAsync = promisify(gzip);
@@ -48,6 +49,7 @@ const gzipAsync = promisify(gzip);
 // This script talks to Postgres directly via DIRECT_URL, so it uses its
 // own Prisma Client instance (not services/prisma.js's DATABASE_URL
 // pooler client) purely to write the BackupLog row at the end.
+logDbHost("DIRECT_URL", process.env.DIRECT_URL);
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL });
 const prisma = new PrismaClient({ adapter });
 

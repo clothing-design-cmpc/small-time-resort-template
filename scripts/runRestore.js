@@ -36,6 +36,7 @@ import { writeFile, unlink } from "node:fs/promises";
 import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
+import { withRetry } from "./lib/withRetry.js";
 
 const execFileAsync = promisify(execFile);
 const gunzipAsync = promisify(gunzip);
@@ -104,17 +105,25 @@ async function main() {
     await runPsqlRestore(sqlBuffer);
     console.log("[restore] psql restore complete.");
 
-    await prisma.sqlImportLog.update({
-      where: { id: IMPORT_LOG_ID },
-      data: { status: "success", completedAt: new Date() },
-    });
+    await withRetry(
+      () =>
+        prisma.sqlImportLog.update({
+          where: { id: IMPORT_LOG_ID },
+          data: { status: "success", completedAt: new Date() },
+        }),
+      { label: "sqlImportLog.update (success)" }
+    );
     console.log("[restore] Done.");
   } catch (error) {
     console.error("[restore] FAILED:", error.message);
-    await prisma.sqlImportLog.update({
-      where: { id: IMPORT_LOG_ID },
-      data: { status: "failed", errorMessage: error.message, completedAt: new Date() },
-    });
+    await withRetry(
+      () =>
+        prisma.sqlImportLog.update({
+          where: { id: IMPORT_LOG_ID },
+          data: { status: "failed", errorMessage: error.message, completedAt: new Date() },
+        }),
+      { label: "sqlImportLog.update (failure)" }
+    );
     process.exitCode = 1;
   }
 }

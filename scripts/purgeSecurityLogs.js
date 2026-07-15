@@ -38,6 +38,7 @@ import "dotenv/config";
 import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
+import { withRetry } from "./lib/withRetry.js";
 
 const DEFAULT_RETENTION_DAYS = 90;
 
@@ -51,21 +52,26 @@ async function purgeSecurityLogs() {
   console.log(`[purgeSecurityLogs] Retention window: ${retentionDays} days. Deleting rows older than ${cutoffDate.toISOString()}...`);
 
   try {
-    const { count } = await prisma.securityLog.deleteMany({
-      where: { createdAt: { lt: cutoffDate } },
-    });
+    const { count } = await withRetry(
+      () => prisma.securityLog.deleteMany({ where: { createdAt: { lt: cutoffDate } } }),
+      { label: "securityLog.deleteMany" }
+    );
 
     console.log(`[purgeSecurityLogs] Deleted ${count} row(s) older than the retention window.`);
 
     // Record the purge itself for audit purposes — actor is "system"
     // since no admin session triggered it, only the scheduled job.
-    await prisma.securityLog.create({
-      data: {
-        eventType: "system_retention_purge",
-        actor: "system",
-        details: `Purged ${count} SecurityLog row(s) older than ${retentionDays} days (GDPR retention policy).`,
-      },
-    });
+    await withRetry(
+      () =>
+        prisma.securityLog.create({
+          data: {
+            eventType: "system_retention_purge",
+            actor: "system",
+            details: `Purged ${count} SecurityLog row(s) older than ${retentionDays} days (GDPR retention policy).`,
+          },
+        }),
+      { label: "securityLog.create (purge audit row)" }
+    );
   } catch (error) {
     console.error("[purgeSecurityLogs] Failed to purge security logs:", error.message);
     process.exitCode = 1;

@@ -40,6 +40,7 @@ const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { uploadToR2 } from "../services/r2.js";
 import { uploadToDrive } from "../services/googleDrive.js";
+import { withRetry } from "./lib/withRetry.js";
 
 const execFileAsync = promisify(execFile);
 const gzipAsync = promisify(gzip);
@@ -75,8 +76,13 @@ async function main() {
 
   // Row created up front with status "running" so a crash mid-backup
   // still leaves a visible (if incomplete) trail on the admin page,
-  // instead of the run disappearing silently.
-  const logRow = await prisma.backupLog.create({ data: { status: "running" } });
+  // instead of the run disappearing silently. Wrapped in withRetry
+  // since this is the very first DB round-trip in the run — the one
+  // most likely to catch a transient DNS hiccup resolving the pooler
+  // hostname on a fresh GitHub Actions runner.
+  const logRow = await withRetry(() => prisma.backupLog.create({ data: { status: "running" } }), {
+    label: "backupLog.create",
+  });
 
   let dumpBuffer;
   try {
@@ -84,10 +90,14 @@ async function main() {
     console.log(`[backup] pg_dump complete — ${dumpBuffer.length} bytes raw.`);
   } catch (dumpError) {
     console.error("[backup] pg_dump failed:", dumpError.message);
-    await prisma.backupLog.update({
-      where: { id: logRow.id },
-      data: { status: "failed", errorMessage: `pg_dump failed: ${dumpError.message}`, completedAt: new Date() },
-    });
+    await withRetry(
+      () =>
+        prisma.backupLog.update({
+          where: { id: logRow.id },
+          data: { status: "failed", errorMessage: `pg_dump failed: ${dumpError.message}`, completedAt: new Date() },
+        }),
+      { label: "backupLog.update (pg_dump failure)" }
+    );
     process.exitCode = 1;
     return;
   }
@@ -124,19 +134,23 @@ async function main() {
     .filter(Boolean)
     .join(" | ");
 
-  await prisma.backupLog.update({
-    where: { id: logRow.id },
-    data: {
-      status: bothFailed ? "failed" : "success",
-      fileSizeBytes: compressed.length,
-      r2Key: r2Result?.key ?? null,
-      r2Url: r2Result?.url ?? null,
-      driveFileId: driveResult?.fileId ?? null,
-      driveViewLink: driveResult?.viewLink ?? null,
-      errorMessage: combinedError || null,
-      completedAt: new Date(),
-    },
-  });
+  await withRetry(
+    () =>
+      prisma.backupLog.update({
+        where: { id: logRow.id },
+        data: {
+          status: bothFailed ? "failed" : "success",
+          fileSizeBytes: compressed.length,
+          r2Key: r2Result?.key ?? null,
+          r2Url: r2Result?.url ?? null,
+          driveFileId: driveResult?.fileId ?? null,
+          driveViewLink: driveResult?.viewLink ?? null,
+          errorMessage: combinedError || null,
+          completedAt: new Date(),
+        },
+      }),
+    { label: "backupLog.update (final)" }
+  );
 
   console.log(bothFailed ? "[backup] FAILED — both destinations errored." : "[backup] Done.");
   if (bothFailed) process.exitCode = 1;

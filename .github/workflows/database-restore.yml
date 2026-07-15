@@ -37,9 +37,15 @@ jobs:
           node-version: "24"
 
       # psql ships with the postgresql-client package, not with Node —
-      # the Ubuntu runner doesn't have it preinstalled.
-      - name: Install PostgreSQL client (psql)
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      # the Ubuntu runner doesn't have it preinstalled. See the identical
+      # step in database-backup.yml for why version 17 specifically is
+      # needed instead of Ubuntu's default (older) postgresql-client.
+      - name: Install PostgreSQL 17 client (psql)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
 
       - name: Install dependencies
         run: npm ci

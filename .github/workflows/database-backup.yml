@@ -30,9 +30,19 @@ jobs:
           node-version: "24"
 
       # pg_dump ships with the postgresql-client package, not with Node —
-      # the Ubuntu runner doesn't have it preinstalled.
-      - name: Install PostgreSQL client (pg_dump)
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      # the Ubuntu runner doesn't have it preinstalled. Ubuntu 24.04's
+      # default "postgresql-client" package is version 16, but pg_dump
+      # refuses to run against a NEWER server major version ("aborting
+      # because of server version mismatch") — and Supabase runs
+      # Postgres 17. postgresql-common's pgdg script adds PostgreSQL's
+      # own apt repo so we can install postgresql-client-17 specifically,
+      # matching (or newer than) whatever Supabase is actually running.
+      - name: Install PostgreSQL 17 client (pg_dump)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
 
       - name: Install dependencies
         run: npm ci

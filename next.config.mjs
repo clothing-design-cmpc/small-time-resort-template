@@ -20,17 +20,25 @@ const r2PublicHostname = getR2PublicHostname();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // geoip-lite (services/analytics.js, services/accountActivity.js — Rule
-  // 41/42) loads its .dat files from disk via a __dirname-relative path at
-  // runtime. Next.js's output file tracer only bundles files it can see
-  // being required directly — it never sees geoip-lite's own dynamic
-  // fs.readFileSync() calls, so the multi-MB .dat files silently get left
-  // out of the traced output. Every server-side geoip-lite lookup then
-  // throws "missing data file", which recordPageView()/recordAccountActivity()
-  // swallow (fire-and-forget, never-break-the-request pattern) — so it never
-  // surfaces as a visible error, just empty country data on every row.
-  // Explicitly including the data folder here fixes it for both `next dev`
-  // and any traced production output (standalone or Vercel).
+  // geoip-lite/maxmind (services/analytics.js, services/accountActivity.js,
+  // services/geoip.js — Rule 38/41/42) both read sibling data files off disk
+  // via a __dirname-relative path at MODULE LOAD time. When Turbopack (the
+  // Next 16 dev/build bundler) bundles these packages into its own server
+  // chunks, it rewrites __dirname to a virtual bundler root — confirmed by
+  // the dev error path "C:\ROOT\node_modules\geoip-lite\data\..." instead of
+  // the real project path — so the ENOENT is a bundling problem, not a
+  // missing-file problem; the .dat files were on disk the whole time.
+  // serverExternalPackages tells Next/Turbopack to leave these packages
+  // un-bundled and load them with a real runtime require() instead, which
+  // keeps their real __dirname and lets them find their own data files. This
+  // must be a plain root-level array (not per-route), and must list every
+  // package that touches its own __dirname at runtime.
+  serverExternalPackages: ["geoip-lite", "maxmind"],
+  // Belt-and-suspenders for traced production output (standalone/Vercel):
+  // even with the above, an output-file-traced build only copies files the
+  // tracer can see being required — it still can't see geoip-lite's own
+  // dynamic fs.readFileSync() calls, so the data folder must be listed here
+  // too or a traced prod deploy would hit the same ENOENT that dev just did.
   outputFileTracingIncludes: {
     "/**": ["./node_modules/geoip-lite/data/**"],
   },

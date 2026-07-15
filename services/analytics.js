@@ -69,7 +69,15 @@ function resolveDeviceType(request) {
  */
 export async function recordPageView({ request, path, referrerHost = null }) {
   try {
-    const countryCode = resolveCountryCode(request);
+    // Prisma's compound @@unique where clause rejects null members outright
+    // (SQL NULL never equals NULL, so it can't match a composite unique key) —
+    // every upsert with a missing country or direct-traffic referrer was
+    // throwing before it ever reached the DB. Substitute the same sentinel
+    // values the admin analytics reader already falls back to display
+    // (app/api/admin/analytics/route.js: "Direct" / "Unknown"), so read and
+    // write sides agree on what a missing value looks like.
+    const countryCode = resolveCountryCode(request) ?? "Unknown";
+    const resolvedReferrerHost = referrerHost ?? "Direct";
     const deviceType = resolveDeviceType(request);
 
     // Truncate to a date-only value (midnight) so all views on the same
@@ -82,13 +90,13 @@ export async function recordPageView({ request, path, referrerHost = null }) {
         date_path_referrerHost_deviceType_countryCode: {
           date,
           path,
-          referrerHost,
+          referrerHost: resolvedReferrerHost,
           deviceType,
           countryCode,
         },
       },
       update: { viewCount: { increment: 1 } },
-      create: { date, path, referrerHost, deviceType, countryCode, viewCount: 1 },
+      create: { date, path, referrerHost: resolvedReferrerHost, deviceType, countryCode, viewCount: 1 },
     });
   } catch (error) {
     // Analytics must never break the visitor's request — surface it server-side only.

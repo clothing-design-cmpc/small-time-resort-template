@@ -43,6 +43,13 @@ export const r2Client = new S3Client({
     accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
     secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
   },
+  // Without this, the AWS SDK defaults to virtual-hosted-style addressing
+  // (bucket.accountid.r2.cloudflarestorage.com) — Cloudflare's own R2 docs
+  // call this out as a common cause of SignatureDoesNotMatch, since the
+  // signed request host can end up not matching what's actually sent.
+  // Path-style (accountid.r2.cloudflarestorage.com/bucket/key) is what R2
+  // signs reliably.
+  forcePathStyle: true,
 });
 
 /**
@@ -86,6 +93,6 @@ export async function deleteFromR2(key) {
     new DeleteObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
       Key: key,
-    })
+    })  
   );
 }

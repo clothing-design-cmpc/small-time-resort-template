@@ -20,6 +20,20 @@ const r2PublicHostname = getR2PublicHostname();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // geoip-lite (services/analytics.js, services/accountActivity.js — Rule
+  // 41/42) loads its .dat files from disk via a __dirname-relative path at
+  // runtime. Next.js's output file tracer only bundles files it can see
+  // being required directly — it never sees geoip-lite's own dynamic
+  // fs.readFileSync() calls, so the multi-MB .dat files silently get left
+  // out of the traced output. Every server-side geoip-lite lookup then
+  // throws "missing data file", which recordPageView()/recordAccountActivity()
+  // swallow (fire-and-forget, never-break-the-request pattern) — so it never
+  // surfaces as a visible error, just empty country data on every row.
+  // Explicitly including the data folder here fixes it for both `next dev`
+  // and any traced production output (standalone or Vercel).
+  outputFileTracingIncludes: {
+    "/**": ["./node_modules/geoip-lite/data/**"],
+  },
   images: {
     // Allows next/image to optimize placeholder photos pulled from Unsplash
     // during early scaffolding, before Cloudflare R2 is connected (Rule 27.1 —

@@ -42,7 +42,14 @@
  * .env.local covers this locally the same way every other script here does.
  */
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+// @prisma/client is a CommonJS module — Node's ESM loader (used when
+// GitHub Actions runs this script directly with `node`, unlike Next.js's
+// bundler which papers over this) can't statically resolve named exports
+// from it, so `import { PrismaClient } from "@prisma/client"` throws
+// "Named export 'PrismaClient' not found" at runtime. Default-import the
+// whole module and destructure instead.
+import prismaPkg from "@prisma/client";
+const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });

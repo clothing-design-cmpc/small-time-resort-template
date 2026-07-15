@@ -213,7 +213,7 @@ model AdminProfile {
 // reviews after the fact to answer "what happened and who did it."
 model SecurityLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge | gatekeeper_breach
   actor     String?  // email attempted/used, or the admin's full name for admin_action rows
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent") @db.Text
@@ -243,6 +243,53 @@ model SecurityLog {
   // "most recent row for this actor" and "most recent fingerprint for this actor".
   @@index([actor, createdAt])
   @@map("security_logs")
+}
+
+// ============================================================
+// MODEL: BlockedIp  (3-Gatekeeper breach response — auto/manual IP block)
+// ============================================================
+// One row per blocked IP address. Checked by middleware.js on every
+// single request (visitor + super-admin alike) before anything else
+// runs — a blocked IP gets a plain 403 and never reaches any page or
+// API route. Rows are almost always written automatically by
+// services/breachResponse.js the instant a gatekeeper trips, but the
+// `blockedBy` field also supports a manual block added directly by a
+// super-admin later if this project adds that UI.
+model BlockedIp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ipAddress String   @unique @map("ip_address")
+  reason    String   @db.Text
+  blockedBy String   @default("system") @map("blocked_by") // "system" (auto, gatekeeper trip) or a super-admin uid
+  gatekeeper Int?    @map("gatekeeper") // 1, 2, or 3 — which gate this IP tripped, null for manual blocks
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ipAddress])
+  @@map("blocked_ips")
+}
+
+// ============================================================
+// MODEL: BreachEvent  (3-Gatekeeper breach response — incident record)
+// ============================================================
+// One row per gatekeeper trip. Drives three things at once: the red
+// takeover banner shown to guests (via SystemSettings.breachLockdown),
+// the alert banner shown to super-admin on next login, and the trail
+// the hidden recovery page reads from so a super-admin can see exactly
+// what happened before importing the pre-breach backup.
+model BreachEvent {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gatekeeper     Int       @map("gatekeeper") // 1 = login brute force, 2 = SQL injection attempt, 3 = anomalous admin login
+  ipAddress      String?   @map("ip_address")
+  details        String    @db.Text
+  backupTriggered Boolean  @default(false) @map("backup_triggered") // true once database-backup.yml was dispatched
+  emailSent      Boolean   @default(false) @map("email_sent")
+  resolved       Boolean   @default(false) // true once a super-admin ends the lockdown from the recovery page
+  resolvedBy     String?   @map("resolved_by")
+  resolvedAt     DateTime? @map("resolved_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([resolved])
+  @@map("breach_events")
 }
 
 // ============================================================
@@ -506,6 +553,15 @@ model SystemSettings {
   // card — see app/api/superAdmin/settings/maintenance/route.js.
   maintenanceMode    Boolean @default(false) @map("maintenance_mode")
   maintenanceMessage String? @map("maintenance_message")
+
+  // --- Breach Lockdown (3-Gatekeeper system, see services/breachResponse.js) ---
+  // Separate from plain maintenanceMode above: when true, the visitor
+  // site shows a full-page breach takeover (not just a banner over a
+  // working site — see components/shared/BreachLockdownScreen.jsx) and
+  // the super-admin dashboard shows a persistent red alert until the
+  // active BreachEvent is resolved from the hidden recovery page.
+  breachLockdown      Boolean @default(false) @map("breach_lockdown")
+  breachActiveEventId String? @map("breach_active_event_id") @db.Uuid
 
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")

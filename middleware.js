@@ -3,24 +3,43 @@
  * ROLE: Applies to all account types (visitor, superAdmin)
  *
  * PURPOSE:
- * Auth guard for the entire app. Runs before every matched request and
- * decides whether the visitor is allowed into the route they asked for.
- * Only the /superAdmin/* route group is protected right now — the
- * visitor site stays fully public.
+ * Two jobs, in this order, for EVERY matched request:
+ *   1. Gatekeeper IP block check (3-Gatekeeper breach response) — an
+ *      IP that tripped Gatekeeper 1 or 2 gets a plain 403 here, before
+ *      it reaches any page, any API route, visitor or super-admin alike.
+ *   2. Auth guard for /superAdmin/* + the hidden recovery page — decides
+ *      whether the visitor is allowed into the route they asked for.
  *
  * DATA FLOW:
- * 1. Request hits a /superAdmin/* route
- * 2. Middleware reads the "session" HttpOnly cookie set by
+ * 1. Request hits any matched route
+ * 2. isIpBlocked() checks the BlockedIp table — 403 immediately if listed
+ * 3. Middleware reads the "session" HttpOnly cookie set by
  *    app/api/auth/login/route.js on successful sign-in
- * 3. No valid session with role "super_admin" -> redirect to /superAdmin/login
- * 4. Valid session -> request continues to the requested page
+ * 4. No valid session with role "super_admin" on a protected route ->
+ *    redirect to /superAdmin/login
+ * 5. Valid session -> request continues to the requested page
  *
- * NOTE: The cookie is decoded locally (no DB call) because middleware
- * runs on the Edge runtime, which cannot reach Prisma/Postgres. The
- * login route is the only place that verifies the password and role
- * against the database — this file only trusts what it already signed.
+ * NOTE ON RUNTIME: this file runs on the Node.js middleware runtime
+ * (not the default Edge runtime) specifically so step 2 can query
+ * Prisma/Postgres directly via the pg driver adapter — the pg package
+ * needs real Node APIs (net/tls) that Edge doesn't provide. Next.js 16
+ * supports this via `export const config = { runtime: "nodejs", ... }`
+ * below. The role-decoding in step 3 still needs no DB call — the
+ * login route is the only place that verifies password + role against
+ * the database; this file only trusts what it already signed.
  */
 import { NextResponse } from "next/server";
+import { isIpBlocked } from "@/services/ipBlock";
+
+// The hidden database-recovery page (3-Gatekeeper breach response,
+// Task 3) is deliberately NOT under /superAdmin — it must never appear
+// in the Sidebar or in any /superAdmin/* route listing. It still needs
+// the exact same super_admin auth guard as every other admin page, so
+// its path is added to isProtectedRoute below alongside /superAdmin.
+// Only Vic and any other super-admin who already knows this URL can
+// reach it — everyone else gets redirected to the normal login page
+// exactly like hitting any other unauthenticated /superAdmin/* route.
+const HIDDEN_RECOVERY_PATH = "/system-vault-x9f2";
 
 /**
  * decodeRole
@@ -43,6 +62,17 @@ function decodeRole(sessionToken) {
 export async function middleware(request, event) {
   const sessionToken = request.cookies.get("session")?.value;
   const { pathname } = request.nextUrl;
+
+  // --- GATEKEEPER IP BLOCK CHECK (3-Gatekeeper breach response) ---
+  // Runs before anything else, on every matched route — visitor pages,
+  // super-admin pages, and API routes alike. An IP that tripped
+  // Gatekeeper 1 (login brute force) or Gatekeeper 2 (SQL injection
+  // attempt) lands here and gets a flat 403 with no further detail —
+  // never a reason, never a hint about which gatekeeper caught them.
+  const requestIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.ip ?? null;
+  if (requestIp && (await isIpBlocked(requestIp))) {
+    return new NextResponse("Access denied.", { status: 403 });
+  }
 
   // --- VISITOR PAGE VIEW TRACKING ---
   // Fire-and-forget: never awaited, so it can't add latency to the
@@ -73,12 +103,14 @@ export async function middleware(request, event) {
     if (event?.waitUntil) event.waitUntil(trackingRequest);
   }
 
-  // --- SUPER-ADMIN PAGES + API ROUTES: only accessible by role "super_admin" ---
+  // --- SUPER-ADMIN PAGES + API ROUTES + HIDDEN RECOVERY PAGE: only
+  // accessible by role "super_admin" ---
   // Login page itself must stay reachable, or nobody could ever sign in.
   const isProtectedRoute =
     (pathname.startsWith("/superAdmin") && pathname !== "/superAdmin/login") ||
     pathname.startsWith("/api/admin") ||
-    pathname.startsWith("/api/superAdmin");
+    pathname.startsWith("/api/superAdmin") ||
+    pathname.startsWith(HIDDEN_RECOVERY_PATH);
 
   if (isProtectedRoute) {
     const userRole = decodeRole(sessionToken);
@@ -106,9 +138,17 @@ export async function middleware(request, event) {
   return NextResponse.next();
 }
 
-// Matcher: super-admin pages + admin API routes (auth guard), plus the
-// visitor site's own pages (page-view tracking only — no auth guard
-// applies there). Never runs on static assets.
+// Matcher: broad catch-all so the Gatekeeper IP block check (above)
+// applies to literally every route — visitor pages, super-admin pages,
+// the hidden recovery page, and every API route, including /api/auth
+// itself (the exact endpoint Gatekeepers 1 and 2 watch). Only static
+// assets are excluded, since blocking those would break the page shell
+// even for legitimate visitors sharing a CDN edge with a blocked IP is
+// not a concern this app needs to solve.
 export const config = {
-  matcher: ["/superAdmin/:path*", "/api/admin/:path*", "/api/superAdmin/:path*", "/", "/visitor/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Node.js middleware runtime (not the default Edge runtime) — required
+  // so the IP block check above can query Prisma/Postgres directly via
+  // the pg driver adapter. See the file header comment for why.
+  runtime: "nodejs",
 };

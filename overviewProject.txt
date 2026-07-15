@@ -338,6 +338,120 @@ FILE MAP additions (Backups):
   creates a SqlImportLog row, dispatches database-restore.yml, returns
   { success, data: <SqlImportLog row>, message }.
 
+=== PROCESS: 3-Gatekeeper Breach Response (Task 3) ===
+Three existing detection mechanisms in this app were wired into one
+shared breach-response pipeline instead of building new detectors:
+  Gatekeeper 1 - login brute force (services/rateLimit.js trips on
+                 5 failed attempts / 15 min at POST /api/auth/login)
+  Gatekeeper 2 - SQL injection pattern detected (services/
+                 sqlInjectionGuard.js, checked on login AND on
+                 POST /api/bookings)
+  Gatekeeper 3 - anomalous super-admin login (services/securityLog.js's
+                 built-in impossible-travel / new-device detector,
+                 checked after a successful login_success)
+
+Step 1 : One of the three trigger points above fires and calls
+         services/breachResponse.js -> triggerGatekeeperBreach()
+Step 2 : blockIp() (services/ipBlock.js) writes a BlockedIp row for the
+         offending IP - SKIPPED for Gatekeeper 3 only, since that gate
+         fires after a correct password was already entered and
+         auto-blocking that session's IP would risk locking the real
+         super-admin out of the recovery page too
+Step 3 : A BreachEvent row is created (gatekeeper, ipAddress, details)
+Step 4 : SystemSettings.breachLockdown + maintenanceMode are flipped on
+         with the breach message - every visitor page now renders
+         components/shared/BreachLockdownScreen.jsx (full takeover, no
+         Header/Footer/content) instead of MaintenanceBanner's lighter
+         banner-over-a-working-site treatment
+Step 5 : services/github.js dispatches database-backup.yml immediately
+         (same workflow the Backups page's nightly schedule + "Run
+         Backup Now" already use - Rule 40.1's decoupled-from-live-
+         traffic guarantee is preserved, this never runs pg_dump inside
+         the request)
+Step 6 : services/emailAlert.js emails the super-admin via EmailJS's
+         REST API (server-side call, not the client-only SDK) - see
+         that file's header comment for the required EmailJS dashboard
+         template + env vars
+Step 7 : middleware.js checks BlockedIp on EVERY request from here on
+         (visitor + super-admin + API routes alike) and returns a flat
+         403 with no explanation to any IP found there
+Step 8 : Super-admin sees a persistent red BreachAlertBanner on every
+         /superAdmin/* page (components/superAdmin/BreachAlertBanner.jsx)
+         linking to the hidden recovery page
+Step 9 : Super-admin opens the hidden recovery page at
+         /system-vault-x9f2 (NOT linked in the Sidebar, NOT part of the
+         app/superAdmin route group - only reachable by URL, but still
+         guarded by the exact same super_admin session check via
+         middleware.js's HIDDEN_RECOVERY_PATH constant), reviews the
+         incident, uploads the pre-breach .sql from Google Drive/R2
+         (reuses the existing useSqlImport hook + sql-import pipeline
+         unchanged), and once satisfied clicks "End Lockdown"
+Step 10: PATCH /api/admin/breach resolves the BreachEvent and flips
+         breachLockdown + maintenanceMode back off - the website is
+         live again
+
+FILE MAP additions (3-Gatekeeper Breach Response):
+- prisma/schema.prisma - BlockedIp model, BreachEvent model,
+  SystemSettings.breachLockdown + breachActiveEventId fields,
+  SecurityLog.eventType gained "gatekeeper_breach" as a documented value.
+- services/ipBlock.js - isIpBlocked() (called by middleware.js on every
+  request) + blockIp() (called by breachResponse.js).
+- services/emailAlert.js - sendBreachAlertEmail() via EmailJS REST API
+  (server-side). Requires EMAILJS_SERVICE_ID, EMAILJS_BREACH_TEMPLATE_ID,
+  EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY (Strict Mode), and
+  SUPER_ADMIN_ALERT_EMAIL in .env.local - a template named "breach_alert"
+  must be created in the EmailJS dashboard first (see file header).
+- services/breachResponse.js - triggerGatekeeperBreach(), the single
+  orchestrator every gatekeeper trip calls into.
+- middleware.js - now runs on the Node.js middleware runtime (not Edge)
+  so it can query Prisma directly; matcher broadened to a catch-all
+  (excluding static assets) so the IP block check covers every route;
+  HIDDEN_RECOVERY_PATH added to the protected-route list.
+- app/api/auth/login/route.js - wired to Gatekeepers 1, 2, and 3.
+- app/api/bookings/route.js - wired to Gatekeeper 2.
+- app/api/admin/breach/route.js - GET (active breach + lockdown status,
+  used by both the dashboard banner and the recovery page) + PATCH
+  (resolve + end lockdown, recovery page only).
+- components/shared/BreachLockdownScreen.jsx + .css - full-page visitor
+  takeover screen (rendered by app/visitor/layout.jsx when breachLockdown
+  is true, replacing Header/Footer/content entirely).
+- components/superAdmin/BreachAlertBanner.jsx + .css - red alert banner
+  mounted in app/superAdmin/(protected)/layout.jsx.
+- app/system-vault-x9f2/page.jsx + RecoveryClient.jsx + Recovery.css -
+  the hidden recovery page. Deliberately outside app/superAdmin and
+  never linked from the Sidebar - reachable only by URL, protected by
+  the same middleware.js auth guard as every other admin route.
+
+8c. API ENDPOINTS (3-Gatekeeper Breach Response)
+- GET /api/admin/breach - super-admin only. Returns
+  { success, data: { breachLockdown, activeBreach, recentBreaches }, message }.
+- PATCH /api/admin/breach - super-admin only. No body. Resolves the
+  active BreachEvent and ends the lockdown, returns
+  { success, data: null, message }.
+
+8d. ENVIRONMENT VARIABLES ADDED
+- EMAILJS_SERVICE_ID, EMAILJS_BREACH_TEMPLATE_ID, EMAILJS_PUBLIC_KEY,
+  EMAILJS_PRIVATE_KEY, SUPER_ADMIN_ALERT_EMAIL - see
+  services/emailAlert.js header comment for the one-time EmailJS
+  dashboard setup these depend on.
+
+8e. DEBUG POINTS (3-Gatekeeper Breach Response)
+- Site stuck locked down after a false-positive Gatekeeper 3 trip
+  (e.g. super-admin's own new laptop) -> open /system-vault-x9f2 and
+  click "End Lockdown" directly; no restore is required if the DB was
+  never actually touched by an attacker.
+- Breach alert email never arrives -> check the four EMAILJS_* env vars
+  are set and that a template literally named to match
+  EMAILJS_BREACH_TEMPLATE_ID exists in the EmailJS dashboard with the
+  variables listed in services/emailAlert.js's header comment.
+- A legitimate guest/admin IP gets 403'd -> that IP has a row in
+  BlockedIp; delete the row directly in the database (no admin UI for
+  this yet - Rule 40.6-style "no self-service trigger button" caution
+  was applied here too, to avoid making unblocking as casual as a toggle).
+- middleware.js throwing at the Prisma import step -> confirm the
+  Next.js version in use still supports `runtime: "nodejs"` in
+  middleware's exported config; this was verified against Next 16.2.10.
+
 9. COMMON DEBUG POINTS
 - "pg_dump: command not found" when testing scripts/runBackup.js locally:
   install the postgresql-client package for your OS — pg_dump is a system

@@ -18,12 +18,14 @@ import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
 import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
+import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 
 /**
  * getMaintenanceStatus
  * Reads the singleton SystemSettings row directly (Server Component,
  * no separate API round-trip needed) so every visitor page load knows
- * whether to show the maintenance banner before anything else renders.
+ * whether to show the maintenance banner — or, for an active breach,
+ * the full-page takeover — before anything else renders.
  * Fails open (returns "off") on any DB error — a broken settings read
  * must never be the reason the whole visitor site looks down.
  */
@@ -31,19 +33,28 @@ async function getMaintenanceStatus() {
   try {
     const settings = await prisma.systemSettings.findUnique({
       where: { id: "singleton" },
-      select: { maintenanceMode: true, maintenanceMessage: true },
+      select: { maintenanceMode: true, maintenanceMessage: true, breachLockdown: true },
     });
     return {
       maintenanceMode: settings?.maintenanceMode ?? false,
       maintenanceMessage: settings?.maintenanceMessage ?? "",
+      breachLockdown: settings?.breachLockdown ?? false,
     };
   } catch {
-    return { maintenanceMode: false, maintenanceMessage: "" };
+    return { maintenanceMode: false, maintenanceMessage: "", breachLockdown: false };
   }
 }
 
 export default async function VisitorLayout({ children }) {
-  const { maintenanceMode, maintenanceMessage } = await getMaintenanceStatus();
+  const { maintenanceMode, maintenanceMessage, breachLockdown } = await getMaintenanceStatus();
+
+  // A breach is more severe than plain planned maintenance — the
+  // database itself may be compromised, so nothing else on the visitor
+  // side renders at all (no Header, no Footer, no page content), not
+  // even a banner over an otherwise-working site.
+  if (breachLockdown) {
+    return <BreachLockdownScreen message={maintenanceMessage} />;
+  }
 
   return (
     <div className="visitorShell">

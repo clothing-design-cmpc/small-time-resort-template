@@ -138,6 +138,8 @@ async function detectAnomalies(actor, deviceFingerprint, geo) {
  * @param {string|null} input.actor - email or admin name tied to the event
  * @param {Request|null} input.request - incoming Request, for IP/user-agent
  * @param {string|null} input.details - human-readable one-line summary
+ * @returns {Promise<object|null>} the created SecurityLog row (with
+ *   isAnomalous/anomalyReason/ipAddress), or null if the write failed
  */
 export async function logSecurityEvent({ eventType, actor = null, request = null, details = null }) {
   const { ipAddress, userAgent } = getRequestMeta(request);
@@ -152,7 +154,11 @@ export async function logSecurityEvent({ eventType, actor = null, request = null
       anomaly = await detectAnomalies(actor, deviceFingerprint, geo);
     }
 
-    await prisma.securityLog.create({
+    // Returned (not just written) so callers like the login route can
+    // react to isAnomalous/ipAddress in real time — e.g. to trigger
+    // Gatekeeper 3 of the breach response the moment an anomalous
+    // admin login is detected, without a second DB read.
+    return await prisma.securityLog.create({
       data: {
         eventType,
         actor,
@@ -176,5 +182,6 @@ export async function logSecurityEvent({ eventType, actor = null, request = null
   } catch (error) {
     // Logging must never take down the actual request — just surface it server-side.
     console.error("[securityLog] Failed to write security log:", error.message);
+    return null;
   }
 }

@@ -30,6 +30,8 @@ import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
+import { isIpBlocked } from "@/services/ipBlock";
+import { triggerGatekeeperBreach } from "@/services/breachResponse";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -52,6 +54,18 @@ const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+
+  // GATEKEEPER 1 check happens before anything else — an already-blocked
+  // IP should never even reach the rate limiter (middleware.js should
+  // have already 403'd it, but this is a second layer of defense in
+  // case this route is ever reached directly).
+  if (ip !== "unknown" && (await isIpBlocked(ip))) {
+    return NextResponse.json(
+      { success: false, data: null, message: "Access denied." },
+      { status: 403 }
+    );
+  }
+
   const { allowed } = checkRateLimit(`login:${ip}`, LOGIN_ATTEMPT_MAX, LOGIN_ATTEMPT_WINDOW_MS);
   if (!allowed) {
     await logSecurityEvent({
@@ -60,6 +74,19 @@ export async function POST(request) {
       request,
       details: `Exceeded ${LOGIN_ATTEMPT_MAX} login attempts within 15 minutes.`,
     });
+
+    // GATEKEEPER 1 TRIPPED — brute force on the login endpoint. Fire the
+    // full breach response (block IP, lock down the site, trigger an
+    // off-cycle backup, alert super-admin). isIpBlocked() above already
+    // guarantees this only runs once per attacking IP, not on every retry.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({
+        gatekeeper: 1,
+        ipAddress: ip,
+        details: `Exceeded ${LOGIN_ATTEMPT_MAX} login attempts within 15 minutes.`,
+      }).catch((error) => console.error("[login] Gatekeeper 1 breach response failed:", error.message));
+    }
+
     return NextResponse.json(
       { success: false, data: null, message: "Too many attempts. Please try again in 15 minutes." },
       { status: 429 }
@@ -103,6 +130,18 @@ export async function POST(request) {
       request,
       details: `Suspicious pattern detected in field "${sqliHit}" on login.`,
     });
+
+    // GATEKEEPER 2 TRIPPED — an actual attack pattern reached the login
+    // endpoint. This is a stronger signal than the rate limiter (Gatekeeper 1)
+    // since it means the payload itself, not just the volume, looked malicious.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({
+        gatekeeper: 2,
+        ipAddress: ip,
+        details: `SQL injection pattern detected in field "${sqliHit}" on login.`,
+      }).catch((error) => console.error("[login] Gatekeeper 2 breach response failed:", error.message));
+    }
+
     return NextResponse.json(
       { success: false, data: null, message: "Enter a valid email and password." },
       { status: 400 }
@@ -189,12 +228,26 @@ export async function POST(request) {
     JSON.stringify({ uid: authUserId, role: adminProfile.role })
   ).toString("base64");
 
-  await logSecurityEvent({
+  const securityLogRow = await logSecurityEvent({
     eventType: "login_success",
     actor: email,
     request,
     details: `${adminProfile.fullName} signed in.`,
   });
+
+  // GATEKEEPER 3 TRIPPED — a genuinely valid super-admin login, but the
+  // built-in anomaly detector (services/securityLog.js) flagged it as
+  // impossible travel or a brand-new device. This is the most serious
+  // of the three signals: it means someone already has the correct
+  // password. Fire the full breach response even though the password
+  // was correct — a compromised credential is exactly what this gate exists for.
+  if (securityLogRow?.isAnomalous && ip !== "unknown") {
+    await triggerGatekeeperBreach({
+      gatekeeper: 3,
+      ipAddress: ip,
+      details: securityLogRow.anomalyReason || `Anomalous login detected for ${email}.`,
+    }).catch((error) => console.error("[login] Gatekeeper 3 breach response failed:", error.message));
+  }
 
   const response = NextResponse.json({
     success: true,

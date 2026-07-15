@@ -26,6 +26,7 @@ import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { logVisitorActivity } from "@/services/visitorLog";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
+import { triggerGatekeeperBreach } from "@/services/breachResponse";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -80,6 +81,17 @@ export async function POST(request) {
       request,
       details: `Suspicious pattern detected in field "${sqliHit}" on booking submission.`,
     });
+
+    // GATEKEEPER 2 TRIPPED — same attack-pattern signal as the login
+    // route, just on the public booking form instead.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({
+        gatekeeper: 2,
+        ipAddress: ip,
+        details: `SQL injection pattern detected in field "${sqliHit}" on booking submission.`,
+      }).catch((error) => console.error("[bookings] Gatekeeper 2 breach response failed:", error.message));
+    }
+
     return NextResponse.json(
       { success: false, data: null, message: "Please check the booking form for errors." },
       { status: 400 }

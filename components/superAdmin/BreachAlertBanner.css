@@ -1,0 +1,41 @@
+/*
+ * .breachAlertBanner
+ * Sticky red strip above the admin content — mirrors
+ * MaintenanceBanner's severity styling so a super-admin instantly
+ * recognizes this as "something is seriously wrong," not routine chrome.
+ */
+.breachAlertBanner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  background-color: var(--color-error);
+  color: #ffffff;
+}
+
+.breachAlertBannerIcon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.breachAlertBannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.breachAlertBannerText strong {
+  font-size: 0.9rem;
+}
+
+.breachAlertBannerText a {
+  color: #ffffff;
+  text-decoration: underline;
+  font-weight: 600;
+}

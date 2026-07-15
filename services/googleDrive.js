@@ -1,70 +1,42 @@
 /**
  * FILE: services/googleDrive.js
  * PURPOSE:
- * Uploads files to Google Drive using a Service Account (no user OAuth
- * flow needed). Currently used by scripts/runBackup.js as the SECOND,
- * independent backup destination alongside Cloudflare R2 — the whole
- * point of having two destinations is that neither is the single point
- * of failure for the other (the "3-2-1 backup rule" mentioned earlier).
+ * Uploads files to Google Drive using OAuth2 USER delegation (a long-lived
+ * refresh token for a real Gmail account) — NOT a service account.
  *
- * SETUP (one-time, not code):
- * 1. Create a Google Cloud service account + JSON key, enable the
- *    Drive API for that project.
- * 2. Open the target Drive folder (the "backup" folder) in the browser,
- *    click Share, and add the service account's email
- *    (GOOGLE_SERVICE_ACCOUNT_EMAIL) as an Editor — a service account
- *    has no Drive storage of its own, it can only write into folders
- *    explicitly shared with it.
- * 3. Copy that folder's id from its URL
- *    (drive.google.com/drive/folders/<THIS PART>) into
- *    GOOGLE_DRIVE_FOLDER_ID.
+ * WHY NOT A SERVICE ACCOUNT:
+ * Service accounts have zero storage quota of their own. Sharing a folder
+ * with a service account as "Editor" does not change this — Drive still
+ * refuses the upload with "Service Accounts do not have storage quota."
+ * The only ways around that are (a) target a Shared Drive, which requires
+ * a paid Google Workspace plan, or (b) authenticate as a real human
+ * account instead, which is what this file does. Files uploaded this way
+ * count against that account's own free 15GB quota, exactly as if the
+ * account holder had dragged the file into Drive themselves.
+ *
+ * Used by scripts/runBackup.js and services/activityArchive.js as an
+ * offsite backup destination alongside Cloudflare R2.
+ *
+ * SETUP (one-time, not code) — see docs/google-drive-oauth-setup.md.
+ * Short version:
+ *   1. Google Cloud Console → Credentials → Create OAuth client ID →
+ *      Application type: "Desktop app". Copy the Client ID + Secret.
+ *   2. Run `node scripts/getGoogleDriveRefreshToken.mjs` locally, sign in
+ *      as the Gmail account that should own the backups, approve access.
+ *      It prints a refresh token.
+ *   3. Save GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and
+ *      GOOGLE_OAUTH_REFRESH_TOKEN as GitHub Actions secrets (and in
+ *      .env.local for testing locally).
+ *   4. Share the destination "backup" folder with that same Gmail account
+ *      (it already owns it if it's the one that created it — nothing to
+ *      do in that case) and copy its folder ID into GOOGLE_DRIVE_FOLDER_ID.
+ *
+ * GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY are no
+ * longer used by this file and can be removed from secrets once the new
+ * OAuth vars are confirmed working.
  */
 import { google } from "googleapis";
 import { Readable } from "stream";
-
-/**
- * normalizePrivateKey
- * Takes the raw GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY env var and returns
- * a real PEM string, defensively handling the most common ways this
- * value gets mangled when copy-pasted from the downloaded JSON key
- * file into a GitHub Secret or .env.local:
- *   1. Literal "\n" (two characters) instead of real newlines — the
- *      JSON file itself stores it this way, so this is expected and
- *      always converted back.
- *   2. Accidentally including the JSON field's surrounding double
- *      quotes (copying `"-----BEGIN...` instead of `-----BEGIN...`) —
- *      stripped if present.
- *   3. Leading/trailing whitespace from the paste — trimmed.
- *
- * Logs a specific, actionable warning (host names never included —
- * this never logs the key itself) if the result still doesn't look
- * like a real PEM key, instead of leaving the person to decode
- * googleapis/OpenSSL's opaque "error:1E08010C:DECODER
- * routines::unsupported" on their own.
- */
-function normalizePrivateKey(rawValue) {
-  if (!rawValue) {
-    console.warn("[googleDrive] GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is not set.");
-    return rawValue;
-  }
-
-  let key = rawValue.trim();
-  if (key.startsWith('"') && key.endsWith('"')) {
-    key = key.slice(1, -1);
-  }
-  key = key.replace(/\\n/g, "\n");
-
-  if (!key.includes("-----BEGIN PRIVATE KEY-----") || !key.includes("-----END PRIVATE KEY-----")) {
-    console.error(
-      "[googleDrive] WARNING: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY doesn't look like a complete PEM key " +
-        '(missing the "-----BEGIN PRIVATE KEY-----" / "-----END PRIVATE KEY-----" markers after normalizing). ' +
-        "This is almost always a copy-paste issue — re-copy the full \"private_key\" value from the service " +
-        "account's downloaded JSON file, including both BEGIN/END lines, into the GitHub secret."
-    );
-  }
-
-  return key;
-}
 
 /**
  * normalizeFolderId
@@ -109,22 +81,44 @@ function normalizeFolderId(rawValue) {
   return folderId;
 }
 
-function getDriveClient() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: normalizePrivateKey(process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
-    },
-    scopes: ["https://www.googleapis.com/auth/drive"],
-  });
+/**
+ * getOAuthClient
+ * Builds an OAuth2 client authenticated as the human Gmail account via a
+ * stored refresh token — googleapis automatically exchanges it for a
+ * fresh short-lived access token on each request, no manual renewal.
+ */
+function getOAuthClient() {
+  const requiredVars = [
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "GOOGLE_OAUTH_REFRESH_TOKEN",
+  ];
+  const missing = requiredVars.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    console.error(
+      `[googleDrive] Missing required env var(s): ${missing.join(", ")}. ` +
+        "Run scripts/getGoogleDriveRefreshToken.mjs to generate GOOGLE_OAUTH_REFRESH_TOKEN."
+    );
+  }
 
-  return google.drive({ version: "v3", auth });
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET
+  );
+  oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN });
+  return oauth2Client;
+}
+
+function getDriveClient() {
+  return google.drive({ version: "v3", auth: getOAuthClient() });
 }
 
 /**
  * uploadToDrive
  * Uploads a file buffer into the pre-shared backup folder
  * (GOOGLE_DRIVE_FOLDER_ID) and returns its file id + shareable view link.
+ * Runs as the delegated human account, so the upload counts against that
+ * account's own storage quota — not against any service account quota.
  *
  * @param {string} fileName - e.g. "villa-azure-backup-2026-07-09.sql.gz"
  * @param {Buffer} buffer

@@ -48,12 +48,48 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
+const RAW_BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
 // Default is 127.0.0.1, not "localhost" — on some Windows setups
 // (notably Git Bash / MINGW64), Node's fetch resolves "localhost" to
 // the IPv6 loopback (::1) first, which the Next.js dev server usually
 // isn't listening on, and undici reports that as a bare "fetch failed"
 // with no useful detail. 127.0.0.1 sidesteps that resolution entirely.
+
+/**
+ * validateBaseUrl
+ * Catches the single most common way BASE_URL ends up broken: copying
+ * the "USAGE" example from this file's own header comment (or the
+ * README) straight into .env.local, e.g.
+ *   BASE_URL=http://localhost:3000 node scripts/checkGatekeepers.js
+ * dotenv reads everything after the "=" as the value, so BASE_URL
+ * becomes "http://localhost:3000 node scripts/checkGatekeepers.js" —
+ * `new URL()` then throws a bare "Invalid URL" with no indication why.
+ * This checks for that shape up front and prints exactly what's wrong.
+ */
+function validateBaseUrl(rawValue) {
+  const trimmed = rawValue.trim();
+  try {
+    new URL(trimmed);
+  } catch {
+    console.error(`[checkGatekeepers] BASE_URL is not a valid URL: "${rawValue}"`);
+    if (/\s/.test(trimmed)) {
+      console.error(
+        '[checkGatekeepers] It looks like extra text got appended after the URL (a common ' +
+          "mistake: pasting this script's usage example — e.g. \"BASE_URL=http://localhost:3000 " +
+          "node scripts/checkGatekeepers.js\" — directly into .env.local)."
+      );
+    }
+    console.error(
+      "[checkGatekeepers] Fix: open .env.local and set BASE_URL to just the URL, e.g. " +
+        "BASE_URL=http://127.0.0.1:3000 — nothing else on that line."
+    );
+    process.exitCode = 1;
+    return null;
+  }
+  return trimmed;
+}
+
+const BASE_URL = validateBaseUrl(RAW_BASE_URL);
 
 // RFC 5737 TEST-NET-3 — reserved specifically for documentation and
 // testing, guaranteed to never be a real visitor's or admin's IP.
@@ -202,6 +238,11 @@ async function checkServerIsReachable() {
 }
 
 async function main() {
+  if (!BASE_URL) {
+    await prisma.$disconnect();
+    return;
+  }
+
   console.log(`[checkGatekeepers] Running against ${BASE_URL}`);
   console.log("[checkGatekeepers] NEVER point BASE_URL at production — this trips real breach detectors.\n");
 

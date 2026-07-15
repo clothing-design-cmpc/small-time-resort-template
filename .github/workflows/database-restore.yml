@@ -46,6 +46,10 @@ jobs:
           sudo apt-get install -y postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-17
+          # See the identical step in database-backup.yml — installing
+          # v17 alongside the runner's preinstalled older client doesn't
+          # repoint /usr/bin/psql, so it has to be put first in PATH.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: npm ci

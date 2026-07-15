@@ -43,6 +43,13 @@ jobs:
           sudo apt-get install -y postgresql-common
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-17
+          # ubuntu-latest ships with an OLDER postgresql-client
+          # preinstalled at /usr/bin/pg_dump — installing version 17
+          # alongside it does NOT repoint that symlink, so `pg_dump`
+          # on PATH still resolves to the old version unless the v17
+          # bin directory is explicitly put first in PATH for the
+          # rest of this job (GITHUB_PATH entries are prepended).
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: npm ci

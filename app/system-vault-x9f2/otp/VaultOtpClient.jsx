@@ -79,7 +79,16 @@ export default function VaultOtpClient() {
       return;
     }
 
-    const result = await response.json();
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      // Response wasn't valid JSON — most likely an unhandled server
+      // error page rather than our route's own JSON error response.
+      setSendStatus({ state: "error", message: "" });
+      setAuthError("Something went wrong on the server. Please try again.");
+      return;
+    }
 
     if (!result.success) {
       setSendStatus({ state: "error", message: "" });
@@ -111,7 +120,13 @@ export default function VaultOtpClient() {
       return;
     }
 
-    const result = await response.json();
+    let result;
+    try {
+      result = await response.json();
+    } catch {
+      setAuthError("Something went wrong on the server. Please try again.");
+      return;
+    }
 
     if (!result.success) {
       setAuthError(result.message || "Incorrect or expired code.");

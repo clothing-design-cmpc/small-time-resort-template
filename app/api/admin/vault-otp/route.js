@@ -77,7 +77,26 @@ export async function POST(request) {
     );
   }
 
-  const result = await generateAndSendVaultOtp();
+  let result;
+  try {
+    result = await generateAndSendVaultOtp();
+  } catch (error) {
+    // Most likely cause: the VaultOtp table doesn't exist yet because
+    // `npx prisma db push` hasn't been run against this database. Log
+    // the real error server-side (visible in the terminal running
+    // `npm run dev`) but never leak it to the client.
+    console.error("[api/admin/vault-otp] POST failed unexpectedly:", error.message);
+    await logSecurityEvent({
+      eventType: "vault_otp_failed",
+      actor: VAULT_IDENTITY,
+      request,
+      details: `Vault OTP send threw: ${error.message}`,
+    });
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to send the verification email. Please try again." },
+      { status: 500 }
+    );
+  }
 
   await logSecurityEvent({
     eventType: result.success ? "vault_otp_sent" : "vault_otp_failed",
@@ -133,7 +152,22 @@ export async function PATCH(request) {
     );
   }
 
-  const { verified, reason } = await verifyVaultOtp(payload.code);
+  let verified, reason;
+  try {
+    ({ verified, reason } = await verifyVaultOtp(payload.code));
+  } catch (error) {
+    console.error("[api/admin/vault-otp] PATCH failed unexpectedly:", error.message);
+    await logSecurityEvent({
+      eventType: "vault_otp_failed",
+      actor: VAULT_IDENTITY,
+      request,
+      details: `Vault OTP verify threw: ${error.message}`,
+    });
+    return NextResponse.json(
+      { success: false, data: null, message: "Something went wrong. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!verified) {
     await logSecurityEvent({

@@ -50,7 +50,7 @@
  *    services/emailAlert.js's sendVaultPassphraseRotationEmail()
  */
 import { scryptSync, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { prisma } from "@/services/prisma";
+import { prisma } from "./prisma.js";
 
 const SCRYPT_KEY_LENGTH = 64;
 

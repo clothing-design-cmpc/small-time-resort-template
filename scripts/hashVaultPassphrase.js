@@ -16,6 +16,7 @@
  * plaintext passphrase itself anywhere, including this terminal's
  * shell history if the machine is shared.
  */
+import "./loadEnv.mjs";
 import { hashVaultPassphrase } from "../services/vaultAuth.js";
 
 const plaintextPassphrase = process.argv[2];

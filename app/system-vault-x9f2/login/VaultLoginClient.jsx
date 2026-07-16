@@ -13,9 +13,10 @@
  * 1. Whoever knows the vault passphrase types it and submits
  * 2. POST /api/admin/vault-login verifies it against
  *    VAULT_PASSPHRASE_HASH (services/vaultAuth.js) and, on match, sets
- *    the HttpOnly "vaultSession" cookie
- * 3. On success, redirect to /system-vault-x9f2 — the recovery page
- *    now passes its server-side vault-session check and renders
+ *    the HttpOnly "vaultSession" cookie with otpVerified: false
+ * 3. On success, redirect to /system-vault-x9f2/otp — the second
+ *    factor (services/vaultOtp.js's emailed code) still needs to be
+ *    completed before /system-vault-x9f2 itself will render
  * 4. On failure, show the same generic error every time (never reveal
  *    which part of the check failed)
  */
@@ -72,9 +73,11 @@ export default function VaultLoginClient() {
       return;
     }
 
-    // vaultSession cookie is set — the recovery page will now pass its
-    // server-side check.
-    router.push("/system-vault-x9f2");
+    // vaultSession cookie is set, but only with otpVerified: false —
+    // the recovery page's server-side check now sends any visit to
+    // /system-vault-x9f2 straight to /system-vault-x9f2/otp until that
+    // second factor is completed too.
+    router.push("/system-vault-x9f2/otp");
     router.refresh();
   }
 

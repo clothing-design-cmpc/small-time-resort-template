@@ -93,9 +93,12 @@ export async function GET(request) {
     }
   }
 
-  // Full detail (IP address, details text, full history) requires ONLY
-  // the vault session — no super_admin session cookie is checked here.
-  if (!requireVaultSession(request)) {
+  // Full detail (IP address, details text, full history) requires the
+  // FULL vault session — passphrase AND OTP (services/vaultOtp.js),
+  // not just the passphrase-only cookie vault-login sets. No
+  // super_admin session cookie is checked here.
+  const fullBreachVaultSession = requireVaultSession(request);
+  if (!fullBreachVaultSession?.otpVerified) {
     return NextResponse.json(
       { success: false, data: null, message: "Vault authentication required." },
       { status: 401 }
@@ -142,7 +145,7 @@ export async function PATCH(request) {
   // OTP login chain). No super_admin session cookie is required or
   // checked here anymore.
   const vaultSession = requireVaultSession(request);
-  if (!vaultSession) {
+  if (!vaultSession?.otpVerified) {
     return NextResponse.json(
       { success: false, data: null, message: "Vault authentication required." },
       { status: 401 }

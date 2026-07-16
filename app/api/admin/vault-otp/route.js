@@ -1,0 +1,175 @@
+/**
+ * FILE: app/api/admin/vault-otp/route.js
+ * ROLE: Standalone — same as app/api/admin/vault-login/route.js, this
+ *       is excluded from proxy.js's blanket /api/admin gate (see
+ *       VAULT_STANDALONE_API_PATHS in proxy.js). Never trusts the
+ *       regular super_admin "session" cookie.
+ *
+ * PURPOSE:
+ * Second factor of the vault's own login chain. Both handlers below
+ * require an existing "vaultSession" cookie (i.e. the passphrase from
+ * vault-login already succeeded) before doing anything — this route
+ * can't be used to skip the passphrase step, only to complete it.
+ *
+ * DATA FLOW:
+ * 1. POST — the vault OTP screen (VaultOtpClient.jsx) calls this once
+ *    on mount. Requires a vaultSession cookie with otpVerified: false.
+ *    Generates + emails a fresh code via services/vaultOtp.js.
+ * 2. PATCH — the owner submits { code } from their inbox. On match,
+ *    the cookie is re-issued with otpVerified: true
+ *    (services/vaultAuth.js's reissueVaultSessionCookieValue) and the
+ *    recovery page's server-side check now passes.
+ * 3. Both log to SecurityLog (vault_otp_sent / vault_otp_verified /
+ *    vault_otp_failed) with actor: VAULT_IDENTITY, same as vault-login.
+ */
+export const dynamic = "force-dynamic";
+
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { requireVaultSession, reissueVaultSessionCookieValue, VAULT_SESSION_COOKIE_MAX_AGE_SECONDS, VAULT_IDENTITY } from "@/services/vaultAuth";
+import { generateAndSendVaultOtp, verifyVaultOtp } from "@/services/vaultOtp";
+import { logSecurityEvent } from "@/services/securityLog";
+import { checkRateLimit } from "@/services/rateLimit";
+
+const isProduction = process.env.NODE_ENV === "production";
+
+// Sends: capped low — each send emails the owner, no reason to allow
+// more than a handful of resends within a window.
+const OTP_SEND_MAX = 3;
+const OTP_SEND_WINDOW_MS = 15 * 60 * 1000;
+
+// Verifies: same ceiling as vault-login's passphrase attempts (Rule
+// 32.1's priority-endpoint spirit) — this is the second half of the
+// same disaster-recovery gate.
+const OTP_VERIFY_MAX = 5;
+const OTP_VERIFY_WINDOW_MS = 15 * 60 * 1000;
+
+const otpVerifyRequestSchema = z.object({
+  code: z.string().min(1, "Enter the code from your email."),
+});
+
+function getIp(request) {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+}
+
+/**
+ * POST
+ * Requires an existing (passphrase-verified) vaultSession cookie.
+ * Generates and emails a fresh 6-digit code. Never reveals whether the
+ * caller was missing a session vs. rate-limited beyond the standard
+ * 401/429 status codes — same "no extra hints" posture as vault-login.
+ */
+export async function POST(request) {
+  const vaultSession = requireVaultSession(request);
+  if (!vaultSession) {
+    return NextResponse.json(
+      { success: false, data: null, message: "Enter the vault passphrase first." },
+      { status: 401 }
+    );
+  }
+
+  const ip = getIp(request);
+  const { allowed } = checkRateLimit(`vault-otp-send:${ip}`, OTP_SEND_MAX, OTP_SEND_WINDOW_MS);
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, data: null, message: "Too many code requests. Please wait a few minutes." },
+      { status: 429 }
+    );
+  }
+
+  const result = await generateAndSendVaultOtp();
+
+  await logSecurityEvent({
+    eventType: result.success ? "vault_otp_sent" : "vault_otp_failed",
+    actor: VAULT_IDENTITY,
+    request,
+    details: result.success ? "Vault OTP emailed to owner." : `Vault OTP send failed: ${result.message}`,
+  });
+
+  return NextResponse.json(
+    { success: result.success, data: null, message: result.message },
+    { status: result.success ? 200 : 500 }
+  );
+}
+
+/**
+ * PATCH
+ * Requires an existing vaultSession cookie AND the correct code.
+ * verifyVaultOtp() does the actual (constant-time, server-side)
+ * comparison — this handler never sees or compares the code itself,
+ * it only interprets the result and, on success, re-issues the cookie.
+ */
+export async function PATCH(request) {
+  const vaultSession = requireVaultSession(request);
+  if (!vaultSession) {
+    return NextResponse.json(
+      { success: false, data: null, message: "Enter the vault passphrase first." },
+      { status: 401 }
+    );
+  }
+
+  const ip = getIp(request);
+  const { allowed } = checkRateLimit(`vault-otp-verify:${ip}`, OTP_VERIFY_MAX, OTP_VERIFY_WINDOW_MS);
+  if (!allowed) {
+    await logSecurityEvent({
+      eventType: "vault_otp_failed",
+      actor: VAULT_IDENTITY,
+      request,
+      details: `Exceeded ${OTP_VERIFY_MAX} vault OTP attempts within 15 minutes.`,
+    });
+    return NextResponse.json(
+      { success: false, data: null, message: "Too many attempts. Please try again in 15 minutes." },
+      { status: 429 }
+    );
+  }
+
+  let payload;
+  try {
+    payload = otpVerifyRequestSchema.parse(await request.json());
+  } catch {
+    return NextResponse.json(
+      { success: false, data: null, message: "Enter the code from your email." },
+      { status: 400 }
+    );
+  }
+
+  const { verified, reason } = await verifyVaultOtp(payload.code);
+
+  if (!verified) {
+    await logSecurityEvent({
+      eventType: "vault_otp_failed",
+      actor: VAULT_IDENTITY,
+      request,
+      // reason is internal detail for the log only — the response
+      // below stays generic, mirroring vault-login's posture.
+      details: reason ?? "Incorrect or expired code.",
+    });
+    return NextResponse.json(
+      { success: false, data: null, message: "Incorrect or expired code." },
+      { status: 401 }
+    );
+  }
+
+  await logSecurityEvent({
+    eventType: "vault_otp_verified",
+    actor: VAULT_IDENTITY,
+    request,
+    details: "Vault OTP verified — recovery dashboard unlocked.",
+  });
+
+  const response = NextResponse.json({
+    success: true,
+    data: null,
+    message: "Verified.",
+  });
+
+  response.cookies.set("vaultSession", reissueVaultSessionCookieValue(vaultSession), {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "strict",
+    path: "/",
+    maxAge: VAULT_SESSION_COOKIE_MAX_AGE_SECONDS,
+  });
+
+  return response;
+}

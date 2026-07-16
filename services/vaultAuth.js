@@ -104,9 +104,33 @@ export function verifyVaultPassphrase(submittedPassphrase) {
  * VAULT_IDENTITY as uid — there is no super-admin account behind a
  * vault session, so this is always the same fixed literal, never a
  * real admin's ID.
+ *
+ * otpVerified defaults to false: the passphrase alone (this function's
+ * first caller, app/api/admin/vault-login/route.js) only ever proves
+ * the first factor. services/vaultOtp.js's caller
+ * (app/api/admin/vault-otp/route.js) re-issues the cookie with
+ * otpVerified: true once the emailed code checks out — grantedAt is
+ * NOT reset on that re-issue, so the total vault session window stays
+ * bounded to VAULT_SESSION_COOKIE_MAX_AGE_SECONDS from the original
+ * passphrase login, not extended by however long OTP entry took.
  */
-export function buildVaultSessionCookieValue(uid) {
-  return Buffer.from(JSON.stringify({ uid, grantedAt: Date.now() })).toString("base64");
+export function buildVaultSessionCookieValue(uid, otpVerified = false) {
+  return Buffer.from(JSON.stringify({ uid, grantedAt: Date.now(), otpVerified })).toString("base64");
+}
+
+/**
+ * reissueVaultSessionCookieValue
+ * Re-encodes an already-decoded vault session payload with
+ * otpVerified flipped to true, preserving the original grantedAt so
+ * the OTP step can't extend the overall session lifetime. Used by
+ * app/api/admin/vault-otp/route.js's PATCH handler after
+ * verifyVaultOtp() succeeds — it already holds the decoded session
+ * (via requireVaultSession) and just needs to upgrade it in place.
+ */
+export function reissueVaultSessionCookieValue(decodedVaultSession) {
+  return Buffer.from(
+    JSON.stringify({ ...decodedVaultSession, otpVerified: true })
+  ).toString("base64");
 }
 
 /**
@@ -126,7 +150,9 @@ function decodeVaultSessionCookieValue(vaultCookieValue) {
     const ageSeconds = (Date.now() - decoded.grantedAt) / 1000;
     if (ageSeconds > VAULT_SESSION_COOKIE_MAX_AGE_SECONDS) return null;
 
-    return decoded;
+    // Cookies issued before the OTP step existed won't have this key —
+    // treat anything but a literal true as "not yet OTP-verified".
+    return { ...decoded, otpVerified: decoded.otpVerified === true };
   } catch {
     return null;
   }

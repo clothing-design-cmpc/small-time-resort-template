@@ -671,3 +671,23 @@ model PageViewDaily {
   @@unique([date, path, referrerHost, deviceType, countryCode])
   @@map("page_views_daily")
 }
+
+// ============================================================
+// MODEL: VaultOtp  (services/vaultOtp.js — vault's second factor)
+// ============================================================
+// Singleton row, same pattern as SystemSettings above: there is only
+// ever one vault owner, so one active code at a time is all that's
+// needed — a new send overwrites the previous row instead of
+// accumulating history. Only the scrypt HASH of the code is stored,
+// never the plaintext; the plaintext exists only in memory for the
+// single request that emails it out. attempts guards against
+// brute-forcing a 6-digit code before expiresAt is reached.
+model VaultOtp {
+  id        String   @id @default("vault")
+  codeHash  String   @map("code_hash")
+  expiresAt DateTime @map("expires_at")
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("vault_otp")
+}

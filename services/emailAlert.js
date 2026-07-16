@@ -29,6 +29,7 @@
  */
 
 import { sendGeneralEmail } from "@/services/emailjs";
+import { getVaultRecoveryUrl } from "@/services/vaultAuth";
 
 /**
  * sendBreachAlertEmail
@@ -86,6 +87,8 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     return false;
   }
 
+  const vaultRecoveryUrl = getVaultRecoveryUrl();
+
   return sendGeneralEmail({
     toEmail: vaultOwnerEmail,
     subject: "Your vault passphrase was rotated",
@@ -94,7 +97,14 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     intro: `Reason: ${reason}`,
     highlightLine1: newPassphrase,
     highlightLine2: `Rotated at ${new Date().toISOString()}`,
+    // body_message fills a raw-HTML slot in the EmailJS template (see
+    // services/emailjs.js's TEMPLATE CONTRACT), so the recovery URL
+    // renders as an actual clickable link here — not literal markdown
+    // syntax, which only the plain-text .txt copy (Google Drive) uses.
     bodyMessage:
-      "Save this passphrase somewhere safe now — it will not be shown or emailed again. The old passphrase no longer works.",
+      `Save this passphrase somewhere safe now — it will not be shown or emailed again. The old passphrase no longer works.<br><br>` +
+      `This passphrase gates the disaster-recovery page at <a href="${vaultRecoveryUrl}">${vaultRecoveryUrl.replace(/^https?:\/\//, "")}</a>.<br>` +
+      `Generating a new one from the dashboard replaces this one immediately.<br>` +
+      `Keep this file private — do not share it outside the resort owner.`,
   });
 }

@@ -78,6 +78,24 @@ export const VAULT_SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 60;
 // attributable to "the vault", not to any specific admin account.
 export const VAULT_IDENTITY = "vault";
 
+// Reused anywhere the recovery page's URL needs to be shown to a human
+// (the passphrase-rotation email, the .txt copy saved to Google Drive)
+// so the path is never retyped in more than one place.
+export const VAULT_RECOVERY_PATH = "/system-vault-x9f2";
+
+/**
+ * getVaultRecoveryUrl
+ * Builds the full, clickable URL to the recovery page from
+ * NEXT_PUBLIC_SITE_URL (the resort's live domain) + VAULT_RECOVERY_PATH.
+ * Falls back to a placeholder domain if the env var isn't set yet, so a
+ * missing config value never crashes an email send or a Drive upload —
+ * it just prints an obviously-unfinished URL instead.
+ */
+export function getVaultRecoveryUrl() {
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain-here.com").replace(/\/$/, "");
+  return `${siteUrl}${VAULT_RECOVERY_PATH}`;
+}
+
 /**
  * hashVaultPassphrase
  * Turns a plaintext passphrase into a "salt:hash" string for

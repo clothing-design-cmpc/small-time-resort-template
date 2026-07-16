@@ -700,6 +700,14 @@ DEBUG POINTS:
   .github/workflows/security-log-retention.yml. For GitHub Actions, add
   as a repo *Variable* — not Secret — under Settings → Secrets and
   variables → Actions → Variables, since it isn't sensitive.)
+- NEXT_PUBLIC_SITE_URL (the resort's live domain, e.g.
+  "https://villaazureresort.com", no trailing slash. Read by
+  services/vaultAuth.js's getVaultRecoveryUrl() to build the clickable
+  link to /system-vault-x9f2 shown in the vault-passphrase-rotation
+  email and the .txt copy saved to Google Drive. Missing/unset ->
+  falls back to a placeholder "https://your-domain-here.com" instead of
+  crashing the email/Drive-save flow — that placeholder is an obvious
+  signal to go set the real value.)
 
 === PROCESS: Reseller License Check (owner-only feature, not client-facing) ===
 Step 1 : Every request to a matched route hits middleware.js first

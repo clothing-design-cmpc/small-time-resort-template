@@ -89,22 +89,44 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
 
   const vaultRecoveryUrl = await getVaultRecoveryUrl();
 
+  // Human-readable rotation timestamp for the email — the raw ISO string
+  // ("2026-07-16T11:37:16.992Z") reads fine in a filename or a log row,
+  // but is unnecessarily hard to parse at a glance in an email a real
+  // person has to read quickly. UTC is spelled out explicitly since the
+  // owner could be reading this from any timezone.
+  const rotatedAtReadable =
+    new Date().toLocaleString("en-US", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }) + " UTC";
+
   return sendGeneralEmail({
     toEmail: vaultOwnerEmail,
     subject: "Your vault passphrase was rotated",
     eyebrow: "VAULT PASSPHRASE ROTATED",
     heading: "New vault passphrase generated",
     intro: `Reason: ${reason}`,
-    highlightLine1: newPassphrase,
-    highlightLine2: `Rotated at ${new Date().toISOString()}`,
+    // Explicitly labeled so the highlight box can never read as just a
+    // stray line of text — "NEW PASSPHRASE" makes it unmistakable this
+    // value is freshly generated and supersedes whatever came before it.
+    highlightLine1: `NEW PASSPHRASE: ${newPassphrase}`,
+    highlightLine2: `Rotated ${rotatedAtReadable}`,
     // body_message fills a raw-HTML slot in the EmailJS template (see
     // services/emailjs.js's TEMPLATE CONTRACT), so the recovery URL
     // renders as an actual clickable link here — not literal markdown
     // syntax, which only the plain-text .txt copy (Google Drive) uses.
+    // IMPORTANT: the dashboard's "Contact template" must reference this
+    // field as {{{body_message}}} (triple braces), not {{body_message}}
+    // (double braces) — EmailJS escapes HTML by default on a double-brace
+    // merge tag, which is exactly why <br> and <a> were showing up as
+    // literal text instead of rendering. This is a one-time dashboard
+    // edit, not something this file's code can fix on its own.
     bodyMessage:
-      `Save this passphrase somewhere safe now — it will not be shown or emailed again. The old passphrase no longer works.<br><br>` +
+      `This is a brand-new passphrase, generated just now — it replaces every passphrase that came before it, and the old one no longer works.<br><br>` +
+      `Save it somewhere safe immediately: it will not be shown on-screen or emailed again after this message.<br><br>` +
       `This passphrase gates the disaster-recovery page at <a href="${vaultRecoveryUrl}">${vaultRecoveryUrl.replace(/^https?:\/\//, "")}</a>.<br>` +
-      `Generating a new one from the dashboard replaces this one immediately.<br>` +
-      `Keep this file private — do not share it outside the resort owner.`,
+      `Generating another one from the dashboard will immediately replace this one too.<br>` +
+      `Keep this email private — do not forward or share it outside the resort owner.`,
   });
 }

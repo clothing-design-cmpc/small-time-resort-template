@@ -1,0 +1,339 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/Recovery.css
+ * Reuses the same dark enterprise tokens as SuperAdmin.css (imported
+ * alongside this file in page.jsx) — this page should feel exactly
+ * like the rest of the admin panel even though it isn't part of it.
+ */
+
+.recoveryRoot {
+  min-height: 100dvh;
+}
+
+.recoveryContent {
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/*
+ * .recoveryContent > * entrance
+ * Each direct child (header row, incident card, step cards) fades and
+ * lifts in with a slight stagger — reinforces that this dashboard is a
+ * sequence of steps to read top-to-bottom, not a static dump of panels
+ * (Rule 17.5). Skips anything already animating on its own (StatusBadge).
+ */
+.recoveryContent > * {
+  animation: recoveryPanelEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.recoveryContent > *:nth-child(1) { animation-delay: 0s; }
+.recoveryContent > *:nth-child(2) { animation-delay: 0.05s; }
+.recoveryContent > *:nth-child(3) { animation-delay: 0.1s; }
+.recoveryContent > *:nth-child(4) { animation-delay: 0.15s; }
+
+@keyframes recoveryPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryContent > * {
+    animation: none;
+  }
+}
+
+.recoveryHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+/*
+ * .recoveryEyebrow
+ * Small monospace label above the h1 — matches the "Restricted Area"
+ * eyebrow already used on the login/OTP screens (VaultLogin.css) so all
+ * three vault screens read as one consistent identity, and gives this
+ * header the minimum 3 distinct type sizes (Rule 17.1: eyebrow, title,
+ * body) instead of just a title + subtext.
+ */
+.recoveryEyebrow {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.recoveryHeaderRow h1 {
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.recoverySubtext {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .recoveryLockdownBadgeActive / .recoveryLockdownBadgeClear
+ * Loud status pill at the top of the page — the single most important
+ * piece of information here is whether the site is currently down.
+ */
+.recoveryLockdownBadgeActive,
+.recoveryLockdownBadgeClear {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.recoveryLockdownBadgeActive {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--color-error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.recoveryLockdownBadgeClear {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/*
+ * .recoveryLockdownDot
+ * Solid dot in the badge's own color. Only pulses inside the active
+ * (danger) badge — the clear/resolved state stays still, since motion
+ * here should mean "needs attention," not just "this is a status pill."
+ */
+.recoveryLockdownDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.recoveryLockdownBadgeActive .recoveryLockdownDot {
+  animation: recoveryDotPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes recoveryDotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryLockdownBadgeActive .recoveryLockdownDot {
+    animation: none;
+  }
+}
+
+/*
+ * .recoveryHeaderActions
+ * Groups the lockdown status badge with the Lock Vault button so both
+ * stay together on the right side of the header row on desktop and
+ * wrap together as one unit on narrow viewports.
+ */
+.recoveryHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .recoveryLockVaultButton
+ * Deliberately understated (outline, not filled) — this isn't a
+ * destructive action, just re-locking the vault's second-factor gate.
+ * Amber tone ties it back to the vault login screen's accent color.
+ */
+.recoveryLockVaultButton {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.recoveryLockVaultButton:hover,
+.recoveryLockVaultButton:focus-visible {
+  background-color: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+/*
+ * .recoveryIncidentCard / .recoveryStepCard
+ * Top accent bar + hover lift give these cards the same "elevated, not
+ * flat" treatment as the rest of the admin panel (Rule 17.4) — a plain
+ * bordered box with no accent reads as an unfinished placeholder next
+ * to StatCard/DataTable elsewhere in /superAdmin.
+ */
+.recoveryIncidentCard,
+.recoveryStepCard {
+  position: relative;
+  padding: var(--space-lg) var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.recoveryIncidentCard::before,
+.recoveryStepCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--space-xl);
+  right: var(--space-xl);
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background-color: var(--color-accent);
+}
+
+.recoveryIncidentCard:hover,
+.recoveryStepCard:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-base);
+}
+
+.recoveryIncidentCard h2,
+.recoveryStepCard h2 {
+  font-size: 1.05rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.recoveryStepCard p {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-md);
+}
+
+.recoveryIncidentDetails {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-xs) var(--space-md);
+  font-size: 0.9rem;
+}
+
+.recoveryIncidentDetails dt {
+  color: var(--color-text-muted);
+}
+
+.recoveryIncidentDetails dd {
+  color: var(--color-text-primary);
+}
+
+/*
+ * .recoveryFileInput
+ * The bare <input type="file"> renders its OS-default picker button
+ * with no way to restyle the button itself except via the
+ * ::file-selector-button pseudo-element — left alone, that default
+ * button chrome clashes badly with the rest of the panel's design.
+ */
+.recoveryFileInput {
+  width: 100%;
+  padding: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 8px;
+  background-color: var(--color-surface-hover);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.recoveryFileInput:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+.recoveryFileInput::file-selector-button {
+  margin-right: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.recoveryFileInput::file-selector-button:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.recoveryImportHistory {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-md);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-divider);
+}
+
+.recoveryImportHistory li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--color-divider);
+  transition: background-color var(--transition-fast);
+}
+
+.recoveryImportHistory li:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.recoveryMutedText {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.recoveryEndLockdownButton {
+  padding: var(--space-sm) var(--space-lg);
+  min-height: 44px;
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.recoveryEndLockdownButton:hover:not(:disabled),
+.recoveryEndLockdownButton:focus-visible:not(:disabled) {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+.recoveryEndLockdownButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

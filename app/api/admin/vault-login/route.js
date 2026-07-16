@@ -13,7 +13,7 @@
  * recovery dashboard itself.
  *
  * DATA FLOW:
- * 1. POST { passphrase } from app/system-vault-[vaultSlug]/login/VaultLoginClient.jsx
+ * 1. POST { passphrase } from app/system-vault/[vaultSlug]/login/VaultLoginClient.jsx
  * 2. Rate limit: 5 attempts / 15 min per IP, same ceiling as the main
  *    login route — this endpoint gates disaster recovery, brute force
  *    here is just as serious as brute forcing the main password

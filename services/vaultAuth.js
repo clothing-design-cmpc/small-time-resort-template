@@ -29,8 +29,8 @@
  *
  * URL, NOT A FIXED PATH:
  * The hidden recovery page no longer lives at a hardcoded slug like
- * /system-vault-x9f2. Its folder is a dynamic Next.js route segment,
- * app/system-vault-[vaultSlug]/, and the ONLY slug value that ever
+ * /system-vault/x9f2. Its folder is a dynamic Next.js route segment,
+ * app/system-vault/[vaultSlug]/, and the ONLY slug value that ever
  * resolves to anything is computeVaultUrlSlug()'s output below — the
  * first 7 hex characters of sha256(current passphrase hash). Anyone
  * requesting any other slug gets a plain 404 from notFound(), same as
@@ -52,7 +52,7 @@
  *    buildVaultSessionCookieValue() — the uid stored inside it is the
  *    fixed literal "vault" (there is no super-admin identity behind it
  *    anymore; see VAULT_IDENTITY below)
- * 3. app/system-vault-[vaultSlug]/page.jsx (Server Component) and
+ * 3. app/system-vault/[vaultSlug]/page.jsx (Server Component) and
  *    app/api/admin/breach/route.js both call requireVaultSession() —
  *    no vault session, no access to breach status or "End Lockdown",
  *    regardless of whether the caller has a regular super_admin
@@ -95,7 +95,7 @@ export const VAULT_IDENTITY = "vault";
 // building/documenting the full URL below. The part that actually
 // matters for security is the slug appended after it, which is never
 // hardcoded anywhere (see computeVaultUrlSlug()).
-const VAULT_RECOVERY_PATH_PREFIX = "/system-vault-";
+const VAULT_RECOVERY_PATH_PREFIX = "/system-vault/";
 
 /**
  * getEffectivePassphraseHash
@@ -144,7 +144,7 @@ export async function computeVaultUrlSlug() {
 
 /**
  * getVaultRecoveryPath
- * Just the path (no domain) — /system-vault-<current 7-char slug>.
+ * Just the path (no domain) — /system-vault/<current 7-char slug>.
  * Returns null if the vault has no passphrase hash configured yet
  * (see computeVaultUrlSlug()), same as that function.
  */
@@ -353,7 +353,7 @@ export function requireVaultSession(request) {
  * Server Component variant — reads the "vaultSession" cookie off the
  * read-only cookie store returned by next/headers' cookies(), which
  * exposes the same .get(name) -> { value } shape as request.cookies.
- * Used by app/system-vault-[vaultSlug]/page.jsx to redirect straight to the
+ * Used by app/system-vault/[vaultSlug]/page.jsx to redirect straight to the
  * vault login screen before RecoveryClient ever renders, instead of
  * flashing recovery content and only then getting a 401 from the API.
  */

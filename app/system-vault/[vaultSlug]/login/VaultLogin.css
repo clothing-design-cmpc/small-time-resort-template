@@ -1,0 +1,263 @@
+/*
+ * .vaultLoginSection
+ * Full-viewport dark section — deliberately plain (no hero photo like
+ * the main super-admin login) since this screen should read as a
+ * restricted utility gate, not part of the resort's public branding.
+ * 100dvh so mobile address bars never cause the card to jump (Rule 29.5).
+ */
+.vaultLoginSection {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+  background-color: #09090b;
+  overflow: hidden;
+
+  /*
+   * Local token overrides — this section is the one deliberately dark
+   * surface in an otherwise light-themed site (globals.css's :root
+   * defines --color-text-primary/secondary as dark forest-green for
+   * the light background everywhere else). Without these, title and
+   * legend text render as dark-green-on-near-black — unreadable.
+   */
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: rgba(255, 255, 255, 0.6);
+}
+
+/*
+ * .vaultLoginSection::before
+ * A soft amber glow anchored behind the card — the flat #09090b fill
+ * alone reads as a placeholder background (Rule 17.2 wants layered
+ * depth, not a single flat color). Fixed position, ignores pointer
+ * events, and sits behind the card via z-index.
+ */
+.vaultLoginSection::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 640px;
+  height: 640px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0) 70%);
+  pointer-events: none;
+}
+
+/*
+ * .vaultLoginCard
+ * Same frosted-card language as the main admin login, but with an amber
+ * top border instead of the resort's green accent — a deliberate visual
+ * cue that this is a different, higher-stakes gate, not the everyday
+ * sign-in screen. Fades and lifts in on load so the screen doesn't feel
+ * like a static, pre-rendered slab (Rule 17.5). z-index keeps it above
+ * the ::before glow layer.
+ */
+.vaultLoginCard {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-2xl) var(--space-xl);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid var(--color-warning);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: vaultCardEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes vaultCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect users who've asked the OS to minimize motion. */
+@media (prefers-reduced-motion: reduce) {
+  .vaultLoginCard {
+    animation: none;
+  }
+}
+
+.vaultLoginHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-xs);
+}
+
+/*
+ * .vaultLoginBadge
+ * Amber-tinted icon badge (not the resort green) — same "focal point
+ * above the eyebrow" pattern as the main login, distinct color intent.
+ */
+.vaultLoginBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-md);
+  border-radius: 999px;
+  background-color: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  color: #fbbf24;
+}
+
+.vaultLoginEyebrow {
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.vaultLoginTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.vaultLoginLegend {
+  margin-top: var(--space-xs);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/*
+ * .vaultLoginAuthError
+ * Whole-form error banner — wrong passphrase, rate limited, or network
+ * failure. Same pattern as the main login's error banner.
+ */
+.vaultLoginAuthError {
+  margin-top: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  color: #fecaca;
+  background-color: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+}
+
+.vaultLoginForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.vaultLoginField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.vaultLoginField label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.vaultLoginField input {
+  width: 100%;
+  min-height: 46px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.vaultLoginField input:focus-visible {
+  outline: none;
+  border-color: var(--color-warning);
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+}
+
+.vaultLoginFieldError {
+  font-size: 0.8rem;
+  color: #fca5a5;
+}
+
+/*
+ * .vaultLoginPassphraseWrapper
+ * Positions the show/hide toggle inside the right edge of the
+ * passphrase input, same pattern as the main login's password field.
+ */
+.vaultLoginPassphraseWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.vaultLoginPassphraseWrapper input {
+  padding-right: 3.5rem;
+}
+
+.vaultLoginPassphraseToggle {
+  position: absolute;
+  right: var(--space-xs);
+  min-height: 32px;
+  padding: 0 var(--space-sm);
+  /* Without this reset, the browser's default button chrome (light
+     gray background, dark text) shows through underneath our
+     semi-transparent text color, making the label unreadable — this
+     is meant to read as plain text, not a filled button. */
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.vaultLoginPassphraseToggle:hover,
+.vaultLoginPassphraseToggle:focus-visible {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.vaultLoginSubmitButton {
+  width: 100%;
+  min-height: 46px;
+  margin-top: var(--space-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1c1300;
+  background-color: var(--color-warning);
+  border-radius: 10px;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.vaultLoginSubmitButton:hover,
+.vaultLoginSubmitButton:focus-visible {
+  background-color: #d18a08;
+}
+
+.vaultLoginSubmitButton:active {
+  transform: translateY(1px);
+}
+
+.vaultLoginSubmitButton:disabled {
+  opacity: 0.6;
+}

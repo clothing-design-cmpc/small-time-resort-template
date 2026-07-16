@@ -393,9 +393,9 @@ Step 8 : Super-admin sees a persistent red BreachAlertBanner on every
          linking to the hidden recovery page
 Step 9 : Super-admin opens the hidden recovery page at whatever URL
          computeVaultUrlSlug() (services/vaultAuth.js) currently
-         resolves to — /system-vault-<7 hex chars derived from a hash
+         resolves to — /system-vault/<7 hex chars derived from a hash
          of the live passphrase hash>, NOT a fixed slug. The dynamic
-         route lives at app/system-vault-[vaultSlug]/, and any URL
+         route lives at app/system-vault/[vaultSlug]/, and any URL
          with the wrong slug 404s via notFound() before anything else
          is checked. This page requires NO super_admin "session"
          cookie at all — proxy.js's HIDDEN_RECOVERY_PATH_PREFIX
@@ -437,7 +437,7 @@ FILE MAP additions (3-Gatekeeper Breach Response):
 - proxy.js - now runs on the Node.js middleware runtime (not Edge)
   so it can query Prisma directly; matcher broadened to a catch-all
   (excluding static assets) so the IP block check covers every route;
-  HIDDEN_RECOVERY_PATH_PREFIX ("/system-vault-") is recognized but
+  HIDDEN_RECOVERY_PATH_PREFIX ("/system-vault/") is recognized but
   deliberately NOT added to the protected-route list -- the vault's
   own login chain gates it instead, not a super_admin session.
 - app/api/auth/login/route.js - wired to Gatekeepers 1, 2, and 3.
@@ -450,7 +450,7 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   is true, replacing Header/Footer/content entirely).
 - components/superAdmin/BreachAlertBanner.jsx + .css - red alert banner
   mounted in app/superAdmin/(protected)/layout.jsx.
-- app/system-vault-[vaultSlug]/page.jsx + RecoveryClient.jsx +
+- app/system-vault/[vaultSlug]/page.jsx + RecoveryClient.jsx +
   Recovery.css - the hidden recovery page. Deliberately outside
   app/superAdmin and never linked from the Sidebar - reachable only by
   URL (and only the ONE correct, hash-derived [vaultSlug] value - see
@@ -514,14 +514,14 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   "vaultSession" with otpVerified: true via
   reissueVaultSessionCookieValue() - the original grantedAt is
   preserved, so completing OTP never extends the 30-minute window.
-- app/system-vault-[vaultSlug]/login/page.jsx + VaultLoginClient.jsx +
+- app/system-vault/[vaultSlug]/login/page.jsx + VaultLoginClient.jsx +
   VaultLogin.css - the vault's own first-factor login screen, single
   passphrase field, no relation to Supabase Auth. [vaultSlug] must
   match services/vaultAuth.js's computeVaultUrlSlug() or the page 404s.
-- app/system-vault-[vaultSlug]/otp/page.jsx + VaultOtpClient.jsx +
+- app/system-vault/[vaultSlug]/otp/page.jsx + VaultOtpClient.jsx +
   VaultOtp.css - the second-factor code entry screen, same
   [vaultSlug] validation as above.
-- app/system-vault-[vaultSlug]/page.jsx - Server Component that
+- app/system-vault/[vaultSlug]/page.jsx - Server Component that
   validates [vaultSlug], then reads the "vaultSession" cookie itself
   (next/headers) and redirects to this same slug's /login (no session)
   or /otp (session present but otpVerified: false), before

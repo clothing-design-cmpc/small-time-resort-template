@@ -53,12 +53,12 @@ import { isIpBlocked } from "@/services/ipBlock";
 // The vault is now reachable only at whatever URL
 // services/vaultAuth.js's computeVaultUrlSlug() currently resolves to
 // (the first 7 hex characters of a hash of the live passphrase hash) —
-// never a fixed slug like the old "/system-vault-x9f2". That check
-// happens in the page itself (app/system-vault-[vaultSlug]/page.jsx
+// never a fixed slug like the old "/system-vault/x9f2". That check
+// happens in the page itself (app/system-vault/[vaultSlug]/page.jsx
 // calls notFound() on a mismatch), not here in proxy.js, so this file
 // only needs a PREFIX to recognize the route family below — it never
 // needs to know the current correct slug.
-const HIDDEN_RECOVERY_PATH_PREFIX = "/system-vault-";
+const HIDDEN_RECOVERY_PATH_PREFIX = "/system-vault/";
 
 // The vault's own API routes must be excluded from the blanket
 // "/api/admin" super_admin gate below for the same reason — they
@@ -149,7 +149,7 @@ export async function proxy(request, event) {
     (pathname.startsWith("/superAdmin") && pathname !== "/superAdmin/login") ||
     (pathname.startsWith("/api/admin") && !isVaultStandaloneApiPath(pathname)) ||
     pathname.startsWith("/api/superAdmin");
-  // Note: HIDDEN_RECOVERY_PATH_PREFIX ("/system-vault-") is intentionally
+  // Note: HIDDEN_RECOVERY_PATH_PREFIX ("/system-vault/") is intentionally
   // NOT part of isProtectedRoute — the vault page enforces its own
   // login chain server-side (services/vaultAuth.js) instead of relying
   // on this file's super_admin session check.

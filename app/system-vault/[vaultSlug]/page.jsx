@@ -1,5 +1,5 @@
 /**
- * FILE: app/system-vault-[vaultSlug]/page.jsx
+ * FILE: app/system-vault/[vaultSlug]/page.jsx
  * ROLE: Standalone — NOT protected by proxy.js's super_admin gate, NOT
  *       part of the app/superAdmin route group, and NOT linked from
  *       the Sidebar or anywhere else in the app. Gated entirely by its
@@ -59,9 +59,6 @@ export default async function VaultRecoveryPage({ params }) {
   // Wrong (or stale, pre-rotation) slug -> 404, never a redirect that
   // would confirm this route pattern exists at all.
   const expectedSlug = await computeVaultUrlSlug();
-  // TEMP DEBUG — remove once the slug mismatch is diagnosed. Prints to
-  // the `npm run dev` terminal, never to the browser/response.
-  console.log(`[vault-debug] receivedSlug="${vaultSlug}" expectedSlug="${expectedSlug}"`);
   if (!expectedSlug || vaultSlug !== expectedSlug) {
     notFound();
   }
@@ -71,12 +68,12 @@ export default async function VaultRecoveryPage({ params }) {
 
   // No session, or it expired/malformed — back to the first factor.
   if (!vaultSession) {
-    redirect(`/system-vault-${vaultSlug}/login`);
+    redirect(`/system-vault/${vaultSlug}/login`);
   }
 
   // Passphrase accepted but the emailed code hasn't been verified yet.
   if (!vaultSession.otpVerified) {
-    redirect(`/system-vault-${vaultSlug}/otp`);
+    redirect(`/system-vault/${vaultSlug}/otp`);
   }
 
   return <RecoveryClient />;

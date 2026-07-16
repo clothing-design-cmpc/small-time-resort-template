@@ -1,0 +1,46 @@
+/*
+ * .vaultOtpCodeInput
+ * Widens the letter-spacing and centers the digits so a 6-digit code
+ * reads clearly at a glance — same base field styling as
+ * .vaultLoginField input (VaultLogin.css), just tuned for a short
+ * numeric code instead of a passphrase.
+ */
+.vaultOtpCodeInput {
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 1.3rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+/*
+ * .vaultOtpResendButton
+ * Secondary, low-emphasis action below the primary "Verify" button —
+ * deliberately plain text rather than a second filled button so it
+ * doesn't compete with the main action.
+ */
+.vaultOtpResendButton {
+  min-height: 44px;
+  margin-top: var(--space-xs);
+  /* Same fix as .vaultLoginPassphraseToggle (VaultLogin.css) — without
+     resetting the browser's default button background/border, this
+     semi-transparent text color is unreadable against the default
+     gray button chrome underneath it. */
+  background: transparent;
+  border: none;
+  padding: 0 var(--space-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--transition-fast);
+}
+
+.vaultOtpResendButton:hover,
+.vaultOtpResendButton:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.vaultOtpResendButton:disabled {
+  opacity: 0.5;
+}

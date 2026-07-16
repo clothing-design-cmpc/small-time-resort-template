@@ -27,7 +27,7 @@
  * 3. On match, the route calls services/vaultAuth.js's
  *    buildVaultSessionCookieValue(VAULT_IDENTITY, true) to re-issue the
  *    vaultSession cookie with otpVerified: true — that flag, not this
- *    file, is what app/system-vault-[vaultSlug]/page.jsx and
+ *    file, is what app/system-vault/[vaultSlug]/page.jsx and
  *    app/api/admin/breach/route.js actually gate on
  */
 import { scryptSync, randomInt, timingSafeEqual } from "node:crypto";

@@ -570,7 +570,7 @@ model SystemSettings {
   // the super-admin dashboard shows a persistent red alert until the
   // active BreachEvent is resolved from the hidden recovery page.
   breachLockdown      Boolean @default(false) @map("breach_lockdown")
-  breachActiveEventId String? @map("breach_active_event_id")
+  breachActiveEventId String? @map("breach_active_event_id") @db.Uuid
 
   // --- Vault Passphrase (rotatable copy — see services/vaultAuth.js) ---
   // VAULT_PASSPHRASE_HASH in .env.local is only the INITIAL value, read
@@ -579,7 +579,7 @@ model SystemSettings {
   // new hash is written HERE instead — a running server can't edit its
   // own .env.local and pick up the change without a restart, so the DB
   // is the only place a live rotation can actually take effect.
-  vaultPassphraseHash String? @map("vault_passphrase_hash") @db.Uuid
+  vaultPassphraseHash String? @map("vault_passphrase_hash")
 
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")

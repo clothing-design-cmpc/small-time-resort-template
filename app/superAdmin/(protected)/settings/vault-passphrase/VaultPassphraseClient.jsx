@@ -37,6 +37,7 @@ export default function VaultPassphraseClient() {
   // Only ever populated immediately after a successful generate — never
   // fetched, never persisted across a page reload.
   const [revealedPassphrase, setRevealedPassphrase] = useState(null);
+  const [deliveryStatus, setDeliveryStatus] = useState(null); // { emailSent, driveSaved, driveViewLink }
 
   // Fires once on load — just to show accurate status text, never the
   // passphrase itself (that only ever exists after a fresh generate).
@@ -82,9 +83,19 @@ export default function VaultPassphraseClient() {
     }
 
     setRevealedPassphrase(result.data.passphrase);
+    setDeliveryStatus({
+      emailSent: result.data.emailSent,
+      driveSaved: result.data.driveSaved,
+      driveViewLink: result.data.driveViewLink,
+    });
     setIsConfigured(true);
     setIsModalOpen(false);
-    showToast("✓ New vault passphrase generated.", "success");
+
+    if (result.data.emailSent && result.data.driveSaved) {
+      showToast("✓ New passphrase generated, emailed, and saved to Drive.", "success");
+    } else {
+      showToast("⚠ Passphrase generated — check below, email or Drive save may have failed.", "warning");
+    }
   }
 
   /**
@@ -164,6 +175,30 @@ export default function VaultPassphraseClient() {
               down somewhere only you can access. It cannot be recovered
               later; only replaced with a new one.
             </p>
+
+            {deliveryStatus && (
+              <ul className="vaultPassphraseDeliveryList">
+                <li className={deliveryStatus.emailSent ? "vaultPassphraseDelivery--ok" : "vaultPassphraseDelivery--fail"}>
+                  {deliveryStatus.emailSent
+                    ? "✓ Emailed to the vault owner's inbox."
+                    : "✕ Email failed to send — copy the passphrase above manually."}
+                </li>
+                <li className={deliveryStatus.driveSaved ? "vaultPassphraseDelivery--ok" : "vaultPassphraseDelivery--fail"}>
+                  {deliveryStatus.driveSaved ? (
+                    <>
+                      ✓ Saved to Google Drive as a .txt file.{" "}
+                      {deliveryStatus.driveViewLink && (
+                        <a href={deliveryStatus.driveViewLink} target="_blank" rel="noopener noreferrer">
+                          Open file
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    "✕ Drive save failed — copy the passphrase above manually."
+                  )}
+                </li>
+              </ul>
+            )}
           </div>
         )}
       </div>

@@ -158,3 +158,26 @@
   line-height: 1.5;
   margin: 0;
 }
+
+.vaultPassphraseDeliveryList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.vaultPassphraseDeliveryList a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.vaultPassphraseDelivery--ok {
+  color: var(--color-success);
+}
+
+.vaultPassphraseDelivery--fail {
+  color: var(--color-error);
+}

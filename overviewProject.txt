@@ -468,13 +468,23 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   owner (non-developer) generate a new vault passphrase from their own
   dashboard with one button, no terminal needed. GET reports only
   whether a passphrase is currently configured; POST generates + hashes
-  + saves a new one to SystemSettings.vaultPassphraseHash and returns
-  the plaintext exactly once for the owner to copy down - never stored,
-  never logged, never shown again after that response. Gated by the
-  regular super-admin "session" cookie (requireSuperAdmin), same login
-  the owner already uses for the rest of the dashboard - distinct from
-  the vault's own passphrase+OTP gate, which protects reaching the
-  recovery page itself, not the setting that page's passphrase.
+  + saves a new one to SystemSettings.vaultPassphraseHash, emails the
+  plaintext via services/emailAlert.js's sendVaultPassphraseRotationEmail()
+  (same template the auto-rotation path uses), and saves a .txt copy to
+  Google Drive via services/googleDrive.js's uploadToDrive() - both
+  best-effort, reported back separately so the UI can be honest if
+  either failed. The plaintext itself is returned in the API response
+  exactly once for the owner to copy down - never stored, never logged,
+  never shown again after that response. Gated by the regular
+  super-admin "session" cookie (requireSuperAdmin) AND
+  AdminProfile.isOwner - distinct from the vault's own passphrase+OTP
+  gate, which protects reaching the recovery page itself, not the
+  setting that page's passphrase. NOTE: SystemSettings.vaultPassphraseHash
+  must be a plain String? column, NOT @db.Uuid - an earlier schema edit
+  briefly had this backwards (borrowed breachActiveEventId's @db.Uuid by
+  mistake), which made every save fail since a scrypt "salt:hash" string
+  is nowhere close to valid UUID format. Fixed; watch for this if the
+  column type ever gets touched again.
 - app/api/admin/vault-login/route.js - POST verifies the vault
   passphrase (after confirming a super_admin session already exists)
   and sets "vaultSession"; DELETE clears just that cookie ("Lock Vault").

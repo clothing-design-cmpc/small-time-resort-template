@@ -24,6 +24,9 @@
  * 4. Beyond the isOwner lookup, no session check happens here —
  *    proxy.js already blocked anyone without a valid superAdmin
  *    session before this layout ever renders
+ * 5. SessionCloseGuard signs the admin out on tab/browser close;
+ *    IdleTimeoutGuard signs the admin out after 30 minutes of no
+ *    mouse/keyboard/scroll/touch activity while the tab stays open
  *
  * ACCESSIBILITY:
  * A visually-hidden "Skip to main content" link is the first focusable
@@ -38,6 +41,7 @@ import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
 import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
 import SessionCloseGuard from "@/components/superAdmin/SessionCloseGuard";
+import IdleTimeoutGuard from "@/components/superAdmin/IdleTimeoutGuard";
 import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
 
 export const metadata = {
@@ -77,6 +81,10 @@ export default async function SuperAdminLayout({ children }) {
       {/* Signs the admin out the instant this tab or the browser itself
           is closed — see SessionCloseGuard's file header for details. */}
       <SessionCloseGuard />
+      {/* Signs the admin out after 30 minutes of no mouse/keyboard/scroll/
+          touch activity, even if the tab is left open — see
+          IdleTimeoutGuard's file header for details. */}
+      <IdleTimeoutGuard />
       <BreachAlertBanner />
       <a href="#mainContent" className="superAdminSkipLink">
         Skip to main content

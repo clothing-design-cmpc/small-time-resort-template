@@ -168,6 +168,23 @@
   border-radius: 10px;
 }
 
+/*
+ * .loginInfoBanner
+ * Informational banner (idle-timeout redirect) — amber, not red, since
+ * this isn't an error the admin caused, just an explanation for why
+ * they're back on this page. Same box shape as .loginAuthError so the
+ * two never look inconsistent if both somehow rendered back to back.
+ */
+.loginInfoBanner {
+  margin-top: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  color: #fde68a;
+  background-color: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: 10px;
+}
+
 .loginForm {
   display: flex;
   flex-direction: column;

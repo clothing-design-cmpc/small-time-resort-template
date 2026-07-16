@@ -19,13 +19,14 @@
  */
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import IdleTimeoutNotice from "./IdleTimeoutNotice";
 import "./Login.css";
 
 /* Placeholder demo credentials for the quick-fill button. Must match the
@@ -139,6 +140,12 @@ export default function SuperAdminLoginPage() {
           <h1 className="loginTitle">Super-Admin Login</h1>
           <p className="loginLegend">* Required fields</p>
         </div>
+
+        {/* Shown only after an idle-timeout redirect (?reason=idle-timeout) —
+            wrapped in Suspense because useSearchParams() requires it. */}
+        <Suspense fallback={null}>
+          <IdleTimeoutNotice />
+        </Suspense>
 
         {/* Whole-form auth error — wrong credentials, not a super admin,
             or a network failure. Field-level Zod errors render separately

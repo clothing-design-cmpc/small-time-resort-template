@@ -28,6 +28,10 @@
  *    NEVER runs pg_dump inside the live request, it just presses the
  *    same "Run workflow" button the Backups page already exposes).
  * 5. Email the super-admin via EmailJS (best-effort, never blocks).
+ * 6. Gatekeeper 1/2 ONLY: auto-rotate the vault passphrase
+ *    (services/vaultAuth.js's rotateVaultPassphrase()) and email the
+ *    new plaintext passphrase to VAULT_OWNER_EMAIL. Never done for
+ *    Gatekeeper 3 — see that step's own comment below for why.
  *
  * WHY EVERY STEP IS ITS OWN TRY/CATCH:
  * A failure in step 4 (say, GitHub Actions is briefly down) must never
@@ -44,8 +48,10 @@
  */
 import { prisma } from "@/services/prisma";
 import { blockIp } from "@/services/ipBlock";
-import { sendBreachAlertEmail } from "@/services/emailAlert";
+import { sendBreachAlertEmail, sendVaultPassphraseRotationEmail } from "@/services/emailAlert";
 import { triggerWorkflowDispatch } from "@/services/github";
+import { rotateVaultPassphrase } from "@/services/vaultAuth";
+import { logSecurityEvent } from "@/services/securityLog";
 
 const GATEKEEPER_LABELS = {
   1: "Gatekeeper 1 — Login brute force",
@@ -126,13 +132,40 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
   // Step 5 — alert the super-admin. Best-effort, never blocks.
   const emailSent = await sendBreachAlertEmail({ gatekeeper, ipAddress, details });
 
+  // Step 6 — rotate the vault passphrase, Gatekeeper 1/2 only. These two
+  // trip BEFORE authentication succeeds (brute force, SQL injection) —
+  // a genuine attack signal, so the old passphrase is invalidated on the
+  // spot and a fresh one is emailed to VAULT_OWNER_EMAIL immediately.
+  // Gatekeeper 3 fires AFTER a correct password was already entered and
+  // may just be the real super-admin on a new device/location — rotating
+  // the vault passphrase there could lock out the actual admin before
+  // they've had a chance to see the alert email, so it's skipped, same
+  // reasoning as the IP-block skip above.
+  let vaultPassphraseRotated = false;
+  if (gatekeeper === 1 || gatekeeper === 2) {
+    try {
+      const newPassphrase = await rotateVaultPassphrase();
+      vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
+        newPassphrase,
+        reason,
+      });
+      await logSecurityEvent({
+        eventType: "vault_passphrase_rotated",
+        actor: "vault",
+        details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL.`,
+      });
+    } catch (error) {
+      console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
+    }
+  }
+
   // Record what actually succeeded so the recovery page can show an
   // honest picture instead of assuming every step worked.
   if (breachEvent) {
     try {
       await prisma.breachEvent.update({
         where: { id: breachEvent.id },
-        data: { backupTriggered, emailSent },
+        data: { backupTriggered, emailSent, vaultPassphraseRotated },
       });
     } catch (error) {
       console.error("[breachResponse] Failed to update BreachEvent status flags:", error.message);

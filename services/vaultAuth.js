@@ -16,31 +16,55 @@
  * point of this page is to recover the site when something has already
  * gone wrong, so its own gate must not depend on the same auth stack
  * that a breach could plausibly be compromising. The passphrase hash
- * lives only in VAULT_PASSPHRASE_HASH (.env.local / host env), never in
- * the database.
+ * starts out in VAULT_PASSPHRASE_HASH (.env.local / host env) only, but
+ * once services/breachResponse.js auto-rotates it for the first time,
+ * SystemSettings.vaultPassphraseHash (DB) becomes the live value instead
+ * — a running server can't rewrite its own .env.local at runtime, so the
+ * DB is the only place a rotation can actually take effect without a
+ * restart. See verifyVaultPassphrase()'s priority order below.
  *
  * Hashing uses Node's built-in crypto.scrypt — no extra dependency
  * (bcrypt/argon2) needed for a single shared secret. Format stored in
- * VAULT_PASSPHRASE_HASH is "salt:hash", both hex-encoded.
+ * both VAULT_PASSPHRASE_HASH and SystemSettings.vaultPassphraseHash is
+ * "salt:hash", both hex-encoded.
  *
  * DATA FLOW:
- * 1. Run `node scripts/hashVaultPassphrase.js` once to turn a chosen
- *    passphrase into a "salt:hash" string, paste it into
- *    VAULT_PASSPHRASE_HASH in .env.local (never commit the plaintext)
+ * 1. Run `node scripts/hashVaultPassphrase.js` once (optionally seeded
+ *    with generateVaultPassphrase() below) to turn a chosen passphrase
+ *    into a "salt:hash" string, paste it into VAULT_PASSPHRASE_HASH in
+ *    .env.local (never commit the plaintext)
  * 2. app/api/admin/vault-login/route.js calls verifyVaultPassphrase()
- *    against that env var and, on match, sets an HttpOnly "vaultSession"
- *    cookie via buildVaultSessionCookieValue() — the uid stored inside
- *    it is the fixed literal "vault" (there is no super-admin identity
- *    behind it anymore; see VAULT_IDENTITY below)
+ *    — checks the DB value first, falls back to that env var — and on
+ *    match sets an HttpOnly "vaultSession" cookie via
+ *    buildVaultSessionCookieValue() — the uid stored inside it is the
+ *    fixed literal "vault" (there is no super-admin identity behind it
+ *    anymore; see VAULT_IDENTITY below)
  * 3. app/system-vault-x9f2/page.jsx (Server Component) and
  *    app/api/admin/breach/route.js both call requireVaultSession() —
  *    no vault session, no access to breach status or "End Lockdown",
  *    regardless of whether the caller has a regular super_admin
  *    session cookie at all
+ * 4. services/breachResponse.js calls rotateVaultPassphrase() the
+ *    instant Gatekeeper 1 or 2 trips — the passphrase used seconds ago
+ *    stops working immediately, and the new one is emailed out via
+ *    services/emailAlert.js's sendVaultPassphraseRotationEmail()
  */
-import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
+import { scryptSync, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { prisma } from "@/services/prisma";
 
 const SCRYPT_KEY_LENGTH = 64;
+
+// Word list for generateVaultPassphrase() — plain, unambiguous, easy to
+// read aloud or type from an email on a phone. Deliberately NOT a
+// themed/curated list (no inside jokes, no project-specific words) so
+// the generated passphrase never hints at anything else in this app.
+const PASSPHRASE_WORD_LIST = [
+  "amber", "anchor", "basil", "birch", "canyon", "cedar", "comet", "coral",
+  "delta", "ember", "falcon", "fjord", "granite", "harbor", "indigo", "ivory",
+  "jasper", "kestrel", "lagoon", "lantern", "maple", "marble", "meadow", "nectar",
+  "onyx", "opal", "orchid", "pebble", "quartz", "raven", "ridge", "saffron",
+  "sable", "shale", "signal", "sparrow", "summit", "tundra", "umber", "willow",
+];
 
 // Vault sessions are intentionally short — this is a disaster-recovery
 // tool, not a page an admin should stay signed into all day. Matches
@@ -67,16 +91,60 @@ export function hashVaultPassphrase(plaintextPassphrase) {
 }
 
 /**
- * verifyVaultPassphrase
- * Compares a submitted passphrase against VAULT_PASSPHRASE_HASH using a
- * constant-time comparison (timingSafeEqual) so response timing can't
- * leak how many characters matched. Always derives a scrypt hash even
- * when VAULT_PASSPHRASE_HASH is missing/malformed (comparing against a
- * dummy salt) so a misconfigured env var doesn't respond measurably
- * faster than a wrong passphrase would.
+ * generateVaultPassphrase
+ * Produces a fresh, human-typable passphrase: 5 random words from
+ * PASSPHRASE_WORD_LIST joined with hyphens, plus a random 2-digit
+ * number — e.g. "harbor-quartz-ember-tundra-opal-47". Uses
+ * crypto.randomInt (cryptographically secure) for every pick, never
+ * Math.random, since this passphrase gates disaster recovery.
+ *
+ * Used two ways:
+ *  1. Manually, by an admin who wants a strong starting passphrase
+ *     instead of inventing their own (scripts/hashVaultPassphrase.js
+ *     can hash whatever this returns).
+ *  2. Automatically by rotateVaultPassphrase() below, right after a
+ *     Gatekeeper 1/2 breach trip.
  */
-export function verifyVaultPassphrase(submittedPassphrase) {
-  const storedValue = process.env.VAULT_PASSPHRASE_HASH ?? "";
+export function generateVaultPassphrase() {
+  const words = Array.from(
+    { length: 5 },
+    () => PASSPHRASE_WORD_LIST[randomInt(0, PASSPHRASE_WORD_LIST.length)]
+  );
+  const trailingNumber = randomInt(10, 100); // 2-digit number, 10-99
+  return `${words.join("-")}-${trailingNumber}`;
+}
+
+/**
+ * verifyVaultPassphrase
+ * Compares a submitted passphrase against the current vault passphrase
+ * hash using a constant-time comparison (timingSafeEqual) so response
+ * timing can't leak how many characters matched. Always derives a
+ * scrypt hash even when no hash is configured (comparing against a
+ * dummy salt) so a misconfigured value doesn't respond measurably
+ * faster than a wrong passphrase would.
+ *
+ * Hash source priority:
+ *  1. SystemSettings.vaultPassphraseHash (DB) — set once rotation has
+ *     happened at least once (see rotateVaultPassphrase below). This is
+ *     the only value a running server can update at runtime.
+ *  2. VAULT_PASSPHRASE_HASH (.env.local) — the original manually-set
+ *     value, used until the first rotation ever writes to the DB.
+ * Now async because of the DB read — every caller must await it.
+ */
+export async function verifyVaultPassphrase(submittedPassphrase) {
+  let dbHash = null;
+  try {
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: "singleton" },
+      select: { vaultPassphraseHash: true },
+    });
+    dbHash = settings?.vaultPassphraseHash ?? null;
+  } catch (error) {
+    // DB read failure must never crash vault login — fall back to env.
+    console.error("[vaultAuth] Failed to read vaultPassphraseHash from DB:", error.message);
+  }
+
+  const storedValue = dbHash || process.env.VAULT_PASSPHRASE_HASH || "";
   const [storedSalt, storedHashHex] = storedValue.includes(":")
     ? storedValue.split(":")
     : ["0".repeat(32), "0".repeat(SCRYPT_KEY_LENGTH * 2)];
@@ -85,15 +153,44 @@ export function verifyVaultPassphrase(submittedPassphrase) {
   const storedHash = Buffer.from(storedHashHex, "hex");
 
   // timingSafeEqual throws if buffer lengths differ — guard that instead
-  // of letting a malformed env var crash the login route.
+  // of letting a malformed hash crash the login route.
   if (submittedHash.length !== storedHash.length) return false;
 
   const isMatch = timingSafeEqual(submittedHash, storedHash);
 
-  // Never treat a missing/malformed VAULT_PASSPHRASE_HASH as a valid
-  // passphrase, even in the astronomically unlikely case the dummy
-  // comparison above matched.
+  // Never treat a missing/malformed hash as a valid passphrase, even in
+  // the astronomically unlikely case the dummy comparison above matched.
   return isMatch && storedValue.includes(":");
+}
+
+/**
+ * rotateVaultPassphrase
+ * Generates a brand-new passphrase, hashes it, and saves the hash to
+ * SystemSettings.vaultPassphraseHash — overwriting whatever the vault
+ * passphrase used to be, DB value or original .env.local value alike.
+ * Returns the PLAINTEXT passphrase so the caller (services/
+ * breachResponse.js) can email it immediately — this is the only place
+ * that plaintext ever exists outside the admin's inbox. It is never
+ * logged, never written anywhere else, and never returned in any API
+ * response body.
+ *
+ * Called automatically by triggerGatekeeperBreach() for Gatekeeper 1
+ * (login brute force) and Gatekeeper 2 (SQL injection attempt) only —
+ * never for Gatekeeper 3, since that one fires after a correct password
+ * was already entered and may just be the real super-admin on a new
+ * device or new location, not an actual intrusion.
+ */
+export async function rotateVaultPassphrase() {
+  const newPassphrase = generateVaultPassphrase();
+  const newHash = hashVaultPassphrase(newPassphrase);
+
+  await prisma.systemSettings.upsert({
+    where: { id: "singleton" },
+    update: { vaultPassphraseHash: newHash },
+    create: { id: "singleton", vaultPassphraseHash: newHash },
+  });
+
+  return newPassphrase;
 }
 
 /**

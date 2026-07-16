@@ -18,7 +18,10 @@
  *    login route — this endpoint gates disaster recovery, brute force
  *    here is just as serious as brute forcing the main password
  * 3. verifyVaultPassphrase() does a constant-time compare against
- *    VAULT_PASSPHRASE_HASH
+ *    SystemSettings.vaultPassphraseHash (DB), falling back to
+ *    VAULT_PASSPHRASE_HASH (.env.local) if no DB value has ever been
+ *    set yet — see services/vaultAuth.js for why the DB is the source
+ *    of truth once auto-rotation (services/breachResponse.js) runs
  * 4. On match: set "vaultSession" cookie (uid: VAULT_IDENTITY), log
  *    vault_login_success, return success. On mismatch: log
  *    vault_login_failed, return the same generic 401 either way
@@ -77,7 +80,7 @@ export async function POST(request) {
     );
   }
 
-  const isCorrectPassphrase = verifyVaultPassphrase(payload.passphrase);
+  const isCorrectPassphrase = await verifyVaultPassphrase(payload.passphrase);
 
   if (!isCorrectPassphrase) {
     await logSecurityEvent({

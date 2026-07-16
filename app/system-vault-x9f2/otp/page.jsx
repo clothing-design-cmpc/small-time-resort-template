@@ -47,10 +47,12 @@ export default async function VaultOtpPage() {
   }
 
   return (
-    <section className="vaultLoginSection">
-      <div className="vaultLoginCard">
-        <VaultOtpClient />
-      </div>
-    </section>
+    <div className="superAdminRoot">
+      <section className="vaultLoginSection">
+        <div className="vaultLoginCard">
+          <VaultOtpClient />
+        </div>
+      </section>
+    </div>
   );
 }

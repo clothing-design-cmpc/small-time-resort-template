@@ -6,12 +6,14 @@
  * 100dvh so mobile address bars never cause the card to jump (Rule 29.5).
  */
 .vaultLoginSection {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
   padding: var(--space-lg);
   background-color: #09090b;
+  overflow: hidden;
 
   /*
    * Local token overrides — this section is the one deliberately dark
@@ -25,14 +27,36 @@
 }
 
 /*
+ * .vaultLoginSection::before
+ * A soft amber glow anchored behind the card — the flat #09090b fill
+ * alone reads as a placeholder background (Rule 17.2 wants layered
+ * depth, not a single flat color). Fixed position, ignores pointer
+ * events, and sits behind the card via z-index.
+ */
+.vaultLoginSection::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 640px;
+  height: 640px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0) 70%);
+  pointer-events: none;
+}
+
+/*
  * .vaultLoginCard
  * Same frosted-card language as the main admin login, but with an amber
  * top border instead of the resort's green accent — a deliberate visual
  * cue that this is a different, higher-stakes gate, not the everyday
- * sign-in screen.
+ * sign-in screen. Fades and lifts in on load so the screen doesn't feel
+ * like a static, pre-rendered slab (Rule 17.5). z-index keeps it above
+ * the ::before glow layer.
  */
 .vaultLoginCard {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -43,6 +67,25 @@
   border-top: 3px solid var(--color-warning);
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: vaultCardEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes vaultCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect users who've asked the OS to minimize motion. */
+@media (prefers-reduced-motion: reduce) {
+  .vaultLoginCard {
+    animation: none;
+  }
 }
 
 .vaultLoginHeader {
@@ -72,7 +115,7 @@
 }
 
 .vaultLoginEyebrow {
-  font-family: monospace;
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.16em;

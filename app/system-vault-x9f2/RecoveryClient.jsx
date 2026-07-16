@@ -1,6 +1,9 @@
 /**
  * FILE: app/system-vault-x9f2/RecoveryClient.jsx
- * ROLE: Super-admin only — protected by proxy.js (HIDDEN_RECOVERY_PATH)
+ * ROLE: Standalone — not gated by proxy.js or any super_admin session;
+ *       reachable only after both vault factors (passphrase + emailed
+ *       OTP) are satisfied, enforced by page.jsx's server-side redirect
+ *       chain and re-checked by every /api/admin/breach call below.
  *
  * PURPOSE:
  * The actual recovery workflow: shows which gatekeeper tripped and
@@ -158,7 +161,11 @@ export default function RecoveryClient() {
   }
 
   return (
-    <section className="recoverySection">
+    <section className="recoveryContent">
+      {/* recoveryContent (Recovery.css) supplies the max-width, page
+          padding, and vertical gap between the cards below — this
+          section previously used an unstyled "recoverySection" class
+          and rendered full-bleed with no spacing. */}
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="recoveryHeaderRow">
@@ -171,7 +178,11 @@ export default function RecoveryClient() {
         <div className="recoveryHeaderActions">
           {!isLoadingStatus && (
             <span className={breachLockdown ? "recoveryLockdownBadgeActive" : "recoveryLockdownBadgeClear"}>
-              {breachLockdown ? "⚠ Website is currently locked down" : "✓ No active lockdown"}
+              {/* A plain colored dot, not an emoji glyph — pulses only in
+                  the active-lockdown state so the one piece of info that
+                  actually needs attention is the one that visibly moves. */}
+              <span className="recoveryLockdownDot" aria-hidden="true" />
+              {breachLockdown ? "Website is currently locked down" : "No active lockdown"}
             </span>
           )}
           {/* Locks just the vault passphrase gate again — the admin's

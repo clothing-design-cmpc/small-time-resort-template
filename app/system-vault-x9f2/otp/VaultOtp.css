@@ -6,7 +6,7 @@
  * numeric code instead of a passphrase.
  */
 .vaultOtpCodeInput {
-  font-family: monospace;
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
   font-size: 1.3rem;
   letter-spacing: 0.4em;
   text-align: center;

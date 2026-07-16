@@ -16,6 +16,13 @@
  * 2. VaultLoginClient POSTs { passphrase } to /api/admin/vault-login
  * 3. On success that route sets the "vaultSession" cookie and this
  *    page redirects to /system-vault-x9f2, which now renders normally
+ *
+ * Wrapped in .superAdminRoot (SuperAdmin.css) so the admin font system
+ * (--font-admin-heading on the h1, --font-admin-mono on the eyebrow),
+ * the tightened admin spacing scale, and the design-token set that
+ * scope defines actually apply — without this wrapper the CSS import
+ * above has no effect and the page silently falls back to the visitor
+ * site's serif heading font and looser marketing-page spacing.
  */
 import "@/app/superAdmin/SuperAdmin.css";
 import "./VaultLogin.css";
@@ -30,10 +37,12 @@ export const metadata = {
 
 export default function VaultLoginPage() {
   return (
-    <section className="vaultLoginSection">
-      <div className="vaultLoginCard">
-        <VaultLoginClient />
-      </div>
-    </section>
+    <div className="superAdminRoot">
+      <section className="vaultLoginSection">
+        <div className="vaultLoginCard">
+          <VaultLoginClient />
+        </div>
+      </section>
+    </div>
   );
 }

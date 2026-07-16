@@ -18,6 +18,39 @@
   gap: var(--space-lg);
 }
 
+/*
+ * .recoveryContent > * entrance
+ * Each direct child (header row, incident card, step cards) fades and
+ * lifts in with a slight stagger — reinforces that this dashboard is a
+ * sequence of steps to read top-to-bottom, not a static dump of panels
+ * (Rule 17.5). Skips anything already animating on its own (StatusBadge).
+ */
+.recoveryContent > * {
+  animation: recoveryPanelEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.recoveryContent > *:nth-child(1) { animation-delay: 0s; }
+.recoveryContent > *:nth-child(2) { animation-delay: 0.05s; }
+.recoveryContent > *:nth-child(3) { animation-delay: 0.1s; }
+.recoveryContent > *:nth-child(4) { animation-delay: 0.15s; }
+
+@keyframes recoveryPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryContent > * {
+    animation: none;
+  }
+}
+
 .recoveryHeaderRow {
   display: flex;
   flex-wrap: wrap;
@@ -43,6 +76,9 @@
  */
 .recoveryLockdownBadgeActive,
 .recoveryLockdownBadgeClear {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
   border-radius: 8px;
   font-size: 0.85rem;
@@ -59,6 +95,35 @@
   background-color: rgba(34, 197, 94, 0.15);
   color: var(--color-success);
   border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/*
+ * .recoveryLockdownDot
+ * Solid dot in the badge's own color. Only pulses inside the active
+ * (danger) badge — the clear/resolved state stays still, since motion
+ * here should mean "needs attention," not just "this is a status pill."
+ */
+.recoveryLockdownDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.recoveryLockdownBadgeActive .recoveryLockdownDot {
+  animation: recoveryDotPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes recoveryDotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryLockdownBadgeActive .recoveryLockdownDot {
+    animation: none;
+  }
 }
 
 /*
@@ -99,12 +164,39 @@
   border-color: rgba(245, 158, 11, 0.5);
 }
 
+/*
+ * .recoveryIncidentCard / .recoveryStepCard
+ * Top accent bar + hover lift give these cards the same "elevated, not
+ * flat" treatment as the rest of the admin panel (Rule 17.4) — a plain
+ * bordered box with no accent reads as an unfinished placeholder next
+ * to StatCard/DataTable elsewhere in /superAdmin.
+ */
 .recoveryIncidentCard,
 .recoveryStepCard {
+  position: relative;
   padding: var(--space-lg) var(--space-xl);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   background-color: var(--color-surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.recoveryIncidentCard::before,
+.recoveryStepCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--space-xl);
+  right: var(--space-xl);
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background-color: var(--color-accent);
+}
+
+.recoveryIncidentCard:hover,
+.recoveryStepCard:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-base);
 }
 
 .recoveryIncidentCard h2,

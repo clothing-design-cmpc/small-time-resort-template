@@ -1,26 +1,34 @@
 /**
  * FILE: services/emailAlert.js
  * PURPOSE:
- * Sends the breach-alert email to the super-admin via EmailJS's REST
- * API (Rule 35.5's fixed email service) directly from the server —
- * @emailjs/browser is a client-only SDK, so this calls EmailJS's plain
- * HTTPS endpoint instead, which works identically from Node.
+ * Sends the breach-alert email and the vault-passphrase-rotation email
+ * via services/emailjs.js's sendGeneralEmail() — the SAME EmailJS
+ * "Contact template" (EMAILJS_GENERAL_TEMPLATE_ID) already confirmed
+ * working for vault OTP codes (services/vaultOtp.js). This intentionally
+ * reuses that one working template instead of requiring two more
+ * separate EmailJS templates (EMAILJS_BREACH_TEMPLATE_ID,
+ * EMAILJS_VAULT_ROTATION_TEMPLATE_ID) that were never set up in the
+ * EmailJS dashboard and were the reason these two sends were silently
+ * skipped ("env vars are not set").
  *
- * SETUP (one-time, not code — do this in the EmailJS dashboard):
- * 1. Create a template named "breach_alert" with variables:
- *    {{gatekeeper}}, {{ip_address}}, {{details}}, {{occurred_at}},
- *    {{recovery_hint}}
- * 2. Enable "Strict Mode" (Account > Security) and generate a Private
- *    Key — required so this server call can't be replayed by anyone
- *    who found the public key in client bundle elsewhere in the app.
- * 3. Set these in .env.local:
- *    EMAILJS_SERVICE_ID, EMAILJS_BREACH_TEMPLATE_ID,
- *    EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY, SUPER_ADMIN_ALERT_EMAIL
+ * Rule 35.5 normally calls for one template per email type, but here
+ * the general/Contact template is deliberately generic (eyebrow,
+ * heading, intro, two highlight lines, body message) specifically so
+ * it can be reused across use cases without per-type EmailJS setup —
+ * that's the whole point of services/emailjs.js's shared core.
+ *
+ * SETUP (one-time, EmailJS dashboard — same setup vaultOtp already needs):
+ * 1. Make sure the "Contact template" has been switched to the generic
+ *    merge tags documented at the top of services/emailjs.js.
+ * 2. Fill in .env.local: EMAILJS_SERVICE_ID, EMAILJS_GENERAL_TEMPLATE_ID,
+ *    EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY (Strict Mode),
+ *    SUPER_ADMIN_ALERT_EMAIL, VAULT_OWNER_EMAIL.
+ * No separate breach-alert or vault-rotation template needed anymore.
  *
  * This file is server-side only — never import it in a "use client" file.
  */
 
-const EMAILJS_SEND_URL = "https://api.emailjs.com/api/v1.0/email/send";
+import { sendGeneralEmail } from "@/services/emailjs";
 
 /**
  * sendBreachAlertEmail
@@ -35,68 +43,32 @@ const EMAILJS_SEND_URL = "https://api.emailjs.com/api/v1.0/email/send";
  * @param {string} input.details
  */
 export async function sendBreachAlertEmail({ gatekeeper, ipAddress, details }) {
-  const {
-    EMAILJS_SERVICE_ID,
-    EMAILJS_BREACH_TEMPLATE_ID,
-    EMAILJS_PUBLIC_KEY,
-    EMAILJS_PRIVATE_KEY,
-    SUPER_ADMIN_ALERT_EMAIL,
-  } = process.env;
-
-  if (!EMAILJS_SERVICE_ID || !EMAILJS_BREACH_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY || !SUPER_ADMIN_ALERT_EMAIL) {
-    console.error("[emailAlert] EmailJS breach-alert env vars are not set — skipping email.");
+  const superAdminEmail = process.env.SUPER_ADMIN_ALERT_EMAIL;
+  if (!superAdminEmail) {
+    console.error("[emailAlert] SUPER_ADMIN_ALERT_EMAIL is not set — skipping breach alert email.");
     return false;
   }
 
-  try {
-    const response = await fetch(EMAILJS_SEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service_id: EMAILJS_SERVICE_ID,
-        template_id: EMAILJS_BREACH_TEMPLATE_ID,
-        user_id: EMAILJS_PUBLIC_KEY,
-        // Strict Mode private key — omit safely if strict mode isn't enabled yet.
-        accessToken: EMAILJS_PRIVATE_KEY || undefined,
-        template_params: {
-          to_email: SUPER_ADMIN_ALERT_EMAIL,
-          gatekeeper: String(gatekeeper),
-          ip_address: ipAddress ?? "unknown",
-          details,
-          occurred_at: new Date().toISOString(),
-          recovery_hint:
-            "Sign in to the super-admin recovery page to review the backup and restore the database.",
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const bodyText = await response.text().catch(() => "");
-      console.error(`[emailAlert] EmailJS responded ${response.status}: ${bodyText}`);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("[emailAlert] Failed to send breach alert email:", error.message);
-    return false;
-  }
+  return sendGeneralEmail({
+    toEmail: superAdminEmail,
+    subject: `Breach Alert — Gatekeeper ${gatekeeper}`,
+    eyebrow: "SECURITY BREACH ALERT",
+    heading: `Gatekeeper ${gatekeeper} triggered`,
+    intro: `A breach-response gatekeeper fired at ${new Date().toISOString()}.`,
+    highlightLine1: `IP: ${ipAddress ?? "unknown"}`,
+    highlightLine2: details,
+    bodyMessage:
+      "Sign in to the super-admin recovery page to review the backup and restore the database.",
+  });
 }
 
 /**
  * sendVaultPassphraseRotationEmail
  * Emails the brand-new vault passphrase to VAULT_OWNER_EMAIL right
- * after services/vaultAuth.js's rotateVaultPassphrase() generates it.
- * This is the ONLY place the new plaintext passphrase is ever
- * transmitted — never logged, never included in any other response.
- *
- * SETUP (one-time, EmailJS dashboard):
- * 1. Create a template named "vault_passphrase_rotated" with variables:
- *    {{new_passphrase}}, {{reason}}, {{occurred_at}}
- * 2. Reuses the same EMAILJS_SERVICE_ID / EMAILJS_PUBLIC_KEY /
- *    EMAILJS_PRIVATE_KEY (Strict Mode) as the breach alert email.
- * 3. Add EMAILJS_VAULT_ROTATION_TEMPLATE_ID and VAULT_OWNER_EMAIL to
- *    .env.local (VAULT_OWNER_EMAIL already exists in this project).
+ * after services/vaultAuth.js's rotateVaultPassphrase() generates it,
+ * or after an owner-triggered manual generate. This is the ONLY place
+ * the new plaintext passphrase is ever transmitted — never logged,
+ * never included in any other response.
  *
  * Best-effort — never throws. If the email fails to send, the rotation
  * itself has still already happened (old passphrase is already dead) —
@@ -108,46 +80,21 @@ export async function sendBreachAlertEmail({ gatekeeper, ipAddress, details }) {
  * @param {string} input.reason - one-liner, e.g. "Gatekeeper 1 — Login brute force"
  */
 export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }) {
-  const {
-    EMAILJS_SERVICE_ID,
-    EMAILJS_VAULT_ROTATION_TEMPLATE_ID,
-    EMAILJS_PUBLIC_KEY,
-    EMAILJS_PRIVATE_KEY,
-    VAULT_OWNER_EMAIL,
-  } = process.env;
-
-  if (!EMAILJS_SERVICE_ID || !EMAILJS_VAULT_ROTATION_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY || !VAULT_OWNER_EMAIL) {
-    console.error("[emailAlert] EmailJS vault-rotation env vars are not set — skipping email.");
+  const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
+  if (!vaultOwnerEmail) {
+    console.error("[emailAlert] VAULT_OWNER_EMAIL is not set — skipping vault-rotation email.");
     return false;
   }
 
-  try {
-    const response = await fetch(EMAILJS_SEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        service_id: EMAILJS_SERVICE_ID,
-        template_id: EMAILJS_VAULT_ROTATION_TEMPLATE_ID,
-        user_id: EMAILJS_PUBLIC_KEY,
-        accessToken: EMAILJS_PRIVATE_KEY || undefined,
-        template_params: {
-          to_email: VAULT_OWNER_EMAIL,
-          new_passphrase: newPassphrase,
-          reason,
-          occurred_at: new Date().toISOString(),
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      const bodyText = await response.text().catch(() => "");
-      console.error(`[emailAlert] EmailJS responded ${response.status}: ${bodyText}`);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("[emailAlert] Failed to send vault-rotation email:", error.message);
-    return false;
-  }
+  return sendGeneralEmail({
+    toEmail: vaultOwnerEmail,
+    subject: "Your vault passphrase was rotated",
+    eyebrow: "VAULT PASSPHRASE ROTATED",
+    heading: "New vault passphrase generated",
+    intro: `Reason: ${reason}`,
+    highlightLine1: newPassphrase,
+    highlightLine2: `Rotated at ${new Date().toISOString()}`,
+    bodyMessage:
+      "Save this passphrase somewhere safe now — it will not be shown or emailed again. The old passphrase no longer works.",
+  });
 }

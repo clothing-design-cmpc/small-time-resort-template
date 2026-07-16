@@ -122,10 +122,7 @@ export default function VaultPassphraseClient() {
       <div className="vaultPassphraseSettingsHeader">
         <h1>Vault Passphrase</h1>
         <p>
-          This is the passphrase for the hidden disaster-recovery page
-          (<code>/system-vault-x9f2</code>). It is the first of two steps
-          needed to access it — you'll still get a 6-digit code emailed
-          to you as the second step.
+          This is the passphrase for the hidden disaster-recovery page.
         </p>
       </div>
 

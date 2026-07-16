@@ -6,7 +6,7 @@
  *
  * PURPOSE:
  * Second-factor form: fires the send-code request once on mount, then
- * lets the owner type in the 6-digit code from their email. The code
+ * lets the owner type in the 12-character code from their email. The code
  * is held only in this component's own React state — never written to
  * localStorage, sessionStorage, or any other client-readable storage —
  * and the actual verification always happens server-side in
@@ -28,13 +28,29 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { OTP_EXPIRY_MINUTES, OTP_CODE_LENGTH, OTP_CODE_PATTERN } from "@/services/vaultOtpConfig";
+
+// Total countdown length in seconds — mirrors the server's real expiry
+// (services/vaultOtp.js) via the shared config, so the on-screen clock
+// never drifts from what the backend actually enforces.
+const OTP_COUNTDOWN_SECONDS = OTP_EXPIRY_MINUTES * 60;
 
 const vaultOtpSchema = z.object({
   code: z
     .string()
     .min(1, "Enter the code from your email.")
-    .regex(/^\d+$/, "The code is numbers only."),
+    .regex(OTP_CODE_PATTERN, `Enter the ${OTP_CODE_LENGTH}-character code exactly as shown in your email.`),
 });
+
+/**
+ * formatCountdown
+ * Turns a whole-second count into an "m:ss" display string, e.g. 65 -> "1:05".
+ */
+function formatCountdown(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
 
 export default function VaultOtpClient() {
   const router = useRouter();
@@ -45,6 +61,13 @@ export default function VaultOtpClient() {
   // failure) — separate from the single field's own Zod error.
   const [authError, setAuthError] = useState(null);
   const [sendStatus, setSendStatus] = useState({ state: "sending", message: "" });
+  // Counts down from OTP_COUNTDOWN_SECONDS every time a fresh code is
+  // sent (initial load or "Resend code"). isCodeExpired flips true the
+  // instant it hits zero — used to disable the code input and turn the
+  // resend button into the primary action.
+  const [secondsRemaining, setSecondsRemaining] = useState(OTP_COUNTDOWN_SECONDS);
+  const [isCodeExpired, setIsCodeExpired] = useState(false);
+  const countdownIntervalRef = useRef(null);
   // Guards against React 18/19 StrictMode's double-invoke of effects in
   // development, which would otherwise fire two send requests (and two
   // emails) for a single page load.
@@ -62,7 +85,36 @@ export default function VaultOtpClient() {
     if (hasSentOnce.current) return;
     hasSentOnce.current = true;
     sendCode();
+
+    // Stop the interval if the owner navigates away mid-countdown —
+    // never let it keep ticking (and calling setState) on an unmounted
+    // component.
+    return () => clearInterval(countdownIntervalRef.current);
   }, []);
+
+  /**
+   * startCountdown
+   * (Re)starts the OTP_COUNTDOWN_SECONDS clock from full — called every
+   * time a fresh code is actually emailed (initial load or "Resend
+   * code"), never on a failed send, since a failed send didn't reset
+   * the server's expiry either.
+   */
+  function startCountdown() {
+    clearInterval(countdownIntervalRef.current);
+    setIsCodeExpired(false);
+    setSecondsRemaining(OTP_COUNTDOWN_SECONDS);
+
+    countdownIntervalRef.current = setInterval(() => {
+      setSecondsRemaining((previousSeconds) => {
+        if (previousSeconds <= 1) {
+          clearInterval(countdownIntervalRef.current);
+          setIsCodeExpired(true);
+          return 0;
+        }
+        return previousSeconds - 1;
+      });
+    }, 1000);
+  }
 
   /**
    * sendCode
@@ -100,6 +152,7 @@ export default function VaultOtpClient() {
     }
 
     setSendStatus({ state: "sent", message: result.message });
+    startCountdown();
   }
 
   /**
@@ -158,6 +211,14 @@ export default function VaultOtpClient() {
           {sendStatus.state === "sent" && sendStatus.message}
           {sendStatus.state === "error" && "Enter the code from your email, or request a new one below."}
         </p>
+        {/* Only shown once a code has actually been sent — aria-live so
+            screen reader users hear the expiry warning without having
+            to keep re-focusing the clock. */}
+        {sendStatus.state === "sent" && (
+          <p className="vaultOtpCountdown" aria-live="polite">
+            {isCodeExpired ? "Code expired" : `Code expires in ${formatCountdown(secondsRemaining)}`}
+          </p>
+        )}
       </div>
 
       {authError && (
@@ -169,16 +230,16 @@ export default function VaultOtpClient() {
       <form className="vaultLoginForm" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="vaultLoginField">
           <label htmlFor="code">
-            6-digit code <span aria-hidden="true">*</span>
+            {OTP_CODE_LENGTH}-character code <span aria-hidden="true">*</span>
           </label>
           <input
             id="code"
             type="text"
-            inputMode="numeric"
             autoComplete="one-time-code"
             autoFocus
-            maxLength={6}
+            maxLength={OTP_CODE_LENGTH}
             className="vaultOtpCodeInput"
+            disabled={isCodeExpired}
             {...register("code")}
           />
           {errors.code && (
@@ -188,13 +249,16 @@ export default function VaultOtpClient() {
           )}
         </div>
 
-        <button type="submit" className="vaultLoginSubmitButton" disabled={isSubmitting}>
+        <button type="submit" className="vaultLoginSubmitButton" disabled={isSubmitting || isCodeExpired}>
           {isSubmitting ? "Verifying…" : "Verify"}
         </button>
 
         <button
           type="button"
-          className="vaultOtpResendButton"
+          // Once the code expires, this becomes the only viable next
+          // step — sized up and given the site's accent green so it
+          // reads as the primary action instead of a quiet fallback.
+          className={`vaultOtpResendButton${isCodeExpired ? " vaultOtpResendButton--urgent" : ""}`}
           onClick={sendCode}
           disabled={sendStatus.state === "sending"}
         >

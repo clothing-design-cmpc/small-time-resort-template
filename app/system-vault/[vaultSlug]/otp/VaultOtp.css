@@ -1,15 +1,42 @@
 /*
  * .vaultOtpCodeInput
- * Widens the letter-spacing and centers the digits so a 6-digit code
- * reads clearly at a glance — same base field styling as
- * .vaultLoginField input (VaultLogin.css), just tuned for a short
- * numeric code instead of a passphrase.
+ * Widens the letter-spacing and centers the code so it reads clearly
+ * at a glance — same base field styling as .vaultLoginField input
+ * (VaultLogin.css). Spacing/size tuned down from the original 6-digit
+ * version (0.4em/1.3rem would overflow the card at 12 characters).
  */
 .vaultOtpCodeInput {
   font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
-  font-size: 1.3rem;
-  letter-spacing: 0.4em;
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
   text-align: center;
+}
+
+/*
+ * .vaultOtpCodeInput:disabled
+ * Applied once the countdown hits zero — visually flags that typing
+ * here no longer does anything useful, mirroring
+ * .vaultLoginSubmitButton:disabled's dimmed-opacity language.
+ */
+.vaultOtpCodeInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * .vaultOtpCountdown
+ * Small live clock under the header legend. Neutral color while
+ * counting down; the urgency is communicated by the resend button
+ * below (see .vaultOtpResendButton--urgent), not by turning this text
+ * red, since the countdown itself isn't an error state.
+ */
+.vaultOtpCountdown {
+  margin-top: var(--space-xs);
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
 }
 
 /*
@@ -43,4 +70,44 @@
 
 .vaultOtpResendButton:disabled {
   opacity: 0.5;
+}
+
+/*
+ * .vaultOtpResendButton--urgent
+ * Once the code expires, resending is the only viable next step —
+ * this promotes the button from quiet secondary text into a filled,
+ * enlarged primary action. Uses the site's accent green (never
+ * gold/amber) since this is now an important action button.
+ */
+.vaultOtpResendButton--urgent {
+  min-height: 50px;
+  padding: 0 var(--space-lg);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: var(--color-accent);
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.25);
+  animation: vaultResendPulse 1.6s ease-in-out infinite;
+}
+
+.vaultOtpResendButton--urgent:hover,
+.vaultOtpResendButton--urgent:focus-visible {
+  color: #ffffff;
+  background-color: var(--color-accent-hover);
+}
+
+@keyframes vaultResendPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vaultOtpResendButton--urgent {
+    animation: none;
+  }
 }

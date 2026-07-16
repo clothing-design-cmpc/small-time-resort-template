@@ -6,7 +6,7 @@
  *       Also validates [vaultSlug] itself — see below.
  *
  * PURPOSE:
- * Second-factor screen: the owner enters the 6-digit code emailed by
+ * Second-factor screen: the owner enters the 12-character code emailed by
  * services/vaultOtp.js. No super_admin session cookie is required or
  * checked here — same posture as the passphrase login screen.
  *

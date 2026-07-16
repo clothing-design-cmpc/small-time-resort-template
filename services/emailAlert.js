@@ -110,7 +110,13 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     // Explicitly labeled so the highlight box can never read as just a
     // stray line of text — "NEW PASSPHRASE" makes it unmistakable this
     // value is freshly generated and supersedes whatever came before it.
-    highlightLine1: `NEW PASSPHRASE: ${newPassphrase}`,
+    // Only the passphrase itself (not the "NEW PASSPHRASE:" label) is
+    // styled big + green. IMPORTANT: the dashboard's "Contact template"
+    // must reference this field as {{{highlight_line_1}}} (triple
+    // braces), not {{highlight_line_1}} (double braces) — same one-time
+    // edit already required for body_message below — otherwise the
+    // span tag renders as literal text instead of styling the passphrase.
+    highlightLine1: `NEW PASSPHRASE: <span style="color:#3f7d52; font-size:1.4rem; font-weight:700; letter-spacing:0.04em;">${newPassphrase}</span>`,
     highlightLine2: `Rotated ${rotatedAtReadable}`,
     // body_message fills a raw-HTML slot in the EmailJS template (see
     // services/emailjs.js's TEMPLATE CONTRACT), so the recovery URL
@@ -125,7 +131,7 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     bodyMessage:
       `This is a brand-new passphrase, generated just now — it replaces every passphrase that came before it, and the old one no longer works.<br><br>` +
       `Save it somewhere safe immediately: it will not be shown on-screen or emailed again after this message.<br><br>` +
-      `This passphrase gates the disaster-recovery page at <a href="${vaultRecoveryUrl}">${vaultRecoveryUrl.replace(/^https?:\/\//, "")}</a>.<br>` +
+      `This passphrase gates the disaster-recovery page at <a href="${vaultRecoveryUrl}" style="color:#3f7d52; font-size:1.1rem; font-weight:700; text-decoration:underline;">${vaultRecoveryUrl.replace(/^https?:\/\//, "")}</a>.<br>` +
       `Generating another one from the dashboard will immediately replace this one too.<br>` +
       `Keep this email private — do not forward or share it outside the resort owner.`,
   });

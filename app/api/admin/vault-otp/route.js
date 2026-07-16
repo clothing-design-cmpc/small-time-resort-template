@@ -55,7 +55,7 @@ function getIp(request) {
 /**
  * POST
  * Requires an existing (passphrase-verified) vaultSession cookie.
- * Generates and emails a fresh 6-digit code. Never reveals whether the
+ * Generates and emails a fresh 12-character code. Never reveals whether the
  * caller was missing a session vs. rate-limited beyond the standard
  * 401/429 status codes — same "no extra hints" posture as vault-login.
  */

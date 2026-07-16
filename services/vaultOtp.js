@@ -5,7 +5,8 @@
  *
  * PURPOSE:
  * After the vault passphrase (services/vaultAuth.js) is accepted, the
- * vault is only half-unlocked. This file generates a 6-digit code,
+ * vault is only half-unlocked. This file generates a 12-character
+ * alphanumeric + special-character code (services/vaultOtpConfig.js),
  * stores a HASH of it (never the plaintext) in the singleton VaultOtp
  * row, and emails the plaintext to VAULT_OWNER_EMAIL via
  * services/emailjs.js. The owner reads the code from their inbox and
@@ -34,18 +35,15 @@ import { scryptSync, randomInt, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/services/prisma";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { VAULT_IDENTITY } from "@/services/vaultAuth";
+import { OTP_EXPIRY_MINUTES, OTP_CODE_LENGTH, OTP_CHARSET } from "@/services/vaultOtpConfig";
 
 const SCRYPT_KEY_LENGTH = 64;
 const OTP_ROW_ID = "vault";
 
-// 6 digits — long enough to resist guessing within OTP_MAX_ATTEMPTS,
-// short enough to type from an email without copy/paste errors.
-const OTP_DIGIT_COUNT = 6;
-
-// Deliberately short — this gates disaster recovery, the owner is
-// expected to be checking their inbox right after entering the
-// passphrase, not reading it hours later.
-export const OTP_EXPIRY_MINUTES = 10;
+// Re-exported so existing callers/imports of OTP_EXPIRY_MINUTES from
+// this file keep working — the real value now lives in
+// services/vaultOtpConfig.js so the client countdown can read it too.
+export { OTP_EXPIRY_MINUTES };
 
 // Attempts allowed against ONE issued code before it's rejected
 // outright, regardless of time left on the clock. Mirrors Rule 32.1's
@@ -68,7 +66,7 @@ function hashOtpCode(plaintextCode) {
 
 /**
  * generateAndSendVaultOtp
- * Creates a new 6-digit code, overwrites the singleton VaultOtp row
+ * Creates a new 12-character code, overwrites the singleton VaultOtp row
  * with its hash + a fresh expiry + attempts reset to 0, and emails the
  * plaintext code to VAULT_OWNER_EMAIL. Returns { success, message } —
  * best-effort on the email send, since a misconfigured EmailJS env
@@ -84,8 +82,13 @@ export async function generateAndSendVaultOtp() {
   }
 
   // randomInt is cryptographically secure — never Math.random() for
-  // anything that gates access.
-  const plaintextCode = String(randomInt(0, 10 ** OTP_DIGIT_COUNT)).padStart(OTP_DIGIT_COUNT, "0");
+  // anything that gates access. Each character is picked independently
+  // from OTP_CHARSET (letters + digits + symbols), giving far more
+  // entropy per character than a numeric-only digit.
+  const plaintextCode = Array.from(
+    { length: OTP_CODE_LENGTH },
+    () => OTP_CHARSET[randomInt(0, OTP_CHARSET.length)]
+  ).join("");
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   // Upsert the singleton row — a new send always replaces whatever
@@ -96,14 +99,23 @@ export async function generateAndSendVaultOtp() {
     update: { codeHash: hashOtpCode(plaintextCode), expiresAt, attempts: 0 },
   });
 
+  const styledCode = `<span style="color:#3f7d52; font-size:1.8rem; font-weight:700; letter-spacing:0.12em; font-family:'Courier New', monospace;">${plaintextCode}</span>`;
+
   const emailSent = await sendGeneralEmail({
     toEmail: ownerEmail,
     subject: "Your vault verification code",
     eyebrow: "VERIFICATION CODE",
     heading: "Your vault OTP code",
-    intro: `Enter this code on the vault login screen to continue. It expires in ${OTP_EXPIRY_MINUTES} minutes.`,
-    highlightLine1: plaintextCode,
-    highlightLine2: `Expires in ${OTP_EXPIRY_MINUTES} minutes`,
+    intro: `Enter this code on the vault login screen to continue. It expires in ${OTP_EXPIRY_MINUTES} minute.`,
+    // Inline-styled so the code (not the surrounding label) reads big
+    // and green regardless of the dashboard template's default
+    // highlight-box color. IMPORTANT: the dashboard's "Contact template"
+    // must reference this field as {{{highlight_line_1}}} (triple
+    // braces), not {{highlight_line_1}} (double braces) — same one-time
+    // edit already documented for body_message below, otherwise the
+    // span tag renders as literal text instead of styling the code.
+    highlightLine1: styledCode,
+    highlightLine2: `Expires in ${OTP_EXPIRY_MINUTES} minute`,
     bodyMessage: "If you did not request this, someone else has your vault passphrase — change it immediately.",
   });
 

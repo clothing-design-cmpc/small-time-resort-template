@@ -149,7 +149,7 @@ export async function POST(request) {
     let driveViewLink = null;
     try {
       const generatedAt = new Date().toISOString();
-      const vaultRecoveryUrl = getVaultRecoveryUrl();
+      const vaultRecoveryUrl = await getVaultRecoveryUrl();
       const fileContent =
         `Villa Azure Resort — Vault Recovery Passphrase\n` +
         `Generated: ${generatedAt}\n` +

@@ -23,7 +23,7 @@
  *   device fingerprint to trigger honestly, which isn't something a
  *   repeatable script should fake without risking a false sense of
  *   security. See docs/gatekeeper-testing.md for how to test it by hand.
- * - Does NOT test the recovery page UI itself (system-vault-x9f2) or
+ * - Does NOT test the recovery page UI itself (system-vault-[vaultSlug]) or
  *   the EmailJS alert delivery — both require a browser session /
  *   real credentials respectively, out of scope for a headless script.
  *

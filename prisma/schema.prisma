@@ -203,8 +203,9 @@ model AdminProfile {
   // manager). role alone can't do this — every admin account defaults
   // to "super_admin" regardless of who they are. Gates access to
   // owner-only pages like the Vault Passphrase settings page, which
-  // reveals the hidden /system-vault-x9f2 recovery URL — something
-  // that should stay known to the owner alone, not every staff login.
+  // reveals the hidden vault recovery URL (hash-derived, changes on
+  // every rotation) — something that should stay known to the owner
+  // alone, not every staff login.
   isOwner   Boolean  @default(false) @map("is_owner")
   createdAt DateTime @default(now()) @map("created_at")
 

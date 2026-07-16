@@ -43,8 +43,9 @@ into a CI step later if this project ever adds one.
 - Gatekeeper 3 (anomalous admin login) — needs a real prior login
   history and a genuinely different geolocation/device to trigger
   honestly; faking it in a script would give false confidence.
-- The recovery page UI (`/system-vault-x9f2`) — needs a real browser
-  session.
+- The recovery page UI (its URL is hash-derived and changes on every
+  passphrase rotation — see services/vaultAuth.js's
+  computeVaultUrlSlug()) — needs a real browser session.
 - The EmailJS alert actually arriving — needs real `EMAILJS_*` credentials.
 
 ---
@@ -75,8 +76,10 @@ the lockdown screen — things the automated script can't see.
    Supabase dashboard.
 6. **Check the recovery page + admin banner.** Log back in as
    super-admin — the red `BreachAlertBanner` should show at the top of
-   every admin page. Open `/system-vault-x9f2` (not in the Sidebar —
-   you have to type the URL) and confirm it loads and shows the
+   every admin page, with a link to the current recovery URL (never
+   type it from memory — it changes every time the passphrase
+   rotates). Open it (not in the Sidebar — only reachable via that
+   link or a freshly-generated one) and confirm it loads and shows the
    incident. Try "End Lockdown" and confirm the site goes back to
    normal (skip the actual SQL import step unless you have a real
    backup file handy).

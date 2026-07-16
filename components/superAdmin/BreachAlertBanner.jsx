@@ -17,7 +17,9 @@
  *    hidden recovery page reads from (without the query param), but
  *    this trimmed variant skips the separate vault-passphrase gate
  *    (services/vaultAuth.js) since every super-admin needs to see the
- *    red banner, not just one who has already unlocked the vault
+ *    red banner, not just one who has already unlocked the vault. The
+ *    response also carries the CURRENT vaultRecoveryPath — never
+ *    hardcoded here, since it changes on every passphrase rotation.
  * 3. The link below points at the hidden recovery page's own login
  *    screen — opening it still requires the vault passphrase, this
  *    banner only reveals which gatekeeper tripped, nothing sensitive
@@ -36,6 +38,7 @@ const GATEKEEPER_LABELS = {
 
 export default function BreachAlertBanner() {
   const [activeBreach, setActiveBreach] = useState(null);
+  const [vaultRecoveryPath, setVaultRecoveryPath] = useState(null);
 
   useEffect(() => {
     axios
@@ -43,6 +46,7 @@ export default function BreachAlertBanner() {
       .then((response) => {
         if (response.data?.data?.breachLockdown) {
           setActiveBreach(response.data.data.activeBreach);
+          setVaultRecoveryPath(response.data.data.vaultRecoveryPath);
         }
       })
       .catch(() => {
@@ -59,7 +63,12 @@ export default function BreachAlertBanner() {
         <strong>Security breach detected — the website is locked down.</strong>
         <span>
           {GATEKEEPER_LABELS[activeBreach.gatekeeper] ?? `Gatekeeper ${activeBreach.gatekeeper}`} tripped.{" "}
-          <a href="/system-vault-x9f2">Open the recovery page</a> to review and restore.
+          {vaultRecoveryPath ? (
+            <a href={vaultRecoveryPath}>Open the recovery page</a>
+          ) : (
+            "Open the recovery page from your email alert"
+          )}{" "}
+          to review and restore.
         </span>
       </div>
     </div>

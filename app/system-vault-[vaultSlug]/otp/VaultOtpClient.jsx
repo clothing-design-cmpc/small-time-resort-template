@@ -1,5 +1,5 @@
 /**
- * FILE: app/system-vault-x9f2/otp/VaultOtpClient.jsx
+ * FILE: app/system-vault-[vaultSlug]/otp/VaultOtpClient.jsx
  * ROLE: Standalone — not gated by proxy.js or any super_admin session;
  *       gated entirely by the (already-passphrase-verified) vaultSession
  *       cookie the two API calls below rely on.
@@ -18,13 +18,13 @@
  * 2. Owner reads the code from their inbox and types it in
  * 3. Submit: PATCH /api/admin/vault-otp with { code } — on success the
  *    route re-issues "vaultSession" with otpVerified: true
- * 4. Redirect to /system-vault-x9f2, which now passes its server-side
- *    check and renders the recovery dashboard
+ * 4. Redirect to this same slug's root, which now passes its
+ *    server-side check and renders the recovery dashboard
  */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,6 +38,9 @@ const vaultOtpSchema = z.object({
 
 export default function VaultOtpClient() {
   const router = useRouter();
+  // The current URL's own slug — never hardcoded, since it changes on
+  // every passphrase rotation (services/vaultAuth.js's computeVaultUrlSlug).
+  const { vaultSlug } = useParams();
   // Whole-form auth error (wrong/expired code, rate limited, network
   // failure) — separate from the single field's own Zod error.
   const [authError, setAuthError] = useState(null);
@@ -135,7 +138,7 @@ export default function VaultOtpClient() {
 
     // vaultSession cookie now has otpVerified: true — the recovery
     // page will pass its server-side check.
-    router.push("/system-vault-x9f2");
+    router.push(`/system-vault-${vaultSlug}`);
     router.refresh();
   }
 

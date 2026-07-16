@@ -59,8 +59,9 @@ SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD.
                     actually distinguishes the resort owner from any other staff
                     account that gets dashboard access later. Gates the Vault
                     Passphrase settings page (app/superAdmin/(protected)/settings/
-                    vault-passphrase/), which reveals the hidden /system-vault-x9f2
-                    URL -- something that should stay known to the owner alone.
+                    vault-passphrase/), which reveals the hidden vault recovery
+                    URL (hash-derived, changes on every rotation) -- something
+                    that should stay known to the owner alone.
                     prisma/seed.js sets isOwner: true on the one account it creates.
 
 6. PROCESS FLOW
@@ -390,23 +391,35 @@ Step 7 : proxy.js checks BlockedIp on EVERY request from here on
 Step 8 : Super-admin sees a persistent red BreachAlertBanner on every
          /superAdmin/* page (components/superAdmin/BreachAlertBanner.jsx)
          linking to the hidden recovery page
-Step 9 : Super-admin opens the hidden recovery page at
-         /system-vault-x9f2 (NOT linked in the Sidebar, NOT part of the
-         app/superAdmin route group - only reachable by URL, first
-         gated by the same super_admin session check via proxy.js's
-         HIDDEN_RECOVERY_PATH constant). That session is only the FIRST
-         factor now: the page redirects to /system-vault-x9f2/login
-         until a SEPARATE vault passphrase (VAULT_PASSPHRASE_HASH,
-         services/vaultAuth.js) is submitted and its own "vaultSession"
-         cookie is set. Only then does the super-admin see the incident,
-         upload the pre-breach .sql from Google Drive/R2 (reuses the
-         existing useSqlImport hook + sql-import pipeline unchanged),
-         and click "End Lockdown"
+Step 9 : Super-admin opens the hidden recovery page at whatever URL
+         computeVaultUrlSlug() (services/vaultAuth.js) currently
+         resolves to — /system-vault-<7 hex chars derived from a hash
+         of the live passphrase hash>, NOT a fixed slug. The dynamic
+         route lives at app/system-vault-[vaultSlug]/, and any URL
+         with the wrong slug 404s via notFound() before anything else
+         is checked. This page requires NO super_admin "session"
+         cookie at all — proxy.js's HIDDEN_RECOVERY_PATH_PREFIX
+         constant exists only so proxy.js recognizes the route family,
+         it never gates it. The vault's own login chain is standalone:
+         factor 1 is the vault passphrase (VAULT_PASSPHRASE_HASH /
+         SystemSettings.vaultPassphraseHash, services/vaultAuth.js) at
+         this slug's /login; factor 2 is a 6-digit emailed OTP
+         (services/vaultOtp.js) at this slug's /otp. Only once BOTH
+         are satisfied ("vaultSession" cookie with otpVerified: true)
+         does the super-admin see the incident, upload the pre-breach
+         .sql from Google Drive/R2 (reuses the existing useSqlImport
+         hook + sql-import pipeline unchanged), and click
+         "End Lockdown"
 Step 10: PATCH /api/admin/breach resolves the BreachEvent and flips
          breachLockdown + maintenanceMode back off - the website is
          live again. This route (and the full-detail branch of its GET)
-         requires BOTH requireSuperAdmin() AND requireVaultSession() -
-         a valid super-admin session alone is never enough
+         requires ONLY requireVaultSession() - no super_admin session
+         is checked or required on this path at all. The bannerOnly
+         branch of GET (used by BreachAlertBanner on every normal
+         /superAdmin/* page) is the one part of this route that still
+         requires requireSuperAdmin() - it returns the current
+         vaultRecoveryPath alongside the lockdown flag, so the
+         banner's link is never stale after a passphrase rotation
 
 FILE MAP additions (3-Gatekeeper Breach Response):
 - prisma/schema.prisma - BlockedIp model, BreachEvent model,
@@ -424,7 +437,9 @@ FILE MAP additions (3-Gatekeeper Breach Response):
 - proxy.js - now runs on the Node.js middleware runtime (not Edge)
   so it can query Prisma directly; matcher broadened to a catch-all
   (excluding static assets) so the IP block check covers every route;
-  HIDDEN_RECOVERY_PATH added to the protected-route list.
+  HIDDEN_RECOVERY_PATH_PREFIX ("/system-vault-") is recognized but
+  deliberately NOT added to the protected-route list -- the vault's
+  own login chain gates it instead, not a super_admin session.
 - app/api/auth/login/route.js - wired to Gatekeepers 1, 2, and 3.
 - app/api/bookings/route.js - wired to Gatekeeper 2.
 - app/api/admin/breach/route.js - GET (active breach + lockdown status,
@@ -435,10 +450,12 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   is true, replacing Header/Footer/content entirely).
 - components/superAdmin/BreachAlertBanner.jsx + .css - red alert banner
   mounted in app/superAdmin/(protected)/layout.jsx.
-- app/system-vault-x9f2/page.jsx + RecoveryClient.jsx + Recovery.css -
-  the hidden recovery page. Deliberately outside app/superAdmin and
-  never linked from the Sidebar - reachable only by URL, first gated by
-  the same proxy.js auth guard as every other admin route, then by its
+- app/system-vault-[vaultSlug]/page.jsx + RecoveryClient.jsx +
+  Recovery.css - the hidden recovery page. Deliberately outside
+  app/superAdmin and never linked from the Sidebar - reachable only by
+  URL (and only the ONE correct, hash-derived [vaultSlug] value - see
+  computeVaultUrlSlug()), gated entirely by its own login chain, never
+  by proxy.js's super_admin session check, then by its
   own vault passphrase (see next entry).
 - services/vaultAuth.js - hashVaultPassphrase() / verifyVaultPassphrase()
   (scrypt, constant-time compare, no bcrypt dependency needed) +
@@ -485,38 +502,74 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   mistake), which made every save fail since a scrypt "salt:hash" string
   is nowhere close to valid UUID format. Fixed; watch for this if the
   column type ever gets touched again.
-- app/api/admin/vault-login/route.js - POST verifies the vault
-  passphrase (after confirming a super_admin session already exists)
-  and sets "vaultSession"; DELETE clears just that cookie ("Lock Vault").
-- app/system-vault-x9f2/login/page.jsx + VaultLoginClient.jsx +
-  VaultLogin.css - the vault's own second-factor login screen, single
-  passphrase field, no relation to Supabase Auth.
-- app/system-vault-x9f2/page.jsx - now a Server Component that reads
-  the "vaultSession" cookie itself (next/headers) and redirects to
-  /system-vault-x9f2/login if it's missing or expired, before
-  RecoveryClient ever renders.
+- app/api/admin/vault-login/route.js - standalone, no super_admin
+  session required. POST verifies the vault passphrase (DB value first,
+  falls back to VAULT_PASSPHRASE_HASH) and sets "vaultSession" with
+  otpVerified: false; DELETE clears just that cookie ("Lock Vault").
+- app/api/admin/vault-otp/route.js + services/vaultOtp.js - the vault's
+  second factor. POST generates a 6-digit code, hashes it into the
+  VaultOtp table, and emails it via services/emailjs.js's
+  sendGeneralEmail(); PATCH verifies the submitted code
+  (timingSafeEqual against the stored hash) and re-issues
+  "vaultSession" with otpVerified: true via
+  reissueVaultSessionCookieValue() - the original grantedAt is
+  preserved, so completing OTP never extends the 30-minute window.
+- app/system-vault-[vaultSlug]/login/page.jsx + VaultLoginClient.jsx +
+  VaultLogin.css - the vault's own first-factor login screen, single
+  passphrase field, no relation to Supabase Auth. [vaultSlug] must
+  match services/vaultAuth.js's computeVaultUrlSlug() or the page 404s.
+- app/system-vault-[vaultSlug]/otp/page.jsx + VaultOtpClient.jsx +
+  VaultOtp.css - the second-factor code entry screen, same
+  [vaultSlug] validation as above.
+- app/system-vault-[vaultSlug]/page.jsx - Server Component that
+  validates [vaultSlug], then reads the "vaultSession" cookie itself
+  (next/headers) and redirects to this same slug's /login (no session)
+  or /otp (session present but otpVerified: false), before
+  RecoveryClient ever renders. NOTE: this file was accidentally
+  overwritten with a duplicate of the login page's content by an
+  earlier "change the design of vault" commit (28b16b6) - it silently
+  stopped gating/rendering the dashboard at all until this was caught
+  and fixed. If this page's content ever again just shows a passphrase
+  form, that's this same regression recurring.
 - app/api/admin/breach/route.js - GET's full-detail branch and PATCH
-  both now call requireVaultSession() in addition to
-  requireSuperAdmin(). GET also gained a `?bannerOnly=true` mode
-  (lockdown flag + which gatekeeper only, no vault session needed) so
-  components/superAdmin/BreachAlertBanner.jsx keeps working for every
+  now call ONLY requireVaultSession() - no super_admin session is
+  checked or required on that path at all. GET's `?bannerOnly=true`
+  mode is the one branch still gated by requireSuperAdmin() (lockdown
+  flag + which gatekeeper + the CURRENT vaultRecoveryPath, so
+  components/superAdmin/BreachAlertBanner.jsx's link is never stale
+  after a passphrase rotation) - it needs to work for every
   super-admin, not just one who has unlocked the vault.
+- services/vaultAuth.js's computeVaultUrlSlug() - sha256(current
+  effective passphrase hash), first 7 hex chars. This IS the vault's
+  URL - there is no separate "vault URL" setting anywhere, it's always
+  derived fresh from whichever passphrase hash is currently live
+  (DB value if a rotation has happened, VAULT_PASSPHRASE_HASH
+  otherwise). Rotating the passphrase silently changes the URL too.
 
 8c. API ENDPOINTS (3-Gatekeeper Breach Response)
 - GET /api/admin/breach?bannerOnly=true - super-admin only, no vault
   session needed. Returns { success, data: { breachLockdown,
-  activeBreach: { gatekeeper, createdAt } | null }, message }.
-- GET /api/admin/breach - super-admin + vault session required. Returns
-  { success, data: { breachLockdown, activeBreach, recentBreaches }, message }.
-- PATCH /api/admin/breach - super-admin + vault session required. No
-  body. Resolves the active BreachEvent and ends the lockdown, returns
-  { success, data: null, message }.
-- POST /api/admin/vault-login - super-admin only (first factor already
-  required to reach this route). Body { passphrase }. Verifies against
-  VAULT_PASSPHRASE_HASH, sets "vaultSession" (30-min lifetime) on match.
-  Rate limited 5 attempts / 15 min per IP, same as the main login route.
-- DELETE /api/admin/vault-login - super-admin only. Clears "vaultSession"
+  activeBreach: { gatekeeper, createdAt } | null, vaultRecoveryPath },
+  message }.
+- GET /api/admin/breach - vault session only, no super_admin session
+  needed. Returns { success, data: { breachLockdown, activeBreach,
+  recentBreaches }, message }.
+- PATCH /api/admin/breach - vault session only, no super_admin session
+  needed. No body. Resolves the active BreachEvent and ends the
+  lockdown, returns { success, data: null, message }.
+- POST /api/admin/vault-login - standalone, no super_admin session
+  required. Body { passphrase }. Verifies against the current effective
+  passphrase hash, sets "vaultSession" (30-min lifetime, otpVerified:
+  false) on match. Rate limited 5 attempts / 15 min per IP, same as
+  the main login route.
+- DELETE /api/admin/vault-login - standalone. Clears "vaultSession"
   ("Lock Vault" button) without touching the regular admin session.
+- POST /api/admin/vault-otp - standalone, requires a passphrase-only
+  vaultSession. Generates + emails a 6-digit code, hashes it into
+  VaultOtp. Rate limited same ceiling as vault-login.
+- PATCH /api/admin/vault-otp - standalone. Body { code }. Verifies
+  against the stored hash, re-issues "vaultSession" with
+  otpVerified: true on match.
 
 8d. ENVIRONMENT VARIABLES ADDED
 - EMAILJS_SERVICE_ID, EMAILJS_BREACH_TEMPLATE_ID, EMAILJS_PUBLIC_KEY,
@@ -524,19 +577,29 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   services/emailAlert.js header comment for the one-time EmailJS
   dashboard setup these depend on.
 - VAULT_PASSPHRASE_HASH - "salt:hash" string (both hex) generated via
-  `node scripts/hashVaultPassphrase.js "your passphrase"`. Gates the
-  hidden recovery page's own second-factor login
-  (/system-vault-x9f2/login). Never store the plaintext passphrase
-  anywhere, including this file.
+  `node scripts/hashVaultPassphrase.js "your passphrase"`. This is only
+  the INITIAL value - once a rotation happens (auto or manual, from
+  the owner's Settings page), SystemSettings.vaultPassphraseHash in
+  the DB becomes the live value and this env var stops being read
+  until the next server restart with a fresh initial value. Gates the
+  hidden recovery page's own first-factor login. Never store the
+  plaintext passphrase anywhere, including this file.
 
 8e. DEBUG POINTS (3-Gatekeeper Breach Response)
 - Site stuck locked down after a false-positive Gatekeeper 3 trip
-  (e.g. super-admin's own new laptop) -> open /system-vault-x9f2, enter
-  the vault passphrase if not already unlocked this session, then click
-  "End Lockdown" directly; no restore is required if the DB was never
-  actually touched by an attacker.
-- Recovery page keeps redirecting to /system-vault-x9f2/login right
-  after a successful passphrase submit -> check the browser actually
+  (e.g. super-admin's own new laptop) -> open the current vault
+  recovery URL (find it via the BreachAlertBanner link, the rotation
+  email, or the vault-passphrase settings page - it's never a fixed
+  URL), enter the vault passphrase + OTP if not already unlocked this
+  session, then click "End Lockdown" directly; no restore is required
+  if the DB was never actually touched by an attacker.
+- Vault URL that used to work now 404s -> expected if the passphrase
+  was rotated since (auto on a Gatekeeper 1/2 trip, or manually from
+  the owner's Settings page) - computeVaultUrlSlug() changes with it.
+  Get the current URL from a fresh source (rotation email, Drive .txt,
+  or the BreachAlertBanner link), never reuse an old bookmark.
+- Recovery page keeps redirecting back to /login right after a
+  successful passphrase submit -> check the browser actually
   received the "vaultSession" cookie (Secure flag drops it on plain
   HTTP outside production - see the isProduction check in
   app/api/admin/vault-login/route.js) and that the 30-minute window
@@ -703,7 +766,8 @@ DEBUG POINTS:
 - NEXT_PUBLIC_SITE_URL (the resort's live domain, e.g.
   "https://villaazureresort.com", no trailing slash. Read by
   services/vaultAuth.js's getVaultRecoveryUrl() to build the clickable
-  link to /system-vault-x9f2 shown in the vault-passphrase-rotation
+  link to the CURRENT hash-derived vault URL (getVaultRecoveryPath() /
+  computeVaultUrlSlug()) shown in the vault-passphrase-rotation
   email and the .txt copy saved to Google Drive. Missing/unset ->
   falls back to a placeholder "https://your-domain-here.com" instead of
   crashing the email/Drive-save flow — that placeholder is an obvious

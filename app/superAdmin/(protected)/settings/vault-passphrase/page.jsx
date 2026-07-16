@@ -3,7 +3,7 @@
  * ROLE: Owner only — not just super-admin. See isOwner check below.
  *
  * PURPOSE:
- * Lets the resort owner (not a developer) set the /system-vault-x9f2
+ * Lets the resort owner (not a developer) set the vault's
  * disaster-recovery passphrase from a button in their own dashboard,
  * instead of running scripts/hashVaultPassphrase.js in a terminal.
  *

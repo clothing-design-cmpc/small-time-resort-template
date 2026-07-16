@@ -21,13 +21,16 @@
  * VAULT SESSION GATE (services/vaultAuth.js):
  * The vault is a standalone login system now — reading full breach
  * detail or ending a lockdown requires ONLY a "vaultSession" cookie,
- * obtained via the vault's own passphrase + OTP login chain at
- * /system-vault-x9f2/login. No super_admin "session" cookie is checked
- * or required on this path anymore. BreachAlertBanner is the one
- * exception: it's rendered inside the normal /superAdmin/* dashboard
- * for every signed-in admin, so it still needs its own
- * requireSuperAdmin() check — it calls GET with ?bannerOnly=true, which
- * returns only the lockdown flag + which gatekeeper tripped — no IP
+ * obtained via the vault's own passphrase + OTP login chain, reached
+ * at whatever URL computeVaultUrlSlug() currently resolves to (the
+ * slug changes on every passphrase rotation — never a fixed path). No
+ * super_admin "session" cookie is checked or required on this path
+ * anymore. BreachAlertBanner is the one exception: it's rendered
+ * inside the normal /superAdmin/* dashboard for every signed-in admin,
+ * so it still needs its own requireSuperAdmin() check — it calls GET
+ * with ?bannerOnly=true, which returns only the lockdown flag, which
+ * gatekeeper tripped, and the CURRENT vaultRecoveryPath (so its link
+ * never points at a stale, already-rotated-away slug) — no IP
  * address, no details, no history.
  *
  * DATA FLOW:
@@ -47,7 +50,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { requireVaultSession } from "@/services/vaultAuth";
+import { requireVaultSession, getVaultRecoveryPath } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET(request) {
@@ -67,7 +70,7 @@ export async function GET(request) {
     }
 
     try {
-      const [settings, activeBreach] = await Promise.all([
+      const [settings, activeBreach, vaultRecoveryPath] = await Promise.all([
         prisma.systemSettings.findUnique({
           where: { id: "singleton" },
           select: { breachLockdown: true },
@@ -77,11 +80,14 @@ export async function GET(request) {
           orderBy: { createdAt: "desc" },
           select: { gatekeeper: true, createdAt: true },
         }),
+        // Computed fresh every request — never cached client-side —
+        // since it changes the instant the passphrase rotates.
+        getVaultRecoveryPath(),
       ]);
 
       return NextResponse.json({
         success: true,
-        data: { breachLockdown: settings?.breachLockdown ?? false, activeBreach },
+        data: { breachLockdown: settings?.breachLockdown ?? false, activeBreach, vaultRecoveryPath },
         message: "Breach status fetched successfully.",
       });
     } catch (error) {

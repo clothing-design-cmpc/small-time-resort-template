@@ -1,5 +1,5 @@
 /**
- * FILE: app/system-vault-x9f2/login/VaultLoginClient.jsx
+ * FILE: app/system-vault-[vaultSlug]/login/VaultLoginClient.jsx
  * ROLE: Standalone — not gated by proxy.js or any super_admin session;
  *       gated entirely by the passphrase this form submits
  *
@@ -11,19 +11,19 @@
  *
  * DATA FLOW:
  * 1. Whoever knows the vault passphrase types it and submits
- * 2. POST /api/admin/vault-login verifies it against
- *    VAULT_PASSPHRASE_HASH (services/vaultAuth.js) and, on match, sets
+ * 2. POST /api/admin/vault-login verifies it against the current
+ *    passphrase hash (services/vaultAuth.js) and, on match, sets
  *    the HttpOnly "vaultSession" cookie with otpVerified: false
- * 3. On success, redirect to /system-vault-x9f2/otp — the second
+ * 3. On success, redirect to this same slug's /otp step — the second
  *    factor (services/vaultOtp.js's emailed code) still needs to be
- *    completed before /system-vault-x9f2 itself will render
+ *    completed before this slug's root will render
  * 4. On failure, show the same generic error every time (never reveal
  *    which part of the check failed)
  */
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +34,9 @@ const vaultLoginSchema = z.object({
 
 export default function VaultLoginClient() {
   const router = useRouter();
+  // The current URL's own slug — never hardcoded, since it changes on
+  // every passphrase rotation (services/vaultAuth.js's computeVaultUrlSlug).
+  const { vaultSlug } = useParams();
   const [isPassphraseVisible, setIsPassphraseVisible] = useState(false);
   // Whole-form auth error (wrong passphrase, rate limited, network
   // failure) — separate from the single field's own Zod error.
@@ -75,9 +78,9 @@ export default function VaultLoginClient() {
 
     // vaultSession cookie is set, but only with otpVerified: false —
     // the recovery page's server-side check now sends any visit to
-    // /system-vault-x9f2 straight to /system-vault-x9f2/otp until that
-    // second factor is completed too.
-    router.push("/system-vault-x9f2/otp");
+    // this slug's root straight to its /otp step until that second
+    // factor is completed too.
+    router.push(`/system-vault-${vaultSlug}/otp`);
     router.refresh();
   }
 

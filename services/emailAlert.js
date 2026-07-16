@@ -87,7 +87,7 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     return false;
   }
 
-  const vaultRecoveryUrl = getVaultRecoveryUrl();
+  const vaultRecoveryUrl = await getVaultRecoveryUrl();
 
   return sendGeneralEmail({
     toEmail: vaultOwnerEmail,

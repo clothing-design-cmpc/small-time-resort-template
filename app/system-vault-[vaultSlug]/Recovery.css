@@ -1,5 +1,5 @@
 /*
- * FILE: app/system-vault-x9f2/Recovery.css
+ * FILE: app/system-vault-[vaultSlug]/Recovery.css
  * Reuses the same dark enterprise tokens as SuperAdmin.css (imported
  * alongside this file in page.jsx) — this page should feel exactly
  * like the rest of the admin panel even though it isn't part of it.

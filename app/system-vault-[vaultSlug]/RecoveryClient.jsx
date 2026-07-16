@@ -1,5 +1,5 @@
 /**
- * FILE: app/system-vault-x9f2/RecoveryClient.jsx
+ * FILE: app/system-vault-[vaultSlug]/RecoveryClient.jsx
  * ROLE: Standalone — not gated by proxy.js or any super_admin session;
  *       reachable only after both vault factors (passphrase + emailed
  *       OTP) are satisfied, enforced by page.jsx's server-side redirect
@@ -21,16 +21,16 @@
  * 3. "End Lockdown" PATCHes /api/admin/breach, which resolves the
  *    BreachEvent and flips breachLockdown + maintenanceMode off
  * 4. "Lock Vault" DELETEs /api/admin/vault-login, clearing the
- *    "vaultSession" cookie and sending the admin back to the vault's
- *    own login screen without touching their regular super-admin
- *    session. A 401 from step 1's GET (vault session expired mid-visit,
- *    e.g. the 30-minute window ran out while this tab was open) does
- *    the same redirect automatically.
+ *    "vaultSession" cookie and sending the admin back to this same
+ *    slug's own login screen without touching their regular
+ *    super-admin session. A 401 from step 1's GET (vault session
+ *    expired mid-visit, e.g. the 30-minute window ran out while this
+ *    tab was open) does the same redirect automatically.
  */
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
@@ -51,6 +51,9 @@ const GATEKEEPER_LABELS = {
 
 export default function RecoveryClient() {
   const router = useRouter();
+  // The current URL's own slug — never hardcoded, since it changes on
+  // every passphrase rotation (services/vaultAuth.js's computeVaultUrlSlug).
+  const { vaultSlug } = useParams();
   const { toasts, showToast, dismissToast } = useToast();
 
   const [breachLockdown, setBreachLockdown] = useState(false);
@@ -83,7 +86,7 @@ export default function RecoveryClient() {
       // back to the vault's own login screen rather than showing a
       // recovery page with stale/empty status.
       if (error.response?.status === 401) {
-        router.push("/system-vault-x9f2/login");
+        router.push(`/system-vault-${vaultSlug}/login`);
         return;
       }
       showToast("✕ Couldn't load breach status.", "error");
@@ -91,7 +94,7 @@ export default function RecoveryClient() {
       setIsLoadingStatus(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [router, vaultSlug]);
 
   useEffect(() => {
     fetchBreachStatus();
@@ -156,7 +159,7 @@ export default function RecoveryClient() {
       // Best-effort — even if the request fails, still navigate away;
       // the server-side page check will re-verify on the next visit.
     } finally {
-      router.push("/system-vault-x9f2/login");
+      router.push(`/system-vault-${vaultSlug}/login`);
     }
   }
 

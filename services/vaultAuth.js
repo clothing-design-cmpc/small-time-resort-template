@@ -3,8 +3,7 @@
  * ROLE: Second-factor gate for the hidden recovery page only
  *
  * PURPOSE:
- * The hidden recovery page (/system-vault-x9f2) is a fully standalone
- * login system — it no longer trusts, checks, or requires the regular
+ * The hidden recovery page is a fully standalone login system — it no longer trusts, checks, or requires the regular
  * "session" cookie every /superAdmin/* route trusts. Whoever holds
  * that cookie (including a stolen one) gets nothing extra here; the
  * only way in is this file's own chain: a vault passphrase, then an
@@ -28,6 +27,20 @@
  * both VAULT_PASSPHRASE_HASH and SystemSettings.vaultPassphraseHash is
  * "salt:hash", both hex-encoded.
  *
+ * URL, NOT A FIXED PATH:
+ * The hidden recovery page no longer lives at a hardcoded slug like
+ * /system-vault-x9f2. Its folder is a dynamic Next.js route segment,
+ * app/system-vault-[vaultSlug]/, and the ONLY slug value that ever
+ * resolves to anything is computeVaultUrlSlug()'s output below — the
+ * first 7 hex characters of sha256(current passphrase hash). Anyone
+ * requesting any other slug gets a plain 404 from notFound(), same as
+ * a page that was never built — never a redirect that would confirm
+ * "this route pattern exists, you just have the wrong value". Because
+ * the slug is derived from the passphrase hash, rotating the
+ * passphrase (rotateVaultPassphrase() below) silently changes the URL
+ * too — an attacker who somehow learned yesterday's URL loses it the
+ * instant the passphrase rotates, without a separate URL-rotation step.
+ *
  * DATA FLOW:
  * 1. Run `node scripts/hashVaultPassphrase.js` once (optionally seeded
  *    with generateVaultPassphrase() below) to turn a chosen passphrase
@@ -39,7 +52,7 @@
  *    buildVaultSessionCookieValue() — the uid stored inside it is the
  *    fixed literal "vault" (there is no super-admin identity behind it
  *    anymore; see VAULT_IDENTITY below)
- * 3. app/system-vault-x9f2/page.jsx (Server Component) and
+ * 3. app/system-vault-[vaultSlug]/page.jsx (Server Component) and
  *    app/api/admin/breach/route.js both call requireVaultSession() —
  *    no vault session, no access to breach status or "End Lockdown",
  *    regardless of whether the caller has a regular super_admin
@@ -49,7 +62,7 @@
  *    stops working immediately, and the new one is emailed out via
  *    services/emailAlert.js's sendVaultPassphraseRotationEmail()
  */
-import { scryptSync, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from "node:crypto";
 import { prisma } from "./prisma.js";
 
 const SCRYPT_KEY_LENGTH = 64;
@@ -78,22 +91,83 @@ export const VAULT_SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 60;
 // attributable to "the vault", not to any specific admin account.
 export const VAULT_IDENTITY = "vault";
 
-// Reused anywhere the recovery page's URL needs to be shown to a human
-// (the passphrase-rotation email, the .txt copy saved to Google Drive)
-// so the path is never retyped in more than one place.
-export const VAULT_RECOVERY_PATH = "/system-vault-x9f2";
+// The prefix every valid recovery-page URL shares — used only for
+// building/documenting the full URL below. The part that actually
+// matters for security is the slug appended after it, which is never
+// hardcoded anywhere (see computeVaultUrlSlug()).
+const VAULT_RECOVERY_PATH_PREFIX = "/system-vault-";
+
+/**
+ * getEffectivePassphraseHash
+ * Shared DB+env lookup used by both verifyVaultPassphrase() and
+ * computeVaultUrlSlug() — the URL slug and the passphrase check must
+ * always agree on which hash is "current", so this is the one place
+ * that decides it. Same priority order as before: DB value (once a
+ * rotation has happened) wins over the original .env.local value.
+ * Returns "" if neither is configured yet — callers must handle that.
+ */
+async function getEffectivePassphraseHash() {
+  let dbHash = null;
+  try {
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: "singleton" },
+      select: { vaultPassphraseHash: true },
+    });
+    dbHash = settings?.vaultPassphraseHash ?? null;
+  } catch (error) {
+    // DB read failure must never crash vault login or URL generation —
+    // fall back to env, same as verifyVaultPassphrase always has.
+    console.error("[vaultAuth] Failed to read vaultPassphraseHash from DB:", error.message);
+  }
+
+  return dbHash || process.env.VAULT_PASSPHRASE_HASH || "";
+}
+
+/**
+ * computeVaultUrlSlug
+ * Derives the recovery page's URL slug from the CURRENT passphrase
+ * hash: sha256(effectiveHash), first 7 hex characters. Deliberately
+ * hashes the hash again rather than slicing the stored "salt:hash"
+ * value directly — the stored value is itself a credential, and a
+ * public URL segment is the last place a fragment of it should ever
+ * appear, even indirectly. Returns null if no passphrase hash is
+ * configured yet at all (fresh install, before the one-time
+ * hashVaultPassphrase.js setup step) — callers must treat null as
+ * "the vault isn't configured, nothing should resolve".
+ */
+export async function computeVaultUrlSlug() {
+  const effectiveHash = await getEffectivePassphraseHash();
+  if (!effectiveHash) return null;
+
+  return createHash("sha256").update(effectiveHash).digest("hex").slice(0, 7);
+}
+
+/**
+ * getVaultRecoveryPath
+ * Just the path (no domain) — /system-vault-<current 7-char slug>.
+ * Returns null if the vault has no passphrase hash configured yet
+ * (see computeVaultUrlSlug()), same as that function.
+ */
+export async function getVaultRecoveryPath() {
+  const slug = await computeVaultUrlSlug();
+  return slug ? `${VAULT_RECOVERY_PATH_PREFIX}${slug}` : null;
+}
 
 /**
  * getVaultRecoveryUrl
  * Builds the full, clickable URL to the recovery page from
- * NEXT_PUBLIC_SITE_URL (the resort's live domain) + VAULT_RECOVERY_PATH.
- * Falls back to a placeholder domain if the env var isn't set yet, so a
- * missing config value never crashes an email send or a Drive upload —
- * it just prints an obviously-unfinished URL instead.
+ * NEXT_PUBLIC_SITE_URL (the resort's live domain) + the CURRENT
+ * hash-derived path. Falls back to a placeholder domain if the env var
+ * isn't set yet, and to a "not configured yet" placeholder path if no
+ * passphrase hash exists at all — so a missing config value never
+ * crashes an email send or a Drive upload, it just prints an obviously
+ * unfinished URL instead. Now async (the slug needs a DB read) —
+ * every caller must await it.
  */
-export function getVaultRecoveryUrl() {
+export async function getVaultRecoveryUrl() {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain-here.com").replace(/\/$/, "");
-  return `${siteUrl}${VAULT_RECOVERY_PATH}`;
+  const path = (await getVaultRecoveryPath()) || `${VAULT_RECOVERY_PATH_PREFIX}not-configured-yet`;
+  return `${siteUrl}${path}`;
 }
 
 /**
@@ -150,19 +224,7 @@ export function generateVaultPassphrase() {
  * Now async because of the DB read — every caller must await it.
  */
 export async function verifyVaultPassphrase(submittedPassphrase) {
-  let dbHash = null;
-  try {
-    const settings = await prisma.systemSettings.findUnique({
-      where: { id: "singleton" },
-      select: { vaultPassphraseHash: true },
-    });
-    dbHash = settings?.vaultPassphraseHash ?? null;
-  } catch (error) {
-    // DB read failure must never crash vault login — fall back to env.
-    console.error("[vaultAuth] Failed to read vaultPassphraseHash from DB:", error.message);
-  }
-
-  const storedValue = dbHash || process.env.VAULT_PASSPHRASE_HASH || "";
+  const storedValue = await getEffectivePassphraseHash();
   const [storedSalt, storedHashHex] = storedValue.includes(":")
     ? storedValue.split(":")
     : ["0".repeat(32), "0".repeat(SCRYPT_KEY_LENGTH * 2)];
@@ -291,7 +353,7 @@ export function requireVaultSession(request) {
  * Server Component variant — reads the "vaultSession" cookie off the
  * read-only cookie store returned by next/headers' cookies(), which
  * exposes the same .get(name) -> { value } shape as request.cookies.
- * Used by app/system-vault-x9f2/page.jsx to redirect straight to the
+ * Used by app/system-vault-[vaultSlug]/page.jsx to redirect straight to the
  * vault login screen before RecoveryClient ever renders, instead of
  * flashing recovery content and only then getting a 401 from the API.
  */

@@ -3,8 +3,8 @@
  * ROLE: Super-admin only — protected by proxy.js auth guard
  *
  * PURPOSE:
- * Single button that generates a brand-new /system-vault-x9f2 recovery
- * passphrase and shows it exactly once. No terminal, no .env.local
+ * Single button that generates a brand-new vault recovery passphrase
+ * and shows it exactly once. No terminal, no .env.local
  * editing, no scripts/hashVaultPassphrase.js — the owner logs into the
  * dashboard they already use every day and clicks one button.
  *

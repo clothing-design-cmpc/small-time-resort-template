@@ -198,8 +198,12 @@ async function seedSuperAdmin() {
 
   await prisma.adminProfile.upsert({
     where: { id: authUser.id },
-    update: { fullName: "Villa Azure Admin", role: "super_admin" },
-    create: { id: authUser.id, fullName: "Villa Azure Admin", role: "super_admin" },
+    // isOwner: true — this seed script only ever creates ONE admin
+    // account (from SEED_ADMIN_EMAIL), so it's always the real owner.
+    // Any additional staff accounts created later (outside this
+    // script) should be left at the isOwner default (false).
+    update: { fullName: "Villa Azure Admin", role: "super_admin", isOwner: true },
+    create: { id: authUser.id, fullName: "Villa Azure Admin", role: "super_admin", isOwner: true },
   });
   console.log(`✓ Linked admin_profiles for ${email}`);
 }

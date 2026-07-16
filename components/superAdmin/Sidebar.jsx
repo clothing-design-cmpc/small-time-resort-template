@@ -20,7 +20,10 @@ import "./Sidebar.css";
 
 /* Add entries here as new admin pages are built. Grouped into sections
    since the flat list grew too long to scan once Content/Insights pages
-   were added — grouping keeps each section quick to find. */
+   were added — grouping keeps each section quick to find.
+   "Vault Passphrase" is intentionally NOT in this static list — it's
+   appended conditionally below, only for the actual owner (see
+   isOwner prop, passed down from layout.jsx's AdminProfile lookup). */
 const navGroups = [
   {
     label: "Overview",
@@ -60,19 +63,30 @@ const navGroups = [
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
       { label: "Backups", href: "/superAdmin/backups" },
-      { label: "Vault Passphrase", href: "/superAdmin/settings/vault-passphrase" },
     ],
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOwner = false }) {
   const pathname = usePathname();
+
+  // Owner-only link, appended here (never in the static navGroups
+  // array above) so a non-owner admin's Sidebar never renders it, and
+  // never has a reason to inspect the page source for a link that was
+  // conditionally removed vs. one that was simply never built yet.
+  const visibleNavGroups = isOwner
+    ? navGroups.map((group) =>
+        group.label === "Security"
+          ? { ...group, links: [...group.links, { label: "Vault Passphrase", href: "/superAdmin/settings/vault-passphrase" }] }
+          : group
+      )
+    : navGroups;
 
   return (
     <nav className="adminSidebar" aria-label="Super-admin navigation">
       <div className="adminSidebarLogo">Villa Azure Admin</div>
 
-      {navGroups.map((group) => (
+      {visibleNavGroups.map((group) => (
         <div key={group.label} className="adminSidebarGroup">
           <span className="adminSidebarGroupLabel">{group.label}</span>
           <ul className="adminSidebarNav">

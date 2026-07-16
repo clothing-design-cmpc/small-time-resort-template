@@ -35,3 +35,25 @@ export function requireSuperAdmin(request) {
     return null;
   }
 }
+
+/**
+ * requireSuperAdminFromCookieStore
+ * Server Component variant — reads the "session" cookie off the
+ * read-only cookie store returned by next/headers' cookies(), which
+ * exposes the same .get(name) -> { value } shape as request.cookies.
+ * Used by layout.jsx / page.jsx files that need the admin's identity
+ * before rendering (e.g. checking AdminProfile.isOwner for owner-only
+ * pages) rather than inside a Route Handler.
+ */
+export function requireSuperAdminFromCookieStore(cookieStore) {
+  const sessionCookie = cookieStore.get("session")?.value;
+  if (!sessionCookie) return null;
+
+  try {
+    const decoded = JSON.parse(Buffer.from(sessionCookie, "base64").toString("utf-8"));
+    if (decoded?.role !== "super_admin" || !decoded?.uid) return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}

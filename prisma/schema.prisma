@@ -198,6 +198,14 @@ model AdminProfile {
   id        String   @id @db.Uuid
   fullName  String   @map("full_name")
   role      String   @default("super_admin")
+  // Distinguishes the actual resort owner from any other staff account
+  // that might later get a super_admin login (e.g. a front-desk
+  // manager). role alone can't do this — every admin account defaults
+  // to "super_admin" regardless of who they are. Gates access to
+  // owner-only pages like the Vault Passphrase settings page, which
+  // reveals the hidden /system-vault-x9f2 recovery URL — something
+  // that should stay known to the owner alone, not every staff login.
+  isOwner   Boolean  @default(false) @map("is_owner")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("admin_profiles")

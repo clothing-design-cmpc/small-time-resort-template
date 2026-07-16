@@ -1,12 +1,19 @@
 /**
  * FILE: app/api/superAdmin/settings/vault-passphrase/route.js
- * ROLE: Super-admin only — protected by proxy.js auth guard (regular
- *       "session" cookie), NOT part of VAULT_STANDALONE_API_PATHS.
- *       This is the opposite trust direction from the vault's own
- *       login route: setting the vault passphrase requires the normal
- *       admin login the owner already knows, since scripts/
- *       hashVaultPassphrase.js assumed a developer with terminal
- *       access, which the actual site owner does not have.
+ * ROLE: Owner only — every admin account defaults to role
+ *       "super_admin" (services/adminSession.js), so a plain
+ *       requireSuperAdmin() check isn't strict enough here: this
+ *       route reveals/replaces the hidden vault's access credential,
+ *       so it additionally checks AdminProfile.isOwner and returns a
+ *       plain 404 (not 401/403) for any other staff account — same
+ *       reasoning as page.jsx's notFound(), so a non-owner probing
+ *       this URL directly can't even tell the feature exists.
+ *       Not part of VAULT_STANDALONE_API_PATHS — this is the opposite
+ *       trust direction from the vault's own login route: setting the
+ *       vault passphrase requires the normal admin login the owner
+ *       already knows, since scripts/hashVaultPassphrase.js assumed a
+ *       developer with terminal access, which the actual site owner
+ *       does not have.
  *
  * PURPOSE:
  * GET  -> tells the settings page whether a vault passphrase has ever
@@ -45,6 +52,17 @@ export async function GET(request) {
       { success: false, data: null, message: "You don't have permission to view this page." },
       { status: 401 }
     );
+  }
+
+  // Owner-only, same reasoning as page.jsx — a plain 404 here too, so a
+  // non-owner admin poking at this URL directly (not just through the
+  // UI) still can't tell this feature exists at all.
+  const adminProfile = await prisma.adminProfile.findUnique({
+    where: { id: session.uid },
+    select: { isOwner: true },
+  });
+  if (!adminProfile?.isOwner) {
+    return NextResponse.json({ success: false, data: null, message: "Not found." }, { status: 404 });
   }
 
   try {
@@ -88,6 +106,14 @@ export async function POST(request) {
       { success: false, data: null, message: "You don't have permission to do this." },
       { status: 401 }
     );
+  }
+
+  const adminProfile = await prisma.adminProfile.findUnique({
+    where: { id: session.uid },
+    select: { isOwner: true },
+  });
+  if (!adminProfile?.isOwner) {
+    return NextResponse.json({ success: false, data: null, message: "Not found." }, { status: 404 });
   }
 
   try {

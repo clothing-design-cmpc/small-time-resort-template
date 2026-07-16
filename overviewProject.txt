@@ -50,10 +50,18 @@ SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD.
                     (confirmed | cancelled). Powers the Booked Dates section and the
                     Reserve Your Villa date picker -- both read the same
                     GET /api/bookings/dates endpoint instead of a hardcoded date list.
-- AdminProfile   -- id (matches a Supabase Auth user UID), fullName, role. The actual
+- AdminProfile   -- id (matches a Supabase Auth user UID), fullName, role, isOwner. The actual
                     email/password for every admin account lives in Supabase Auth's
                     built-in auth.users table (not managed by Prisma); admin_profiles
                     only stores role/profile metadata keyed to that same user id.
+                    isOwner is separate from role -- every admin account defaults to
+                    role "super_admin" regardless of who they are, so isOwner is what
+                    actually distinguishes the resort owner from any other staff
+                    account that gets dashboard access later. Gates the Vault
+                    Passphrase settings page (app/superAdmin/(protected)/settings/
+                    vault-passphrase/), which reveals the hidden /system-vault-x9f2
+                    URL -- something that should stay known to the owner alone.
+                    prisma/seed.js sets isOwner: true on the one account it creates.
 
 6. PROCESS FLOW
 

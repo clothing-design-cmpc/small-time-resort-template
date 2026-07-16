@@ -12,6 +12,16 @@
   min-height: 100dvh;
   padding: var(--space-lg);
   background-color: #09090b;
+
+  /*
+   * Local token overrides — this section is the one deliberately dark
+   * surface in an otherwise light-themed site (globals.css's :root
+   * defines --color-text-primary/secondary as dark forest-green for
+   * the light background everywhere else). Without these, title and
+   * legend text render as dark-green-on-near-black — unreadable.
+   */
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: rgba(255, 255, 255, 0.6);
 }
 
 /*

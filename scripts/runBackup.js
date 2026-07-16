@@ -25,7 +25,7 @@
  * vars from the environment — GitHub Actions injects these from repo
  * secrets; locally, `.env.local` covers it if you want to test manually)
  */
-import "dotenv/config";
+import "./loadEnv.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gzip } from "node:zlib";

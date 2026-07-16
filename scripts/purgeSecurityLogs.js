@@ -28,7 +28,7 @@
  * injects these from repo secrets/variables; locally, `.env.local`
  * covers it if you want to test manually)
  */
-import "dotenv/config";
+import "./loadEnv.mjs";
 // @prisma/client is a CommonJS module — Node's ESM loader (used when
 // GitHub Actions runs this script directly with `node`, unlike Next.js's
 // bundler which papers over this) can't statically resolve named exports

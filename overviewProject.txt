@@ -384,15 +384,21 @@ Step 8 : Super-admin sees a persistent red BreachAlertBanner on every
          linking to the hidden recovery page
 Step 9 : Super-admin opens the hidden recovery page at
          /system-vault-x9f2 (NOT linked in the Sidebar, NOT part of the
-         app/superAdmin route group - only reachable by URL, but still
-         guarded by the exact same super_admin session check via
-         proxy.js's HIDDEN_RECOVERY_PATH constant), reviews the
-         incident, uploads the pre-breach .sql from Google Drive/R2
-         (reuses the existing useSqlImport hook + sql-import pipeline
-         unchanged), and once satisfied clicks "End Lockdown"
+         app/superAdmin route group - only reachable by URL, first
+         gated by the same super_admin session check via proxy.js's
+         HIDDEN_RECOVERY_PATH constant). That session is only the FIRST
+         factor now: the page redirects to /system-vault-x9f2/login
+         until a SEPARATE vault passphrase (VAULT_PASSPHRASE_HASH,
+         services/vaultAuth.js) is submitted and its own "vaultSession"
+         cookie is set. Only then does the super-admin see the incident,
+         upload the pre-breach .sql from Google Drive/R2 (reuses the
+         existing useSqlImport hook + sql-import pipeline unchanged),
+         and click "End Lockdown"
 Step 10: PATCH /api/admin/breach resolves the BreachEvent and flips
          breachLockdown + maintenanceMode back off - the website is
-         live again
+         live again. This route (and the full-detail branch of its GET)
+         requires BOTH requireSuperAdmin() AND requireVaultSession() -
+         a valid super-admin session alone is never enough
 
 FILE MAP additions (3-Gatekeeper Breach Response):
 - prisma/schema.prisma - BlockedIp model, BreachEvent model,
@@ -423,27 +429,81 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   mounted in app/superAdmin/(protected)/layout.jsx.
 - app/system-vault-x9f2/page.jsx + RecoveryClient.jsx + Recovery.css -
   the hidden recovery page. Deliberately outside app/superAdmin and
-  never linked from the Sidebar - reachable only by URL, protected by
-  the same proxy.js auth guard as every other admin route.
+  never linked from the Sidebar - reachable only by URL, first gated by
+  the same proxy.js auth guard as every other admin route, then by its
+  own vault passphrase (see next entry).
+- services/vaultAuth.js - hashVaultPassphrase() / verifyVaultPassphrase()
+  (scrypt, constant-time compare, no bcrypt dependency needed) +
+  requireVaultSession() / requireVaultSessionFromCookieStore() - the
+  "vaultSession" cookie check used by the recovery page and
+  /api/admin/breach. Completely independent of Supabase Auth /
+  admin_profiles by design - a breach could plausibly be compromising
+  that stack, so recovery's own gate must not depend on it.
+- scripts/hashVaultPassphrase.js - offline CLI, `node
+  scripts/hashVaultPassphrase.js "passphrase"` prints the
+  VAULT_PASSPHRASE_HASH value to paste into .env.local. Never part of
+  the live app.
+- app/api/admin/vault-login/route.js - POST verifies the vault
+  passphrase (after confirming a super_admin session already exists)
+  and sets "vaultSession"; DELETE clears just that cookie ("Lock Vault").
+- app/system-vault-x9f2/login/page.jsx + VaultLoginClient.jsx +
+  VaultLogin.css - the vault's own second-factor login screen, single
+  passphrase field, no relation to Supabase Auth.
+- app/system-vault-x9f2/page.jsx - now a Server Component that reads
+  the "vaultSession" cookie itself (next/headers) and redirects to
+  /system-vault-x9f2/login if it's missing or expired, before
+  RecoveryClient ever renders.
+- app/api/admin/breach/route.js - GET's full-detail branch and PATCH
+  both now call requireVaultSession() in addition to
+  requireSuperAdmin(). GET also gained a `?bannerOnly=true` mode
+  (lockdown flag + which gatekeeper only, no vault session needed) so
+  components/superAdmin/BreachAlertBanner.jsx keeps working for every
+  super-admin, not just one who has unlocked the vault.
 
 8c. API ENDPOINTS (3-Gatekeeper Breach Response)
-- GET /api/admin/breach - super-admin only. Returns
+- GET /api/admin/breach?bannerOnly=true - super-admin only, no vault
+  session needed. Returns { success, data: { breachLockdown,
+  activeBreach: { gatekeeper, createdAt } | null }, message }.
+- GET /api/admin/breach - super-admin + vault session required. Returns
   { success, data: { breachLockdown, activeBreach, recentBreaches }, message }.
-- PATCH /api/admin/breach - super-admin only. No body. Resolves the
-  active BreachEvent and ends the lockdown, returns
+- PATCH /api/admin/breach - super-admin + vault session required. No
+  body. Resolves the active BreachEvent and ends the lockdown, returns
   { success, data: null, message }.
+- POST /api/admin/vault-login - super-admin only (first factor already
+  required to reach this route). Body { passphrase }. Verifies against
+  VAULT_PASSPHRASE_HASH, sets "vaultSession" (30-min lifetime) on match.
+  Rate limited 5 attempts / 15 min per IP, same as the main login route.
+- DELETE /api/admin/vault-login - super-admin only. Clears "vaultSession"
+  ("Lock Vault" button) without touching the regular admin session.
 
 8d. ENVIRONMENT VARIABLES ADDED
 - EMAILJS_SERVICE_ID, EMAILJS_BREACH_TEMPLATE_ID, EMAILJS_PUBLIC_KEY,
   EMAILJS_PRIVATE_KEY, SUPER_ADMIN_ALERT_EMAIL - see
   services/emailAlert.js header comment for the one-time EmailJS
   dashboard setup these depend on.
+- VAULT_PASSPHRASE_HASH - "salt:hash" string (both hex) generated via
+  `node scripts/hashVaultPassphrase.js "your passphrase"`. Gates the
+  hidden recovery page's own second-factor login
+  (/system-vault-x9f2/login). Never store the plaintext passphrase
+  anywhere, including this file.
 
 8e. DEBUG POINTS (3-Gatekeeper Breach Response)
 - Site stuck locked down after a false-positive Gatekeeper 3 trip
-  (e.g. super-admin's own new laptop) -> open /system-vault-x9f2 and
-  click "End Lockdown" directly; no restore is required if the DB was
-  never actually touched by an attacker.
+  (e.g. super-admin's own new laptop) -> open /system-vault-x9f2, enter
+  the vault passphrase if not already unlocked this session, then click
+  "End Lockdown" directly; no restore is required if the DB was never
+  actually touched by an attacker.
+- Recovery page keeps redirecting to /system-vault-x9f2/login right
+  after a successful passphrase submit -> check the browser actually
+  received the "vaultSession" cookie (Secure flag drops it on plain
+  HTTP outside production - see the isProduction check in
+  app/api/admin/vault-login/route.js) and that the 30-minute window
+  (services/vaultAuth.js's VAULT_SESSION_COOKIE_MAX_AGE_SECONDS) hasn't
+  already elapsed.
+- "Incorrect passphrase" even though you're sure it's right -> confirm
+  VAULT_PASSPHRASE_HASH in the deployed environment actually contains a
+  "salt:hash" pair (must include the colon) and wasn't accidentally set
+  to the plaintext passphrase itself.
 - Breach alert email never arrives -> check the four EMAILJS_* env vars
   are set and that a template literally named to match
   EMAILJS_BREACH_TEMPLATE_ID exists in the EmailJS dashboard with the

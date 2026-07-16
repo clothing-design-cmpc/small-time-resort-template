@@ -35,7 +35,7 @@
  *   → copy that value into the GOOGLE_OAUTH_REFRESH_TOKEN GitHub secret
  *     (and .env.local, if testing backups locally)
  */
-import "dotenv/config";
+import "./loadEnv.mjs";
 import { google } from "googleapis";
 import http from "node:http";
 

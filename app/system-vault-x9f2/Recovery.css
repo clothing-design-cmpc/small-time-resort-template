@@ -61,6 +61,44 @@
   border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
+/*
+ * .recoveryHeaderActions
+ * Groups the lockdown status badge with the Lock Vault button so both
+ * stay together on the right side of the header row on desktop and
+ * wrap together as one unit on narrow viewports.
+ */
+.recoveryHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .recoveryLockVaultButton
+ * Deliberately understated (outline, not filled) — this isn't a
+ * destructive action, just re-locking the vault's second-factor gate.
+ * Amber tone ties it back to the vault login screen's accent color.
+ */
+.recoveryLockVaultButton {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.recoveryLockVaultButton:hover,
+.recoveryLockVaultButton:focus-visible {
+  background-color: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
 .recoveryIncidentCard,
 .recoveryStepCard {
   padding: var(--space-lg) var(--space-xl);

@@ -13,11 +13,14 @@
  * DATA FLOW:
  * 1. Mounted once in app/superAdmin/(protected)/layout.jsx, so it's
  *    present on every authenticated admin page without duplicating logic
- * 2. GET /api/admin/breach on mount — same endpoint the hidden recovery
- *    page reads from, so both always agree on the current state
- * 3. The link below points at the hidden recovery page — safe to show
- *    here since only an already-authenticated super-admin ever renders
- *    this component in the first place
+ * 2. GET /api/admin/breach?bannerOnly=true on mount — same endpoint the
+ *    hidden recovery page reads from (without the query param), but
+ *    this trimmed variant skips the separate vault-passphrase gate
+ *    (services/vaultAuth.js) since every super-admin needs to see the
+ *    red banner, not just one who has already unlocked the vault
+ * 3. The link below points at the hidden recovery page's own login
+ *    screen — opening it still requires the vault passphrase, this
+ *    banner only reveals which gatekeeper tripped, nothing sensitive
  */
 "use client";
 
@@ -36,7 +39,7 @@ export default function BreachAlertBanner() {
 
   useEffect(() => {
     axios
-      .get("/api/admin/breach")
+      .get("/api/admin/breach?bannerOnly=true")
       .then((response) => {
         if (response.data?.data?.breachLockdown) {
           setActiveBreach(response.data.data.activeBreach);

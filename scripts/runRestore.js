@@ -22,7 +22,7 @@
  * USAGE (GitHub Actions only): node scripts/runRestore.js
  * Reads SQL_FILE_URL, IMPORT_LOG_ID, and DIRECT_URL from the environment.
  */
-import "dotenv/config";
+import "./loadEnv.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gunzip } from "node:zlib";

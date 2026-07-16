@@ -74,6 +74,8 @@ const EVENT_TYPE_FILTERS = [
   { value: "admin_action", label: "Admin Action" },
   { value: "sql_injection_attempt", label: "SQLi Attempt" },
   { value: "system_retention_purge", label: "Retention Purge" },
+  { value: "vault_login_success", label: "Vault Unlocked" },
+  { value: "vault_login_failed", label: "Vault Login Failed" },
 ];
 
 const DEVICE_TYPE_FILTERS = [

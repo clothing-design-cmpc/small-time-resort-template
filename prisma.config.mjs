@@ -8,7 +8,7 @@
 // Uses DIRECT_URL (session pooler, port 5432) here because schema
 // commands (db push) need prepared-statement support that the
 // transaction pooler (DATABASE_URL, port 6543) does not provide.
-import "dotenv/config";
+import "./scripts/loadEnv.mjs";
 import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({

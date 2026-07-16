@@ -17,10 +17,17 @@
  *    Backups page already uses — nothing new to build there
  * 3. "End Lockdown" PATCHes /api/admin/breach, which resolves the
  *    BreachEvent and flips breachLockdown + maintenanceMode off
+ * 4. "Lock Vault" DELETEs /api/admin/vault-login, clearing the
+ *    "vaultSession" cookie and sending the admin back to the vault's
+ *    own login screen without touching their regular super-admin
+ *    session. A 401 from step 1's GET (vault session expired mid-visit,
+ *    e.g. the 30-minute window ran out while this tab was open) does
+ *    the same redirect automatically.
  */
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
@@ -40,6 +47,7 @@ const GATEKEEPER_LABELS = {
 };
 
 export default function RecoveryClient() {
+  const router = useRouter();
   const { toasts, showToast, dismissToast } = useToast();
 
   const [breachLockdown, setBreachLockdown] = useState(false);
@@ -66,13 +74,21 @@ export default function RecoveryClient() {
       setBreachLockdown(result.data.breachLockdown);
       setActiveBreach(result.data.activeBreach);
       setRecentBreaches(result.data.recentBreaches);
-    } catch {
+    } catch (error) {
+      // 401 here means the vault session expired (30-minute window,
+      // services/vaultAuth.js) or was never valid to begin with — send
+      // back to the vault's own login screen rather than showing a
+      // recovery page with stale/empty status.
+      if (error.response?.status === 401) {
+        router.push("/system-vault-x9f2/login");
+        return;
+      }
       showToast("✕ Couldn't load breach status.", "error");
     } finally {
       setIsLoadingStatus(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchBreachStatus();
@@ -122,6 +138,25 @@ export default function RecoveryClient() {
     }
   }
 
+  /**
+   * handleLockVault
+   * Clears just the "vaultSession" cookie (DELETE /api/admin/vault-login)
+   * and sends the admin back to the vault's own login screen — the
+   * regular super-admin session is untouched, so they stay signed in
+   * to the rest of /superAdmin/* and only re-enter the vault passphrase
+   * if they need this page again.
+   */
+  async function handleLockVault() {
+    try {
+      await axios.delete("/api/admin/vault-login");
+    } catch {
+      // Best-effort — even if the request fails, still navigate away;
+      // the server-side page check will re-verify on the next visit.
+    } finally {
+      router.push("/system-vault-x9f2/login");
+    }
+  }
+
   return (
     <section className="recoverySection">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
@@ -133,11 +168,19 @@ export default function RecoveryClient() {
             Restricted disaster-recovery workflow. Not linked from anywhere in the admin panel.
           </p>
         </div>
-        {!isLoadingStatus && (
-          <span className={breachLockdown ? "recoveryLockdownBadgeActive" : "recoveryLockdownBadgeClear"}>
-            {breachLockdown ? "⚠ Website is currently locked down" : "✓ No active lockdown"}
-          </span>
-        )}
+        <div className="recoveryHeaderActions">
+          {!isLoadingStatus && (
+            <span className={breachLockdown ? "recoveryLockdownBadgeActive" : "recoveryLockdownBadgeClear"}>
+              {breachLockdown ? "⚠ Website is currently locked down" : "✓ No active lockdown"}
+            </span>
+          )}
+          {/* Locks just the vault passphrase gate again — the admin's
+              regular super-admin session (and access to /superAdmin/*)
+              is unaffected. */}
+          <button type="button" className="recoveryLockVaultButton" onClick={handleLockVault}>
+            Lock Vault
+          </button>
+        </div>
       </div>
 
       {/* --- Active incident details --- */}

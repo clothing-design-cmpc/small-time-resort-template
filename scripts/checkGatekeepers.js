@@ -41,7 +41,7 @@
  * Reads DATABASE_URL from the environment for the Prisma checks —
  * .env.local covers this locally the same way every other script here does.
  */
-import "dotenv/config";
+import "./loadEnv.mjs";
 // @prisma/client is a CommonJS module — Node's ESM loader (used when
 // GitHub Actions runs this script directly with `node`, unlike Next.js's
 // bundler which papers over this) can't statically resolve named exports

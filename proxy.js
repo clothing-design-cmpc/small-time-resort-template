@@ -43,6 +43,14 @@ import { isIpBlocked } from "@/services/ipBlock";
 // Only Vic and any other super-admin who already knows this URL can
 // reach it — everyone else gets redirected to the normal login page
 // exactly like hitting any other unauthenticated /superAdmin/* route.
+//
+// This super_admin check is only the FIRST factor now. The page itself
+// (and GET/PATCH /api/admin/breach) additionally requires a separate
+// "vaultSession" cookie, obtained only via its own passphrase login at
+// /system-vault-x9f2/login (services/vaultAuth.js). That second gate is
+// deliberately not enforced here in proxy.js — it's checked server-side
+// in the page/route handlers themselves so it can stay independent of
+// this file's session-cookie logic.
 const HIDDEN_RECOVERY_PATH = "/system-vault-x9f2";
 
 /**

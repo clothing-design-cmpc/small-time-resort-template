@@ -35,6 +35,8 @@ const STATUS_STYLES = {
   sql_injection_attempt: { label: "SQLi Attempt", color: "#dc2626" },
   system_retention_purge: { label: "Retention Purge", color: "#71717a" },
   gatekeeper_breach: { label: "Gatekeeper Breach", color: "#dc2626" },
+  vault_login_success: { label: "Vault Unlocked", color: "#10b981" },
+  vault_login_failed: { label: "Vault Login Failed", color: "#f59e0b" },
   // Backup Logs page (app/superAdmin/(protected)/backups)
   success: { label: "Success", color: "#10b981" },
   running: { label: "Running", color: "#3b82f6" },

@@ -441,8 +441,32 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   that stack, so recovery's own gate must not depend on it.
 - scripts/hashVaultPassphrase.js - offline CLI, `node
   scripts/hashVaultPassphrase.js "passphrase"` prints the
-  VAULT_PASSPHRASE_HASH value to paste into .env.local. Never part of
-  the live app.
+  VAULT_PASSPHRASE_HASH value to paste into .env.local. Only needed for
+  the very first passphrase before any DB value exists (developer-only,
+  assumes terminal access) - the owner's day-to-day path is the
+  dashboard settings page below instead.
+- SystemSettings.vaultPassphraseHash (DB column) - the live vault
+  passphrase hash once anything has rotated it at least once (either
+  path below); takes priority over VAULT_PASSPHRASE_HASH in
+  verifyVaultPassphrase()'s check order, since a running server can't
+  rewrite its own .env.local without a restart.
+- services/breachResponse.js - Gatekeeper 1/2 breaches call
+  rotateVaultPassphrase() automatically and email the new plaintext to
+  VAULT_OWNER_EMAIL via services/emailAlert.js's
+  sendVaultPassphraseRotationEmail() (template "vault_passphrase_rotated").
+- app/api/superAdmin/settings/vault-passphrase/route.js +
+  app/superAdmin/(protected)/settings/vault-passphrase/ (page.jsx +
+  VaultPassphraseClient.jsx + VaultPassphrase.css) - lets the resort
+  owner (non-developer) generate a new vault passphrase from their own
+  dashboard with one button, no terminal needed. GET reports only
+  whether a passphrase is currently configured; POST generates + hashes
+  + saves a new one to SystemSettings.vaultPassphraseHash and returns
+  the plaintext exactly once for the owner to copy down - never stored,
+  never logged, never shown again after that response. Gated by the
+  regular super-admin "session" cookie (requireSuperAdmin), same login
+  the owner already uses for the rest of the dashboard - distinct from
+  the vault's own passphrase+OTP gate, which protects reaching the
+  recovery page itself, not the setting that page's passphrase.
 - app/api/admin/vault-login/route.js - POST verifies the vault
   passphrase (after confirming a super_admin session already exists)
   and sets "vaultSession"; DELETE clears just that cookie ("Lock Vault").

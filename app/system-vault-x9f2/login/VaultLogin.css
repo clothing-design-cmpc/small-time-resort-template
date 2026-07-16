@@ -172,11 +172,19 @@
   right: var(--space-xs);
   min-height: 32px;
   padding: 0 var(--space-sm);
+  /* Without this reset, the browser's default button chrome (light
+     gray background, dark text) shows through underneath our
+     semi-transparent text color, making the label unreadable — this
+     is meant to read as plain text, not a filled button. */
+  background: transparent;
+  border: none;
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--color-text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 

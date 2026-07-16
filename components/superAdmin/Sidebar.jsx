@@ -60,6 +60,7 @@ const navGroups = [
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
       { label: "Backups", href: "/superAdmin/backups" },
+      { label: "Vault Passphrase", href: "/superAdmin/settings/vault-passphrase" },
     ],
   },
 ];

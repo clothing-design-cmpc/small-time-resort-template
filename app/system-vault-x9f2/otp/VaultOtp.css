@@ -21,9 +21,18 @@
 .vaultOtpResendButton {
   min-height: 44px;
   margin-top: var(--space-xs);
+  /* Same fix as .vaultLoginPassphraseToggle (VaultLogin.css) — without
+     resetting the browser's default button background/border, this
+     semi-transparent text color is unreadable against the default
+     gray button chrome underneath it. */
+  background: transparent;
+  border: none;
+  padding: 0 var(--space-sm);
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--color-text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
   transition: color var(--transition-fast);
 }
 

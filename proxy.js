@@ -37,21 +37,36 @@ import { isIpBlocked } from "@/services/ipBlock";
 
 // The hidden database-recovery page (3-Gatekeeper breach response,
 // Task 3) is deliberately NOT under /superAdmin — it must never appear
-// in the Sidebar or in any /superAdmin/* route listing. It still needs
-// the exact same super_admin auth guard as every other admin page, so
-// its path is added to isProtectedRoute below alongside /superAdmin.
-// Only Vic and any other super-admin who already knows this URL can
-// reach it — everyone else gets redirected to the normal login page
-// exactly like hitting any other unauthenticated /superAdmin/* route.
+// in the Sidebar or in any /superAdmin/* route listing.
 //
-// This super_admin check is only the FIRST factor now. The page itself
-// (and GET/PATCH /api/admin/breach) additionally requires a separate
-// "vaultSession" cookie, obtained only via its own passphrase login at
-// /system-vault-x9f2/login (services/vaultAuth.js). That second gate is
-// deliberately not enforced here in proxy.js — it's checked server-side
-// in the page/route handlers themselves so it can stay independent of
-// this file's session-cookie logic.
+// STANDALONE LOGIN — NO super_admin SESSION REQUIRED:
+// This page used to also require a valid super_admin "session" cookie
+// as a first factor here in proxy.js, on top of its own vault
+// passphrase. That coupling defeated the point of the vault having its
+// own separate login: if the regular admin session was ever the thing
+// compromised, an attacker with that one cookie was still only one
+// passphrase away from disaster recovery. The vault is now reachable
+// by anyone who knows this exact hidden URL, gated ONLY by its own
+// login chain (passphrase, then email OTP — services/vaultAuth.js) —
+// never by the "session" cookie proxy.js checks for /superAdmin/*.
+// The IP-block check above still applies to every request regardless.
 const HIDDEN_RECOVERY_PATH = "/system-vault-x9f2";
+
+// The vault's own API routes must be excluded from the blanket
+// "/api/admin" super_admin gate below for the same reason — they
+// authenticate callers via vaultSession (and, going forward,
+// verified-OTP state), never via the regular admin "session" cookie.
+// Each of these routes still fully enforces its own auth internally;
+// this list only controls proxy.js's coarse outer layer.
+const VAULT_STANDALONE_API_PATHS = [
+  "/api/admin/vault-login",
+  "/api/admin/vault-otp",
+  "/api/admin/breach",
+];
+
+function isVaultStandaloneApiPath(pathname) {
+  return VAULT_STANDALONE_API_PATHS.some((vaultPath) => pathname.startsWith(vaultPath));
+}
 
 /**
  * decodeRole
@@ -124,9 +139,12 @@ export async function proxy(request, event) {
   // Login page itself must stay reachable, or nobody could ever sign in.
   const isProtectedRoute =
     (pathname.startsWith("/superAdmin") && pathname !== "/superAdmin/login") ||
-    pathname.startsWith("/api/admin") ||
-    pathname.startsWith("/api/superAdmin") ||
-    pathname.startsWith(HIDDEN_RECOVERY_PATH);
+    (pathname.startsWith("/api/admin") && !isVaultStandaloneApiPath(pathname)) ||
+    pathname.startsWith("/api/superAdmin");
+  // Note: HIDDEN_RECOVERY_PATH ("/system-vault-x9f2") is intentionally
+  // NOT part of isProtectedRoute — the vault page enforces its own
+  // login chain server-side (services/vaultAuth.js) instead of relying
+  // on this file's super_admin session check.
 
   if (isProtectedRoute) {
     const userRole = decodeRole(sessionToken);

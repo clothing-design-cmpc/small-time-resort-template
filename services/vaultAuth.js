@@ -3,14 +3,14 @@
  * ROLE: Second-factor gate for the hidden recovery page only
  *
  * PURPOSE:
- * The hidden recovery page (/system-vault-x9f2) used to trust the same
- * "session" cookie every other /superAdmin/* route trusts. That meant
- * anyone who already had a valid super-admin session — including a
- * stolen one — could open the disaster-recovery page with nothing
- * extra. This file adds a SEPARATE vault passphrase that must be
- * entered on its own login screen before the recovery page's contents
- * (breach status, "End Lockdown") become reachable, even for an
- * already-logged-in super-admin.
+ * The hidden recovery page (/system-vault-x9f2) is a fully standalone
+ * login system — it no longer trusts, checks, or requires the regular
+ * "session" cookie every /superAdmin/* route trusts. Whoever holds
+ * that cookie (including a stolen one) gets nothing extra here; the
+ * only way in is this file's own chain: a vault passphrase, then an
+ * emailed OTP (services/vaultOtp.js). This file adds that separate
+ * vault passphrase, entered on its own login screen, as the first of
+ * those two factors.
  *
  * Deliberately NOT reusing Supabase Auth or admin_profiles: the whole
  * point of this page is to recover the site when something has already
@@ -29,11 +29,14 @@
  *    VAULT_PASSPHRASE_HASH in .env.local (never commit the plaintext)
  * 2. app/api/admin/vault-login/route.js calls verifyVaultPassphrase()
  *    against that env var and, on match, sets an HttpOnly "vaultSession"
- *    cookie via buildVaultSessionCookieValue()
+ *    cookie via buildVaultSessionCookieValue() — the uid stored inside
+ *    it is the fixed literal "vault" (there is no super-admin identity
+ *    behind it anymore; see VAULT_IDENTITY below)
  * 3. app/system-vault-x9f2/page.jsx (Server Component) and
  *    app/api/admin/breach/route.js both call requireVaultSession() —
  *    no vault session, no access to breach status or "End Lockdown",
- *    regardless of the regular super_admin session cookie's validity
+ *    regardless of whether the caller has a regular super_admin
+ *    session cookie at all
  */
 import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 
@@ -43,6 +46,13 @@ const SCRYPT_KEY_LENGTH = 64;
 // tool, not a page an admin should stay signed into all day. Matches
 // the 30-minute idle-timeout standard used elsewhere in the admin area.
 export const VAULT_SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 60;
+
+// The vault no longer inherits a super-admin's uid — there is no
+// super-admin session behind it anymore. This fixed literal is used as
+// the "uid" inside the vaultSession cookie and as the SecurityLog
+// actor for every vault-related event, so log rows are still clearly
+// attributable to "the vault", not to any specific admin account.
+export const VAULT_IDENTITY = "vault";
 
 /**
  * hashVaultPassphrase
@@ -90,7 +100,10 @@ export function verifyVaultPassphrase(submittedPassphrase) {
  * buildVaultSessionCookieValue
  * Base64-encodes the vault session payload, mirroring the shape
  * services/adminSession.js uses for the regular "session" cookie so
- * the pattern stays consistent across the codebase.
+ * the pattern stays consistent across the codebase. Callers pass
+ * VAULT_IDENTITY as uid — there is no super-admin account behind a
+ * vault session, so this is always the same fixed literal, never a
+ * real admin's ID.
  */
 export function buildVaultSessionCookieValue(uid) {
   return Buffer.from(JSON.stringify({ uid, grantedAt: Date.now() })).toString("base64");

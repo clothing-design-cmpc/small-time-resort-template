@@ -1,8 +1,11 @@
 /**
  * FILE: app/api/admin/breach/route.js
- * ROLE: Super-admin only — verified via requireSuperAdmin(), also
- *       covered by proxy.js since this path starts with /api/admin.
- *       Full detail ALSO gated behind requireVaultSession() — see below.
+ * ROLE: Split auth — the bannerOnly branch is super-admin only (verified
+ *       via requireSuperAdmin()); everything else (full detail, PATCH)
+ *       is vault-session only (requireVaultSession()) and requires NO
+ *       super_admin session at all. Excluded from proxy.js's blanket
+ *       /api/admin gate (see VAULT_STANDALONE_API_PATHS in proxy.js) so
+ *       that carve-out is enforced here in the route instead.
  *
  * PURPOSE:
  * GET   -> returns the most recent unresolved BreachEvent (if any) plus
@@ -11,34 +14,33 @@
  *          BreachAlertBanner.jsx) and the hidden recovery page.
  * PATCH -> ends the lockdown: marks the active BreachEvent resolved and
  *          flips breachLockdown + maintenanceMode back off. Only ever
- *          called from the hidden recovery page, after the super-admin
+ *          called from the hidden recovery page, after the vault user
  *          has imported the pre-breach SQL backup and confirmed the
  *          database looks right again.
  *
  * VAULT SESSION GATE (services/vaultAuth.js):
- * A valid super_admin session is no longer enough on its own to read
- * full breach detail or end a lockdown — the caller must ALSO hold a
- * "vaultSession" cookie, obtained only by submitting the separate vault
- * passphrase at /system-vault-x9f2/login. This is checked here too, not
- * just in the recovery page's UI, so a valid super-admin session cookie
- * alone can't be used to call this endpoint directly and skip the vault
- * login screen. BreachAlertBanner still needs to show that SOMETHING is
- * wrong without the admin having entered the vault passphrase yet, so
- * it calls GET with ?bannerOnly=true, which returns only the lockdown
- * flag + which gatekeeper tripped — no IP address, no details, no
- * history — and skips the vault-session requirement.
+ * The vault is a standalone login system now — reading full breach
+ * detail or ending a lockdown requires ONLY a "vaultSession" cookie,
+ * obtained via the vault's own passphrase + OTP login chain at
+ * /system-vault-x9f2/login. No super_admin "session" cookie is checked
+ * or required on this path anymore. BreachAlertBanner is the one
+ * exception: it's rendered inside the normal /superAdmin/* dashboard
+ * for every signed-in admin, so it still needs its own
+ * requireSuperAdmin() check — it calls GET with ?bannerOnly=true, which
+ * returns only the lockdown flag + which gatekeeper tripped — no IP
+ * address, no details, no history.
  *
  * DATA FLOW:
  * 1. services/breachResponse.js creates a BreachEvent + flips
  *    SystemSettings.breachLockdown on the instant a gatekeeper trips
- * 2. BreachAlertBanner's GET ?bannerOnly=true lets every admin page show
- *    the red banner without needing the vault passphrase
- * 3. The recovery page's GET (no query param) needs a vault session and
- *    returns the full activeBreach + recentBreaches detail
+ * 2. BreachAlertBanner's GET ?bannerOnly=true lets every signed-in admin
+ *    page show the red banner — gated by requireSuperAdmin() only
+ * 3. The recovery page's GET (no query param) needs a vault session
+ *    only and returns the full activeBreach + recentBreaches detail
  * 4. This route's PATCH is the only place breachLockdown ever gets
- *    turned back off — never automatically, always a deliberate
- *    super-admin action taken from the recovery page, only reachable
- *    after the vault passphrase has already been entered
+ *    turned back off — never automatically, always a deliberate action
+ *    taken from the recovery page, only reachable after the vault's own
+ *    login chain has been completed
  */
 export const dynamic = "force-dynamic";
 
@@ -49,21 +51,21 @@ import { requireVaultSession } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET(request) {
-  const session = requireSuperAdmin(request);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to do this." },
-      { status: 401 }
-    );
-  }
-
   // BreachAlertBanner only needs "is something wrong + which gatekeeper"
-  // to render its red banner — it must work for every super-admin, not
-  // just one who has already entered the vault passphrase, so this one
-  // path skips requireVaultSession() below and returns a trimmed shape.
+  // to render its red banner for any signed-in admin — checked here,
+  // independently of the vault-session branch below, since a banner
+  // viewer has never gone through the vault's own login chain.
   const isBannerOnlyRequest = new URL(request.url).searchParams.get("bannerOnly") === "true";
 
   if (isBannerOnlyRequest) {
+    const session = requireSuperAdmin(request);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, data: null, message: "You don't have permission to do this." },
+        { status: 401 }
+      );
+    }
+
     try {
       const [settings, activeBreach] = await Promise.all([
         prisma.systemSettings.findUnique({
@@ -91,8 +93,8 @@ export async function GET(request) {
     }
   }
 
-  // Full detail (IP address, details text, full history) requires the
-  // separate vault passphrase — never served on a super_admin session alone.
+  // Full detail (IP address, details text, full history) requires ONLY
+  // the vault session — no super_admin session cookie is checked here.
   if (!requireVaultSession(request)) {
     return NextResponse.json(
       { success: false, data: null, message: "Vault authentication required." },
@@ -135,18 +137,12 @@ export async function GET(request) {
 }
 
 export async function PATCH(request) {
-  const session = requireSuperAdmin(request);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to do this." },
-      { status: 401 }
-    );
-  }
-
   // Ending a site-wide lockdown is the single most consequential action
-  // on this whole page — never allowed without the vault passphrase,
-  // even from a completely valid super_admin session.
-  if (!requireVaultSession(request)) {
+  // on this whole page — gated ONLY by the vault session (passphrase +
+  // OTP login chain). No super_admin session cookie is required or
+  // checked here anymore.
+  const vaultSession = requireVaultSession(request);
+  if (!vaultSession) {
     return NextResponse.json(
       { success: false, data: null, message: "Vault authentication required." },
       { status: 401 }
@@ -162,7 +158,7 @@ export async function PATCH(request) {
     if (activeBreach) {
       await prisma.breachEvent.update({
         where: { id: activeBreach.id },
-        data: { resolved: true, resolvedBy: session.uid, resolvedAt: new Date() },
+        data: { resolved: true, resolvedBy: vaultSession.uid, resolvedAt: new Date() },
       });
     }
 
@@ -173,11 +169,12 @@ export async function PATCH(request) {
     });
 
     // Ending a site-wide lockdown is a significant, destructive-adjacent
-    // action (Rule 34.4 territory) — always logged regardless of which
-    // super-admin did it or from which recovery-page session.
+    // action (Rule 34.4 territory) — always logged, actor is the fixed
+    // vault identity (VAULT_IDENTITY) since no super-admin account is
+    // behind this session.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session.uid,
+      actor: vaultSession.uid,
       request,
       details: activeBreach
         ? `Ended breach lockdown and resolved Gatekeeper ${activeBreach.gatekeeper} incident.`

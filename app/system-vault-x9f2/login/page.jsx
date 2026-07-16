@@ -1,16 +1,15 @@
 /**
  * FILE: app/system-vault-x9f2/login/page.jsx
- * ROLE: Super-admin only — protected by proxy.js (HIDDEN_RECOVERY_PATH
- *       matches on startsWith, so /system-vault-x9f2/login is covered
- *       the same as /system-vault-x9f2 itself)
+ * ROLE: Standalone — NOT protected by proxy.js's super_admin gate. This
+ *       page is reachable by anyone who knows the hidden URL; the
+ *       vault's own login chain (passphrase, then email OTP) is the
+ *       only thing gating what comes after it.
  *
  * PURPOSE:
- * The vault's own second-factor login screen. Reaching this page at
- * all already required a valid super_admin "session" cookie (proxy.js
- * enforces that), but that alone only gets you as far as this form —
- * the separate vault passphrase (VAULT_PASSPHRASE_HASH,
- * services/vaultAuth.js) still has to be entered here before
- * /system-vault-x9f2 will render anything.
+ * The vault's own first-factor login screen. No super_admin "session"
+ * cookie is required to reach this page or submit this form — the
+ * vault passphrase (VAULT_PASSPHRASE_HASH, services/vaultAuth.js) is
+ * checked entirely on its own here.
  *
  * DATA FLOW:
  * 1. Server Component renders the shell + hands off to VaultLoginClient

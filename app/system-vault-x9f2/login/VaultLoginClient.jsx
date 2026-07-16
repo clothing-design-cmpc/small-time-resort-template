@@ -1,23 +1,23 @@
 /**
  * FILE: app/system-vault-x9f2/login/VaultLoginClient.jsx
- * ROLE: Super-admin only — protected by proxy.js, gated further by the
- *       passphrase this form submits
+ * ROLE: Standalone — not gated by proxy.js or any super_admin session;
+ *       gated entirely by the passphrase this form submits
  *
  * PURPOSE:
- * Single-field passphrase form for the vault's second-factor login.
- * Deliberately minimal — no email field, no "remember me", no demo
- * quick-fill button — this is a disaster-recovery gate, not a page
- * meant to be visited casually.
+ * Single-field passphrase form for the vault's own first-factor login.
+ * Deliberately minimal — no "remember me", no demo quick-fill button —
+ * this is a disaster-recovery gate, not a page meant to be visited
+ * casually.
  *
  * DATA FLOW:
- * 1. Super-admin types the vault passphrase and submits
+ * 1. Whoever knows the vault passphrase types it and submits
  * 2. POST /api/admin/vault-login verifies it against
  *    VAULT_PASSPHRASE_HASH (services/vaultAuth.js) and, on match, sets
  *    the HttpOnly "vaultSession" cookie
  * 3. On success, redirect to /system-vault-x9f2 — the recovery page
  *    now passes its server-side vault-session check and renders
  * 4. On failure, show the same generic error every time (never reveal
- *    whether the super-admin session itself was somehow the problem)
+ *    which part of the check failed)
  */
 "use client";
 
@@ -91,7 +91,7 @@ export default function VaultLoginClient() {
         <span className="vaultLoginEyebrow">Restricted Area</span>
         <h1 className="vaultLoginTitle">Vault Passphrase</h1>
         <p className="vaultLoginLegend">
-          Your admin session isn&apos;t enough on its own — this area needs its own passphrase.
+          This area has its own separate login — enter the vault passphrase to continue.
         </p>
       </div>
 

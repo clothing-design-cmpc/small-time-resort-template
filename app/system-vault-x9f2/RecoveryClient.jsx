@@ -170,6 +170,7 @@ export default function RecoveryClient() {
 
       <div className="recoveryHeaderRow">
         <div>
+          <span className="recoveryEyebrow">Disaster Recovery</span>
           <h1>System Recovery</h1>
           <p className="recoverySubtext">
             Restricted disaster-recovery workflow. Not linked from anywhere in the admin panel.
@@ -233,7 +234,10 @@ export default function RecoveryClient() {
           <ul className="recoveryImportHistory">
             {importLogs.slice(0, 5).map((log) => (
               <li key={log.id}>
-                <StatusBadge status={log.status} /> {log.fileName} — {DATE_FORMATTER.format(new Date(log.startedAt))}
+                <StatusBadge status={log.status} />
+                <span className="adminMono">
+                  {log.fileName} — {DATE_FORMATTER.format(new Date(log.startedAt))}
+                </span>
               </li>
             ))}
           </ul>
@@ -265,9 +269,11 @@ export default function RecoveryClient() {
           <ul className="recoveryImportHistory">
             {recentBreaches.map((event) => (
               <li key={event.id}>
-                <StatusBadge status={event.resolved ? "success" : "failed"} />{" "}
-                {GATEKEEPER_LABELS[event.gatekeeper] ?? `Gatekeeper ${event.gatekeeper}`} —{" "}
-                {DATE_FORMATTER.format(new Date(event.createdAt))}
+                <StatusBadge status={event.resolved ? "success" : "failed"} />
+                <span className="adminMono">
+                  {GATEKEEPER_LABELS[event.gatekeeper] ?? `Gatekeeper ${event.gatekeeper}`} —{" "}
+                  {DATE_FORMATTER.format(new Date(event.createdAt))}
+                </span>
               </li>
             ))}
           </ul>

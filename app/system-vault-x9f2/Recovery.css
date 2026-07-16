@@ -59,6 +59,25 @@
   gap: var(--space-md);
 }
 
+/*
+ * .recoveryEyebrow
+ * Small monospace label above the h1 — matches the "Restricted Area"
+ * eyebrow already used on the login/OTP screens (VaultLogin.css) so all
+ * three vault screens read as one consistent identity, and gives this
+ * header the minimum 3 distinct type sizes (Rule 17.1: eyebrow, title,
+ * body) instead of just a title + subtext.
+ */
+.recoveryEyebrow {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
 .recoveryHeaderRow h1 {
   font-size: 1.5rem;
   color: var(--color-text-primary);
@@ -228,29 +247,67 @@
   color: var(--color-text-primary);
 }
 
+/*
+ * .recoveryFileInput
+ * The bare <input type="file"> renders its OS-default picker button
+ * with no way to restyle the button itself except via the
+ * ::file-selector-button pseudo-element — left alone, that default
+ * button chrome clashes badly with the rest of the panel's design.
+ */
 .recoveryFileInput {
   width: 100%;
   padding: var(--space-sm);
-  font-size: 1rem;
-  border: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border-strong);
   border-radius: 8px;
   background-color: var(--color-surface-hover);
-  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.recoveryFileInput:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+.recoveryFileInput::file-selector-button {
+  margin-right: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.recoveryFileInput::file-selector-button:hover {
+  background-color: var(--color-primary-hover);
 }
 
 .recoveryImportHistory {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
   margin-top: var(--space-md);
   font-size: 0.85rem;
   color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-divider);
 }
 
 .recoveryImportHistory li {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--color-divider);
+  transition: background-color var(--transition-fast);
+}
+
+.recoveryImportHistory li:hover {
+  background-color: var(--color-surface-hover);
 }
 
 .recoveryMutedText {

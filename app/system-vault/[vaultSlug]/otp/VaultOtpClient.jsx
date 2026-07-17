@@ -84,7 +84,11 @@ export default function VaultOtpClient() {
   useEffect(() => {
     if (hasSentOnce.current) return;
     hasSentOnce.current = true;
-    sendCode();
+    // forceNew: false — if a valid code already exists (e.g. this
+    // effect re-firing on a page refresh or dev Fast Refresh), reuse
+    // it instead of silently invalidating whatever's already in the
+    // owner's inbox.
+    sendCode(false);
 
     // Stop the interval if the owner navigates away mid-countdown —
     // never let it keep ticking (and calling setState) on an unmounted
@@ -94,40 +98,50 @@ export default function VaultOtpClient() {
 
   /**
    * startCountdown
-   * (Re)starts the OTP_COUNTDOWN_SECONDS clock from full — called every
-   * time a fresh code is actually emailed (initial load or "Resend
-   * code"), never on a failed send, since a failed send didn't reset
-   * the server's expiry either.
+   * (Re)starts the countdown clock. Takes the server's real expiresAt
+   * (from either a fresh send or a "skipped, still valid" response) and
+   * counts down from the ACTUAL remaining time — never blindly resets
+   * to a full OTP_COUNTDOWN_SECONDS, since the automatic on-mount call
+   * may have found an existing code that's already partway through its
+   * life (see sendCode's forceNew: false).
    */
-  function startCountdown() {
+  function startCountdown(expiresAt) {
     clearInterval(countdownIntervalRef.current);
-    setIsCodeExpired(false);
-    setSecondsRemaining(OTP_COUNTDOWN_SECONDS);
 
-    countdownIntervalRef.current = setInterval(() => {
-      setSecondsRemaining((previousSeconds) => {
-        if (previousSeconds <= 1) {
-          clearInterval(countdownIntervalRef.current);
-          setIsCodeExpired(true);
-          return 0;
-        }
-        return previousSeconds - 1;
-      });
-    }, 1000);
+    const targetTime = expiresAt ? new Date(expiresAt).getTime() : Date.now() + OTP_COUNTDOWN_SECONDS * 1000;
+
+    function tick() {
+      const remaining = Math.max(0, Math.round((targetTime - Date.now()) / 1000));
+      setSecondsRemaining(remaining);
+      if (remaining <= 0) {
+        clearInterval(countdownIntervalRef.current);
+        setIsCodeExpired(true);
+      }
+    }
+
+    setIsCodeExpired(false);
+    tick();
+    countdownIntervalRef.current = setInterval(tick, 1000);
   }
 
   /**
    * sendCode
-   * Requests a fresh code. Shared between the automatic on-mount send
-   * and the manual "Resend code" button.
+   * Requests a code. Shared between the automatic on-mount call
+   * (forceNew: false — leaves a still-valid outstanding code alone
+   * instead of invalidating it) and the manual "Resend code" button
+   * (forceNew: true — always issues and emails a brand-new code).
    */
-  async function sendCode() {
+  async function sendCode(forceNew = true) {
     setSendStatus({ state: "sending", message: "" });
     setAuthError(null);
 
     let response;
     try {
-      response = await fetch("/api/admin/vault-otp", { method: "POST" });
+      response = await fetch("/api/admin/vault-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forceNew }),
+      });
     } catch {
       setSendStatus({ state: "error", message: "" });
       setAuthError("We couldn't reach the server. Check your connection and try again.");
@@ -152,7 +166,7 @@ export default function VaultOtpClient() {
     }
 
     setSendStatus({ state: "sent", message: result.message });
-    startCountdown();
+    startCountdown(result.data?.expiresAt);
   }
 
   /**
@@ -259,7 +273,7 @@ export default function VaultOtpClient() {
           // step — sized up and given the site's accent green so it
           // reads as the primary action instead of a quiet fallback.
           className={`vaultOtpResendButton${isCodeExpired ? " vaultOtpResendButton--urgent" : ""}`}
-          onClick={sendCode}
+          onClick={() => sendCode(true)}
           disabled={sendStatus.state === "sending"}
         >
           {sendStatus.state === "sending" ? "Sending…" : "Resend code"}

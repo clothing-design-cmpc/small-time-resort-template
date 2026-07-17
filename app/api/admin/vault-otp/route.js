@@ -55,9 +55,13 @@ function getIp(request) {
 /**
  * POST
  * Requires an existing (passphrase-verified) vaultSession cookie.
- * Generates and emails a fresh 12-character code. Never reveals whether the
- * caller was missing a session vs. rate-limited beyond the standard
- * 401/429 status codes — same "no extra hints" posture as vault-login.
+ * Generates and emails a fresh 12-character code — unless the caller
+ * passes { forceNew: false } (VaultOtpClient's automatic on-mount send)
+ * AND a still-valid code is already outstanding, in which case the
+ * existing code is left alone (see generateAndSendVaultOtp's forceNew
+ * doc). Never reveals whether the caller was missing a session vs.
+ * rate-limited beyond the standard 401/429 status codes — same "no
+ * extra hints" posture as vault-login.
  */
 export async function POST(request) {
   const vaultSession = requireVaultSession(request);
@@ -77,9 +81,20 @@ export async function POST(request) {
     );
   }
 
+  // Body is optional — a request with no body (or invalid JSON) is
+  // treated as forceNew: true, so nothing here can accidentally suppress
+  // a legitimate send if the client ever fails to include it.
+  let forceNew = true;
+  try {
+    const body = await request.json();
+    if (typeof body?.forceNew === "boolean") forceNew = body.forceNew;
+  } catch {
+    // No body sent — keep the safe default (forceNew: true).
+  }
+
   let result;
   try {
-    result = await generateAndSendVaultOtp();
+    result = await generateAndSendVaultOtp(forceNew);
   } catch (error) {
     // Most likely cause: the VaultOtp table doesn't exist yet because
     // `npx prisma db push` hasn't been run against this database. Log
@@ -102,11 +117,19 @@ export async function POST(request) {
     eventType: result.success ? "vault_otp_sent" : "vault_otp_failed",
     actor: VAULT_IDENTITY,
     request,
-    details: result.success ? "Vault OTP emailed to owner." : `Vault OTP send failed: ${result.message}`,
+    details: result.success
+      ? result.skipped
+        ? "Vault OTP send skipped — a still-valid code was already outstanding."
+        : "Vault OTP emailed to owner."
+      : `Vault OTP send failed: ${result.message}`,
   });
 
   return NextResponse.json(
-    { success: result.success, data: null, message: result.message },
+    {
+      success: result.success,
+      data: result.success ? { skipped: Boolean(result.skipped), expiresAt: result.expiresAt } : null,
+      message: result.message,
+    },
     { status: result.success ? 200 : 500 }
   );
 }

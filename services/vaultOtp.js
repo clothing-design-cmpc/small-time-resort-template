@@ -68,17 +68,47 @@ function hashOtpCode(plaintextCode) {
  * generateAndSendVaultOtp
  * Creates a new 12-character code, overwrites the singleton VaultOtp row
  * with its hash + a fresh expiry + attempts reset to 0, and emails the
- * plaintext code to VAULT_OWNER_EMAIL. Returns { success, message } —
- * best-effort on the email send, since a misconfigured EmailJS env
- * shouldn't crash the route, but the caller DOES need to know if the
- * email failed (unlike services/emailjs.js's other callers, the owner
- * has no other way to get this code).
+ * plaintext code to VAULT_OWNER_EMAIL. Returns { success, message,
+ * skipped, expiresAt } — best-effort on the email send, since a
+ * misconfigured EmailJS env shouldn't crash the route, but the caller
+ * DOES need to know if the email failed (unlike services/emailjs.js's
+ * other callers, the owner has no other way to get this code).
+ *
+ * @param {boolean} forceNew - When false (the OTP screen's automatic
+ *   on-mount send), an existing code that is still unexpired and under
+ *   the attempt ceiling is left untouched instead of being replaced —
+ *   this is what fixes the "code looked right but server said
+ *   incorrect/expired" bug: every page refresh, tab revisit, or dev
+ *   Fast Refresh remount used to fire another send, silently
+ *   overwriting whatever code was already sitting in the owner's inbox
+ *   before they could paste it back in. When true (the explicit
+ *   "Resend code" button), a brand-new code is always generated and
+ *   emailed, invalidating the previous one on purpose.
  */
-export async function generateAndSendVaultOtp() {
+export async function generateAndSendVaultOtp(forceNew = true) {
   const ownerEmail = process.env.VAULT_OWNER_EMAIL;
   if (!ownerEmail) {
     console.error("[vaultOtp] VAULT_OWNER_EMAIL is not set — cannot send OTP.");
     return { success: false, message: "Vault OTP is not configured. Contact the site owner." };
+  }
+
+  // Automatic (non-forced) send: if a code is already outstanding,
+  // still valid, and hasn't been hammered past the attempt ceiling,
+  // leave it alone. Re-sending here would just invalidate the one
+  // already in the owner's inbox for no benefit.
+  if (!forceNew) {
+    const existingRow = await prisma.vaultOtp.findUnique({ where: { id: OTP_ROW_ID } });
+    const isStillUsable =
+      existingRow && existingRow.attempts < OTP_MAX_ATTEMPTS && new Date() < existingRow.expiresAt;
+
+    if (isStillUsable) {
+      return {
+        success: true,
+        skipped: true,
+        message: `A code was already sent to ${maskEmail(ownerEmail)}. Check your inbox.`,
+        expiresAt: existingRow.expiresAt,
+      };
+    }
   }
 
   // randomInt is cryptographically secure — never Math.random() for
@@ -92,29 +122,29 @@ export async function generateAndSendVaultOtp() {
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   // Upsert the singleton row — a new send always replaces whatever
-  // code (used or not) came before it, and resets attempts to 0.
+  // code (used or not) came before it, and resets attempts to 0. Only
+  // one row ever exists (id: "vault"), so this upsert overwrites the
+  // old codeHash/expiresAt/attempts in place — the old code is gone
+  // from the table the instant a new one is generated.
   await prisma.vaultOtp.upsert({
     where: { id: OTP_ROW_ID },
     create: { id: OTP_ROW_ID, codeHash: hashOtpCode(plaintextCode), expiresAt, attempts: 0 },
     update: { codeHash: hashOtpCode(plaintextCode), expiresAt, attempts: 0 },
   });
 
-  const styledCode = `<span style="color:#3f7d52; font-size:1.8rem; font-weight:700; letter-spacing:0.12em; font-family:'Courier New', monospace;">${plaintextCode}</span>`;
-
+  // Plain text only — no inline HTML. The EmailJS dashboard template
+  // renders this field escaped ({{highlight_line_1}}, double braces),
+  // so anything with HTML tags in it (the old <span style="..."> wrapper)
+  // shows up as literal, broken-looking markup in the email instead of
+  // being styled. Sending plain text here always reads cleanly
+  // regardless of how the dashboard template treats the merge tag.
   const emailSent = await sendGeneralEmail({
     toEmail: ownerEmail,
     subject: "Your vault verification code",
     eyebrow: "VERIFICATION CODE",
     heading: "Your vault OTP code",
     intro: `Enter this code on the vault login screen to continue. It expires in ${OTP_EXPIRY_MINUTES} minute.`,
-    // Inline-styled so the code (not the surrounding label) reads big
-    // and green regardless of the dashboard template's default
-    // highlight-box color. IMPORTANT: the dashboard's "Contact template"
-    // must reference this field as {{{highlight_line_1}}} (triple
-    // braces), not {{highlight_line_1}} (double braces) — same one-time
-    // edit already documented for body_message below, otherwise the
-    // span tag renders as literal text instead of styling the code.
-    highlightLine1: styledCode,
+    highlightLine1: plaintextCode,
     highlightLine2: `Expires in ${OTP_EXPIRY_MINUTES} minute`,
     bodyMessage: "If you did not request this, someone else has your vault passphrase — change it immediately.",
   });
@@ -123,7 +153,7 @@ export async function generateAndSendVaultOtp() {
     return { success: false, message: "Failed to send the verification email. Please try again." };
   }
 
-  return { success: true, message: `Code sent to ${maskEmail(ownerEmail)}.` };
+  return { success: true, message: `Code sent to ${maskEmail(ownerEmail)}.`, expiresAt };
 }
 
 /**

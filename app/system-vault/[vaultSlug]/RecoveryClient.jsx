@@ -3,27 +3,37 @@
  * ROLE: Standalone — not gated by proxy.js or any super_admin session;
  *       reachable only after both vault factors (passphrase + emailed
  *       OTP) are satisfied, enforced by page.jsx's server-side redirect
- *       chain and re-checked by every /api/admin/breach call below.
+ *       chain and re-checked by every /api/admin/breach and
+ *       /api/admin/blocked-ips call below.
  *
  * PURPOSE:
  * The actual recovery workflow: shows which gatekeeper tripped and
  * when, reuses the existing useSqlImport hook (same one the normal
  * Backups page uses) so importing the pre-breach Google Drive/R2 SQL
- * backup works identically here, and exposes an "End Lockdown" action
- * once the super-admin has confirmed the restore looks right.
+ * backup works identically here, exposes an "End Lockdown" action once
+ * the super-admin has confirmed the restore looks right, and — new —
+ * lets the owner unban any IP currently in BlockedIp, each unban
+ * gated by its own fresh emailed step-up code (never just the vault
+ * session that got them into this dashboard).
  *
  * DATA FLOW:
  * 1. On mount, GET /api/admin/breach loads the active (unresolved)
  *    BreachEvent plus SystemSettings.breachLockdown
- * 2. Uploading a .sql/.sql.gz file goes through the same
+ * 2. On mount, GET /api/admin/blocked-ips loads the current BlockedIp
+ *    rows for the new "Step 3 — Unban an IP" list
+ * 3. Uploading a .sql/.sql.gz file goes through the same
  *    POST /api/admin/sql-import -> database-restore.yml pipeline the
  *    Backups page already uses — nothing new to build there
- * 3. "End Lockdown" PATCHes /api/admin/breach, which resolves the
+ * 4. "End Lockdown" PATCHes /api/admin/breach, which resolves the
  *    BreachEvent and flips breachLockdown + maintenanceMode off
- * 4. "Lock Vault" DELETEs /api/admin/vault-login, clearing the
+ * 5. Clicking "Unban" on a blocked IP opens UnbanIpModal, which
+ *    requests a fresh code (POST /api/admin/blocked-ips/request-
+ *    unban-code) and, on confirm, PATCHes /api/admin/blocked-ips/unban
+ *    with { ipAddress, code } — only then is the row actually deleted
+ * 6. "Lock Vault" DELETEs /api/admin/vault-login, clearing the
  *    "vaultSession" cookie and sending the admin back to this same
  *    slug's own login screen without touching their regular
- *    super-admin session. A 401 from step 1's GET (vault session
+ *    super-admin session. A 401 from any GET above (vault session
  *    expired mid-visit, e.g. the 30-minute window ran out while this
  *    tab was open) does the same redirect automatically.
  */
@@ -37,6 +47,7 @@ import StatusBadge from "@/components/superAdmin/StatusBadge";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import { useSqlImport } from "@/hooks/useSqlImport";
+import UnbanIpModal from "./UnbanIpModal";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -67,6 +78,12 @@ export default function RecoveryClient() {
 
   const { importLogs, isLoading: isImportHistoryLoading, uploadSqlFile } = useSqlImport();
 
+  // --- Step 3: Unban an IP ---
+  const [blockedIps, setBlockedIps] = useState([]);
+  const [isLoadingBlockedIps, setIsLoadingBlockedIps] = useState(true);
+  const [blockedIpsError, setBlockedIpsError] = useState(null);
+  const [selectedIpToUnban, setSelectedIpToUnban] = useState(null); // ipAddress string pending step-up
+
   /**
    * fetchBreachStatus
    * Loads the current lockdown state — called on mount and again after
@@ -96,9 +113,32 @@ export default function RecoveryClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, vaultSlug]);
 
+  /**
+   * fetchBlockedIps
+   * Loads the current Step 3 list. Runs on mount and again after any
+   * successful unban so the list reflects reality immediately.
+   */
+  const fetchBlockedIps = useCallback(async () => {
+    setIsLoadingBlockedIps(true);
+    setBlockedIpsError(null);
+    try {
+      const response = await axios.get("/api/admin/blocked-ips");
+      setBlockedIps(response.data.data.blockedIps);
+    } catch (error) {
+      if (error.response?.status === 401) {
+        router.push(`/system-vault/${vaultSlug}/login`);
+        return;
+      }
+      setBlockedIpsError("Failed to load blocked IPs. Please try again.");
+    } finally {
+      setIsLoadingBlockedIps(false);
+    }
+  }, [router, vaultSlug]);
+
   useEffect(() => {
     fetchBreachStatus();
-  }, [fetchBreachStatus]);
+    fetchBlockedIps();
+  }, [fetchBreachStatus, fetchBlockedIps]);
 
   /**
    * handleFileSelected
@@ -141,6 +181,28 @@ export default function RecoveryClient() {
       showToast(`✕ ${message}`, "error");
     } finally {
       setIsEndLockdownModalOpen(false);
+    }
+  }
+
+  /**
+   * handleConfirmUnban
+   * Called by UnbanIpModal once the owner submits the fresh step-up
+   * code. Only PATCHes /api/admin/blocked-ips/unban — the row is only
+   * ever deleted server-side, after that route's own verifyVaultOtp()
+   * check passes.
+   */
+  async function handleConfirmUnban(code) {
+    try {
+      const response = await axios.patch("/api/admin/blocked-ips/unban", {
+        ipAddress: selectedIpToUnban,
+        code,
+      });
+      showToast(`✓ ${response.data.message}`, "success");
+      setSelectedIpToUnban(null);
+      await fetchBlockedIps();
+    } catch (error) {
+      const message = error.response?.data?.message || "Failed to unban that IP. Please try again.";
+      showToast(`✕ ${message}`, "error");
     }
   }
 
@@ -265,6 +327,47 @@ export default function RecoveryClient() {
         </button>
       </div>
 
+      {/* --- Step 3: Unban an IP --- */}
+      <div className="recoveryStepCard">
+        <h2>Step 3 — Unban an IP</h2>
+        <p>
+          IPs currently blocked by Gatekeeper 1 or 2 (or added manually). Unbanning requires a fresh
+          verification code emailed to you — your vault session alone is not enough.
+        </p>
+
+        {isLoadingBlockedIps && <p className="recoveryMutedText">Loading blocked IPs…</p>}
+        {!isLoadingBlockedIps && blockedIpsError && (
+          <p className="recoveryMutedText">{blockedIpsError}</p>
+        )}
+        {!isLoadingBlockedIps && !blockedIpsError && blockedIps.length === 0 && (
+          <p className="recoveryMutedText">No IPs are currently blocked.</p>
+        )}
+
+        {!isLoadingBlockedIps && !blockedIpsError && blockedIps.length > 0 && (
+          <ul className="recoveryImportHistory">
+            {blockedIps.map((blocked) => (
+              <li key={blocked.id}>
+                <div className="recoveryBlockedIpInfo">
+                  <span className="adminMono">{blocked.ipAddress}</span>
+                  <span className="recoveryMutedText">
+                    {blocked.reason}
+                    {blocked.gatekeeper ? ` — Gatekeeper ${blocked.gatekeeper}` : ""} ·{" "}
+                    {DATE_FORMATTER.format(new Date(blocked.createdAt))}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="recoveryUnbanButton"
+                  onClick={() => setSelectedIpToUnban(blocked.ipAddress)}
+                >
+                  Unban
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* --- Recent incident history --- */}
       {recentBreaches.length > 0 && (
         <div className="recoveryStepCard">
@@ -303,6 +406,14 @@ export default function RecoveryClient() {
         onConfirm={handleEndLockdown}
         onCancel={() => setIsEndLockdownModalOpen(false)}
       />
+
+      {selectedIpToUnban && (
+        <UnbanIpModal
+          ipAddress={selectedIpToUnban}
+          onConfirm={handleConfirmUnban}
+          onCancel={() => setSelectedIpToUnban(null)}
+        />
+      )}
     </section>
   );
 }

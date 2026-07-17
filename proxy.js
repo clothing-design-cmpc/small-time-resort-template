@@ -70,6 +70,9 @@ const VAULT_STANDALONE_API_PATHS = [
   "/api/admin/vault-login",
   "/api/admin/vault-otp",
   "/api/admin/breach",
+  // Step 3 — Unban an IP (RecoveryClient.jsx): list + step-up code +
+  // execute, all authenticated via vaultSession only, same as breach.
+  "/api/admin/blocked-ips",
 ];
 
 function isVaultStandaloneApiPath(pathname) {

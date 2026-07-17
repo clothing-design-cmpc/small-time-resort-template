@@ -337,3 +337,47 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/*
+ * .recoveryBlockedIpInfo
+ * Left-hand side of each Step 3 row (IP + reason/meta) — reuses
+ * .recoveryImportHistory li as the row container, this just stacks
+ * the two lines of text inside it so the Unban button on the right
+ * has room to sit at min-height 44px without crowding the text.
+ */
+.recoveryBlockedIpInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * .recoveryUnbanButton
+ * Deliberately uses the accent color, not the error/red tone
+ * .recoveryEndLockdownButton uses — unbanning is a restorative action,
+ * not a destructive one, even though it's still gated by a step-up
+ * code (Rule 34.4 territory) since it does reopen access.
+ */
+.recoveryUnbanButton {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  margin-left: var(--space-md);
+  flex-shrink: 0;
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  background-color: var(--color-primary-light);
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.recoveryUnbanButton:hover,
+.recoveryUnbanButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-accent-hover, var(--color-accent));
+}

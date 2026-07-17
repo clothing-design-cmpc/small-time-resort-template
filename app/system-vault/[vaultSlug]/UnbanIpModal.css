@@ -1,0 +1,33 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/UnbanIpModal.css
+ * Small additions on top of ConfirmationModal.css's shared .adminModal*
+ * classes — just the code input and status text this modal adds.
+ */
+
+.unbanIpSendStatus {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.unbanIpError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+  margin-bottom: var(--space-sm);
+}
+
+.unbanIpCodeInput {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  touch-action: manipulation;
+}
+
+.unbanIpCodeInput:disabled {
+  opacity: 0.5;
+}

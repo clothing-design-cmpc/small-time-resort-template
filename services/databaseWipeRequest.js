@@ -119,3 +119,31 @@ export async function confirmWipeContinue() {
 
   return { success: true, data: updated };
 }
+
+/**
+ * truncateNow
+ * Bypasses the 24-hour grace period entirely — the super-admin's own
+ * explicit "Truncate Now" choice, gated behind its own typed
+ * confirmation (see app/api/superAdmin/wipe/truncate-now/route.js).
+ * Sets scheduledAt AND finalConfirmedAt to the current instant, which
+ * is the same "due and confirmed" shape the executor script already
+ * looks for — no separate code path in scripts/runDatabaseWipe.js is
+ * needed, this just makes the existing request immediately eligible.
+ * The route handler still has to remotely dispatch the executor
+ * workflow right after this, otherwise the wipe would only actually
+ * run whenever the next 15-minute scheduled check happens to land.
+ */
+export async function truncateNow() {
+  const existing = await getActiveWipeRequest();
+  if (!existing) {
+    return { success: false, message: "There's no scheduled wipe to truncate." };
+  }
+
+  const now = new Date();
+  const updated = await prisma.databaseWipeRequest.update({
+    where: { id: existing.id },
+    data: { scheduledAt: now, finalConfirmedAt: now },
+  });
+
+  return { success: true, data: updated };
+}

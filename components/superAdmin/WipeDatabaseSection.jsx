@@ -35,6 +35,7 @@ import "./WipeDatabaseSection.css";
 
 const POLL_INTERVAL_MS = 30 * 1000;
 const REQUIRED_CONFIRMATION_TEXT = "WIPE DATABASE";
+const REQUIRED_TRUNCATE_NOW_TEXT = "TRUNCATE NOW";
 
 /** Formats whole milliseconds remaining as "Hh Mm" for the countdown card. */
 function formatRemaining(ms) {
@@ -52,6 +53,9 @@ export default function WipeDatabaseSection() {
   const [confirmationText, setConfirmationText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isTruncateNowModalOpen, setIsTruncateNowModalOpen] = useState(false);
+  const [truncateNowConfirmationText, setTruncateNowConfirmationText] = useState("");
+  const [isTruncatingNow, setIsTruncatingNow] = useState(false);
   const pollIntervalRef = useRef(null);
 
   const checkStatus = useCallback(async () => {
@@ -141,7 +145,54 @@ export default function WipeDatabaseSection() {
     }
   }
 
+  function openTruncateNowModal() {
+    setTruncateNowConfirmationText("");
+    setIsTruncateNowModalOpen(true);
+  }
+
+  function closeTruncateNowModal() {
+    if (isTruncatingNow) return;
+    setIsTruncateNowModalOpen(false);
+  }
+
+  /**
+   * handleTruncateNow
+   * Bypasses the remaining grace period on the active request and
+   * runs the wipe immediately. Gated behind its own typed confirmation
+   * ("TRUNCATE NOW"), separate from the one used to schedule the wipe
+   * in the first place. The route may report the instant trigger
+   * failed even on a "success" response — that's still shown as an
+   * honest warning toast, not silently treated as a full success.
+   */
+  async function handleTruncateNow() {
+    setIsTruncatingNow(true);
+    try {
+      const response = await fetch("/api/superAdmin/wipe/truncate-now", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationText: truncateNowConfirmationText }),
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        showToast(result.message || "Failed to truncate now.", "error");
+        setIsTruncatingNow(false);
+        return;
+      }
+
+      const dispatchedInstantly = !result.message.startsWith("Couldn't trigger it instantly");
+      showToast((dispatchedInstantly ? "✓ " : "⚠ ") + result.message, dispatchedInstantly ? "success" : "warning");
+      setIsTruncateNowModalOpen(false);
+      setIsTruncatingNow(false);
+      checkStatus();
+    } catch {
+      showToast("We couldn't reach the server. Check your connection and try again.", "error");
+      setIsTruncatingNow(false);
+    }
+  }
+
   const isConfirmationValid = confirmationText === REQUIRED_CONFIRMATION_TEXT;
+  const isTruncateNowConfirmationValid = truncateNowConfirmationText === REQUIRED_TRUNCATE_NOW_TEXT;
 
   return (
     <section className="wipeDatabaseSection">
@@ -164,14 +215,24 @@ export default function WipeDatabaseSection() {
               Executes in <strong>{formatRemaining(activeRequest.millisecondsRemaining)}</strong>.
             </span>
           </div>
-          <button
-            type="button"
-            className="wipeDatabaseCancelButton"
-            onClick={handleCancelWipe}
-            disabled={isCancelling}
-          >
-            {isCancelling ? "Cancelling…" : "Cancel scheduled wipe"}
-          </button>
+          <div className="wipeDatabaseActiveCardActions">
+            <button
+              type="button"
+              className="wipeDatabaseTruncateNowButton"
+              onClick={openTruncateNowModal}
+              disabled={isCancelling}
+            >
+              Truncate Now
+            </button>
+            <button
+              type="button"
+              className="wipeDatabaseCancelButton"
+              onClick={handleCancelWipe}
+              disabled={isCancelling}
+            >
+              {isCancelling ? "Cancelling…" : "Cancel scheduled wipe"}
+            </button>
+          </div>
         </article>
       ) : (
         <button type="button" className="wipeDatabaseTriggerButton" onClick={openModal}>
@@ -244,6 +305,59 @@ export default function WipeDatabaseSection() {
                 disabled={!isConfirmationValid || isSubmitting}
               >
                 {isSubmitting ? "Scheduling…" : "Schedule wipe"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isTruncateNowModalOpen && (
+        <div
+          className="wipeDatabaseModalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="truncateNowModalTitle"
+        >
+          <div className="wipeDatabaseModalDialog">
+            <h2 id="truncateNowModalTitle" className="wipeDatabaseModalTitle">
+              Bypass the grace period and truncate now?
+            </h2>
+            <p className="wipeDatabaseModalDescription">
+              This skips the remaining wait entirely — {activeRequest?.backupOption === "with_backup"
+                ? "a backup will still be taken first, then"
+                : "no backup will be taken and"}{" "}
+              the database will be truncated within about a minute. This cannot be undone or cancelled once it
+              starts.
+            </p>
+
+            <label className="wipeDatabaseModalConfirmLabel" htmlFor="truncateNowConfirmationText">
+              Type <strong>{REQUIRED_TRUNCATE_NOW_TEXT}</strong> to enable the confirm button
+            </label>
+            <input
+              id="truncateNowConfirmationText"
+              type="text"
+              className="wipeDatabaseModalConfirmInput"
+              value={truncateNowConfirmationText}
+              onChange={(event) => setTruncateNowConfirmationText(event.target.value)}
+              autoComplete="off"
+              autoFocus
+            />
+
+            <div className="wipeDatabaseModalActions">
+              <button
+                type="button"
+                className="wipeDatabaseModalButtonNeutral"
+                onClick={closeTruncateNowModal}
+                disabled={isTruncatingNow}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="wipeDatabaseModalButtonDestructive"
+                onClick={handleTruncateNow}
+                disabled={!isTruncateNowConfirmationValid || isTruncatingNow}
+              >
+                {isTruncatingNow ? "Truncating…" : "Truncate now"}
               </button>
             </div>
           </div>

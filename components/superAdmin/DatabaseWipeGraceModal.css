@@ -1,0 +1,108 @@
+/*
+ * .wipeGraceModalBackdrop
+ * Full-viewport overlay for the non-dismissible final-warning modal.
+ * Uses --z-tooltip (the highest token in the scale) so this always
+ * sits above any other modal or toast that might already be open.
+ * Deliberately no click handler here — see the component file header.
+ */
+.wipeGraceModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  z-index: var(--z-tooltip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.wipeGraceModalDialog {
+  width: 100%;
+  max-width: 480px;
+  background-color: var(--color-surface-elevated);
+  border: 2px solid var(--color-error);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-2xl) var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-sm);
+}
+
+.wipeGraceModalIcon {
+  font-size: 2rem;
+  color: var(--color-error);
+  margin-bottom: var(--space-xs);
+}
+
+.wipeGraceModalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-error);
+}
+
+.wipeGraceModalDescription {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 42ch;
+}
+
+.wipeGraceModalCountdown {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  margin: var(--space-xs) 0;
+}
+
+.wipeGraceModalActions {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  width: 100%;
+  justify-content: center;
+}
+
+.wipeGraceModalButtonCancel,
+.wipeGraceModalButtonContinue {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  flex: 1 1 160px;
+}
+
+.wipeGraceModalButtonCancel {
+  background-color: var(--color-accent);
+  color: #ffffff;
+  border: none;
+}
+
+.wipeGraceModalButtonCancel:hover,
+.wipeGraceModalButtonCancel:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+.wipeGraceModalButtonContinue {
+  background-color: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.wipeGraceModalButtonContinue:hover,
+.wipeGraceModalButtonContinue:focus-visible {
+  background-color: rgba(214, 69, 69, 0.08);
+}
+
+.wipeGraceModalButtonCancel:disabled,
+.wipeGraceModalButtonContinue:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

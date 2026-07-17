@@ -43,6 +43,7 @@ import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon
 import SessionCloseGuard from "@/components/superAdmin/SessionCloseGuard";
 import IdleTimeoutGuard from "@/components/superAdmin/IdleTimeoutGuard";
 import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
+import DatabaseWipeGraceModal from "@/components/superAdmin/DatabaseWipeGraceModal";
 
 export const metadata = {
   title: "Super-Admin | Villa Azure Resort",
@@ -86,6 +87,11 @@ export default async function SuperAdminLayout({ children }) {
           IdleTimeoutGuard's file header for details. */}
       <IdleTimeoutGuard />
       <BreachAlertBanner />
+      {/* Non-dismissible final warning shown once a scheduled database
+          wipe has 2 hours or less remaining — see the component's own
+          file header for why it's mounted globally, same as the
+          breach banner above. */}
+      <DatabaseWipeGraceModal />
       <a href="#mainContent" className="superAdminSkipLink">
         Skip to main content
       </a>

@@ -29,6 +29,7 @@ import axios from "axios";
 import DataTable from "@/components/superAdmin/DataTable";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
+import WipeDatabaseSection from "@/components/superAdmin/WipeDatabaseSection";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import { useSqlImport } from "@/hooks/useSqlImport";
@@ -309,6 +310,8 @@ export default function BackupLogsClient() {
           if (fileInputRef.current) fileInputRef.current.value = "";
         }}
       />
+
+      <WipeDatabaseSection />
     </section>
   );
 }

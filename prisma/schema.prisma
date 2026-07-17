@@ -710,3 +710,41 @@ model VaultOtp {
 
   @@map("vault_otp")
 }
+
+// ============================================================
+// MODEL: DatabaseWipeRequest  (Backups page — "Danger Zone: Wipe Database")
+// ============================================================
+// One row per wipe request. Only ever one row with status "pending" at
+// a time (enforced in services/databaseWipeRequest.js's
+// initiateWipeRequest(), not a DB constraint). A 24-hour grace period
+// sits between request and execution specifically so a super-admin has
+// time to reconsider or cancel — the actual TRUNCATE (and the pre-wipe
+// backup, if chosen) only ever runs decoupled, on GitHub Actions
+// (scripts/runDatabaseWipe.js), same "never inside a live request"
+// guarantee BackupLog already relies on (Rule 40.1).
+model DatabaseWipeRequest {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status       String  @default("pending") // pending | cancelled | completed | failed
+  backupOption String  @map("backup_option") // "with_backup" | "without_backup" — the super-admin's own choice, never forced
+  requestedBy  String  @map("requested_by") // AdminProfile.id (uid) who initiated the wipe
+
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  scheduledAt DateTime  @map("scheduled_at") // requestedAt + 24 hours — earliest the wipe can execute
+
+  // Set only when the super-admin clicks "Continue" on the blocking
+  // grace-period modal (shown once time remaining <= 2 hours). The
+  // executor script never truncates anything until this is set —
+  // reaching scheduledAt with this still null leaves the request
+  // paused indefinitely, awaiting a super-admin to actually see and
+  // resolve the modal, rather than proceeding unattended.
+  finalConfirmedAt DateTime? @map("final_confirmed_at")
+
+  cancelledAt DateTime? @map("cancelled_at")
+  cancelledBy String?   @map("cancelled_by")
+
+  backupLogId  String?   @map("backup_log_id") @db.Uuid // set if backupOption was "with_backup" and the pre-wipe backup succeeded
+  errorMessage String?   @map("error_message") @db.Text
+  completedAt  DateTime? @map("completed_at")
+
+  @@map("database_wipe_requests")
+}

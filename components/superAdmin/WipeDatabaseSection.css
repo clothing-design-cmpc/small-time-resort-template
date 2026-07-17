@@ -1,0 +1,280 @@
+/*
+ * .wipeDatabaseSection
+ * Danger-zone card at the bottom of the Backups page. Bordered in the
+ * error color so it visually separates itself from the routine backup
+ * history above it.
+ */
+.wipeDatabaseSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-top: var(--space-2xl);
+  padding: var(--space-xl);
+  border: 1px solid var(--color-error);
+  border-radius: 12px;
+  background-color: rgba(214, 69, 69, 0.05);
+}
+
+.wipeDatabaseSectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.wipeDatabaseSectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-error);
+}
+
+.wipeDatabaseSectionSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 70ch;
+}
+
+.wipeDatabaseTriggerButton {
+  align-self: flex-start;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  border: none;
+  background-color: var(--color-error);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  transition: background-color var(--transition-fast);
+}
+
+.wipeDatabaseTriggerButton:hover,
+.wipeDatabaseTriggerButton:focus-visible {
+  background-color: #b83636;
+}
+
+/*
+ * .wipeDatabaseActiveCard
+ * Countdown card shown in place of the trigger button while a wipe is
+ * scheduled. Gap + padding keep it from touching the danger-zone
+ * section's own edge (Rule 23.10).
+ */
+.wipeDatabaseActiveCard {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  background-color: var(--color-surface-elevated);
+}
+
+.wipeDatabaseActiveCardText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.wipeDatabaseActiveCardText strong {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.wipeDatabaseCancelButton {
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.wipeDatabaseCancelButton:hover,
+.wipeDatabaseCancelButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.wipeDatabaseCancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------
+ * Initiate modal
+ * ------------------------------------------------------------ */
+.wipeDatabaseModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.wipeDatabaseModalDialog {
+  width: 100%;
+  max-width: 520px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.wipeDatabaseModalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.wipeDatabaseModalDescription {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.wipeDatabaseModalOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.wipeDatabaseModalOptions legend {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-xs);
+}
+
+.wipeDatabaseModalOption {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.wipeDatabaseModalOption:hover,
+.wipeDatabaseModalOption:focus-within {
+  background-color: var(--color-surface-hover);
+}
+
+.wipeDatabaseModalOption--danger {
+  border-color: rgba(214, 69, 69, 0.35);
+}
+
+.wipeDatabaseModalOption input[type="radio"] {
+  margin-top: 0.2rem;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+.wipeDatabaseModalOption span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.wipeDatabaseModalOption strong {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.wipeDatabaseModalOption small {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.wipeDatabaseModalConfirmLabel {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.wipeDatabaseModalConfirmInput {
+  width: 100%;
+  padding: 0.75rem var(--space-md);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.wipeDatabaseModalConfirmInput:focus-visible {
+  outline: none;
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.2);
+}
+
+.wipeDatabaseModalActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.wipeDatabaseModalButtonNeutral,
+.wipeDatabaseModalButtonDestructive {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+}
+
+.wipeDatabaseModalButtonNeutral {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+}
+
+.wipeDatabaseModalButtonNeutral:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.wipeDatabaseModalButtonDestructive {
+  background-color: var(--color-error);
+  color: #ffffff;
+  border: none;
+}
+
+.wipeDatabaseModalButtonDestructive:hover {
+  background-color: #b83636;
+}
+
+.wipeDatabaseModalButtonNeutral:disabled,
+.wipeDatabaseModalButtonDestructive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

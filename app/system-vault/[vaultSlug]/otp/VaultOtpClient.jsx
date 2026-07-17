@@ -36,10 +36,18 @@ import { OTP_EXPIRY_MINUTES, OTP_CODE_LENGTH, OTP_CODE_PATTERN } from "@/service
 const OTP_COUNTDOWN_SECONDS = OTP_EXPIRY_MINUTES * 60;
 
 const vaultOtpSchema = z.object({
-  code: z
-    .string()
-    .min(1, "Enter the code from your email.")
-    .regex(OTP_CODE_PATTERN, `Enter the ${OTP_CODE_LENGTH}-character code exactly as shown in your email.`),
+  // Pasting the code from an email almost always drags in a leading/
+  // trailing space or newline (the code sits alone on its own line in
+  // the template) — trim BEFORE the exact-shape regex runs, or a
+  // correctly-typed code fails validation for a reason the owner can't
+  // see or reproduce by re-typing it.
+  code: z.preprocess(
+    (val) => (typeof val === "string" ? val.trim() : val),
+    z
+      .string()
+      .min(1, "Enter the code from your email.")
+      .regex(OTP_CODE_PATTERN, `Enter the ${OTP_CODE_LENGTH}-character code exactly as shown in your email.`)
+  ),
 });
 
 /**

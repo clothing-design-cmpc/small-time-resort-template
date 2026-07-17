@@ -184,7 +184,10 @@ export async function verifyVaultOtp(submittedCode) {
     return { verified: false, reason: "Code expired." };
   }
 
-  const submittedHash = Buffer.from(hashOtpCode(submittedCode ?? ""), "hex");
+  // Trim defensively even though the client now does this too — this
+  // function is the actual security boundary, so it can't depend on
+  // the client having sent a clean value.
+  const submittedHash = Buffer.from(hashOtpCode((submittedCode ?? "").trim()), "hex");
   const storedHash = Buffer.from(otpRow.codeHash, "hex");
 
   const isMatch =

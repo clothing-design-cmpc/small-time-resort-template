@@ -107,32 +107,18 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     eyebrow: "VAULT PASSPHRASE ROTATED",
     heading: "New vault passphrase generated",
     intro: `Reason: ${reason}`,
-    // Explicitly labeled so the highlight box can never read as just a
-    // stray line of text — "NEW PASSPHRASE" makes it unmistakable this
-    // value is freshly generated and supersedes whatever came before it.
-    // Only the passphrase itself (not the "NEW PASSPHRASE:" label) is
-    // styled big + green. IMPORTANT: the dashboard's "Contact template"
-    // must reference this field as {{{highlight_line_1}}} (triple
-    // braces), not {{highlight_line_1}} (double braces) — same one-time
-    // edit already required for body_message below — otherwise the
-    // span tag renders as literal text instead of styling the passphrase.
-    highlightLine1: `NEW PASSPHRASE: <span style="color:#3f7d52; font-size:1.4rem; font-weight:700; letter-spacing:0.04em;">${newPassphrase}</span>`,
+    // Plain text only — no inline HTML. The EmailJS dashboard template
+    // renders these fields escaped, so any HTML tags (the old <span>,
+    // <br>, and <a> markup) show up as literal, broken-looking text in
+    // the email instead of rendering. Plain text always reads cleanly
+    // regardless of how the dashboard template treats the merge tag.
+    highlightLine1: `NEW PASSPHRASE: ${newPassphrase}`,
     highlightLine2: `Rotated ${rotatedAtReadable}`,
-    // body_message fills a raw-HTML slot in the EmailJS template (see
-    // services/emailjs.js's TEMPLATE CONTRACT), so the recovery URL
-    // renders as an actual clickable link here — not literal markdown
-    // syntax, which only the plain-text .txt copy (Google Drive) uses.
-    // IMPORTANT: the dashboard's "Contact template" must reference this
-    // field as {{{body_message}}} (triple braces), not {{body_message}}
-    // (double braces) — EmailJS escapes HTML by default on a double-brace
-    // merge tag, which is exactly why <br> and <a> were showing up as
-    // literal text instead of rendering. This is a one-time dashboard
-    // edit, not something this file's code can fix on its own.
     bodyMessage:
-      `This is a brand-new passphrase, generated just now — it replaces every passphrase that came before it, and the old one no longer works.<br><br>` +
-      `Save it somewhere safe immediately: it will not be shown on-screen or emailed again after this message.<br><br>` +
-      `This passphrase gates the disaster-recovery page at <a href="${vaultRecoveryUrl}" style="color:#3f7d52; font-size:1.1rem; font-weight:700; text-decoration:underline;">${vaultRecoveryUrl.replace(/^https?:\/\//, "")}</a>.<br>` +
-      `Generating another one from the dashboard will immediately replace this one too.<br>` +
+      `This is a brand-new passphrase, generated just now — it replaces every passphrase that came before it, and the old one no longer works.\n\n` +
+      `Save it somewhere safe immediately: it will not be shown on-screen or emailed again after this message.\n\n` +
+      `This passphrase gates the disaster-recovery page at ${vaultRecoveryUrl}.\n` +
+      `Generating another one from the dashboard will immediately replace this one too.\n` +
       `Keep this email private — do not forward or share it outside the resort owner.`,
   });
 }

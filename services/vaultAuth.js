@@ -185,10 +185,11 @@ export function hashVaultPassphrase(plaintextPassphrase) {
 /**
  * generateVaultPassphrase
  * Produces a fresh, human-typable passphrase: 5 random words from
- * PASSPHRASE_WORD_LIST joined with hyphens, plus a random 2-digit
- * number — e.g. "harbor-quartz-ember-tundra-opal-47". Uses
- * crypto.randomInt (cryptographically secure) for every pick, never
- * Math.random, since this passphrase gates disaster recovery.
+ * PASSPHRASE_WORD_LIST joined with hyphens, plus a random 7-digit
+ * number — e.g. "harbor-quartz-ember-tundra-opal-maple-ridge-comet-
+ * jasper-onyx-willow-sable-4827193". Uses crypto.randomInt
+ * (cryptographically secure) for every pick, never Math.random, since
+ * this passphrase gates disaster recovery.
  *
  * Used two ways:
  *  1. Manually, by an admin who wants a strong starting passphrase
@@ -199,10 +200,10 @@ export function hashVaultPassphrase(plaintextPassphrase) {
  */
 export function generateVaultPassphrase() {
   const words = Array.from(
-    { length: 5 },
+    { length: 12 },
     () => PASSPHRASE_WORD_LIST[randomInt(0, PASSPHRASE_WORD_LIST.length)]
   );
-  const trailingNumber = randomInt(10, 100); // 2-digit number, 10-99
+  const trailingNumber = randomInt(1000000, 10000000); // 7-digit number, 1000000-9999999
   return `${words.join("-")}-${trailingNumber}`;
 }
 

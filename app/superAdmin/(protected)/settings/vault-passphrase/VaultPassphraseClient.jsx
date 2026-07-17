@@ -15,8 +15,10 @@
  * 2. "Generate New Passphrase" -> confirmation modal (this invalidates
  *    whatever passphrase used to work, same as an auto-rotation would)
  * 3. On confirm: POST the same endpoint -> server generates + hashes +
- *    saves it, returns the PLAINTEXT once -> shown in a copyable box
- *    with a "copied!" toast, and a clear warning it won't be shown again
+ *    saves it, returns the PLAINTEXT once -> never rendered on screen;
+ *    only a "generated" confirmation is shown, with a "Copy to
+ *    clipboard" button (copies from state, not from visible text) and
+ *    the email/Drive delivery status
  */
 "use client";
 
@@ -159,26 +161,24 @@ export default function VaultPassphraseClient() {
         {revealedPassphrase && (
           <div className="vaultPassphraseRevealBox">
             <span className="vaultPassphraseRevealLabel">
-              Your new passphrase — copy it now, it will not be shown again:
+              ✓ A new passphrase has been generated.
             </span>
-            <div className="vaultPassphraseRevealValueRow">
-              <code className="vaultPassphraseRevealValue">{revealedPassphrase}</code>
-              <button type="button" className="vaultPassphraseCopyButton" onClick={handleCopy}>
-                Copy
-              </button>
-            </div>
             <p className="vaultPassphraseRevealHint">
-              Save this somewhere safe — a password manager, or written
-              down somewhere only you can access. It cannot be recovered
-              later; only replaced with a new one.
+              It has been delivered through the channels below — it is
+              never shown on this page and cannot be viewed again after
+              this message. Use "Copy to clipboard" now if you'd like to
+              paste it into a password manager without seeing it on screen.
             </p>
+            <button type="button" className="vaultPassphraseCopyButton" onClick={handleCopy}>
+              Copy to clipboard
+            </button>
 
             {deliveryStatus && (
               <ul className="vaultPassphraseDeliveryList">
                 <li className={deliveryStatus.emailSent ? "vaultPassphraseDelivery--ok" : "vaultPassphraseDelivery--fail"}>
                   {deliveryStatus.emailSent
                     ? "✓ Emailed to the vault owner's inbox."
-                    : "✕ Email failed to send — copy the passphrase above manually."}
+                    : "✕ Email failed to send — use \"Copy to clipboard\" above instead."}
                 </li>
                 <li className={deliveryStatus.driveSaved ? "vaultPassphraseDelivery--ok" : "vaultPassphraseDelivery--fail"}>
                   {deliveryStatus.driveSaved ? (
@@ -191,7 +191,7 @@ export default function VaultPassphraseClient() {
                       )}
                     </>
                   ) : (
-                    "✕ Drive save failed — copy the passphrase above manually."
+                    "✕ Drive save failed — use \"Copy to clipboard\" above instead."
                   )}
                 </li>
               </ul>

@@ -1,0 +1,55 @@
+// ============================================================
+// VAULT SYSTEM — APPEND THESE MODELS TO YOUR EXISTING prisma/schema.prisma
+// I don't have your current schema.prisma in this session, so I can't
+// safely output a merged full file without risking overwriting existing
+// models. Paste your schema here if you want me to deliver a true merged
+// full file next time — for now, append the three models below.
+// ============================================================
+
+/// Stores the single owner vault credential set: passphrase hash + TOTP
+/// secret. There should only ever be one row. Created once via
+/// scripts/setupVault.js — never via a deployed API route.
+model OwnerVault {
+  id             String    @id @default(cuid())
+  passphraseHash String // bcrypt hash of the vault passphrase
+  totpSecret     String // base32 TOTP secret, used for both login and step-up checks
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+/// Tracks CURRENT ban state for super-admin login attempts — separate
+/// from SecurityLog (Rule 38), which is the event trail. One row per
+/// device fingerprint, reused across escalating failed attempts.
+model BannedDevice {
+  id                String    @id @default(cuid())
+  deviceFingerprint String?
+  ipAddress         String?
+  banReason         String?
+  failedAttempts    Int       @default(0)
+  banExpiresAt      DateTime? // null = permanent ban (20+ attempts)
+  deviceType        String?
+  browserName       String?
+  osName            String?
+  geoCity           String?
+  geoCountry        String?
+  isActive          Boolean   @default(false)
+  bannedAt          DateTime  @default(now())
+  unbannedAt        DateTime?
+  unbannedBy        String?
+
+  @@index([deviceFingerprint])
+  @@index([ipAddress])
+  @@index([isActive])
+}
+
+/// Short-lived session issued after passphrase + TOTP both pass at vault
+/// login. Grants dashboard VIEW access only — the unban action requires
+/// a separate, fresh TOTP check (see /api/vault/unban).
+model VaultSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([sessionToken])
+}

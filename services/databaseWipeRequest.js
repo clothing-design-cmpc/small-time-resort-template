@@ -11,7 +11,12 @@
  *
  * DATA FLOW:
  * 1. app/api/superAdmin/wipe/route.js POST   -> initiateWipeRequest()
- * 2. app/api/superAdmin/wipe/route.js GET    -> getActiveWipeRequest()
+ * 2. app/api/superAdmin/wipe/route.js GET    -> getActiveWipeRequest(),
+ *    and markAutoDispatched() once that request goes due+confirmed —
+ *    see that route for why the app proactively fires the executor
+ *    workflow itself instead of only ever relying on GitHub's own
+ *    15-minute cron (a non-technical owner should never need anyone to
+ *    manually press "Run workflow" in GitHub for this to happen)
  * 3. app/api/superAdmin/wipe/route.js DELETE -> cancelWipeRequest()
  * 4. app/api/superAdmin/wipe/confirm/route.js PATCH -> confirmWipeContinue()
  * 5. scripts/runDatabaseWipe.js reads DatabaseWipeRequest rows directly
@@ -118,6 +123,21 @@ export async function confirmWipeContinue() {
   });
 
   return { success: true, data: updated };
+}
+
+/**
+ * markAutoDispatched
+ * Records that the app itself already fired a workflow_dispatch for
+ * this request (see GET /api/superAdmin/wipe) — stops the 30-second
+ * status poll from dispatching the same executor run over and over
+ * while the request sits due+confirmed waiting for GitHub's runner
+ * queue. Never resets — a request only ever needs this once.
+ */
+export async function markAutoDispatched(requestId) {
+  await prisma.databaseWipeRequest.update({
+    where: { id: requestId },
+    data: { autoDispatchedAt: new Date() },
+  });
 }
 
 /**

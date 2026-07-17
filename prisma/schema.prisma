@@ -746,5 +746,14 @@ model DatabaseWipeRequest {
   errorMessage String?   @map("error_message") @db.Text
   completedAt  DateTime? @map("completed_at")
 
+  // Set the moment the app itself proactively dispatches the executor
+  // workflow (see GET /api/superAdmin/wipe) — belt-and-suspenders
+  // alongside GitHub's own 15-minute `schedule:` cron, since a
+  // non-technical owner should never depend on that cron's timing (or
+  // on someone manually pressing "Run workflow" in GitHub). Prevents
+  // dispatching more than once as the status endpoint keeps getting
+  // polled every 30 seconds while the request sits due+confirmed.
+  autoDispatchedAt DateTime? @map("auto_dispatched_at")
+
   @@map("database_wipe_requests")
 }

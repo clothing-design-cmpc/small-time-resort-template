@@ -27,8 +27,10 @@ import {
   initiateWipeRequest,
   cancelWipeRequest,
   getActiveWipeRequest,
+  markAutoDispatched,
   WIPE_FINAL_WARNING_HOURS,
 } from "@/services/databaseWipeRequest";
+import { triggerWorkflowDispatch } from "@/services/github";
 import { logSecurityEvent } from "@/services/securityLog";
 
 const initiateSchema = z.object({
@@ -99,8 +101,44 @@ export async function GET(request) {
     return NextResponse.json({ success: true, data: null, message: "No wipe scheduled." });
   }
 
-  const millisecondsRemaining = Math.max(0, new Date(activeRequest.scheduledAt).getTime() - Date.now());
+  const now = new Date();
+  const millisecondsRemaining = Math.max(0, new Date(activeRequest.scheduledAt).getTime() - now.getTime());
   const hoursRemaining = millisecondsRemaining / (60 * 60 * 1000);
+
+  // Proactive dispatch — the owner is not a programmer and should
+  // never need to open GitHub Actions or wait on its own 15-minute
+  // `schedule:` cron (which requires the workflow file to be on the
+  // repo's default branch, and can take a while to start firing after
+  // being added). Every authenticated admin page polls this endpoint
+  // every 30 seconds, so the instant a request is both due
+  // (scheduledAt has passed) and confirmed (the owner already clicked
+  // "Continue" on the 2-hour grace modal), fire the executor directly
+  // via the same workflow_dispatch API call "Truncate Now" uses.
+  // markAutoDispatched() stops this from firing again on every
+  // subsequent poll. Best-effort: if this fails (e.g. GitHub API
+  // hiccup), GitHub's own cron is still the fallback safety net — a
+  // failed dispatch attempt here must never break the status response
+  // the whole Backups page and grace modal depend on.
+  const isDueAndConfirmed =
+    activeRequest.status === "pending" &&
+    activeRequest.finalConfirmedAt !== null &&
+    now >= new Date(activeRequest.scheduledAt);
+
+  if (isDueAndConfirmed && !activeRequest.autoDispatchedAt) {
+    try {
+      await triggerWorkflowDispatch("database-wipe-executor.yml", {});
+      await markAutoDispatched(activeRequest.id);
+      activeRequest.autoDispatchedAt = now;
+      await logSecurityEvent({
+        eventType: "admin_action",
+        actor: "system",
+        request,
+        details: "Automatically dispatched the database wipe executor — the scheduled wipe is now due and confirmed.",
+      });
+    } catch (error) {
+      console.error("[api/superAdmin/wipe] Proactive auto-dispatch failed:", error.message);
+    }
+  }
 
   return NextResponse.json({
     success: true,

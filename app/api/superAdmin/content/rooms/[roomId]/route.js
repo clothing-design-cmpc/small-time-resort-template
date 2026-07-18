@@ -6,7 +6,10 @@
  * GET    -> fetch a single room for the edit form.
  * PUT    -> update a room. Re-checks slug uniqueness (excluding itself)
  *           and deletes the old R2 image if it was replaced.
- * DELETE -> deletes the room and its R2 image.
+ * DELETE -> deletes the room and its R2 image. Also removes this room's
+ *           id from SystemSettings.featuredRoomIds if it was selected as
+ *           a homepage featured room (same denormalized-array pattern as
+ *           Room.amenityIds — see deep search Section 4).
  */
 export const dynamic = "force-dynamic";
 
@@ -136,7 +139,30 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ success: false, data: null, message: "Room not found." }, { status: 404 });
     }
 
-    await prisma.room.delete({ where: { id: roomId } });
+    // SystemSettings.featuredRoomIds is a denormalized array of Room.id
+    // values (homepage "Featured Rooms" selection) with no FK relation —
+    // same pattern as Room.amenityIds (Section 4 of the deep search), so
+    // it needs the same manual cleanup. Wrapped in a transaction with the
+    // delete itself so a failure partway through can't leave the homepage
+    // pointing at a deleted room.
+    const wasFeatured = await prisma.$transaction(async (tx) => {
+      const settings = await tx.systemSettings.findUnique({
+        where: { id: "singleton" },
+        select: { featuredRoomIds: true },
+      });
+
+      const isFeatured = settings?.featuredRoomIds?.includes(roomId) ?? false;
+      if (isFeatured) {
+        await tx.systemSettings.update({
+          where: { id: "singleton" },
+          data: { featuredRoomIds: settings.featuredRoomIds.filter((id) => id !== roomId) },
+        });
+      }
+
+      await tx.room.delete({ where: { id: roomId } });
+
+      return isFeatured;
+    });
 
     if (room.imageKey) {
       await deleteFromR2(room.imageKey);
@@ -148,7 +174,7 @@ export async function DELETE(request, { params }) {
       eventType: "admin_action",
       actor: session.uid,
       request,
-      details: `Deleted room "${room.name}".`,
+      details: `Deleted room "${room.name}"${wasFeatured ? " (also removed from homepage featured rooms)" : ""}.`,
     });
 
     return NextResponse.json({ success: true, data: null, message: "Room deleted successfully." });

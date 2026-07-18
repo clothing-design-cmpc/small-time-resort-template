@@ -21,20 +21,28 @@ import { NextResponse } from "next/server";
 const isProduction = process.env.NODE_ENV === "production";
 
 export async function POST() {
-  const response = NextResponse.json({
-    success: true,
-    data: null,
-    message: "Signed out successfully.",
-  });
+  try {
+    const response = NextResponse.json({
+      success: true,
+      data: null,
+      message: "Signed out successfully.",
+    });
 
-  // Deleting by setting maxAge 0 clears the cookie in the browser.
-  response.cookies.set("session", "", {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: "strict",
-    path: "/",
-    maxAge: 0,
-  });
+    // Deleting by setting maxAge 0 clears the cookie in the browser.
+    response.cookies.set("session", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 0,
+    });
 
-  return response;
+    return response;
+  } catch (error) {
+    console.error("[auth/logout] Unexpected error:", error.message);
+    return NextResponse.json(
+      { success: false, data: null, message: "Sign out failed. Please try again." },
+      { status: 500 }
+    );
+  }
 }

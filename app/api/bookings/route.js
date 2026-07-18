@@ -15,6 +15,17 @@
  * 3. Zod validates the request shape; validateAndQuoteBooking()
  *    re-runs every rule check + computes the authoritative price
  * 4. On success, inserts the Booking row and returns it plus the quote
+ *
+ * RACE-CONDITION FIX (deep search Section 2):
+ * Step 3's overlap re-check and step 4's insert now run inside ONE
+ * Serializable Postgres transaction (see createBookingInTransaction
+ * below), so a concurrent request for the same room/dates can't slip
+ * between the read and the write. On top of that, prisma/
+ * addBookingExclusionConstraint.js adds a database-level EXCLUDE
+ * constraint that physically rejects an overlapping confirmed booking
+ * even if the app-level check above were ever bypassed — that DB
+ * constraint is the real guarantee; this transaction is defense in
+ * depth on top of it, not a replacement for it.
  */
 export const dynamic = "force-dynamic";
 
@@ -27,6 +38,7 @@ import { logSecurityEvent } from "@/services/securityLog";
 import { logVisitorActivity } from "@/services/visitorLog";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
+import { isExclusionViolation, isSerializationFailure } from "@/services/pgErrorCodes";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -42,6 +54,56 @@ const bookingRequestSchema = z.object({
   guestPhone: z.string().trim().min(7, "Enter a valid phone number.").max(30),
   notes: z.string().trim().max(500).optional().default(""),
 });
+
+const MAX_SERIALIZATION_RETRIES = 1;
+
+/**
+ * createBookingInTransaction
+ * Runs the authoritative rule/overlap re-check (validateAndQuoteBooking)
+ * and the booking insert inside ONE Serializable Postgres transaction, so
+ * a concurrent request for the same room and dates can never read "no
+ * overlap" and then write in between this request's own read and write.
+ * Retries exactly once on a serialization failure (SQLSTATE 40001) —
+ * Postgres aborting one of two genuinely conflicting transactions is
+ * expected, correct behavior under Serializable isolation, not a bug.
+ */
+async function createBookingInTransaction(payload, attempt = 0) {
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        // client: tx makes every read inside validateAndQuoteBooking part
+        // of this same transaction — required for Serializable isolation
+        // to actually protect this overlap check (see services/bookingPricing.js).
+        const quote = await validateAndQuoteBooking({ ...payload, client: tx });
+
+        const booking = await tx.booking.create({
+          data: {
+            roomId: payload.roomId || null,
+            guestName: payload.guestName,
+            guestEmail: payload.guestEmail,
+            guestPhone: payload.guestPhone,
+            numberOfGuests: payload.numberOfGuests,
+            bookingType: payload.bookingType,
+            checkInDate: new Date(`${quote.checkInDate}T00:00:00`),
+            checkOutDate: new Date(`${quote.checkOutDate}T00:00:00`),
+            totalAmount: quote.total,
+            depositAmount: quote.depositAmount,
+            notes: payload.notes || null,
+            status: "confirmed",
+          },
+        });
+
+        return { booking, quote };
+      },
+      { isolationLevel: "Serializable" }
+    );
+  } catch (error) {
+    if (isSerializationFailure(error) && attempt < MAX_SERIALIZATION_RETRIES) {
+      return createBookingInTransaction(payload, attempt + 1);
+    }
+    throw error;
+  }
+}
 
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -98,36 +160,47 @@ export async function POST(request) {
     );
   }
 
-  let quote;
+  let bookingResult;
   try {
-    // Re-validates every BookingRules check and computes the authoritative
-    // price — the same function the /quote preview endpoint uses.
-    quote = await validateAndQuoteBooking(payload);
-  } catch (ruleError) {
+    bookingResult = await createBookingInTransaction(payload);
+  } catch (error) {
+    // Either guard rejected this booking because another guest just took
+    // the same room/dates — the DB-level EXCLUDE constraint (23P01) or
+    // the Serializable transaction's own conflict detection (40001, after
+    // its one retry already failed). Same friendly message either way.
+    if (isExclusionViolation(error) || isSerializationFailure(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Sorry, this room was just booked for those dates. Please choose different dates.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // A genuine, unexpected database/Prisma error — never expose the raw
+    // message to the guest (Rule 18.2).
+    if (typeof error?.name === "string" && error.name.startsWith("PrismaClient")) {
+      console.error("[api/bookings] Failed to create booking:", error.message);
+      return NextResponse.json(
+        { success: false, data: null, message: "We couldn't complete your booking. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    // Otherwise this is one of validateAndQuoteBooking's plain rule-violation
+    // Errors (invalid dates, room inactive, blackout hit, etc.) — same 400
+    // behavior as before this fix.
     return NextResponse.json(
-      { success: false, data: null, message: ruleError.message },
+      { success: false, data: null, message: error.message },
       { status: 400 }
     );
   }
 
-  try {
-    const booking = await prisma.booking.create({
-      data: {
-        roomId: payload.roomId || null,
-        guestName: payload.guestName,
-        guestEmail: payload.guestEmail,
-        guestPhone: payload.guestPhone,
-        numberOfGuests: payload.numberOfGuests,
-        bookingType: payload.bookingType,
-        checkInDate: new Date(`${quote.checkInDate}T00:00:00`),
-        checkOutDate: new Date(`${quote.checkOutDate}T00:00:00`),
-        totalAmount: quote.total,
-        depositAmount: quote.depositAmount,
-        notes: payload.notes || null,
-        status: "confirmed",
-      },
-    });
+  const { booking, quote } = bookingResult;
 
+  try {
     // Records this as a notable visitor "transaction" — unlike routine
     // page views, this one runs the IP geolocation lookup since knowing
     // roughly where a real booking came from is useful for an admin.
@@ -138,17 +211,14 @@ export async function POST(request) {
       details: `${payload.guestName} booked ${quote.checkInDate} to ${quote.checkOutDate}`,
       withLocation: true,
     });
-
-    return NextResponse.json({
-      success: true,
-      data: { booking, quote },
-      message: "Booking confirmed! We'll see you soon.",
-    });
   } catch (error) {
-    console.error("[api/bookings] Failed to create booking:", error.message);
-    return NextResponse.json(
-      { success: false, data: null, message: "We couldn't complete your booking. Please try again." },
-      { status: 500 }
-    );
+    // Logging must never break a successful booking — just note it and move on.
+    console.error("[api/bookings] Failed to log visitor activity:", error.message);
   }
+
+  return NextResponse.json({
+    success: true,
+    data: { booking, quote },
+    message: "Booking confirmed! We'll see you soon.",
+  });
 }

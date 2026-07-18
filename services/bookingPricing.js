@@ -69,6 +69,14 @@ function findSeasonalRate(date, seasonalPrices) {
  * @param {string|null} input.excludeBookingId — ignore this booking's own
  *   dates when checking overlap (not used yet, reserved for a future
  *   "edit my booking" flow)
+ * @param {object} [input.client] — Prisma client to use for every DB read
+ *   in this function (room lookup, overlap check, blackout check, seasonal
+ *   pricing). Defaults to the shared `prisma` singleton for the quote
+ *   preview route. app/api/bookings/route.js passes its transaction's
+ *   `tx` client here instead, so the overlap re-check and the eventual
+ *   booking.create() happen inside the SAME Serializable transaction —
+ *   required for the race-condition fix (deep search Section 2) to work;
+ *   passing the global `prisma` there would defeat the whole point.
  */
 export async function validateAndQuoteBooking({
   roomId,
@@ -76,6 +84,7 @@ export async function validateAndQuoteBooking({
   checkInDate,
   checkOutDate,
   numberOfGuests,
+  client = prisma,
 }) {
   const rules = await getActiveBookingRule();
 
@@ -112,7 +121,7 @@ export async function validateAndQuoteBooking({
   // --- Room lookup (overnight requires one; tours may optionally reference one for capacity context) ---
   let room = null;
   if (roomId) {
-    room = await prisma.room.findUnique({ where: { id: roomId } });
+    room = await client.room.findUnique({ where: { id: roomId } });
     if (!room || !room.isActive) {
       throw new Error("The selected room is no longer available.");
     }
@@ -148,8 +157,13 @@ export async function validateAndQuoteBooking({
   }
 
   // --- Overlap checks against existing confirmed bookings + blackout dates (overnight only) ---
+  // Uses `client` (not the global `prisma`) so this read happens inside the
+  // same transaction as the eventual booking.create() in
+  // app/api/bookings/route.js — the Serializable isolation level then makes
+  // Postgres itself detect if a concurrent request already booked these
+  // dates between this read and that write.
   if (bookingType === "overnight" && roomId) {
-    const existingBookings = await prisma.booking.findMany({
+    const existingBookings = await client.booking.findMany({
       where: { roomId, status: "confirmed" },
       select: { checkInDate: true, checkOutDate: true },
     });
@@ -161,7 +175,7 @@ export async function validateAndQuoteBooking({
       throw new Error("Those dates were just booked for this room. Please pick a different date.");
     }
 
-    const blackoutRanges = await prisma.blackoutDate.findMany({
+    const blackoutRanges = await client.blackoutDate.findMany({
       where: { roomId },
       select: { startDate: true, endDate: true, reason: true },
     });
@@ -178,7 +192,7 @@ export async function validateAndQuoteBooking({
 
   if (bookingType === "overnight") {
     const seasonalPrices = rules.seasonalPricingEnabled && room
-      ? await prisma.seasonalPrice.findMany({ where: { roomId: room.id } })
+      ? await client.seasonalPrice.findMany({ where: { roomId: room.id } })
       : [];
 
     for (let i = 0; i < nights; i++) {

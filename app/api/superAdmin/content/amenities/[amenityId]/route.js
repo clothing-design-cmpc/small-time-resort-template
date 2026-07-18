@@ -7,6 +7,9 @@
  *           itself) before saving.
  * DELETE -> deletes the amenity outright. Amenities have no R2 image
  *           to clean up (icon is a Lucide name, not an uploaded file).
+ *           Also removes this amenity's id from every Room.amenityIds
+ *           array that references it (denormalized array, no FK to
+ *           cascade the delete automatically — see deep search Section 4).
  */
 export const dynamic = "force-dynamic";
 
@@ -102,7 +105,33 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ success: false, data: null, message: "Amenity not found." }, { status: 404 });
     }
 
-    await prisma.amenity.delete({ where: { id: amenityId } });
+    // Room.amenityIds is a denormalized array of Amenity.id values with no
+    // FK relation, so Postgres/Prisma can't cascade this delete on its own —
+    // every room referencing this amenity has to be cleaned up manually.
+    // Wrapped in a transaction with the delete itself so a failure partway
+    // through can't leave some rooms cleaned and others still pointing at
+    // a deleted amenity.
+    const affectedRooms = await prisma.$transaction(async (tx) => {
+      const rooms = await tx.room.findMany({
+        where: { amenityIds: { has: amenityId } },
+        select: { id: true, amenityIds: true },
+      });
+
+      // Prisma has no atomic "remove one value from a scalar array" update,
+      // so this is a read-then-write per room.
+      await Promise.all(
+        rooms.map((room) =>
+          tx.room.update({
+            where: { id: room.id },
+            data: { amenityIds: room.amenityIds.filter((id) => id !== amenityId) },
+          })
+        )
+      );
+
+      await tx.amenity.delete({ where: { id: amenityId } });
+
+      return rooms;
+    });
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
     // session is guaranteed non-null here since the gate above already returned early.
@@ -110,7 +139,7 @@ export async function DELETE(request, { params }) {
       eventType: "admin_action",
       actor: session.uid,
       request,
-      details: `Deleted amenity "${amenity.name}".`,
+      details: `Deleted amenity "${amenity.name}" (removed from ${affectedRooms.length} room(s)).`,
     });
 
     return NextResponse.json({ success: true, data: null, message: "Amenity deleted successfully." });

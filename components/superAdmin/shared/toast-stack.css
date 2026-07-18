@@ -1,9 +1,9 @@
 /*
  * .adminToastStack
- * Fixed top-center stack, per the toast position standard. pointerEvents
- * is none on the wrapper so toasts never block clicks underneath them —
- * each individual toast re-enables pointer events so it can still be
- * dismissed early by clicking it.
+ * Centered in the viewport (both axes), matching every modal backdrop
+ * in the app. pointerEvents is none on the wrapper so toasts never
+ * block clicks underneath them — each individual toast re-enables
+ * pointer events so it can still be dismissed early by clicking it.
  *
  * No slide-in/fade keyframes here — the super-admin section follows a
  * static design principle (zero animations, matching Sidebar.css and
@@ -11,9 +11,9 @@
  */
 .adminToastStack {
   position: fixed;
-  top: 1.5rem;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   z-index: var(--z-toast);
   pointer-events: none;
   display: flex;

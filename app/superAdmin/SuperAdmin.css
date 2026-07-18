@@ -5,58 +5,69 @@
  * forest-green accent) so the admin panel reads as part of the same
  * brand instead of a separate dark enterprise product.
  *
+ * Surfaces are solid, opaque tones layered by lightness — not
+ * near-invisible alpha tints. A translucent surface color looks fine
+ * over a static page but reads as literally transparent on any fixed
+ * or sticky chrome (the header, sidebar) where content scrolls behind
+ * it — that was the header bug this revision fixes at the token level
+ * so it can't recur anywhere else that consumes --color-surface.
+ *
  * Spacing is also overridden here (tighter than the visitor's
  * --space-* scale) since dense data screens (tables, stat grids)
  * need less breathing room per element than marketing pages do.
  * ============================================================ */
 .superAdminRoot {
-  --color-bg: #f8faf3;
-  --color-surface: rgba(45, 106, 62, 0.05);
-  --color-surface-hover: rgba(45, 106, 62, 0.09);
-  --color-surface-active: rgba(45, 106, 62, 0.14);
+  --color-bg: #f4f7ee;
+  --color-surface: #eef3e6;
+  --color-surface-hover: #e4ecd9;
+  --color-surface-active: #d9e4c9;
   --color-surface-elevated: #ffffff;
 
-  --color-border: rgba(27, 66, 38, 0.12);
-  --color-border-strong: rgba(27, 66, 38, 0.22);
-  --color-divider: rgba(27, 66, 38, 0.08);
+  --color-border: rgba(27, 66, 38, 0.14);
+  --color-border-strong: rgba(27, 66, 38, 0.26);
+  --color-divider: rgba(27, 66, 38, 0.09);
 
-  --color-text-primary: #1c2b20;
-  --color-text-secondary: rgba(28, 43, 32, 0.64);
-  --color-text-tertiary: rgba(28, 43, 32, 0.50);
-  --color-text-muted: rgba(28, 43, 32, 0.44);
+  --color-text-primary: #182319;
+  --color-text-secondary: rgba(24, 35, 25, 0.66);
+  --color-text-tertiary: rgba(24, 35, 25, 0.50);
+  --color-text-muted: rgba(24, 35, 25, 0.44);
 
-  --color-primary: #3f7d52;
-  --color-primary-hover: #2f5f3d;
-  --color-primary-light: rgba(63, 125, 82, 0.10);
+  --color-primary: #2f6a41;
+  --color-primary-hover: #234f31;
+  --color-primary-light: rgba(47, 106, 65, 0.12);
 
-  --color-accent: #b5791f;
-  --color-accent-hover: #96631a;
-  --color-accent-light: rgba(181, 121, 31, 0.10);
+  --color-accent: #a66c1a;
+  --color-accent-hover: #895a15;
+  --color-accent-light: rgba(166, 108, 26, 0.12);
 
   --color-success: #2f9e5b;
   --color-warning: #d98a24;
   --color-error: #d64545;
   --color-info: #3b82f6;
-  --color-neutral: rgba(28, 43, 32, 0.4);
+  --color-neutral: rgba(24, 35, 25, 0.4);
 
   /* Chart/data series colors — Recharts lines, bars, and pie segments.
      Earthy/resort-toned palette instead of generic SaaS blues, while
      staying visually distinct from one another. */
-  --color-chart-1: #3f7d52;
-  --color-chart-2: #b5791f;
+  --color-chart-1: #2f6a41;
+  --color-chart-2: #a66c1a;
   --color-chart-3: #6b8fb5;
   --color-chart-4: #d64545;
   --color-chart-5: #8a6a9c;
   --color-chart-6: #4f9e8a;
 
-  --shadow-sm: 0 1px 2px rgba(28, 43, 32, 0.05);
-  --shadow-base: 0 4px 6px rgba(28, 43, 32, 0.07);
-  --shadow-lg: 0 10px 15px rgba(28, 43, 32, 0.08);
-  --shadow-xl: 0 20px 25px rgba(28, 43, 32, 0.10);
+  /* Slightly deeper than a typical light-theme shadow scale — solid
+     surfaces need a stronger shadow to read as "elevated" than
+     translucent ones do, since there's no alpha layering doing part
+     of the depth work anymore. */
+  --shadow-sm: 0 1px 2px rgba(20, 32, 22, 0.07);
+  --shadow-base: 0 3px 8px rgba(20, 32, 22, 0.09);
+  --shadow-lg: 0 12px 20px rgba(20, 32, 22, 0.12);
+  --shadow-xl: 0 24px 32px rgba(20, 32, 22, 0.14);
 
   /* Skeleton loaders — same green-tinted base as the visitor site's own */
   --color-skeleton-base: rgba(27, 66, 38, 0.08);
-  --color-skeleton-shine: rgba(27, 66, 38, 0.15);
+  --color-skeleton-shine: rgba(27, 66, 38, 0.16);
 
   /* Tighter spacing scale, scoped to admin only — every component in
      this section already consumes var(--space-*), so overriding the
@@ -108,12 +119,21 @@
 
 /*
  * .superAdminContent
- * Main scrollable content area beneath the sticky header.
+ * Main scrollable content area beneath the sticky header. Capped at
+ * --max-width-content and centered — every super-admin page renders
+ * through {children} here (see the protected layout), so this single
+ * rule centers all of them at once instead of each page needing its
+ * own wrapper. Wide monitors were stretching tables/forms/cards
+ * edge-to-edge with no ceiling; centering keeps line lengths and card
+ * grids readable while still leaving full width on narrower screens.
  */
 .superAdminContent {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  width: 100%;
+  max-width: var(--max-width-content, 1280px);
+  margin: 0 auto;
   padding: var(--space-xl);
 }
 

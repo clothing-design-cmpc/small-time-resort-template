@@ -2,16 +2,24 @@
  * .adminHeader
  * Sticky 70px top bar sitting above the scrollable content area,
  * to the right of the fixed sidebar. Splits into a left cluster
- * (breadcrumb + title) and a right cluster (user menu).
+ * (breadcrumb + title) and a right cluster (session timer + user menu).
+ *
+ * Explicitly opaque (--color-surface-elevated, a solid white) rather
+ * than the general --color-surface token — this bar sits sticky above
+ * scrolling page content, so it needs to read as a solid panel no
+ * matter what surface tone the rest of the theme uses. The bottom
+ * shadow (instead of just a border) is what actually sells "this is
+ * elevated above the content," the way a translucent tint never could.
  */
 .adminHeader {
   height: 70px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--space-lg);
-  background-color: var(--color-surface);
+  padding: 0 var(--space-xl);
+  background-color: var(--color-surface-elevated);
   border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
@@ -32,8 +40,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .adminBreadcrumbSeparator {
@@ -41,13 +52,15 @@
 }
 
 .adminBreadcrumbCurrent {
-  color: var(--color-text-primary);
-  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-weight: 600;
 }
 
 .adminHeaderTitle {
-  font-size: 1.25rem;
+  font-family: var(--font-admin-heading), "Segoe UI", sans-serif;
+  font-size: 1.3rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--color-text-primary);
 }
 
@@ -68,18 +81,21 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  font-size: 0.78rem;
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
   padding: var(--space-xs) var(--space-sm);
   border-radius: 6px;
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .adminSessionTimer--warning {
   color: var(--color-warning);
   border-color: var(--color-warning);
+  background-color: rgba(217, 138, 36, 0.08);
 }
 
 /*
@@ -95,34 +111,38 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 6px;
+  padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-xs);
+  border-radius: 8px;
+  border: 1px solid transparent;
   color: var(--color-text-primary);
   cursor: pointer;
   touch-action: manipulation;
   min-height: 44px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .adminUserMenuTrigger:hover {
   background-color: var(--color-surface-hover);
+  border-color: var(--color-border);
 }
 
 .adminUserAvatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background-color: var(--color-primary-light);
-  color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
+  box-shadow: var(--shadow-sm);
 }
 
 .adminUserName {
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /*
@@ -132,12 +152,12 @@
  */
 .adminUserMenuDropdown {
   position: absolute;
-  top: calc(100% + var(--space-xs));
+  top: calc(100% + var(--space-sm));
   right: 0;
-  min-width: 160px;
+  min-width: 170px;
   background-color: var(--color-surface-elevated);
   border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
   overflow: hidden;
@@ -151,6 +171,7 @@
   padding: var(--space-sm) var(--space-md);
   min-height: 44px;
   font-size: 0.9rem;
+  font-weight: 500;
   color: var(--color-error);
   cursor: pointer;
   touch-action: manipulation;

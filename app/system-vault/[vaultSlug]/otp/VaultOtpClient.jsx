@@ -46,7 +46,28 @@ const vaultOtpSchema = z.object({
     z
       .string()
       .min(1, "Enter the code from your email.")
-      .regex(OTP_CODE_PATTERN, `Enter the ${OTP_CODE_LENGTH}-character code exactly as shown in your email.`)
+      // Length is checked separately from the character-shape check so
+      // a short paste (e.g. the email's highlight box clipping the
+      // last character on selection — a known risk with fixed-width
+      // HTML email boxes) tells the owner exactly what's wrong instead
+      // of a generic "wrong format" message that looks identical
+      // whether they're missing one character or typed complete
+      // nonsense.
+      .superRefine((value, ctx) => {
+        if (value.length !== OTP_CODE_LENGTH) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `You entered ${value.length} of ${OTP_CODE_LENGTH} characters. Go back to the email and make sure the WHOLE code is selected — triple-click the code to select the full line, then copy again.`,
+          });
+          return;
+        }
+        if (!OTP_CODE_PATTERN.test(value)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `That doesn't match the code format. Copy it directly from the email rather than retyping it.`,
+          });
+        }
+      })
   ),
 });
 
@@ -75,6 +96,10 @@ export default function VaultOtpClient() {
   // resend button into the primary action.
   const [secondsRemaining, setSecondsRemaining] = useState(OTP_COUNTDOWN_SECONDS);
   const [isCodeExpired, setIsCodeExpired] = useState(false);
+  // Live "n / 12" counter shown under the input — the fastest way for
+  // the owner to notice a short paste (e.g. the email highlight box
+  // clipping the last character) before ever hitting Submit.
+  const [codeLength, setCodeLength] = useState(0);
   const countdownIntervalRef = useRef(null);
   // Guards against React 18/19 StrictMode's double-invoke of effects in
   // development, which would otherwise fire two send requests (and two
@@ -100,24 +125,18 @@ export default function VaultOtpClient() {
 
   /**
    * handleCodeChange
-   * Trims the field's own value BEFORE truncating it to OTP_CODE_LENGTH
-   * characters, then hands off to react-hook-form's own onChange so
-   * validation and form state stay in sync.
-   *
-   * Order matters here: a paste from the email almost always drags in a
-   * leading or trailing space/newline (the code sits alone on its own
-   * line in the template), which pushes the raw pasted length to 13+.
-   * Slicing that RAW value to 12 chars kept the leading whitespace and
-   * cut off the last real character of the code — leaving only 11 of
-   * the 12 actual characters in the field no matter how carefully the
-   * owner copied it. Trimming first removes the whitespace so the full
-   * 12-character code survives the truncation intact.
+   * Truncates the field's own value to OTP_CODE_LENGTH characters on
+   * every keystroke/paste, then hands off to react-hook-form's own
+   * onChange so validation and form state stay in sync. This is what
+   * actually guarantees the 12th character is always accepted and a
+   * 13th is always rejected — it no longer depends on the maxLength
+   * attribute alone.
    */
   function handleCodeChange(event) {
-    const trimmedValue = event.target.value.trim();
-    if (trimmedValue.length !== event.target.value.length || trimmedValue.length > OTP_CODE_LENGTH) {
-      event.target.value = trimmedValue.slice(0, OTP_CODE_LENGTH);
+    if (event.target.value.length > OTP_CODE_LENGTH) {
+      event.target.value = event.target.value.slice(0, OTP_CODE_LENGTH);
     }
+    setCodeLength(event.target.value.length);
     codeField.onChange(event);
   }
 
@@ -287,6 +306,17 @@ export default function VaultOtpClient() {
         <div className="vaultLoginField">
           <label htmlFor="code">
             {OTP_CODE_LENGTH}-character code <span aria-hidden="true">*</span>
+            {/* Turns amber once there's input but it's short, green once
+                it hits exactly 12 — a glance is enough to know whether
+                the paste came through complete. */}
+            <span
+              className={`vaultOtpCounter${
+                codeLength === OTP_CODE_LENGTH ? " vaultOtpCounter--complete" : codeLength > 0 ? " vaultOtpCounter--short" : ""
+              }`}
+              aria-hidden="true"
+            >
+              {codeLength}/{OTP_CODE_LENGTH}
+            </span>
           </label>
           <input
             id="code"

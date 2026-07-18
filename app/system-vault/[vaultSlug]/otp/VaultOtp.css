@@ -13,6 +13,30 @@
 }
 
 /*
+ * .vaultOtpCounter
+ * Live "n/12" badge next to the field label. Neutral/muted until
+ * there's input, amber once short, green once it hits exactly
+ * OTP_CODE_LENGTH — lets the owner catch a clipped paste (a known risk
+ * with fixed-width HTML email boxes) before ever pressing Verify.
+ */
+.vaultOtpCounter {
+  float: right;
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.vaultOtpCounter--short {
+  color: var(--color-warning);
+}
+
+.vaultOtpCounter--complete {
+  color: var(--color-success);
+}
+
+/*
  * .vaultOtpCodeInput:disabled
  * Applied once the countdown hits zero — visually flags that typing
  * here no longer does anything useful, mirroring

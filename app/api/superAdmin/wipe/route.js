@@ -94,10 +94,37 @@ export async function POST(request) {
     return NextResponse.json({ success: false, data: null, message: result.message }, { status: 409 });
   }
 
+  // Immediate "moment of scheduling" backup — the super-admin chose
+  // "Back up first, then wipe", so a copy of the current data should
+  // land in R2 + Google Drive right now, not only right before the
+  // TRUNCATE runs 24 hours later. Reuses the exact same nightly backup
+  // workflow (database-backup.yml) an admin would trigger by hand via
+  // "Run workflow" — it already does the full pg_dump + dual-upload +
+  // BackupLog write, decoupled on GitHub's own runners (Rule 40.1),
+  // so nothing heavy ever runs inside this live request. This is
+  // best-effort and never blocks the schedule itself: the real safety
+  // gate is still the pre-wipe backup runDatabaseWipe.js takes right
+  // before truncating — if that later backup fails, the wipe still
+  // aborts regardless of whether this immediate one succeeded.
+  let immediateBackupDispatched = false;
+  if (payload.backupOption === "with_backup") {
+    try {
+      await triggerWorkflowDispatch("database-backup.yml", {});
+      immediateBackupDispatched = true;
+    } catch (error) {
+      console.error("[api/superAdmin/wipe POST] Immediate backup dispatch failed:", error.message);
+    }
+  }
+
   return NextResponse.json({
     success: true,
     data: result.data,
-    message: "Wipe scheduled for 24 hours from now. You can cancel it any time before then.",
+    message:
+      payload.backupOption === "with_backup"
+        ? immediateBackupDispatched
+          ? "Wipe scheduled for 24 hours from now. A backup is being created now and will also appear in R2 and Google Drive shortly."
+          : "Wipe scheduled, but the immediate backup couldn't be triggered (check GITHUB_ACTIONS_TOKEN, GITHUB_REPO_OWNER, GITHUB_REPO_NAME). A backup will still be attempted right before the wipe runs."
+        : "Wipe scheduled for 24 hours from now. You can cancel it any time before then.",
   });
 }
 

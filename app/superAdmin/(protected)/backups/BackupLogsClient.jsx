@@ -23,6 +23,13 @@
  *    dispatches database-backup.yml
  * 3. DataTable renders the history with its own built-in
  *    loading/empty/error states and pagination footer
+ *
+ * TOASTS: this component owns the single useToast instance and
+ * <ToastStack> for the whole Backups page (Rule 22.2) — showToast is
+ * passed down to WipeDatabaseSection as a prop rather than that
+ * component creating its own instance (Rule 22.4), which previously
+ * put two independent fixed-position toast stacks at the same
+ * top-center coordinates and produced the garbled Danger Zone banner.
  */
 "use client";
 
@@ -75,6 +82,25 @@ const columns = [
   { key: "details", label: "Details" },
 ];
 
+/**
+ * parseJsonResponse
+ * Same reasoning as WipeDatabaseSection's copy: a response that came
+ * back but isn't valid JSON (a crashed route's HTML error page) is a
+ * server-side problem, not the same thing as fetch() itself failing to
+ * reach the server at all — each gets its own honest message.
+ */
+async function parseJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(
+      response.ok
+        ? "The server sent back an unexpected response. Please try again."
+        : `The server returned an error (${response.status}). Please try again.`
+    );
+  }
+}
+
 export default function BackupLogsClient() {
   const [backupLogs, setBackupLogs] = useState([]);
   const [page, setPage] = useState(1);
@@ -95,7 +121,7 @@ export default function BackupLogsClient() {
 
     try {
       const response = await fetch(`/api/admin/backup-logs?page=${page}`);
-      const result = await response.json();
+      const result = await parseJsonResponse(response);
 
       if (!result.success) {
         setLoadError(result.message || "Failed to load backup history. Please try again.");
@@ -105,8 +131,8 @@ export default function BackupLogsClient() {
       setBackupLogs(result.data.backupLogs);
       setTotalPages(result.data.totalPages);
       setTotalCount(result.data.totalCount);
-    } catch {
-      setLoadError("We couldn't reach the server. Check your connection and try again.");
+    } catch (error) {
+      setLoadError(error.message || "We couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -198,7 +224,7 @@ export default function BackupLogsClient() {
         onPageChange={setPage}
       />
 
-      <WipeDatabaseSection />
+      <WipeDatabaseSection showToast={showToast} />
     </section>
   );
 }

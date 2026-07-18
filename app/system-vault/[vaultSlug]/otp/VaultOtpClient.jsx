@@ -87,6 +87,33 @@ export default function VaultOtpClient() {
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(vaultOtpSchema) });
 
+  // register() gives back { name, onChange, onBlur, ref } for the
+  // "code" field — pulled apart here so its onChange can be wrapped
+  // with an ACTIVE length guard below, instead of the field relying
+  // solely on the input's native maxLength attribute to stop a 13th
+  // character. Both still apply — this is belt-and-suspenders, not a
+  // replacement — but the JS-level guard is what makes the limit
+  // dependable no matter what: it re-derives the cutoff from
+  // OTP_CODE_LENGTH on every keystroke rather than trusting a DOM
+  // attribute to have been applied/updated correctly on first paint.
+  const codeField = register("code");
+
+  /**
+   * handleCodeChange
+   * Truncates the field's own value to OTP_CODE_LENGTH characters on
+   * every keystroke/paste, then hands off to react-hook-form's own
+   * onChange so validation and form state stay in sync. This is what
+   * actually guarantees the 12th character is always accepted and a
+   * 13th is always rejected — it no longer depends on the maxLength
+   * attribute alone.
+   */
+  function handleCodeChange(event) {
+    if (event.target.value.length > OTP_CODE_LENGTH) {
+      event.target.value = event.target.value.slice(0, OTP_CODE_LENGTH);
+    }
+    codeField.onChange(event);
+  }
+
   // Fires once when the screen loads — the owner shouldn't have to
   // click a button just to get the first code.
   useEffect(() => {
@@ -262,7 +289,10 @@ export default function VaultOtpClient() {
             maxLength={OTP_CODE_LENGTH}
             className="vaultOtpCodeInput"
             disabled={isCodeExpired}
-            {...register("code")}
+            name={codeField.name}
+            ref={codeField.ref}
+            onBlur={codeField.onBlur}
+            onChange={handleCodeChange}
           />
           {errors.code && (
             <span role="alert" className="vaultLoginFieldError">

@@ -22,10 +22,16 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
+
+// How long the "passphrase generated" confirmation box stays visible
+// before auto-hiding itself. The passphrase text is never shown here
+// either way (only the delivery confirmation is) — this just keeps the
+// box from sitting on screen indefinitely if the admin walks away.
+const REVEAL_AUTO_HIDE_MS = 30 * 1000;
 
 export default function VaultPassphraseClient() {
   const { toasts, showToast, dismissToast } = useToast();
@@ -40,6 +46,17 @@ export default function VaultPassphraseClient() {
   // fetched, never persisted across a page reload.
   const [revealedPassphrase, setRevealedPassphrase] = useState(null);
   const [deliveryStatus, setDeliveryStatus] = useState(null); // { emailSent, driveSaved, driveViewLink }
+  // Tracks the pending auto-hide timeout so a second generate (or an
+  // unmount) can clear the previous one instead of stacking timers.
+  const autoHideTimerRef = useRef(null);
+
+  // Cleanup on unmount only — clears whatever timer is still pending
+  // so it never fires setState after the page has navigated away.
+  useEffect(() => {
+    return () => {
+      if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+    };
+  }, []);
 
   // Fires once on load — just to show accurate status text, never the
   // passphrase itself (that only ever exists after a fresh generate).
@@ -92,6 +109,15 @@ export default function VaultPassphraseClient() {
     });
     setIsConfigured(true);
     setIsModalOpen(false);
+
+    // Reset the auto-hide window every time a fresh passphrase is
+    // revealed — clears any timer left over from a previous generate
+    // so the box always gets the full 30s from the moment it appears.
+    if (autoHideTimerRef.current) clearTimeout(autoHideTimerRef.current);
+    autoHideTimerRef.current = setTimeout(() => {
+      setRevealedPassphrase(null);
+      setDeliveryStatus(null);
+    }, REVEAL_AUTO_HIDE_MS);
 
     if (result.data.emailSent && result.data.driveSaved) {
       showToast("✓ New passphrase generated, emailed, and saved to Drive.", "success");

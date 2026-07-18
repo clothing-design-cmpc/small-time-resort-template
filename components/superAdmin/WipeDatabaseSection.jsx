@@ -25,13 +25,42 @@
  *    mounted globally in the (protected) layout) takes over as the
  *    final, non-dismissible checkpoint — this component keeps showing
  *    the same countdown card underneath it either way
+ *
+ * TOASTS: this component does NOT own a useToast instance or render
+ * its own <ToastStack> — it lives inside BackupLogsClient on the
+ * Backups page, which already owns the single toast stack for that
+ * page. showToast is passed down as a prop (Rule 22.4's sub-component
+ * pattern). Two independent fixed-position ToastStacks used to be
+ * mounted here AND in the parent at the same time, which put two
+ * separate stacking contexts at the exact same top-center coordinates
+ * — the visible cause of the garbled/overlapping banner on this page.
  */
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useToast } from "@/app/superAdmin/shared/useToast";
-import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import "./WipeDatabaseSection.css";
+
+/**
+ * parseJsonResponse
+ * Reads a fetch Response as JSON, but never lets a non-JSON body (an
+ * HTML error page from a crashed route, a proxy error page, etc.)
+ * masquerade as a network failure. Only an actual failed fetch() (the
+ * request never reached/returned from the server at all) should ever
+ * produce the "couldn't reach the server" message — a response that
+ * arrived but wasn't parseable JSON is a server-side bug and gets its
+ * own honest message instead.
+ */
+async function parseJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(
+      response.ok
+        ? "The server sent back an unexpected response. Please try again."
+        : `The server returned an error (${response.status}). Please try again.`
+    );
+  }
+}
 
 const POLL_INTERVAL_MS = 30 * 1000;
 const REQUIRED_CONFIRMATION_TEXT = "WIPE DATABASE";
@@ -45,8 +74,7 @@ function formatRemaining(ms) {
   return `${hours}h ${String(minutes).padStart(2, "0")}m`;
 }
 
-export default function WipeDatabaseSection() {
-  const { toasts, showToast, dismissToast } = useToast();
+export default function WipeDatabaseSection({ showToast }) {
   const [activeRequest, setActiveRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [backupOption, setBackupOption] = useState("with_backup");
@@ -100,7 +128,7 @@ export default function WipeDatabaseSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ backupOption, confirmationText }),
       });
-      const result = await response.json();
+      const result = await parseJsonResponse(response);
 
       if (!result.success) {
         showToast(result.message || "Failed to schedule the wipe.", "error");
@@ -112,8 +140,8 @@ export default function WipeDatabaseSection() {
       setIsModalOpen(false);
       setIsSubmitting(false);
       checkStatus();
-    } catch {
-      showToast("We couldn't reach the server. Check your connection and try again.", "error");
+    } catch (error) {
+      showToast(error.message || "We couldn't reach the server. Check your connection and try again.", "error");
       setIsSubmitting(false);
     }
   }
@@ -128,7 +156,7 @@ export default function WipeDatabaseSection() {
     setIsCancelling(true);
     try {
       const response = await fetch("/api/superAdmin/wipe", { method: "DELETE" });
-      const result = await response.json();
+      const result = await parseJsonResponse(response);
 
       if (!result.success) {
         showToast(result.message || "Failed to cancel the wipe.", "error");
@@ -139,8 +167,8 @@ export default function WipeDatabaseSection() {
       showToast("✓ Scheduled wipe cancelled.", "success");
       setActiveRequest(null);
       setIsCancelling(false);
-    } catch {
-      showToast("We couldn't reach the server. Check your connection and try again.", "error");
+    } catch (error) {
+      showToast(error.message || "We couldn't reach the server. Check your connection and try again.", "error");
       setIsCancelling(false);
     }
   }
@@ -172,7 +200,7 @@ export default function WipeDatabaseSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirmationText: truncateNowConfirmationText }),
       });
-      const result = await response.json();
+      const result = await parseJsonResponse(response);
 
       if (!result.success) {
         showToast(result.message || "Failed to truncate now.", "error");
@@ -185,8 +213,8 @@ export default function WipeDatabaseSection() {
       setIsTruncateNowModalOpen(false);
       setIsTruncatingNow(false);
       checkStatus();
-    } catch {
-      showToast("We couldn't reach the server. Check your connection and try again.", "error");
+    } catch (error) {
+      showToast(error.message || "We couldn't reach the server. Check your connection and try again.", "error");
       setIsTruncatingNow(false);
     }
   }
@@ -196,8 +224,6 @@ export default function WipeDatabaseSection() {
 
   return (
     <section className="wipeDatabaseSection">
-      <ToastStack toasts={toasts} onDismiss={dismissToast} />
-
       <div className="wipeDatabaseSectionHeader">
         <h2 className="wipeDatabaseSectionTitle">Danger Zone</h2>
         <p className="wipeDatabaseSectionSubtitle">

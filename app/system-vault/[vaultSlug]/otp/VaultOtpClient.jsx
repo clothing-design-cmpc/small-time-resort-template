@@ -100,16 +100,23 @@ export default function VaultOtpClient() {
 
   /**
    * handleCodeChange
-   * Truncates the field's own value to OTP_CODE_LENGTH characters on
-   * every keystroke/paste, then hands off to react-hook-form's own
-   * onChange so validation and form state stay in sync. This is what
-   * actually guarantees the 12th character is always accepted and a
-   * 13th is always rejected — it no longer depends on the maxLength
-   * attribute alone.
+   * Trims the field's own value BEFORE truncating it to OTP_CODE_LENGTH
+   * characters, then hands off to react-hook-form's own onChange so
+   * validation and form state stay in sync.
+   *
+   * Order matters here: a paste from the email almost always drags in a
+   * leading or trailing space/newline (the code sits alone on its own
+   * line in the template), which pushes the raw pasted length to 13+.
+   * Slicing that RAW value to 12 chars kept the leading whitespace and
+   * cut off the last real character of the code — leaving only 11 of
+   * the 12 actual characters in the field no matter how carefully the
+   * owner copied it. Trimming first removes the whitespace so the full
+   * 12-character code survives the truncation intact.
    */
   function handleCodeChange(event) {
-    if (event.target.value.length > OTP_CODE_LENGTH) {
-      event.target.value = event.target.value.slice(0, OTP_CODE_LENGTH);
+    const trimmedValue = event.target.value.trim();
+    if (trimmedValue.length !== event.target.value.length || trimmedValue.length > OTP_CODE_LENGTH) {
+      event.target.value = trimmedValue.slice(0, OTP_CODE_LENGTH);
     }
     codeField.onChange(event);
   }

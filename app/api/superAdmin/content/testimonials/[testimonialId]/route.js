@@ -16,6 +16,14 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PUT(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { testimonialId } = await params;
 
   try {
@@ -55,10 +63,10 @@ export async function PUT(request, { params }) {
     }
 
     // Audit trail (Rule 6) — track testimonial edits.
-    const session = requireSuperAdmin(request);
+    // session is guaranteed non-null here since the gate above already returned early.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session?.uid ?? null,
+      actor: session.uid,
       request,
       details: `Updated testimonial from "${existingTestimonial.guestName}".`,
     });
@@ -74,6 +82,14 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { testimonialId } = await params;
 
   try {
@@ -90,10 +106,10 @@ export async function DELETE(request, { params }) {
     }
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
-    const session = requireSuperAdmin(request);
+    // session is guaranteed non-null here since the gate above already returned early.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session?.uid ?? null,
+      actor: session.uid,
       request,
       details: `Deleted testimonial from "${testimonial.guestName}".`,
     });

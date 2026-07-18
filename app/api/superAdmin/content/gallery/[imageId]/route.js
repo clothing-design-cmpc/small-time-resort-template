@@ -18,6 +18,14 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
 export async function PUT(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { imageId } = await params;
 
   try {
@@ -44,10 +52,10 @@ export async function PUT(request, { params }) {
     // otherwise flood the log with two rows per drag).
     const isReorderOnly = Object.keys(body).every((key) => key === "displayOrder");
     if (!isReorderOnly) {
-      const session = requireSuperAdmin(request);
+      // session is guaranteed non-null here since the gate above already returned early.
       await logSecurityEvent({
         eventType: "admin_action",
-        actor: session?.uid ?? null,
+        actor: session.uid,
         request,
         details: `Updated gallery image in category "${updatedImage.category}".`,
       });
@@ -64,6 +72,14 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { imageId } = await params;
 
   try {
@@ -76,10 +92,10 @@ export async function DELETE(request, { params }) {
     await deleteFromR2(image.imageKey);
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
-    const session = requireSuperAdmin(request);
+    // session is guaranteed non-null here since the gate above already returned early.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session?.uid ?? null,
+      actor: session.uid,
       request,
       details: `Deleted a gallery image from category "${image.category}".`,
     });

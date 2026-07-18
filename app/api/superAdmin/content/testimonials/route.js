@@ -31,6 +31,17 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  // Auth gate runs before any database write (Rule 1 — no independent auth
+  // gate before mutation). This is a second, independent enforcement point
+  // in case proxy.js's outer layer ever fails open or is misconfigured.
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const guestName = body.guestName?.trim();
@@ -61,10 +72,10 @@ export async function POST(request) {
     });
 
     // Audit trail (Rule 6) — who added which testimonial.
-    const session = requireSuperAdmin(request);
+    // session is guaranteed non-null here since the gate above already returned early.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session?.uid ?? null,
+      actor: session.uid,
       request,
       details: `Added testimonial from "${testimonial.guestName}".`,
     });

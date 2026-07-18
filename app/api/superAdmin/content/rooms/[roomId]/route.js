@@ -17,6 +17,14 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
 export async function GET(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to view this page." },
+      { status: 401 }
+    );
+  }
+
   const { roomId } = await params;
 
   try {
@@ -37,6 +45,14 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { roomId } = await params;
 
   try {
@@ -85,10 +101,10 @@ export async function PUT(request, { params }) {
     }
 
     // Audit trail (Rule 6) — who changed this room, and what price moved.
-    const session = requireSuperAdmin(request);
+    // session is guaranteed non-null here since the gate above already returned early.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session?.uid ?? null,
+      actor: session.uid,
       request,
       details: `Updated room "${existingRoom.name}" (₱${existingRoom.pricePerNight} → ₱${updatedRoom.pricePerNight}).`,
     });
@@ -104,6 +120,14 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { roomId } = await params;
 
   try {
@@ -119,10 +143,10 @@ export async function DELETE(request, { params }) {
     }
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
-    const session = requireSuperAdmin(request);
+    // session is guaranteed non-null here since the gate above already returned early.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: session?.uid ?? null,
+      actor: session.uid,
       request,
       details: `Deleted room "${room.name}".`,
     });

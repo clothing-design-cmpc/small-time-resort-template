@@ -76,6 +76,16 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
    * whitespace while cutting off the code's last real character.
    * Trimming first lets the full code survive the truncation intact —
    * same fix VaultOtpClient.jsx already applies to the login OTP field.
+   *
+   * IMPORTANT: the <input> below must NOT also carry a native
+   * `maxLength` attribute. The browser enforces maxLength on the raw
+   * pasted text BEFORE this onChange ever fires — so on a paste that
+   * picks up one stray whitespace character, maxLength silently drops
+   * the real last character of the code, and this trim() below only
+   * ever sees the already-mutilated 11-character result. Doing the
+   * trim + length clamp entirely in JS (on the untouched raw value) is
+   * what actually fixes it — a maxLength attribute here would silently
+   * reintroduce the exact bug this function is written to prevent.
    */
   function handleCodeChange(event) {
     const trimmedValue = event.target.value.trim();
@@ -119,7 +129,6 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
           inputMode="text"
           autoComplete="one-time-code"
           autoFocus
-          maxLength={OTP_CODE_LENGTH}
           placeholder={`${OTP_CODE_LENGTH}-character code`}
           className="unbanIpCodeInput"
           value={code}

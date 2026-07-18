@@ -76,5 +76,15 @@ export default async function VaultRecoveryPage({ params }) {
     redirect(`/system-vault/${vaultSlug}/otp`);
   }
 
-  return <RecoveryClient />;
+  // Wrapped in .superAdminRoot (SuperAdmin.css) exactly like the
+  // login and OTP screens already are — every var(--color-*) /
+  // var(--shadow-*) token this page and its modals use (card
+  // backgrounds, borders, the step-up modal's solid dialog
+  // background) is scoped to that class. Without it, those variables
+  // resolve to nothing and every themed surface renders transparent.
+  return (
+    <div className="superAdminRoot">
+      <RecoveryClient />
+    </div>
+  );
 }

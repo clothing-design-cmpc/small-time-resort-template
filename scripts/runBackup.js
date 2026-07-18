@@ -79,15 +79,24 @@ async function runPgDump() {
 async function main() {
   console.log("[backup] Starting database backup…");
 
+  // Set by whichever workflow dispatched this run (database-backup.yml
+  // for nightly/manual, pre-wipe-backup.yml for wipe-triggered) — see
+  // each workflow's "Run backup script" step. Falls back to "manual"
+  // so a local `npm run backup` test run (no env var set) still writes
+  // a valid, non-crashing value instead of null.
+  const triggerSource = process.env.TRIGGER_SOURCE || "manual";
+  console.log(`[backup] Trigger source: ${triggerSource}`);
+
   // Row created up front with status "running" so a crash mid-backup
   // still leaves a visible (if incomplete) trail on the admin page,
   // instead of the run disappearing silently. Wrapped in withRetry
   // since this is the very first DB round-trip in the run — the one
   // most likely to catch a transient DNS hiccup resolving the pooler
   // hostname on a fresh GitHub Actions runner.
-  const logRow = await withRetry(() => prisma.backupLog.create({ data: { status: "running" } }), {
-    label: "backupLog.create",
-  });
+  const logRow = await withRetry(
+    () => prisma.backupLog.create({ data: { status: "running", triggerSource } }),
+    { label: "backupLog.create" }
+  );
 
   let dumpBuffer;
   try {

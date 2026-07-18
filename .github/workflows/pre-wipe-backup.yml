@@ -62,6 +62,10 @@ jobs:
       - name: Run backup script
         run: npm run backup
         env:
+          # This workflow only ever exists to run a wipe-triggered
+          # backup — no cron, no other caller — so the source is
+          # always "pre_wipe", never conditional like database-backup.yml's.
+          TRIGGER_SOURCE: pre_wipe
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}

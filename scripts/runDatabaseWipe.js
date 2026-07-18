@@ -97,7 +97,7 @@ async function runPgDump() {
  * truncate without a real backup on record.
  */
 async function runPreWipeBackup() {
-  const logRow = await withRetry(() => prisma.backupLog.create({ data: { status: "running" } }), {
+  const logRow = await withRetry(() => prisma.backupLog.create({ data: { status: "running", triggerSource: "pre_wipe" } }), {
     label: "backupLog.create (pre-wipe)",
   });
 

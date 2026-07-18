@@ -76,6 +76,7 @@ function getNextScheduledRunLabel() {
 
 const columns = [
   { key: "status", label: "Status" },
+  { key: "source", label: "Source" },
   { key: "startedAt", label: "Started", mono: true },
   { key: "fileSize", label: "Size", mono: true },
   { key: "destinations", label: "Destinations" },
@@ -165,6 +166,11 @@ export default function BackupLogsClient() {
   const rows = backupLogs.map((log) => ({
     id: log.id,
     status: <StatusBadge status={log.status} />,
+    // Falls back to "manual" display via StatusBadge's own unknown-key
+    // fallback if a row predates this field (log.triggerSource will be
+    // undefined on rows written before the migration, not null) —
+    // never crashes on old data.
+    source: <StatusBadge status={log.triggerSource || "manual"} />,
     startedAt: DATE_FORMATTER.format(new Date(log.startedAt)),
     fileSize: formatFileSize(log.fileSizeBytes),
     destinations: (

@@ -69,6 +69,13 @@ jobs:
       - name: Run backup script
         run: npm run backup
         env:
+          # schedule event = the 2 AM cron; any workflow_dispatch (the
+          # app's "Run Backup Now" button, or someone pressing "Run
+          # workflow" directly in GitHub) counts as "manual" — there's
+          # no way to tell those two dispatch sources apart from here,
+          # and there's no need to: both mean a human wanted a backup
+          # right now, as opposed to it happening automatically.
+          TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'nightly' || 'manual' }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}

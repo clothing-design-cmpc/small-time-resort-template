@@ -132,10 +132,24 @@ export default function VaultOtpClient() {
    * 13th is always rejected — it no longer depends on the maxLength
    * attribute alone.
    */
+  /**
+   * handleCodeChange
+   * Trims whitespace FIRST, then truncates to OTP_CODE_LENGTH — in that
+   * order, deliberately. The email text the owner copies often carries
+   * a leading or trailing space/newline (the code sits alone on its
+   * own line in the template). If truncation ran on the raw value
+   * before trimming, a leading whitespace character would occupy one
+   * of the 12 slots and the slice would cut off the code's real last
+   * character instead — the field would show "12/12" (true of the raw
+   * value) while the actual code underneath was only 11 real
+   * characters, exactly the mismatch between the live counter and the
+   * submit-time validation error this was built to prevent. Trimming
+   * first means only real code characters ever compete for the 12
+   * slots.
+   */
   function handleCodeChange(event) {
-    if (event.target.value.length > OTP_CODE_LENGTH) {
-      event.target.value = event.target.value.slice(0, OTP_CODE_LENGTH);
-    }
+    const trimmedValue = event.target.value.trim();
+    event.target.value = trimmedValue.length > OTP_CODE_LENGTH ? trimmedValue.slice(0, OTP_CODE_LENGTH) : trimmedValue;
     setCodeLength(event.target.value.length);
     codeField.onChange(event);
   }

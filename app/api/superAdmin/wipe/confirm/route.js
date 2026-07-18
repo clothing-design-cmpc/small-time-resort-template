@@ -25,7 +25,16 @@ export async function PATCH(request) {
     );
   }
 
-  const result = await confirmWipeContinue();
+  let result;
+  try {
+    result = await confirmWipeContinue();
+  } catch (error) {
+    console.error("[api/superAdmin/wipe/confirm PATCH] confirmWipeContinue failed:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to confirm the wipe. Please try again.", error: error.message },
+      { status: 500 }
+    );
+  }
 
   await logSecurityEvent({
     eventType: "admin_action",

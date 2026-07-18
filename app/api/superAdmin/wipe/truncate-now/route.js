@@ -56,7 +56,16 @@ export async function POST(request) {
     );
   }
 
-  const result = await truncateNow();
+  let result;
+  try {
+    result = await truncateNow();
+  } catch (error) {
+    console.error("[api/superAdmin/wipe/truncate-now POST] truncateNow failed:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to truncate now. Please try again.", error: error.message },
+      { status: 500 }
+    );
+  }
 
   if (!result.success) {
     await logSecurityEvent({

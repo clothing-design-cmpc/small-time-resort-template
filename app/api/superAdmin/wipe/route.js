@@ -60,7 +60,21 @@ export async function POST(request) {
     );
   }
 
-  const result = await initiateWipeRequest(session.uid, payload.backupOption);
+  let result;
+  try {
+    result = await initiateWipeRequest(session.uid, payload.backupOption);
+  } catch (error) {
+    // A thrown (not returned) error here would otherwise crash the
+    // route into an HTML error page — never JSON — which is what makes
+    // the frontend fall back to its generic "server returned an error"
+    // toast instead of a real message. Catch it, log the real reason
+    // server-side, and still respond with valid JSON.
+    console.error("[api/superAdmin/wipe POST] initiateWipeRequest failed:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to schedule the wipe. Please try again.", error: error.message },
+      { status: 500 }
+    );
+  }
 
   // Logged regardless of outcome — an admin repeatedly attempting to
   // schedule a second wipe while one is already pending is itself
@@ -96,7 +110,17 @@ export async function GET(request) {
     );
   }
 
-  const activeRequest = await getActiveWipeRequest();
+  let activeRequest;
+  try {
+    activeRequest = await getActiveWipeRequest();
+  } catch (error) {
+    console.error("[api/superAdmin/wipe GET] getActiveWipeRequest failed:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to load wipe status. Please try again.", error: error.message },
+      { status: 500 }
+    );
+  }
+
   if (!activeRequest) {
     return NextResponse.json({ success: true, data: null, message: "No wipe scheduled." });
   }
@@ -162,7 +186,16 @@ export async function DELETE(request) {
     );
   }
 
-  const result = await cancelWipeRequest(session.uid);
+  let result;
+  try {
+    result = await cancelWipeRequest(session.uid);
+  } catch (error) {
+    console.error("[api/superAdmin/wipe DELETE] cancelWipeRequest failed:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to cancel the wipe. Please try again.", error: error.message },
+      { status: 500 }
+    );
+  }
 
   await logSecurityEvent({
     eventType: "admin_action",

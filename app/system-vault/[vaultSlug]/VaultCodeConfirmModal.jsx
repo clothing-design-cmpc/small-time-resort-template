@@ -1,22 +1,22 @@
 /**
- * FILE: app/system-vault/[vaultSlug]/UnbanIpModal.jsx
- * ROLE: Standalone — only ever rendered by RecoveryClient.jsx
+ * FILE: app/system-vault/[vaultSlug]/VaultCodeConfirmModal.jsx
+ * ROLE: Standalone — rendered by VaultDangerZoneSection.jsx only
  *
  * PURPOSE:
- * Step-up re-verification dialog for unbanning a single IP. On open,
- * automatically requests a code via POST /api/admin/blocked-ips/
- * request-unban-code (emailed to the owner) — separate from, and
- * requested only after, the fresh code Step 3 already required just
- * to reveal the blocked-IP list. The owner reads it from their inbox
- * and types it in here. This component never deletes anything itself
- * — it only collects the code and hands { ipAddress, code } to the
- * parent's onConfirm, which calls PATCH /api/admin/blocked-ips/unban
- * and handles the result.
+ * Generalized version of UnbanIpModal.jsx's step-up flow, reused for
+ * the Danger Zone actions ("Schedule wipe" and "Truncate Now") and for
+ * Step 3's "View Blocked IPs" gate. On open, requests a code from
+ * requestCodeEndpoint (emailed to the vault owner) — never forcing a
+ * brand-new one if a still-valid one already exists (see requestCode's
+ * forceNew doc below), which is what keeps a StrictMode dev double-
+ * mount from sending two separate codes/emails for one modal open.
+ * The owner types the code in here; this component never performs the
+ * gated action itself — it only collects the code and hands it to the
+ * parent's onConfirm(code), which makes the actual API call.
  *
  * Reuses the shared .adminModalBackdrop / .adminModalDialog /
- * .adminModalActions classes from components/superAdmin/
- * ConfirmationModal.css so this reads as the same modal system, just
- * with an added code field ConfirmationModal itself doesn't support.
+ * .adminModalActions classes from ConfirmationModal.css so this reads
+ * as the same modal system project-wide.
  */
 "use client";
 
@@ -24,9 +24,16 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { OTP_CODE_LENGTH } from "@/services/vaultOtpConfig";
 import "@/components/superAdmin/ConfirmationModal.css";
-import "./UnbanIpModal.css";
+import "./VaultCodeConfirmModal.css";
 
-export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
+export default function VaultCodeConfirmModal({
+  title,
+  description,
+  confirmLabel,
+  requestCodeEndpoint,
+  onConfirm,
+  onCancel,
+}) {
   const [code, setCode] = useState("");
   const [sendStatus, setSendStatus] = useState({ state: "sending", message: "" });
   const [authError, setAuthError] = useState(null);
@@ -37,15 +44,11 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
   // emails, each invalidating the other's code) for a single modal open.
   const hasSentOnce = useRef(false);
 
-  // Fires once when the modal mounts — the owner shouldn't have to
-  // click a separate button just to get the step-up code moving.
+  // Fires once on mount — the owner shouldn't need a separate click
+  // just to get the step-up code moving.
   useEffect(() => {
     if (hasSentOnce.current) return;
     hasSentOnce.current = true;
-    // forceNew: false — if a valid code already exists (this effect
-    // re-firing under StrictMode, or a Fast Refresh remount), reuse it
-    // instead of silently invalidating whatever's already in the
-    // owner's inbox and sending a second email.
     requestCode(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -53,14 +56,15 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
   /**
    * requestCode
    * @param {boolean} forceNew - false on the automatic mount-triggered
-   *   call (reuse a still-valid code if one exists); true for any
-   *   future explicit "Resend code" action.
+   *   call (reuse a still-valid code if one exists, so a StrictMode
+   *   re-fire or Fast Refresh remount can't trigger a second email);
+   *   true for any future explicit "Resend code" action.
    */
   async function requestCode(forceNew = true) {
     setSendStatus({ state: "sending", message: "" });
     setAuthError(null);
     try {
-      const response = await axios.post("/api/admin/blocked-ips/request-unban-code", { forceNew });
+      const response = await axios.post(requestCodeEndpoint, { forceNew });
       setSendStatus({ state: "sent", message: response.data.message });
     } catch (error) {
       setSendStatus({ state: "error", message: "" });
@@ -74,19 +78,13 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
    * a paste from the email almost always drags in a leading/trailing
    * space or newline, and slicing the RAW value first would keep that
    * whitespace while cutting off the code's last real character.
-   * Trimming first lets the full code survive the truncation intact —
-   * same fix VaultOtpClient.jsx already applies to the login OTP field.
+   * Same fix VaultOtpClient.jsx already applies to the login OTP field.
    */
   function handleCodeChange(event) {
     const trimmedValue = event.target.value.trim();
     setCode(trimmedValue.length > OTP_CODE_LENGTH ? trimmedValue.slice(0, OTP_CODE_LENGTH) : trimmedValue);
   }
 
-  /**
-   * handleConfirm
-   * Passes the entered code up to the parent, which makes the actual
-   * unban API call and shows the resulting toast.
-   */
   async function handleConfirm() {
     setIsSubmitting(true);
     await onConfirm(code);
@@ -94,22 +92,20 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
   }
 
   return (
-    <div className="adminModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="unbanModalTitle">
+    <div className="adminModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="vaultCodeConfirmTitle">
       <div className="adminModalDialog">
-        <h2 id="unbanModalTitle" className="adminModalTitle">
-          Confirm Unban
+        <h2 id="vaultCodeConfirmTitle" className="adminModalTitle">
+          {title}
         </h2>
-        <p className="adminModalDescription">
-          Enter the fresh verification code just emailed to you to unban <strong>{ipAddress}</strong>.
-        </p>
+        <p className="adminModalDescription">{description}</p>
 
-        <p className="unbanIpSendStatus">
+        <p className="vaultCodeSendStatus">
           {sendStatus.state === "sending" && "Sending a code to the vault owner's email…"}
           {sendStatus.state === "sent" && sendStatus.message}
         </p>
 
         {authError && (
-          <p role="alert" className="unbanIpError">
+          <p role="alert" className="vaultCodeError">
             {authError}
           </p>
         )}
@@ -121,7 +117,7 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
           autoFocus
           maxLength={OTP_CODE_LENGTH}
           placeholder={`${OTP_CODE_LENGTH}-character code`}
-          className="unbanIpCodeInput"
+          className="vaultCodeInput"
           value={code}
           onChange={handleCodeChange}
           disabled={sendStatus.state !== "sent"}
@@ -137,7 +133,7 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
             onClick={handleConfirm}
             disabled={isSubmitting || sendStatus.state !== "sent" || code.length !== OTP_CODE_LENGTH}
           >
-            {isSubmitting ? "Verifying…" : "Confirm Unban"}
+            {isSubmitting ? "Verifying…" : confirmLabel}
           </button>
         </div>
       </div>

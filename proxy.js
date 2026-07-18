@@ -73,6 +73,11 @@ const VAULT_STANDALONE_API_PATHS = [
   // Step 3 — Unban an IP (RecoveryClient.jsx): list + step-up code +
   // execute, all authenticated via vaultSession only, same as breach.
   "/api/admin/blocked-ips",
+  // Danger Zone (VaultDangerZoneSection.jsx): status + schedule/cancel
+  // + truncate-now + step-up code + grace-period confirm, all
+  // authenticated via vaultSession only — mirrors /api/superAdmin/wipe
+  // but reachable without a regular super-admin session.
+  "/api/admin/vault-wipe",
 ];
 
 function isVaultStandaloneApiPath(pathname) {

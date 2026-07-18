@@ -1,22 +1,23 @@
 /*
- * FILE: app/system-vault/[vaultSlug]/UnbanIpModal.css
+ * FILE: app/system-vault/[vaultSlug]/VaultCodeConfirmModal.css
  * Small additions on top of ConfirmationModal.css's shared .adminModal*
  * classes — just the code input and status text this modal adds.
+ * All text here is black, per the vault-system text standard.
  */
 
-.unbanIpSendStatus {
+.vaultCodeSendStatus {
   font-size: 0.85rem;
   color: #000000;
   margin-bottom: var(--space-sm);
 }
 
-.unbanIpError {
+.vaultCodeError {
   font-size: 0.85rem;
   color: #000000;
   margin-bottom: var(--space-sm);
 }
 
-.unbanIpCodeInput {
+.vaultCodeInput {
   width: 100%;
   font-size: 1rem;
   padding: var(--space-sm) var(--space-md);
@@ -28,6 +29,6 @@
   touch-action: manipulation;
 }
 
-.unbanIpCodeInput:disabled {
+.vaultCodeInput:disabled {
   opacity: 0.5;
 }

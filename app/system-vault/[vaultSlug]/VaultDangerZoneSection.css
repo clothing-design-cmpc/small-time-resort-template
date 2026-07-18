@@ -1,0 +1,38 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/VaultDangerZoneSection.css
+ * Layers on top of components/superAdmin/WipeDatabaseSection.css
+ * (imported alongside this file) — reuses its layout/spacing/border
+ * rules as-is, and only overrides text color to black, scoped to
+ * .vaultDangerZoneSection so the shared classes stay untouched for
+ * the regular /superAdmin Backups page.
+ */
+.vaultDangerZoneSection .wipeDatabaseSectionTitle,
+.vaultDangerZoneSection .wipeDatabaseSectionSubtitle,
+.vaultDangerZoneSection .wipeDatabaseActiveCardText,
+.vaultDangerZoneSection .wipeDatabaseActiveCardText strong,
+.vaultDangerZoneSection .wipeDatabaseModalTitle,
+.vaultDangerZoneSection .wipeDatabaseModalDescription,
+.vaultDangerZoneSection .wipeDatabaseModalOptions legend,
+.vaultDangerZoneSection .wipeDatabaseModalOption strong,
+.vaultDangerZoneSection .wipeDatabaseModalOption small,
+.vaultDangerZoneSection .wipeDatabaseModalConfirmLabel,
+.vaultDangerZoneSection .wipeDatabaseModalConfirmInput {
+  color: #000000;
+}
+
+/* Buttons — including the destructive/error-colored ones, per the
+   vault-system text standard covering "all text including buttons". */
+.vaultDangerZoneSection .wipeDatabaseTriggerButton,
+.vaultDangerZoneSection .wipeDatabaseTruncateNowButton,
+.vaultDangerZoneSection .wipeDatabaseCancelButton,
+.vaultDangerZoneSection .wipeDatabaseModalButtonNeutral,
+.vaultDangerZoneSection .wipeDatabaseModalButtonDestructive {
+  color: #000000;
+}
+
+.vaultDangerZoneSection .wipeDatabaseTruncateNowButton:hover,
+.vaultDangerZoneSection .wipeDatabaseTruncateNowButton:focus-visible,
+.vaultDangerZoneSection .wipeDatabaseCancelButton:hover,
+.vaultDangerZoneSection .wipeDatabaseCancelButton:focus-visible {
+  color: #000000;
+}

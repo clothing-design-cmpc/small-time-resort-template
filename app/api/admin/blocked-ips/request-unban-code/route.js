@@ -8,11 +8,19 @@
  * Step-up re-verification, first half. A valid vault session alone
  * (passphrase + the original login OTP) is not enough to unban an IP —
  * unbanning reopens a door that a gatekeeper just closed. Clicking
- * "Unban" on any row calls this route, which always forces a BRAND
- * NEW code (forceNew: true) and emails it to VAULT_OWNER_EMAIL,
- * exactly like the vault's own login OTP step. The owner then enters
- * that fresh code in UnbanIpModal.jsx, checked by
+ * "Unban" on any row calls this route, which emails a code to
+ * VAULT_OWNER_EMAIL, exactly like the vault's own login OTP step. The
+ * owner then enters that fresh code in UnbanIpModal.jsx, checked by
  * app/api/admin/blocked-ips/unban/route.js — never by this route.
+ *
+ * Accepts an optional { forceNew: boolean } body, same shape and same
+ * reason as app/api/admin/vault-otp/route.js's POST: UnbanIpModal's
+ * automatic on-mount call sends forceNew: false so a still-valid code
+ * from a moment ago isn't silently invalidated and re-emailed — this
+ * is what fixes React StrictMode's dev-only double-effect-fire sending
+ * two separate codes (and two emails) for what should be one modal
+ * open. A missing/invalid body still defaults to forceNew: true, so a
+ * deliberate resend action always gets a genuinely new code.
  *
  * Deliberately reuses services/vaultOtp.js's existing
  * generateAndSendVaultOtp()/verifyVaultOtp() pair rather than adding a
@@ -36,7 +44,18 @@ export async function POST(request) {
     );
   }
 
-  const result = await generateAndSendVaultOtp(true);
+  // Body is optional — a request with no body (or invalid JSON) keeps
+  // the safe default (forceNew: true) so nothing here can accidentally
+  // suppress a legitimate send.
+  let forceNew = true;
+  try {
+    const body = await request.json();
+    if (typeof body?.forceNew === "boolean") forceNew = body.forceNew;
+  } catch {
+    // No body sent — keep the default.
+  }
+
+  const result = await generateAndSendVaultOtp(forceNew);
 
   if (!result.success) {
     return NextResponse.json({ success: false, data: null, message: result.message }, { status: 500 });

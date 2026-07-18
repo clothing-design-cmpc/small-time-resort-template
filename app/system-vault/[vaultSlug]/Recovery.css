@@ -75,7 +75,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #000000;
+  color: var(--color-accent);
 }
 
 .recoveryHeaderRow h1 {
@@ -169,7 +169,7 @@
   padding: 0 var(--space-md);
   font-size: 0.85rem;
   font-weight: 600;
-  color: #000000;
+  color: #000000; /* Button text black per vault-system text standard */
   background-color: rgba(245, 158, 11, 0.1);
   border: 1px solid rgba(245, 158, 11, 0.3);
   border-radius: 8px;
@@ -275,7 +275,7 @@
   padding: var(--space-sm) var(--space-md);
   font-size: 0.85rem;
   font-weight: 600;
-  color: #000000;
+  color: #000000; /* Button text black per vault-system text standard */
   background-color: var(--color-primary);
   border: none;
   border-radius: 6px;
@@ -321,7 +321,7 @@
   border: 1px solid var(--color-error);
   border-radius: 8px;
   background-color: rgba(239, 68, 68, 0.1);
-  color: #000000;
+  color: #000000; /* Button text black per vault-system text standard */
   font-weight: 600;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
@@ -354,34 +354,6 @@
 }
 
 /*
- * .recoveryViewBlockedIpsButton
- * Stands in for the blocked-IP list until the owner confirms the
- * Step 3 view-gate code — deliberately the same visual weight as
- * .recoveryEndLockdownButton's outline style rather than the accent
- * fill, since revealing the list is a caution point, not the main
- * action of this card.
- */
-.recoveryViewBlockedIpsButton {
-  min-height: 44px;
-  padding: 0 var(--space-md);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 8px;
-  background-color: var(--color-surface-hover);
-  color: #000000;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
-}
-
-.recoveryViewBlockedIpsButton:hover,
-.recoveryViewBlockedIpsButton:focus-visible {
-  background-color: var(--color-primary-light);
-  border-color: var(--color-primary);
-}
-
-/*
  * .recoveryUnbanButton
  * Deliberately uses the accent color, not the error/red tone
  * .recoveryEndLockdownButton uses — unbanning is a restorative action,
@@ -396,7 +368,7 @@
   border: 1px solid var(--color-accent);
   border-radius: 8px;
   background-color: var(--color-primary-light);
-  color: #000000;
+  color: #000000; /* Button text black per vault-system text standard */
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -408,4 +380,18 @@
 .recoveryUnbanButton:focus-visible {
   background-color: var(--color-surface-hover);
   border-color: var(--color-accent-hover, var(--color-accent));
+}
+
+/*
+ * Vault-system text standard (scoped, does not touch the shared
+ * ConfirmationModal.css used by the regular /superAdmin panel):
+ * every piece of text rendered inside the vault recovery page,
+ * including the shared ConfirmationModal's title/description and
+ * both of its buttons, is forced to black here.
+ */
+.recoveryContent .adminModalTitle,
+.recoveryContent .adminModalDescription,
+.recoveryContent .adminModalButtonNeutral,
+.recoveryContent .adminModalButtonDestructive {
+  color: #000000;
 }

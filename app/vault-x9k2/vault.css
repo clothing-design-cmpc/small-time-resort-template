@@ -1,0 +1,104 @@
+/*
+ * FILE: app/vault-x9k2/vault.css
+ * Styles for the vault login page. Kept deliberately plain — no
+ * branding elements that would hint at what this page is if
+ * screenshotted out of context.
+ */
+
+.vaultLoginSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+  background-color: var(--color-bg);
+}
+
+.vaultLoginContainer {
+  display: flex;
+  width: 100%;
+  max-width: 400px;
+}
+
+.vaultLoginCard {
+  width: 100%;
+  padding: var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.vaultEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #000000; /* Task: all vault-system text is black */
+  margin-bottom: var(--space-sm);
+}
+
+.vaultTitle {
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+  color: #000000;
+  margin-bottom: var(--space-xs);
+}
+
+.vaultSubtitle {
+  font-size: 0.95rem;
+  color: #000000;
+  margin-bottom: var(--space-lg);
+}
+
+.vaultForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.vaultForm label {
+  font-size: 0.85rem;
+  color: #000000;
+}
+
+.vaultForm input {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: #000000;
+  touch-action: manipulation;
+}
+
+.vaultError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+}
+
+.vaultSubmitButton {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: #000000; /* Button text black per vault-system text standard */
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.vaultSubmitButton:hover,
+.vaultSubmitButton:focus-visible,
+.vaultSubmitButton:active {
+  background-color: var(--color-accent-hover);
+}
+
+.vaultSubmitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

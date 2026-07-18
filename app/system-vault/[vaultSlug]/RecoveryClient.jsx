@@ -11,25 +11,35 @@
  * when, reuses the existing useSqlImport hook (same one the normal
  * Backups page uses) so importing the pre-breach Google Drive/R2 SQL
  * backup works identically here, exposes an "End Lockdown" action once
- * the super-admin has confirmed the restore looks right, and — new —
- * lets the owner unban any IP currently in BlockedIp, each unban
- * gated by its own fresh emailed step-up code (never just the vault
- * session that got them into this dashboard).
+ * the super-admin has confirmed the restore looks right, and lets the
+ * owner unban any IP currently in BlockedIp — but the list itself is
+ * hidden behind its own fresh emailed step-up code (Gate #1), and
+ * unbanning any row in it requires a SECOND, separate fresh code
+ * (Gate #2). Neither gate is satisfied by the vault session alone, so
+ * an attacker who reaches this dashboard (e.g. a hijacked or
+ * left-open tab) can't even see which IPs are blocked, let alone
+ * unban the one they used, without a code landing in the real owner's
+ * inbox each time.
  *
  * DATA FLOW:
  * 1. On mount, GET /api/admin/breach loads the active (unresolved)
  *    BreachEvent plus SystemSettings.breachLockdown
- * 2. On mount, GET /api/admin/blocked-ips loads the current BlockedIp
- *    rows for the new "Step 3 — Unban an IP" list
+ * 2. The Step 3 blocked-IP list is NOT fetched on mount. Clicking
+ *    "View Blocked IPs" opens ViewBlockedIpsModal, which requests a
+ *    fresh code (POST /api/admin/blocked-ips/request-unban-code) and,
+ *    on confirm, PATCHes /api/admin/blocked-ips/verify-view-code with
+ *    { code } — only on success does GET /api/admin/blocked-ips run
+ *    and the list render (Gate #1)
  * 3. Uploading a .sql/.sql.gz file goes through the same
  *    POST /api/admin/sql-import -> database-restore.yml pipeline the
  *    Backups page already uses — nothing new to build there
  * 4. "End Lockdown" PATCHes /api/admin/breach, which resolves the
  *    BreachEvent and flips breachLockdown + maintenanceMode off
- * 5. Clicking "Unban" on a blocked IP opens UnbanIpModal, which
- *    requests a fresh code (POST /api/admin/blocked-ips/request-
- *    unban-code) and, on confirm, PATCHes /api/admin/blocked-ips/unban
- *    with { ipAddress, code } — only then is the row actually deleted
+ * 5. Once the list is revealed, clicking "Unban" on a row opens
+ *    UnbanIpModal, which requests its OWN fresh code (same
+ *    request-unban-code route) and, on confirm, PATCHes
+ *    /api/admin/blocked-ips/unban with { ipAddress, code } — only
+ *    then is the row actually deleted (Gate #2)
  * 6. "Lock Vault" DELETEs /api/admin/vault-login, clearing the
  *    "vaultSession" cookie and sending the admin back to this same
  *    slug's own login screen without touching their regular
@@ -56,6 +66,7 @@ import { useSqlImport } from "@/hooks/useSqlImport";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import { useLogoutOnHidden } from "@/hooks/useLogoutOnHidden";
 import UnbanIpModal from "./UnbanIpModal";
+import ViewBlockedIpsModal from "./ViewBlockedIpsModal";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -87,10 +98,16 @@ export default function RecoveryClient() {
   const { importLogs, isLoading: isImportHistoryLoading, uploadSqlFile } = useSqlImport();
 
   // --- Step 3: Unban an IP ---
+  // The list itself is a second, separate secret from the unban action
+  // — it stays hidden (never fetched) until isBlockedIpsRevealed is
+  // confirmed via its own fresh step-up code, not just the vault
+  // session that got the owner into this dashboard.
   const [blockedIps, setBlockedIps] = useState([]);
-  const [isLoadingBlockedIps, setIsLoadingBlockedIps] = useState(true);
+  const [isLoadingBlockedIps, setIsLoadingBlockedIps] = useState(false);
   const [blockedIpsError, setBlockedIpsError] = useState(null);
   const [selectedIpToUnban, setSelectedIpToUnban] = useState(null); // ipAddress string pending step-up
+  const [isBlockedIpsRevealed, setIsBlockedIpsRevealed] = useState(false);
+  const [isViewBlockedIpsModalOpen, setIsViewBlockedIpsModalOpen] = useState(false);
 
   /**
    * fetchBreachStatus
@@ -145,8 +162,10 @@ export default function RecoveryClient() {
 
   useEffect(() => {
     fetchBreachStatus();
-    fetchBlockedIps();
-  }, [fetchBreachStatus, fetchBlockedIps]);
+    // fetchBlockedIps is intentionally NOT called here — the list only
+    // loads after the owner confirms the Step 3 view-gate code, via
+    // handleConfirmViewCode below.
+  }, [fetchBreachStatus]);
 
   /**
    * handleFileSelected
@@ -211,6 +230,29 @@ export default function RecoveryClient() {
     } catch (error) {
       const message = error.response?.data?.message || "Failed to unban that IP. Please try again.";
       showToast(`✕ ${message}`, "error");
+    }
+  }
+
+  /**
+   * handleConfirmViewCode
+   * Called by ViewBlockedIpsModal once the owner submits the fresh
+   * step-up code. Only PATCHes /api/admin/blocked-ips/verify-view-code
+   * — nothing is fetched or shown until that returns success, so a
+   * hijacked-but-open vault tab still can't see the list without a
+   * code landing in the real owner's inbox. Returns { failed, message }
+   * instead of throwing/toasting, so the modal itself can show the
+   * error inline exactly like UnbanIpModal's own auth error.
+   */
+  async function handleConfirmViewCode(code) {
+    try {
+      await axios.patch("/api/admin/blocked-ips/verify-view-code", { code });
+      setIsBlockedIpsRevealed(true);
+      setIsViewBlockedIpsModalOpen(false);
+      await fetchBlockedIps();
+      return { failed: false };
+    } catch (error) {
+      const message = error.response?.data?.message || "Failed to verify. Please try again.";
+      return { failed: true, message };
     }
   }
 
@@ -377,40 +419,60 @@ export default function RecoveryClient() {
       <div className="recoveryStepCard">
         <h2>Step 3 — Unban an IP</h2>
         <p>
-          IPs currently blocked by Gatekeeper 1 or 2 (or added manually). Unbanning requires a fresh
-          verification code emailed to you — your vault session alone is not enough.
+          IPs currently blocked by Gatekeeper 1 or 2 (or added manually). The list itself stays hidden
+          until you confirm a fresh verification code emailed to you — your vault session alone is not
+          enough to even see it. Unbanning an IP afterward requires a second, separate fresh code.
         </p>
 
-        {isLoadingBlockedIps && <p className="recoveryMutedText">Loading blocked IPs…</p>}
-        {!isLoadingBlockedIps && blockedIpsError && (
-          <p className="recoveryMutedText">{blockedIpsError}</p>
-        )}
-        {!isLoadingBlockedIps && !blockedIpsError && blockedIps.length === 0 && (
-          <p className="recoveryMutedText">No IPs are currently blocked.</p>
+        {/* List hidden by default — this is the point. Someone who only
+            has the vault session (e.g. a hijacked or left-open tab)
+            can't see which IPs are blocked, let alone unban the one
+            they used, without a fresh code landing in the owner's
+            inbox first. */}
+        {!isBlockedIpsRevealed && (
+          <button
+            type="button"
+            className="recoveryViewBlockedIpsButton"
+            onClick={() => setIsViewBlockedIpsModalOpen(true)}
+          >
+            View Blocked IPs
+          </button>
         )}
 
-        {!isLoadingBlockedIps && !blockedIpsError && blockedIps.length > 0 && (
-          <ul className="recoveryImportHistory">
-            {blockedIps.map((blocked) => (
-              <li key={blocked.id}>
-                <div className="recoveryBlockedIpInfo">
-                  <span className="adminMono">{blocked.ipAddress}</span>
-                  <span className="recoveryMutedText">
-                    {blocked.reason}
-                    {blocked.gatekeeper ? ` — Gatekeeper ${blocked.gatekeeper}` : ""} ·{" "}
-                    {DATE_FORMATTER.format(new Date(blocked.createdAt))}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="recoveryUnbanButton"
-                  onClick={() => setSelectedIpToUnban(blocked.ipAddress)}
-                >
-                  Unban
-                </button>
-              </li>
-            ))}
-          </ul>
+        {isBlockedIpsRevealed && (
+          <>
+            {isLoadingBlockedIps && <p className="recoveryMutedText">Loading blocked IPs…</p>}
+            {!isLoadingBlockedIps && blockedIpsError && (
+              <p className="recoveryMutedText">{blockedIpsError}</p>
+            )}
+            {!isLoadingBlockedIps && !blockedIpsError && blockedIps.length === 0 && (
+              <p className="recoveryMutedText">No IPs are currently blocked.</p>
+            )}
+
+            {!isLoadingBlockedIps && !blockedIpsError && blockedIps.length > 0 && (
+              <ul className="recoveryImportHistory">
+                {blockedIps.map((blocked) => (
+                  <li key={blocked.id}>
+                    <div className="recoveryBlockedIpInfo">
+                      <span className="adminMono">{blocked.ipAddress}</span>
+                      <span className="recoveryMutedText">
+                        {blocked.reason}
+                        {blocked.gatekeeper ? ` — Gatekeeper ${blocked.gatekeeper}` : ""} ·{" "}
+                        {DATE_FORMATTER.format(new Date(blocked.createdAt))}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="recoveryUnbanButton"
+                      onClick={() => setSelectedIpToUnban(blocked.ipAddress)}
+                    >
+                      Unban
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
 
@@ -458,6 +520,13 @@ export default function RecoveryClient() {
           ipAddress={selectedIpToUnban}
           onConfirm={handleConfirmUnban}
           onCancel={() => setSelectedIpToUnban(null)}
+        />
+      )}
+
+      {isViewBlockedIpsModalOpen && (
+        <ViewBlockedIpsModal
+          onConfirm={handleConfirmViewCode}
+          onCancel={() => setIsViewBlockedIpsModalOpen(false)}
         />
       )}
     </section>

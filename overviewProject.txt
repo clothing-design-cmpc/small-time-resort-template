@@ -457,6 +457,26 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   computeVaultUrlSlug()), gated entirely by its own login chain, never
   by proxy.js's super_admin session check, then by its
   own vault passphrase (see next entry).
+- app/system-vault/[vaultSlug]/Step 3 "Unban an IP" - TWO separate
+  step-up gates on top of the vault session, so a hijacked-but-open
+  dashboard tab can't even see the blocked-IP list, let alone unban
+  the row it used:
+    Gate #1 (view): "View Blocked IPs" button opens
+    ViewBlockedIpsModal.jsx -> POST
+    /api/admin/blocked-ips/request-unban-code (fresh emailed code) ->
+    PATCH /api/admin/blocked-ips/verify-view-code with { code } ->
+    only on success does RecoveryClient fetch GET
+    /api/admin/blocked-ips and render the list.
+    Gate #2 (unban): clicking "Unban" on a revealed row opens
+    UnbanIpModal.jsx -> requests its OWN fresh code (same
+    request-unban-code route) -> PATCH
+    /api/admin/blocked-ips/unban with { ipAddress, code } -> only then
+    is the BlockedIp row deleted.
+    Both gates call verifyVaultOtp() (services/vaultOtp.js), which is
+    one-time-use - confirming Gate #1's code consumes it, so Gate #2
+    always needs a brand-new one.
+    app/api/admin/blocked-ips/route.js - GET, lists current BlockedIp
+    rows (only ever called after Gate #1 succeeds).
 - services/vaultAuth.js - hashVaultPassphrase() / verifyVaultPassphrase()
   (scrypt, constant-time compare, no bcrypt dependency needed) +
   requireVaultSession() / requireVaultSessionFromCookieStore() - the

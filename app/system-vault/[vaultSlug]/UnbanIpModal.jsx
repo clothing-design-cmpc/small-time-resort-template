@@ -37,19 +37,6 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
   // emails, each invalidating the other's code) for a single modal open.
   const hasSentOnce = useRef(false);
 
-  // Fires once when the modal mounts — the owner shouldn't have to
-  // click a separate button just to get the step-up code moving.
-  useEffect(() => {
-    if (hasSentOnce.current) return;
-    hasSentOnce.current = true;
-    // forceNew: false — if a valid code already exists (this effect
-    // re-firing under StrictMode, or a Fast Refresh remount), reuse it
-    // instead of silently invalidating whatever's already in the
-    // owner's inbox and sending a second email.
-    requestCode(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   /**
    * requestCode
    * @param {boolean} forceNew - false on the automatic mount-triggered
@@ -67,6 +54,18 @@ export default function UnbanIpModal({ ipAddress, onConfirm, onCancel }) {
       setAuthError(error.response?.data?.message || "Failed to send the verification code.");
     }
   }
+
+  // Fires once when the modal mounts — the owner shouldn't have to
+  // click a separate button just to get the step-up code moving.
+  useEffect(() => {
+    if (hasSentOnce.current) return;
+    hasSentOnce.current = true;
+    // forceNew: false — if a valid code already exists (this effect
+    // re-firing under StrictMode, or a Fast Refresh remount), reuse it
+    // instead of silently invalidating whatever's already in the
+    // owner's inbox and sending a second email.
+    requestCode(false);
+  }, []);
 
   /**
    * handleCodeChange

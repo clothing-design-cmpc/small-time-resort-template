@@ -36,7 +36,6 @@ import { z } from "zod";
 import {
   verifyVaultPassphrase,
   buildVaultSessionCookieValue,
-  VAULT_SESSION_COOKIE_MAX_AGE_SECONDS,
   VAULT_IDENTITY,
 } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
@@ -113,7 +112,18 @@ export async function POST(request) {
     secure: isProduction,
     sameSite: "strict",
     path: "/",
-    maxAge: VAULT_SESSION_COOKIE_MAX_AGE_SECONDS,
+    // Deliberately NO maxAge/expires — this must be a true browser-
+    // session cookie, cleared the instant the browser fully quits.
+    // With maxAge set, the cookie survived on disk and stayed valid
+    // for up to VAULT_SESSION_COOKIE_MAX_AGE_SECONDS even after the
+    // browser was closed and reopened — the opposite of what a
+    // disaster-recovery gate should do. The 30-minute ceiling is still
+    // enforced, just server-side now: verifyVaultSession() below
+    // checks the cookie's own embedded issuedAt against
+    // VAULT_SESSION_COOKIE_MAX_AGE_SECONDS on every request, so a
+    // browser that's kept open (cookie never expires from the
+    // browser's point of view) still gets logged out after 30 minutes
+    // regardless.
   });
 
   return response;

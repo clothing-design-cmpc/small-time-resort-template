@@ -36,6 +36,12 @@
  *    super-admin session. A 401 from any GET above (vault session
  *    expired mid-visit, e.g. the 30-minute window ran out while this
  *    tab was open) does the same redirect automatically.
+ * 7. The same DELETE also fires automatically, without any click, the
+ *    instant the tab is closed, the browser is closed, the device
+ *    sleeps (useLogoutOnHidden — all three hide the page identically),
+ *    or 30 minutes pass with zero interaction while the tab stays
+ *    open (useIdleTimeout, hooks/useIdleTimeout.js) — a disaster-
+ *    recovery session is never left silently valid in the background.
  */
 "use client";
 
@@ -47,6 +53,8 @@ import StatusBadge from "@/components/superAdmin/StatusBadge";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import { useSqlImport } from "@/hooks/useSqlImport";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useLogoutOnHidden } from "@/hooks/useLogoutOnHidden";
 import UnbanIpModal from "./UnbanIpModal";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
@@ -224,6 +232,44 @@ export default function RecoveryClient() {
       router.push(`/system-vault/${vaultSlug}/login`);
     }
   }
+
+  /**
+   * logoutBeacon
+   * Fire-and-forget session clear for the "the page might be going
+   * away right now" case below (tab/browser closing, or device sleep).
+   * Deliberately does NOT router.push() — if the page is actually
+   * closing there's nowhere to navigate to, and pushing a route change
+   * on a document that's mid-unload has no effect anyway. keepalive:
+   * true is what actually matters here — it's what lets this specific
+   * request survive the page unloading, which a normal fetch or axios
+   * call does not guarantee.
+   */
+  function logoutBeacon() {
+    fetch("/api/admin/vault-login", { method: "DELETE", keepalive: true }).catch(() => {
+      // Nothing to recover here — the page is closing or the user has
+      // already walked away either way.
+    });
+  }
+
+  // Covers closing the tab, closing the browser, and the device
+  // sleeping — all three hide this page the same way from inside it
+  // (see hooks/useLogoutOnHidden.js for why one listener covers all
+  // three, and the tab-switch trade-off that comes with it).
+  useLogoutOnHidden(logoutBeacon);
+
+  // Separate safety net for the case visibilitychange doesn't cover:
+  // the tab stays visible and in the foreground, but the owner simply
+  // walks away without touching the page. Reuses handleLockVault
+  // directly (not logoutBeacon) — unlike the hidden/closing case, the
+  // tab is still open here, so redirecting to the login screen is both
+  // possible and the clearer signal that the session actually ended,
+  // rather than leaving the recovery page sitting there looking
+  // unchanged until the next click happens to 401. Same 30-minute
+  // ceiling as the cookie's own server-side expiry
+  // (VAULT_SESSION_COOKIE_MAX_AGE_SECONDS, services/vaultAuth.js) —
+  // this just ends the visit proactively instead of waiting for the
+  // next fetch to bounce off a 401.
+  useIdleTimeout(handleLockVault, 30);
 
   return (
     <section className="recoveryContent">

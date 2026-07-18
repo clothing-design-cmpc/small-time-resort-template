@@ -26,7 +26,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireVaultSession, reissueVaultSessionCookieValue, VAULT_SESSION_COOKIE_MAX_AGE_SECONDS, VAULT_IDENTITY } from "@/services/vaultAuth";
+import { requireVaultSession, reissueVaultSessionCookieValue, VAULT_IDENTITY } from "@/services/vaultAuth";
 import { generateAndSendVaultOtp, verifyVaultOtp } from "@/services/vaultOtp";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
@@ -225,7 +225,12 @@ export async function PATCH(request) {
     secure: isProduction,
     sameSite: "strict",
     path: "/",
-    maxAge: VAULT_SESSION_COOKIE_MAX_AGE_SECONDS,
+    // No maxAge — see app/api/admin/vault-login/route.js's POST handler
+    // for why this must be a true browser-session cookie. Server-side
+    // 30-minute expiry (decodeVaultSessionCookieValue in
+    // services/vaultAuth.js) is unaffected — it's driven by the
+    // grantedAt this re-issue deliberately preserves, not by this
+    // cookie option.
   });
 
   return response;

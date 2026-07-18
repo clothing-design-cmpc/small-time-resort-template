@@ -26,7 +26,12 @@
  *    session before this layout ever renders
  * 5. SessionCloseGuard signs the admin out on tab/browser close;
  *    IdleTimeoutGuard signs the admin out after 30 minutes of no
- *    mouse/keyboard/scroll/touch activity while the tab stays open
+ *    mouse/keyboard/scroll/touch activity while the tab stays open;
+ *    SessionExpiryGuard catches the case those two don't — an already-
+ *    invalid session (from any cause: idle timeout in another tab, the
+ *    close-guard's beacon, the cookie's own 7-day expiry) that would
+ *    otherwise leave the admin stuck on a page silently failing every
+ *    data fetch with 401s instead of being sent back to /login
  *
  * ACCESSIBILITY:
  * A visually-hidden "Skip to main content" link is the first focusable
@@ -42,6 +47,7 @@ import AdminHeader from "@/components/superAdmin/AdminHeader";
 import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
 import SessionCloseGuard from "@/components/superAdmin/SessionCloseGuard";
 import IdleTimeoutGuard from "@/components/superAdmin/IdleTimeoutGuard";
+import SessionExpiryGuard from "@/components/superAdmin/SessionExpiryGuard";
 import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
 import DatabaseWipeGraceModal from "@/components/superAdmin/DatabaseWipeGraceModal";
 
@@ -86,6 +92,10 @@ export default async function SuperAdminLayout({ children }) {
           touch activity, even if the tab is left open — see
           IdleTimeoutGuard's file header for details. */}
       <IdleTimeoutGuard />
+      {/* Catches an already-invalid session before it turns into a
+          page full of silent 401 errors — see the component's own
+          file header for the exact two triggers it watches. */}
+      <SessionExpiryGuard />
       <BreachAlertBanner />
       {/* Non-dismissible final warning shown once a scheduled database
           wipe has 2 hours or less remaining — see the component's own

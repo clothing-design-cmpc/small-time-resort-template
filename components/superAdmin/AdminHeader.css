@@ -58,6 +58,31 @@
 }
 
 /*
+ * .adminSessionTimer
+ * Live "Session expires in mm:ss" badge — quiet/muted by default so it
+ * doesn't compete with the page title, shifts to the warning color
+ * once IDLE_WARNING_THRESHOLD_SECONDS is reached so the countdown
+ * actually running out is impossible to miss.
+ */
+.adminSessionTimer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.adminSessionTimer--warning {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+/*
  * .adminUserMenu
  * Positioning context for the dropdown — trigger button + absolutely
  * positioned dropdown panel beneath it.

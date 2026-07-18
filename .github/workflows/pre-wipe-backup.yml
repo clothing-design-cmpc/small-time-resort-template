@@ -1,0 +1,74 @@
+# FILE: .github/workflows/pre-wipe-backup.yml
+# PURPOSE:
+# Runs scripts/runBackup.js on GitHub's own cloud runners — the exact
+# same backup script database-backup.yml uses (pg_dump -> gzip -> R2 +
+# Google Drive -> BackupLog row). This workflow exists ONLY so a wipe-
+# triggered backup shows up in the Actions tab under its own name
+# ("Pre-Wipe Backup") instead of mixed into "Nightly Database Backup"
+# runs — otherwise there'd be no way to tell from the Actions history
+# alone whether a given backup run was the 2 AM cron, an admin manually
+# pressing "Run workflow" on the nightly one, or one fired the instant
+# a super-admin clicked "Schedule wipe" (services/databaseWipeRequest.js
+# / app/api/superAdmin/wipe/route.js). The BackupLog row itself is
+# identical either way — same table, same fields — this only changes
+# which workflow name shows the run.
+#
+# workflow_dispatch ONLY — never on a schedule. Dispatched exclusively
+# by app/api/superAdmin/wipe/route.js's POST handler the moment a
+# "with_backup" wipe is scheduled (Rule 40.1's "decoupled from live
+# traffic" guarantee still applies: nothing here ever runs pg_dump
+# inside the live Next.js app itself).
+name: Pre-Wipe Backup
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # Same reasoning as database-backup.yml's identical step —
+      # Ubuntu's preinstalled postgresql-client is too old for
+      # Supabase's Postgres 17.
+      - name: Install PostgreSQL 17 client (pg_dump)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # See database-backup.yml's identical step — npm ci alone never
+      # generates the actual Prisma Client code.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      # Deliberately the SAME script as the nightly workflow — a
+      # pre-wipe backup and a nightly backup are the same operation,
+      # just triggered by a different event. No duplicated logic here.
+      - name: Run backup script
+        run: npm run backup
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}

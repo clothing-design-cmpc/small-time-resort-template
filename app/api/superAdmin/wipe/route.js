@@ -97,19 +97,20 @@ export async function POST(request) {
   // Immediate "moment of scheduling" backup — the super-admin chose
   // "Back up first, then wipe", so a copy of the current data should
   // land in R2 + Google Drive right now, not only right before the
-  // TRUNCATE runs 24 hours later. Reuses the exact same nightly backup
-  // workflow (database-backup.yml) an admin would trigger by hand via
-  // "Run workflow" — it already does the full pg_dump + dual-upload +
-  // BackupLog write, decoupled on GitHub's own runners (Rule 40.1),
-  // so nothing heavy ever runs inside this live request. This is
-  // best-effort and never blocks the schedule itself: the real safety
-  // gate is still the pre-wipe backup runDatabaseWipe.js takes right
-  // before truncating — if that later backup fails, the wipe still
-  // aborts regardless of whether this immediate one succeeded.
+  // TRUNCATE runs 24 hours later. Dispatches pre-wipe-backup.yml,
+  // which runs the exact same scripts/runBackup.js as the nightly
+  // workflow (same pg_dump + dual-upload + BackupLog write, decoupled
+  // on GitHub's own runners per Rule 40.1) — it's a separate workflow
+  // FILE only so this run shows up under its own name in the Actions
+  // tab instead of mixed into "Nightly Database Backup" history. This
+  // is best-effort and never blocks the schedule itself: the real
+  // safety gate is still the pre-wipe backup runDatabaseWipe.js takes
+  // right before truncating — if that later backup fails, the wipe
+  // still aborts regardless of whether this immediate one succeeded.
   let immediateBackupDispatched = false;
   if (payload.backupOption === "with_backup") {
     try {
-      await triggerWorkflowDispatch("database-backup.yml", {});
+      await triggerWorkflowDispatch("pre-wipe-backup.yml", {});
       immediateBackupDispatched = true;
     } catch (error) {
       console.error("[api/superAdmin/wipe POST] Immediate backup dispatch failed:", error.message);

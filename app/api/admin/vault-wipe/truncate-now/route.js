@@ -16,8 +16,15 @@
  * 1. Validates the typed confirmation text and the step-up code
  * 2. truncateNow() sets scheduledAt AND finalConfirmedAt to now —
  *    same "due and confirmed" shape scripts/runDatabaseWipe.js expects
- * 3. Immediately dispatches database-wipe-executor.yml
- * 4. Logs a security event either way
+ * 3. activatePostWipeLockdown() fires HERE, synchronously — same
+ *    reasoning as the superAdmin mirror route. This is the path most
+ *    likely to be used mid-incident (the vault exists precisely for
+ *    when the regular super-admin session/panel is untrusted), so
+ *    locking the whole site down and signing out any active
+ *    super-admin session before waiting on GitHub Actions matters most
+ *    here — see services/postWipeLockdown.js
+ * 4. Immediately dispatches database-wipe-executor.yml
+ * 5. Logs a security event either way
  */
 export const dynamic = "force-dynamic";
 
@@ -26,6 +33,7 @@ import { z } from "zod";
 import { requireVaultSession } from "@/services/vaultAuth";
 import { verifyVaultOtp } from "@/services/vaultOtp";
 import { truncateNow } from "@/services/databaseWipeRequest";
+import { activatePostWipeLockdown } from "@/services/postWipeLockdown";
 import { triggerWorkflowDispatch } from "@/services/github";
 import { logSecurityEvent } from "@/services/securityLog";
 
@@ -88,6 +96,16 @@ export async function POST(request) {
     return NextResponse.json({ success: false, data: null, message: result.message }, { status: 404 });
   }
 
+  // Lock the site down NOW — before dispatching anything, before the
+  // actual TRUNCATE runs. Any active regular super-admin session gets
+  // caught and signed out on its very next request by proxy.js, the
+  // moment this flips. See services/postWipeLockdown.js.
+  try {
+    await activatePostWipeLockdown();
+  } catch (error) {
+    console.error("[api/admin/vault-wipe/truncate-now] activatePostWipeLockdown failed:", error.message);
+  }
+
   let dispatchSucceeded = true;
   try {
     await triggerWorkflowDispatch("database-wipe-executor.yml", {});
@@ -104,14 +122,14 @@ export async function POST(request) {
       dispatchSucceeded
         ? "truncating immediately."
         : "instant trigger failed (see server logs), will run on the next scheduled check instead."
-    }`,
+    } Site locked down immediately.`,
   });
 
   return NextResponse.json({
     success: true,
     data: result.data,
     message: dispatchSucceeded
-      ? "Truncating now. This usually finishes within a minute."
-      : "Couldn't trigger it instantly. It's still scheduled and will run automatically within 15 minutes.",
+      ? "Locked down. Truncating now in the background."
+      : "Locked down. Couldn't trigger the truncate instantly. It's still scheduled and will run automatically within 15 minutes.",
   });
 }

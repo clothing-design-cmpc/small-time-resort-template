@@ -188,9 +188,17 @@ export default function WipeDatabaseSection({ showToast }) {
    * Bypasses the remaining grace period on the active request and
    * runs the wipe immediately. Gated behind its own typed confirmation
    * ("TRUNCATE NOW"), separate from the one used to schedule the wipe
-   * in the first place. The route may report the instant trigger
-   * failed even on a "success" response — that's still shown as an
-   * honest warning toast, not silently treated as a full success.
+   * in the first place.
+   *
+   * On success, the server has ALREADY locked the whole site down and
+   * cleared this admin's session cookie (see
+   * app/api/superAdmin/wipe/truncate-now/route.js) before this
+   * response even arrives — this admin is logged out server-side the
+   * instant the request completes, not once the actual TRUNCATE
+   * finishes on GitHub Actions. So instead of staying on this page,
+   * jump straight to /maintenance rather than waiting for the next
+   * status poll (up to 30s away) or next click to get caught by
+   * proxy.js's lockdown redirect.
    */
   async function handleTruncateNow() {
     setIsTruncatingNow(true);
@@ -208,11 +216,10 @@ export default function WipeDatabaseSection({ showToast }) {
         return;
       }
 
-      const dispatchedInstantly = !result.message.startsWith("Couldn't trigger it instantly");
-      showToast((dispatchedInstantly ? "✓ " : "⚠ ") + result.message, dispatchedInstantly ? "success" : "warning");
-      setIsTruncateNowModalOpen(false);
-      setIsTruncatingNow(false);
-      checkStatus();
+      // The site is already locked and this session is already signed
+      // out server-side — leave immediately, no toast needed since
+      // there's no page left here to see it on.
+      window.location.href = "/maintenance";
     } catch (error) {
       showToast(error.message || "We couldn't reach the server. Check your connection and try again.", "error");
       setIsTruncatingNow(false);

@@ -88,6 +88,19 @@ const VAULT_STANDALONE_API_PATHS = [
   // authenticated via vaultSession only — mirrors /api/superAdmin/wipe
   // but reachable without a regular super-admin session.
   "/api/admin/vault-wipe",
+  // Post-Wipe Lockdown (RecoveryClient.jsx's own section): status poll
+  // + "Lift Lockdown", authenticated via vaultSession only
+  // (requireVaultSession + otpVerified inside the route itself — see
+  // app/api/admin/post-wipe-lockdown/route.js). This route was already
+  // exempted from the LOCKDOWN-BLOCK check above via
+  // isPostWipeLockdownExemptPath(), but that's a separate gate from
+  // this one — without also listing it here, the blanket "/api/admin
+  // needs a super_admin session" guard below caught it, so the vault
+  // owner's own status poll 401'd on mount and RecoveryClient's catch
+  // block (any 401 == "vault session expired") bounced them straight
+  // back to the vault login screen seconds after landing on the
+  // dashboard, even with a perfectly valid, freshly-OTP'd vault session.
+  "/api/admin/post-wipe-lockdown",
 ];
 
 function isVaultStandaloneApiPath(pathname) {

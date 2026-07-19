@@ -19,14 +19,36 @@
  * null is left untouched (still "pending") — see services/
  * databaseWipeRequest.js's own comment for why this is intentional.
  *
- * TABLES_TO_TRUNCATE below is a DELIBERATE, explicit allowlist — never
- * "truncate everything" — so admin accounts, security/audit history,
- * and site configuration always survive a wipe. *** Miguel: confirm
- * this list matches what "wipe the database" should actually mean for
- * Villa Azure before this workflow is ever allowed to run against
- * production — it currently targets guest/operational data only and
- * deliberately leaves room/amenity/testimonial/gallery content and all
- * admin/security/config tables alone. ***
+ * TABLES_TO_PRESERVE below is a DELIBERATE, explicit denylist —
+ * "wipe the database" now means truncate EVERY table except these few,
+ * so the hidden vault recovery path (and what it needs to investigate
+ * and re-open the site afterward) always survives a wipe:
+ *   - vault_otp, database_wipe_requests: the vault's own login/wipe
+ *     state — truncating these mid-flow would strand the wipe itself
+ *   - system_settings: holds postWipeLockdown/maintenanceMode — the
+ *     ONLY thing that lets the vault lift the lockdown afterward
+ *   - backup_logs: the R2/Google Drive links needed to actually
+ *     restore data after a wipe
+ *   - security_logs: the breach investigation trail, in case this
+ *     wipe was triggered because of one
+ * Everything else — including admin_profiles — is truncated. After a
+ * full wipe, only the hidden vault path (never the regular super-admin
+ * login) can get back in, by design.
+ *
+ * WHY THIS IS QUERIED LIVE INSTEAD OF HARDCODED:
+ * A hardcoded allowlist previously broke the wipe for two full runs —
+ * "page_view_daily" (singular "view") was listed instead of
+ * PageViewDaily's actual mapped table name, "page_views_daily"
+ * (plural), producing Postgres error 42P01 (relation does not exist)
+ * inside the $transaction, and because $executeRawUnsafe calls are
+ * batched into ONE transaction, that single bad name failed the WHOLE
+ * TRUNCATE, not just its own table — while the request still got
+ * marked "failed" with nothing actually wiped. A denylist sidesteps
+ * that class of bug entirely: instead of a maintained list of table
+ * names that has to be typed correctly and kept in sync with the
+ * schema, every table name below is read straight from Postgres
+ * itself (pg_tables) at run time, so there is nothing to mistype and
+ * no table this script doesn't already know exists.
  *
  * DATA FLOW:
  * 1. Finds the due + confirmed DatabaseWipeRequest (there is only ever
@@ -35,7 +57,8 @@
  *    dual-upload flow as scripts/runBackup.js, and only proceeds to
  *    truncate if that backup actually succeeded — a failed backup
  *    aborts the wipe entirely rather than silently skipping it
- * 3. TRUNCATEs every table in TABLES_TO_TRUNCATE inside one transaction
+ * 3. Queries pg_tables for every table in the public schema, subtracts
+ *    TABLES_TO_PRESERVE, and TRUNCATEs the rest inside one transaction
  * 4. Writes the final status (completed/failed) back onto the request row
  *
  * USAGE: npm run wipe-database (reads DIRECT_URL, R2, and Google Drive
@@ -50,32 +73,45 @@ const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { uploadToR2 } from "../services/r2.js";
 import { uploadToDrive } from "../services/googleDrive.js";
+import { activatePostWipeLockdown } from "../services/postWipeLockdown.js";
 import { withRetry } from "./lib/withRetry.js";
 import { logDbHost } from "./lib/logDbHost.js";
 
 const execFileAsync = promisify(execFile);
 const gzipAsync = promisify(gzip);
 
-// --- SAFETY ALLOWLIST — see the file header above before editing ---
-// Only guest/operational data. Content (rooms, amenities, testimonials,
-// gallery, activities, shop catalog) and every admin/security/config
-// table are deliberately excluded.
-// NOTE: table names here must match each model's @@map(...) value in
-// prisma/schema.prisma EXACTLY — this list is raw SQL (executeRawUnsafe),
-// so Prisma's own client can't catch a typo here at compile time. This
-// broke the wipe for two full runs: "page_view_daily" (singular "view")
-// was listed instead of PageViewDaily's actual mapped table name,
-// "page_views_daily" (plural), producing Postgres error 42P01
-// (relation does not exist) inside the $transaction — and because
-// $executeRawUnsafe calls are batched into ONE transaction, that single
-// bad name failed the whole TRUNCATE, not just its own table.
-const TABLES_TO_TRUNCATE = [
-  "bookings",
-  "visitor_logs",
-  "account_activity_logs",
-  "page_views_daily",
-  "activity_archive_logs",
+// --- SAFETY DENYLIST — see the file header above before editing ---
+// The only tables a wipe must never touch. Everything else in the
+// public schema gets truncated — see getTablesToTruncate() below.
+const TABLES_TO_PRESERVE = [
+  "vault_otp",
+  "database_wipe_requests",
+  "system_settings",
+  "backup_logs",
+  "security_logs",
 ];
+
+/**
+ * getTablesToTruncate
+ * Reads every table actually present in the public schema (pg_tables)
+ * and returns all of them except TABLES_TO_PRESERVE. Live query, not a
+ * hardcoded list — see the file header for why. Also guards against
+ * pg_tables ever returning zero rows (a misconfigured DIRECT_URL
+ * pointed at an empty schema) by refusing to proceed rather than
+ * truncating nothing and reporting false success.
+ */
+async function getTablesToTruncate() {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+  );
+  const allTableNames = rows.map((row) => row.tablename);
+
+  if (allTableNames.length === 0) {
+    throw new Error("pg_tables returned no tables in the public schema — refusing to proceed.");
+  }
+
+  return allTableNames.filter((tableName) => !TABLES_TO_PRESERVE.includes(tableName));
+}
 
 logDbHost("DIRECT_URL", process.env.DIRECT_URL);
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL });
@@ -204,46 +240,44 @@ async function main() {
   }
 
   try {
-    // Single transaction: either every listed table truncates, or none
-    // do — never leave the database in a half-wiped state.
-    await prisma.$transaction(
-      TABLES_TO_TRUNCATE.map((tableName) => prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE`))
+    const tablesToTruncate = await getTablesToTruncate();
+    console.log(
+      `[wipe] Truncating ${tablesToTruncate.length} table(s), preserving: ${TABLES_TO_PRESERVE.join(", ")}`
     );
-    console.log(`[wipe] Truncated ${TABLES_TO_TRUNCATE.length} tables successfully.`);
+
+    // Single transaction: either every table truncates, or none do —
+    // never leave the database in a half-wiped state.
+    await prisma.$transaction(
+      tablesToTruncate.map((tableName) => prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE`))
+    );
+    console.log(`[wipe] Truncated ${tablesToTruncate.length} tables successfully.`);
 
     await prisma.databaseWipeRequest.update({
       where: { id: dueRequest.id },
       data: { status: "completed", backupLogId, completedAt: new Date() },
     });
 
-    // Flip site-wide post-wipe lockdown ON — Task 2. Deliberately its
-    // own step, after the update above, so a failure here never masks
-    // whether the truncate itself actually succeeded (that row already
-    // says "completed" either way). Both visitor pages (app/visitor/
-    // layout.jsx) and every super-admin page/API (proxy.js) go fully
-    // dark on the very next request — see those files' own comments —
-    // and can only be brought back online from the hidden vault
-    // recovery page (app/api/admin/post-wipe-lockdown), never by a
-    // regular super-admin session.
+    // Flip site-wide post-wipe lockdown ON — Task 2. This is now a
+    // safety-net call: the "TRUNCATE NOW" bypass routes
+    // (app/api/superAdmin/wipe/truncate-now, app/api/admin/vault-wipe/
+    // truncate-now) already activate this synchronously the moment
+    // they're confirmed, well before this script even starts running.
+    // This call only matters as the FIRST activation for the plain
+    // 24-hour scheduled path (no bypass, no button press to hook into)
+    // — activatePostWipeLockdown() is an idempotent upsert either way.
+    // Deliberately its own step, after the update above, so a failure
+    // here never masks whether the truncate itself actually succeeded
+    // (that row already says "completed" either way). Both visitor
+    // pages (app/visitor/layout.jsx) and every super-admin page/API
+    // (proxy.js) go fully dark on the very next request — see those
+    // files' own comments — and can only be brought back online from
+    // the hidden vault recovery page (app/api/admin/post-wipe-lockdown),
+    // never by a regular super-admin session.
     try {
-      await prisma.systemSettings.upsert({
-        where: { id: "singleton" },
-        update: {
-          postWipeLockdown: true,
-          postWipeLockdownAt: new Date(),
-          maintenanceMode: true,
-          maintenanceMessage:
-            "This website's database was just wiped as scheduled and is currently under maintenance. Sorry for the inconvenience — please check back shortly.",
-        },
-        create: {
-          id: "singleton",
-          postWipeLockdown: true,
-          postWipeLockdownAt: new Date(),
-          maintenanceMode: true,
-          maintenanceMessage:
-            "This website's database was just wiped as scheduled and is currently under maintenance. Sorry for the inconvenience — please check back shortly.",
-        },
-      });
+      // Pass this script's own DIRECT_URL-based client — the helper's
+      // default DATABASE_URL-based client isn't set in this workflow's
+      // env. See services/postWipeLockdown.js's own comment on this.
+      await activatePostWipeLockdown(prisma);
       console.log("[wipe] Post-wipe lockdown enabled — visitor site and super-admin are now fully blocked.");
     } catch (lockdownError) {
       console.error("[wipe] Truncate succeeded but failed to enable post-wipe lockdown:", lockdownError.message);

@@ -1,0 +1,47 @@
+/*
+ * securityBreachSection
+ * Full-viewport centered wrapper for the breach notice card.
+ */
+.securityBreachSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+}
+
+/*
+ * securityBreachCard
+ * Elevated card holding the icon, title, and message — same layered
+ * surface treatment as the maintenance card, but with a red-tinted
+ * border to signal severity at a glance.
+ */
+.securityBreachCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-md);
+  max-width: var(--max-width-narrow);
+  padding: var(--space-2xl) var(--space-xl);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-error);
+  border-radius: 12px;
+}
+
+.securityBreachIcon {
+  font-size: 2rem;
+  color: var(--color-error);
+}
+
+.securityBreachTitle {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.securityBreachBody {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}

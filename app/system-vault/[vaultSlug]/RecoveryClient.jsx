@@ -46,6 +46,11 @@
  *    super-admin session. A 401 from any GET above (vault session
  *    expired mid-visit, e.g. the 30-minute window ran out while this
  *    tab was open) does the same redirect automatically.
+ * 7. Post-Wipe Lockdown (Task 2) — independent of the breach flow
+ *    above. GET /api/admin/post-wipe-lockdown polls whether
+ *    scripts/runDatabaseWipe.js has locked the site down after a
+ *    completed wipe; "Lift Post-Wipe Lockdown" PATCHes the same route
+ *    to bring both the visitor site AND super-admin back online.
  */
 "use client";
 
@@ -83,6 +88,15 @@ export default function RecoveryClient() {
   const [activeBreach, setActiveBreach] = useState(null);
   const [recentBreaches, setRecentBreaches] = useState([]);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+
+  // --- Post-Wipe Lockdown (Task 2) — separate flag from breachLockdown
+  // above, set only by scripts/runDatabaseWipe.js once a scheduled
+  // wipe's TRUNCATE actually succeeds. See app/api/admin/post-wipe-
+  // lockdown/route.js and services/postWipeLockdown.js.
+  const [postWipeLockdown, setPostWipeLockdown] = useState(false);
+  const [postWipeLockdownAt, setPostWipeLockdownAt] = useState(null);
+  const [isLoadingPostWipeStatus, setIsLoadingPostWipeStatus] = useState(true);
+  const [isLiftPostWipeModalOpen, setIsLiftPostWipeModalOpen] = useState(false);
 
   const [pendingImportFile, setPendingImportFile] = useState(null);
   const [isEndLockdownModalOpen, setIsEndLockdownModalOpen] = useState(false);
@@ -134,6 +148,56 @@ export default function RecoveryClient() {
     // Step 3's list is deliberately NOT fetched here — it only loads
     // once the owner completes handleRevealBlockedIps' own step-up code.
   }, [fetchBreachStatus]);
+
+  /**
+   * fetchPostWipeLockdownStatus
+   * Loads the current post-wipe lockdown state — called on mount and
+   * again after lifting it so the page reflects reality without a
+   * full reload. Kept separate from fetchBreachStatus() above since
+   * the two flags are independent and set by entirely different code
+   * paths (a gatekeeper trip vs. a completed scheduled wipe).
+   */
+  const fetchPostWipeLockdownStatus = useCallback(async () => {
+    setIsLoadingPostWipeStatus(true);
+    try {
+      const response = await axios.get("/api/admin/post-wipe-lockdown");
+      const result = response.data;
+      setPostWipeLockdown(result.data.postWipeLockdown);
+      setPostWipeLockdownAt(result.data.postWipeLockdownAt);
+    } catch (error) {
+      if (error.response?.status === 401) {
+        router.push(`/system-vault/${vaultSlug}/login`);
+        return;
+      }
+      showToast("✕ Couldn't load post-wipe lockdown status.", "error");
+    } finally {
+      setIsLoadingPostWipeStatus(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, vaultSlug]);
+
+  useEffect(() => {
+    fetchPostWipeLockdownStatus();
+  }, [fetchPostWipeLockdownStatus]);
+
+  /**
+   * handleLiftPostWipeLockdown
+   * Runs after the vault owner confirms the modal. Same "no automatic
+   * verification, judgment call is deliberately left to the human"
+   * reasoning as handleEndLockdown below.
+   */
+  async function handleLiftPostWipeLockdown() {
+    try {
+      const response = await axios.patch("/api/admin/post-wipe-lockdown");
+      showToast(`✓ ${response.data.message}`, "success");
+      await fetchPostWipeLockdownStatus();
+    } catch (error) {
+      const message = error.response?.data?.message || "Failed to lift the lockdown. Please try again.";
+      showToast(`✕ ${message}`, "error");
+    } finally {
+      setIsLiftPostWipeModalOpen(false);
+    }
+  }
 
   /**
    * handleRevealBlockedIps
@@ -285,6 +349,29 @@ export default function RecoveryClient() {
           </button>
         </div>
       </div>
+
+      {/* --- Post-Wipe Lockdown (Task 2) — independent of the breach
+          badge above. Shown whenever scripts/runDatabaseWipe.js has
+          flipped SystemSettings.postWipeLockdown on. --- */}
+      {!isLoadingPostWipeStatus && postWipeLockdown && (
+        <div className="recoveryIncidentCard">
+          <h2>Post-Wipe Lockdown Active</h2>
+          <p>
+            A scheduled database wipe completed{" "}
+            {postWipeLockdownAt ? `on ${DATE_FORMATTER.format(new Date(postWipeLockdownAt))}` : "recently"}. The
+            visitor site AND every super-admin page are fully blocked — any admin session was signed out
+            automatically. Use &quot;Fix SQL&quot; below to re-import a backup if needed, then lift the lockdown
+            once you&apos;ve confirmed the database looks right.
+          </p>
+          <button
+            type="button"
+            className="recoveryEndLockdownButton"
+            onClick={() => setIsLiftPostWipeModalOpen(true)}
+          >
+            Lift Post-Wipe Lockdown — Bring Website &amp; Super-Admin Back Online
+          </button>
+        </div>
+      )}
 
       {/* --- Active incident details --- */}
       {activeBreach && (
@@ -440,6 +527,15 @@ export default function RecoveryClient() {
         confirmLabel="End Lockdown"
         onConfirm={handleEndLockdown}
         onCancel={() => setIsEndLockdownModalOpen(false)}
+      />
+
+      <ConfirmationModal
+        isOpen={isLiftPostWipeModalOpen}
+        title="Lift Post-Wipe Lockdown?"
+        description="This will bring the visitor website AND the super-admin dashboard back online for everyone immediately. Only confirm once you've verified the database looks correct."
+        confirmLabel="Lift Lockdown"
+        onConfirm={handleLiftPostWipeLockdown}
+        onCancel={() => setIsLiftPostWipeModalOpen(false)}
       />
 
       {isViewCodeModalOpen && (

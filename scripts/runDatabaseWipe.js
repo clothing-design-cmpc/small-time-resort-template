@@ -60,11 +60,20 @@ const gzipAsync = promisify(gzip);
 // Only guest/operational data. Content (rooms, amenities, testimonials,
 // gallery, activities, shop catalog) and every admin/security/config
 // table are deliberately excluded.
+// NOTE: table names here must match each model's @@map(...) value in
+// prisma/schema.prisma EXACTLY — this list is raw SQL (executeRawUnsafe),
+// so Prisma's own client can't catch a typo here at compile time. This
+// broke the wipe for two full runs: "page_view_daily" (singular "view")
+// was listed instead of PageViewDaily's actual mapped table name,
+// "page_views_daily" (plural), producing Postgres error 42P01
+// (relation does not exist) inside the $transaction — and because
+// $executeRawUnsafe calls are batched into ONE transaction, that single
+// bad name failed the whole TRUNCATE, not just its own table.
 const TABLES_TO_TRUNCATE = [
   "bookings",
   "visitor_logs",
   "account_activity_logs",
-  "page_view_daily",
+  "page_views_daily",
   "activity_archive_logs",
 ];
 
@@ -206,6 +215,39 @@ async function main() {
       where: { id: dueRequest.id },
       data: { status: "completed", backupLogId, completedAt: new Date() },
     });
+
+    // Flip site-wide post-wipe lockdown ON — Task 2. Deliberately its
+    // own step, after the update above, so a failure here never masks
+    // whether the truncate itself actually succeeded (that row already
+    // says "completed" either way). Both visitor pages (app/visitor/
+    // layout.jsx) and every super-admin page/API (proxy.js) go fully
+    // dark on the very next request — see those files' own comments —
+    // and can only be brought back online from the hidden vault
+    // recovery page (app/api/admin/post-wipe-lockdown), never by a
+    // regular super-admin session.
+    try {
+      await prisma.systemSettings.upsert({
+        where: { id: "singleton" },
+        update: {
+          postWipeLockdown: true,
+          postWipeLockdownAt: new Date(),
+          maintenanceMode: true,
+          maintenanceMessage:
+            "This website's database was just wiped as scheduled and is currently under maintenance. Sorry for the inconvenience — please check back shortly.",
+        },
+        create: {
+          id: "singleton",
+          postWipeLockdown: true,
+          postWipeLockdownAt: new Date(),
+          maintenanceMode: true,
+          maintenanceMessage:
+            "This website's database was just wiped as scheduled and is currently under maintenance. Sorry for the inconvenience — please check back shortly.",
+        },
+      });
+      console.log("[wipe] Post-wipe lockdown enabled — visitor site and super-admin are now fully blocked.");
+    } catch (lockdownError) {
+      console.error("[wipe] Truncate succeeded but failed to enable post-wipe lockdown:", lockdownError.message);
+    }
 
     console.log("[wipe] Done.");
   } catch (truncateError) {

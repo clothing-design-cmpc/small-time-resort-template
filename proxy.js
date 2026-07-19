@@ -3,21 +3,30 @@
  * ROLE: Applies to all account types (visitor, superAdmin)
  *
  * PURPOSE:
- * Two jobs, in this order, for EVERY matched request:
+ * Three jobs, in this order, for EVERY matched request:
  *   1. Gatekeeper IP block check (3-Gatekeeper breach response) — an
  *      IP that tripped Gatekeeper 1 or 2 gets a plain 403 here, before
  *      it reaches any page, any API route, visitor or super-admin alike.
- *   2. Auth guard for /superAdmin/* + the hidden recovery page — decides
+ *   2. Post-wipe lockdown check (Task 2) — once a scheduled database
+ *      wipe actually completes, EVERY route except the hidden vault
+ *      recovery page is blocked (visitor pages redirect to
+ *      /maintenance, API routes get a 503) and the super-admin
+ *      "session" cookie is deleted on the way out — automatic logout,
+ *      no separate action needed.
+ *   3. Auth guard for /superAdmin/* + the hidden recovery page — decides
  *      whether the visitor is allowed into the route they asked for.
  *
  * DATA FLOW:
  * 1. Request hits any matched route
  * 2. isIpBlocked() checks the BlockedIp table — 403 immediately if listed
- * 3. Proxy reads the "session" HttpOnly cookie set by
+ * 3. isPostWipeLockdownActive() checks SystemSettings — redirect/503 +
+ *    cookie clear immediately if a wipe has completed and lockdown
+ *    hasn't been lifted yet from the vault
+ * 4. Proxy reads the "session" HttpOnly cookie set by
  *    app/api/auth/login/route.js on successful sign-in
- * 4. No valid session with role "super_admin" on a protected route ->
+ * 5. No valid session with role "super_admin" on a protected route ->
  *    redirect to /superAdmin/login
- * 5. Valid session -> request continues to the requested page
+ * 6. Valid session -> request continues to the requested page
  *
  * WHY THIS FILE IS NAMED proxy.js, NOT middleware.js:
  * Next.js 16 renamed the middleware.js file convention to proxy.js —
@@ -34,6 +43,7 @@
  */
 import { NextResponse } from "next/server";
 import { isIpBlocked } from "@/services/ipBlock";
+import { isPostWipeLockdownActive } from "@/services/postWipeLockdown";
 
 // The hidden database-recovery page (3-Gatekeeper breach response,
 // Task 3) is deliberately NOT under /superAdmin — it must never appear
@@ -84,6 +94,26 @@ function isVaultStandaloneApiPath(pathname) {
   return VAULT_STANDALONE_API_PATHS.some((vaultPath) => pathname.startsWith(vaultPath));
 }
 
+// --- Post-Wipe Lockdown (Task 2) exemptions ---
+// Everything else — every visitor page, every /superAdmin page,
+// /superAdmin/login included, and every other /api route — is fully
+// blocked while postWipeLockdown is active. Only these stay reachable:
+//   - the maintenance page itself (so the redirect below doesn't loop)
+//   - the hidden vault recovery route family (its own passphrase + OTP
+//     chain is the ONLY way to lift the lockdown — see
+//     app/api/admin/post-wipe-lockdown/route.js)
+//   - /api/auth/logout, so the cookie-clearing redirect below can still
+//     complete cleanly even if something else calls it directly
+function isPostWipeLockdownExemptPath(pathname) {
+  return (
+    pathname === "/maintenance" ||
+    pathname.startsWith(HIDDEN_RECOVERY_PATH_PREFIX) ||
+    isVaultStandaloneApiPath(pathname) ||
+    pathname.startsWith("/api/admin/post-wipe-lockdown") ||
+    pathname.startsWith("/api/auth/logout")
+  );
+}
+
 /**
  * decodeRole
  * Reads the role out of the session cookie value. The cookie is a
@@ -119,6 +149,30 @@ export async function proxy(request, event) {
   const requestIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.ip ?? null;
   if (requestIp && (await isIpBlocked(requestIp))) {
     return new NextResponse("Access denied.", { status: 403 });
+  }
+
+  // --- POST-WIPE LOCKDOWN CHECK (Task 2) ---
+  // Runs right after the IP block check, before anything else — a
+  // completed database wipe is treated as seriously as a live attack.
+  // Visitor pages, EVERY /superAdmin page (including /superAdmin/login
+  // itself — unlike the ordinary auth guard below, there is no
+  // "still reachable" page here), and every API route except the
+  // vault's own standalone paths are blocked. The session cookie is
+  // deleted on the response itself, so a still-logged-in super-admin
+  // is signed out on their very next request/click, automatically —
+  // no separate "logout" action has to fire anywhere else.
+  if (!isPostWipeLockdownExemptPath(pathname) && (await isPostWipeLockdownActive())) {
+    if (pathname.startsWith("/api")) {
+      const lockedResponse = NextResponse.json(
+        { success: false, data: null, message: "This website is currently under maintenance." },
+        { status: 503 }
+      );
+      lockedResponse.cookies.delete("session");
+      return lockedResponse;
+    }
+    const lockedResponse = NextResponse.redirect(new URL("/maintenance", request.url));
+    lockedResponse.cookies.delete("session");
+    return lockedResponse;
   }
 
   // --- VISITOR PAGE VIEW TRACKING ---

@@ -1,0 +1,53 @@
+/*
+ * .maintenanceLockdownScreen
+ * Full-viewport takeover — centers a single notice card, using the
+ * darkest background token so it reads as unmistakably "down," never
+ * as a themed page. 100dvh (not 100vh) per Rule 29.5 mobile guidance.
+ * Shared by both the visitor site and the super-admin area — see the
+ * component's own file header for why post-wipe lockdown blocks both.
+ */
+.maintenanceLockdownScreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+  background-color: var(--color-bg);
+}
+
+/*
+ * .maintenanceLockdownCard
+ * The notice itself — bordered, padded, capped width so the message
+ * never stretches edge-to-edge on wide screens (Rule 23.6).
+ */
+.maintenanceLockdownCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: var(--max-width-narrow);
+  padding: var(--space-2xl) var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background-color: var(--color-surface);
+  text-align: center;
+}
+
+.maintenanceLockdownIcon {
+  font-size: 2.5rem;
+  color: var(--color-warning);
+}
+
+.maintenanceLockdownCard h1 {
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.maintenanceLockdownCard p {
+  max-width: 60ch;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}

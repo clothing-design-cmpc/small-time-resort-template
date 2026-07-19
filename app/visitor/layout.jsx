@@ -19,34 +19,45 @@ import Footer from "@/components/shared/Footer";
 import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
 import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
+import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 
 /**
  * getMaintenanceStatus
  * Reads the singleton SystemSettings row directly (Server Component,
  * no separate API round-trip needed) so every visitor page load knows
- * whether to show the maintenance banner — or, for an active breach,
- * the full-page takeover — before anything else renders.
- * Fails open (returns "off") on any DB error — a broken settings read
- * must never be the reason the whole visitor site looks down.
+ * whether to show the maintenance banner — or, for an active breach or
+ * a completed database wipe, the full-page takeover — before anything
+ * else renders. Fails open (returns "off") on any DB error — a broken
+ * settings read must never be the reason the whole visitor site looks
+ * down.
  */
 async function getMaintenanceStatus() {
   try {
     const settings = await prisma.systemSettings.findUnique({
       where: { id: "singleton" },
-      select: { maintenanceMode: true, maintenanceMessage: true, breachLockdown: true },
+      select: { maintenanceMode: true, maintenanceMessage: true, breachLockdown: true, postWipeLockdown: true },
     });
     return {
       maintenanceMode: settings?.maintenanceMode ?? false,
       maintenanceMessage: settings?.maintenanceMessage ?? "",
       breachLockdown: settings?.breachLockdown ?? false,
+      postWipeLockdown: settings?.postWipeLockdown ?? false,
     };
   } catch {
-    return { maintenanceMode: false, maintenanceMessage: "", breachLockdown: false };
+    return { maintenanceMode: false, maintenanceMessage: "", breachLockdown: false, postWipeLockdown: false };
   }
 }
 
 export default async function VisitorLayout({ children }) {
-  const { maintenanceMode, maintenanceMessage, breachLockdown } = await getMaintenanceStatus();
+  const { maintenanceMode, maintenanceMessage, breachLockdown, postWipeLockdown } = await getMaintenanceStatus();
+
+  // A completed database wipe (Task 2) is the most severe case of all —
+  // proxy.js already redirects every visitor request to /maintenance
+  // before this layout would even render, but this check stays here as
+  // a second line of defense for any render path that skips proxy.js.
+  if (postWipeLockdown) {
+    return <MaintenanceLockdownScreen message={maintenanceMessage} />;
+  }
 
   // A breach is more severe than plain planned maintenance — the
   // database itself may be compromised, so nothing else on the visitor

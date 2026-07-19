@@ -578,6 +578,20 @@ model SystemSettings {
   // the super-admin dashboard shows a persistent red alert until the
   // active BreachEvent is resolved from the hidden recovery page.
   breachLockdown      Boolean @default(false) @map("breach_lockdown")
+
+  // --- Post-Wipe Lockdown (scripts/runDatabaseWipe.js) ---
+  // Separate from breachLockdown above: flipped on ONLY by the wipe
+  // executor the instant TRUNCATE actually succeeds — never by a
+  // gatekeeper. Unlike breachLockdown, super-admin access is ALSO
+  // fully blocked (proxy.js), and the admin's session cookie is
+  // cleared on their very next request — the truncated tables include
+  // account_activity_logs, so continuing to browse as if nothing
+  // happened isn't safe to allow. Only reachable to lift from the
+  // hidden vault recovery page (app/api/admin/post-wipe-lockdown),
+  // same "works even when the regular session is untrusted" reasoning
+  // breachLockdown already relies on.
+  postWipeLockdown   Boolean   @default(false) @map("post_wipe_lockdown")
+  postWipeLockdownAt DateTime? @map("post_wipe_lockdown_at")
   breachActiveEventId String? @map("breach_active_event_id") @db.Uuid
 
   // --- Vault Passphrase (rotatable copy — see services/vaultAuth.js) ---

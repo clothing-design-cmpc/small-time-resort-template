@@ -11,13 +11,38 @@
  * inside a Next.js API route — see scripts/runBackup.js for the same
  * reasoning (Rule 40.1: DB-heavy work stays off the live request cycle).
  *
+ * Task 3 fix — SCHEMA DRIFT RECONCILIATION AFTER RESTORE:
+ * The uploaded .sql file is a raw pg_dump (same format scripts/
+ * runBackup.js and scripts/runDatabaseWipe.js's pre-wipe backup both
+ * produce) — it fully DROPs and re-CREATEs every table exactly as it
+ * existed at backup time. If that backup predates a later schema.prisma
+ * change (a column added since, say), psql restoring it used to
+ * silently put the live database back into that OLDER shape — nothing
+ * here ever re-synced it against the CURRENT schema.prisma afterward.
+ * The app would then start throwing Prisma's "column ... does not
+ * exist" error on the very first query that touches the missing
+ * column (the exact same class of bug Task 1 hit from the other
+ * direction — code expecting a column the database doesn't have).
+ * runSchemaReconciliation() below closes that gap: `npx prisma db push`
+ * declaratively reconciles the live database structure to match
+ * schema.prisma every time, right after the data itself is restored —
+ * this is Prisma's own schema-sync mechanism (Rule 37.2 in the
+ * project's own DB-change-workflow reference), NOT a per-row upsert;
+ * see that step's own comment below for why db push, not migrate.
+ * A failure here now fails the WHOLE import (not just a console
+ * warning) — a restore that leaves the schema out of sync isn't
+ * actually a safe, usable "success," even though the data itself
+ * loaded fine.
+ *
  * DATA FLOW:
  * 1. app/api/admin/sql-import/route.js uploads the file to R2, creates
  *    a SqlImportLog row (status "running"), and dispatches this
  *    workflow with { sql_file_url, import_log_id }
  * 2. This script downloads that file, gunzips it if needed, and pipes
  *    it into `psql $DIRECT_URL`
- * 3. The SqlImportLog row is updated to "success" or "failed"
+ * 3. Once psql succeeds, `npx prisma db push` reconciles the live
+ *    schema back to schema.prisma's current shape
+ * 4. The SqlImportLog row is updated to "success" or "failed"
  *
  * USAGE (GitHub Actions only): node scripts/runRestore.js
  * Reads SQL_FILE_URL, IMPORT_LOG_ID, and DIRECT_URL from the environment.
@@ -89,6 +114,33 @@ async function runPsqlRestore(sqlBuffer) {
   }
 }
 
+/**
+ * runSchemaReconciliation
+ * Runs `npx prisma db push` against DIRECT_URL right after the raw SQL
+ * restore completes, so the live database structure always matches
+ * the CURRENT schema.prisma — not whatever shape it happened to be in
+ * when the uploaded backup was taken. This is a declarative schema
+ * SYNC (Prisma's own term — see Rule 37.2's "ACTION -> Regen types"
+ * cheat sheet), not a row-level UPSERT: it adds/drops columns and
+ * tables to match schema.prisma, it never touches individual row data.
+ * --accept-data-loss is required non-interactively here (db push
+ * normally pauses for a y/n prompt on anything destructive) — running
+ * unattended on a GitHub runner has no terminal to answer that prompt,
+ * and the restore that just ran is itself already the destructive
+ * action; reconciling the schema afterward is comparatively safe.
+ * --skip-generate: this script only needs the DB structure to match,
+ * not a regenerated @prisma/client — Client was already generated once
+ * earlier in the workflow (see database-restore.yml's own step) before
+ * any of this runs.
+ */
+async function runSchemaReconciliation() {
+  await execFileAsync(
+    "npx",
+    ["prisma", "db", "push", "--accept-data-loss", "--skip-generate"],
+    { maxBuffer: 1024 * 1024 * 1024, env: process.env }
+  );
+}
+
 async function main() {
   const { SQL_FILE_URL, IMPORT_LOG_ID } = process.env;
 
@@ -106,6 +158,10 @@ async function main() {
 
     await runPsqlRestore(sqlBuffer);
     console.log("[restore] psql restore complete.");
+
+    console.log("[restore] Reconciling database schema against schema.prisma…");
+    await runSchemaReconciliation();
+    console.log("[restore] Schema reconciliation complete — database structure now matches schema.prisma.");
 
     await withRetry(
       () =>

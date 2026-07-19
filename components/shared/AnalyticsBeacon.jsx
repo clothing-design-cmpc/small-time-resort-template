@@ -1,20 +1,9 @@
 /**
  * FILE: components/shared/AnalyticsBeacon.jsx
- * ROLE: Applies to all account types (mounted once in the root layout)
- *
  * PURPOSE:
- * Silently reports the current path to /api/analytics/track whenever
- * the route changes, so Rule 41 aggregate analytics have data to
- * count. Sends no personal data itself — only the path and the
- * referrer's hostname (never the full referrer URL, which could
- * contain query strings/identifiers).
- *
- * DATA FLOW:
- * 1. Mounted once in app/layout.jsx, inside every page
- * 2. usePathname() changes on every route navigation
- * 3. useEffect fires a beacon POST each time the path changes —
- *    uses navigator.sendBeacon when available so the request survives
- *    the visitor navigating away before it completes
+ * Fires an anonymous, aggregate-only page-view beacon on route change.
+ * No personal data or per-visitor identifiers are sent — this feeds the
+ * PageViewDaily counters only (Rule 41). Mounted once in the root layout.
  */
 "use client";
 
@@ -24,23 +13,16 @@ import { usePathname } from "next/navigation";
 export default function AnalyticsBeacon() {
   const pathname = usePathname();
 
-  // Fires once per path change — reports the page view without
-  // blocking or slowing down the actual page render.
+  // Fires once per route change — records an aggregate view, never a
+  // per-visitor event, so this needs no consent banner (Rule 41.1).
   useEffect(() => {
-    const referrerHost = document.referrer ? new URL(document.referrer).host : null;
-    const payload = JSON.stringify({ path: pathname, referrerHost });
+    const payload = JSON.stringify({ path: pathname, referrer: document.referrer || null });
 
-    if (navigator.sendBeacon) {
-      // sendBeacon survives the user navigating away immediately after load.
-      const blob = new Blob([payload], { type: "application/json" });
-      navigator.sendBeacon("/api/analytics/track", blob);
-    } else {
-      fetch("/api/analytics/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        keepalive: true,
-      }).catch(() => {}); // Never surface an analytics failure to the visitor.
+    try {
+      navigator.sendBeacon("/api/analytics/track", payload);
+    } catch (error) {
+      // Analytics must never break the page — fail silently
+      console.error("[AnalyticsBeacon] Failed to send:", error.message);
     }
   }, [pathname]);
 

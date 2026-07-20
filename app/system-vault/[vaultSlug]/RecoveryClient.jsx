@@ -416,6 +416,9 @@ export default function RecoveryClient() {
                 <span className="adminMono">
                   {log.fileName} — {DATE_FORMATTER.format(new Date(log.startedAt))}
                 </span>
+                {log.status === "running" && (
+                  <span className="recoveryMutedText">Restoring on GitHub Actions — checking every few seconds…</span>
+                )}
               </li>
             ))}
           </ul>

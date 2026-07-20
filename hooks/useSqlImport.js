@@ -49,6 +49,21 @@ export function useSqlImport() {
     fetchImportLogs();
   }, [fetchImportLogs]);
 
+  // Poll every 4 seconds while any import on the current page is still
+  // "running" — the actual restore happens on a GitHub Actions runner
+  // (Rule 40.1), so this list would otherwise sit on "Running" forever
+  // with no visible next step until the admin manually refreshes.
+  useEffect(() => {
+    const hasRunningImport = importLogs.some((log) => log.status === "running");
+    if (!hasRunningImport) return;
+
+    const pollTimer = setInterval(() => {
+      fetchImportLogs();
+    }, 4000);
+
+    return () => clearInterval(pollTimer);
+  }, [importLogs, fetchImportLogs]);
+
   /**
    * uploadSqlFile
    * Sends the chosen .sql/.sql.gz file to the API, which uploads it to

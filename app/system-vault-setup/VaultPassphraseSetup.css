@@ -71,6 +71,13 @@
   color: var(--color-warning);
 }
 
+/* Legacy env-fallback state — distinct from --set so the owner can tell
+   a real DB-stored passphrase apart from the old .env.local value still
+   working only because nothing has been generated here yet. */
+.vaultPassphraseSetupStatusValue--legacy {
+  color: var(--color-warning);
+}
+
 /* Amber-tinted callout — same visual weight as a warning toast, since
    this is the one line most likely to get skipped if it looked like
    ordinary body text. */

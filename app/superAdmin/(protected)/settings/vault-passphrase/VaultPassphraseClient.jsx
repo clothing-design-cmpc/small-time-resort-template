@@ -39,6 +39,10 @@ export default function VaultPassphraseClient() {
   // Whether a passphrase currently exists at all — fetched once on
   // mount, purely informational (never the passphrase value itself).
   const [isConfigured, setIsConfigured] = useState(null);
+  // "database" | "env_fallback" | "none" — lets the tracker tell apart a
+  // real DB-set passphrase from the old .env.local value still working
+  // only because it's never been rotated through this page yet.
+  const [passphraseSource, setPassphraseSource] = useState(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,8 +70,10 @@ export default function VaultPassphraseClient() {
         const response = await fetch("/api/superAdmin/settings/vault-passphrase");
         const result = await response.json();
         setIsConfigured(result?.data?.isConfigured ?? false);
+        setPassphraseSource(result?.data?.source ?? null);
       } catch {
         setIsConfigured(null);
+        setPassphraseSource(null);
       } finally {
         setIsCheckingStatus(false);
       }
@@ -108,6 +114,7 @@ export default function VaultPassphraseClient() {
       driveViewLink: result.data.driveViewLink,
     });
     setIsConfigured(true);
+    setPassphraseSource("database");
     setIsModalOpen(false);
 
     // Reset the auto-hide window every time a fresh passphrase is
@@ -158,12 +165,17 @@ export default function VaultPassphraseClient() {
         <div className="vaultPassphraseStatusRow">
           <span className="vaultPassphraseStatusLabel">Current status:</span>
           {isCheckingStatus && <span className="vaultPassphraseStatusValue">Checking…</span>}
-          {!isCheckingStatus && isConfigured && (
+          {!isCheckingStatus && passphraseSource === "database" && (
             <span className="vaultPassphraseStatusValue vaultPassphraseStatusValue--set">
               A passphrase is currently set
             </span>
           )}
-          {!isCheckingStatus && !isConfigured && (
+          {!isCheckingStatus && passphraseSource === "env_fallback" && (
+            <span className="vaultPassphraseStatusValue vaultPassphraseStatusValue--legacy">
+              Legacy passphrase active (never generated here) — generate one now to store it properly
+            </span>
+          )}
+          {!isCheckingStatus && (passphraseSource === "none" || !isConfigured) && (
             <span className="vaultPassphraseStatusValue vaultPassphraseStatusValue--unset">
               No passphrase set yet
             </span>

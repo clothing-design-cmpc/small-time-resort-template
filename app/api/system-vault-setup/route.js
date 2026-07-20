@@ -74,11 +74,17 @@ export async function GET(request) {
       select: { passphraseHash: true },
     });
 
-    const isConfigured = Boolean(vaultPassphraseRow?.passphraseHash || process.env.VAULT_PASSPHRASE_HASH);
+    // Distinguish WHERE the effective passphrase is coming from, instead
+    // of collapsing DB-set and env-fallback into one "isConfigured" bool —
+    // the two look identical to the owner otherwise, even though only a
+    // DB-set passphrase has ever been rotated through this page.
+    const hasDbPassphrase = Boolean(vaultPassphraseRow?.passphraseHash);
+    const hasEnvFallback = Boolean(process.env.VAULT_PASSPHRASE_HASH);
+    const source = hasDbPassphrase ? "database" : hasEnvFallback ? "env_fallback" : "none";
 
     return NextResponse.json({
       success: true,
-      data: { isConfigured },
+      data: { isConfigured: hasDbPassphrase || hasEnvFallback, source },
       message: "Vault passphrase status fetched.",
     });
   } catch (error) {

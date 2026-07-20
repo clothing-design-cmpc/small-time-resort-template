@@ -704,31 +704,44 @@ model PageViewDaily {
 }
 
 // ============================================================
-// MODEL: Vault  (consolidated — every vault-related credential lives
-// in this single table, on one singleton row: id "vault")
+// MODEL: Vault  (second-factor OTP only — id "vault")
 // ============================================================
-// Previously split across two places: SystemSettings.vaultPassphraseHash
-// and a separate VaultOtp table. Consolidated here so a truncate of any
-// OTHER table (including system_settings) can never touch vault data —
-// this is the one table that must be excluded from any bulk wipe.
+// passphraseHash used to live on this same row. It has been split out
+// into its own table (VaultPassphrase, below) so a truncate/wipe of
+// this table can never also take out the passphrase, and so the two
+// credentials can rotate independently of each other.
 //
-// passphraseHash  — services/vaultAuth.js's first factor. Starts out
-//                    unset (falls back to VAULT_PASSPHRASE_HASH env var)
-//                    until the first rotation writes a value here.
 // otpCodeHash/otpExpiresAt/otpAttempts — services/vaultOtp.js's second
 //                    factor (the emailed one-time code). A successful
 //                    verify NULLS these three fields back out instead of
-//                    deleting the row — the row must survive so
-//                    passphraseHash on the same row is never lost.
+//                    deleting the row — the row must survive across
+//                    verifies.
 model Vault {
   id              String    @id @default("vault")
-  passphraseHash  String?   @map("passphrase_hash")
   otpCodeHash     String?   @map("otp_code_hash")
   otpExpiresAt    DateTime? @map("otp_expires_at")
   otpAttempts     Int       @default(0) @map("otp_attempts")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("vault")
+}
+
+// ============================================================
+// MODEL: VaultPassphrase  (first factor — split out from Vault so it
+// has its own table, on one singleton row: id "vault_passphrase")
+// ============================================================
+// passphraseHash — services/vaultAuth.js's first factor. Starts out
+//                  unset (falls back to VAULT_PASSPHRASE_HASH env var)
+//                  until the first generate/rotation writes a value
+//                  here. Read by getEffectivePassphraseHash() and
+//                  written by rotateVaultPassphrase() — never read or
+//                  written anywhere else.
+model VaultPassphrase {
+  id              String    @id @default("vault_passphrase")
+  passphraseHash  String?   @map("passphrase_hash")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("vault_passphrase")
 }
 
 // ============================================================

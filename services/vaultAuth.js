@@ -110,11 +110,11 @@ const VAULT_RECOVERY_PATH_PREFIX = "/system-vault/";
 async function getEffectivePassphraseHash() {
   let dbHash = null;
   try {
-    const vaultRow = await prisma.vault.findUnique({
-      where: { id: "vault" },
+    const vaultPassphraseRow = await prisma.vaultPassphrase.findUnique({
+      where: { id: "vault_passphrase" },
       select: { passphraseHash: true },
     });
-    dbHash = vaultRow?.passphraseHash ?? null;
+    dbHash = vaultPassphraseRow?.passphraseHash ?? null;
   } catch (error) {
     // DB read failure must never crash vault login or URL generation —
     // fall back to env, same as verifyVaultPassphrase always has.
@@ -266,10 +266,10 @@ export async function rotateVaultPassphrase() {
   const newPassphrase = generateVaultPassphrase();
   const newHash = hashVaultPassphrase(newPassphrase);
 
-  await prisma.vault.upsert({
-    where: { id: "vault" },
+  await prisma.vaultPassphrase.upsert({
+    where: { id: "vault_passphrase" },
     update: { passphraseHash: newHash },
-    create: { id: "vault", passphraseHash: newHash },
+    create: { id: "vault_passphrase", passphraseHash: newHash },
   });
 
   return newPassphrase;

@@ -65,6 +65,7 @@ import { useSqlImport } from "@/hooks/useSqlImport";
 import UnbanIpModal from "./UnbanIpModal";
 import VaultCodeConfirmModal from "./VaultCodeConfirmModal";
 import VaultDangerZoneSection from "./VaultDangerZoneSection";
+import VaultWipeGraceModal from "./VaultWipeGraceModal";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -562,6 +563,11 @@ export default function RecoveryClient() {
 
       {/* --- Danger Zone: schedule/cancel/truncate-now a database wipe --- */}
       <VaultDangerZoneSection showToast={showToast} />
+
+      {/* --- Final 2-hour checkpoint, mirrors DatabaseWipeGraceModal on
+          the super-admin side — see that component's own header for
+          why this was previously referenced but never built. --- */}
+      <VaultWipeGraceModal showToast={showToast} />
     </section>
   );
 }

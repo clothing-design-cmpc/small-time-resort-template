@@ -152,6 +152,40 @@ async function main() {
 
   console.log("[restore] Starting SQL import for log", IMPORT_LOG_ID);
 
+  // Snapshot the log row BEFORE the restore runs. The restored .sql file is a
+  // full pg_dump that DROPs and re-CREATEs every table — including
+  // sql_import_logs itself — so the "running" row created by the API route
+  // is wiped out mid-restore. Without this snapshot, the later status write
+  // has no fallback data to recreate the row with, and a plain .update()
+  // throws P2025 ("no record found for an update") once the row is gone.
+  const existingLog = await prisma.sqlImportLog.findUnique({ where: { id: IMPORT_LOG_ID } });
+
+  // upsertLogStatus
+  // Writes the final status using upsert instead of update: if the restore
+  // preserved the row, this behaves exactly like an update. If the restore's
+  // DROP/CREATE wiped it, this recreates it (same id) using the pre-restore
+  // snapshot so fileName/sourceUrl/triggeredBy/startedAt aren't lost, with
+  // the given status applied on top.
+  async function upsertLogStatus(statusData) {
+    await withRetry(
+      () =>
+        prisma.sqlImportLog.upsert({
+          where: { id: IMPORT_LOG_ID },
+          update: statusData,
+          create: {
+            id: IMPORT_LOG_ID,
+            fileName: existingLog?.fileName ?? "unknown.sql",
+            sourceUrl: existingLog?.sourceUrl ?? SQL_FILE_URL,
+            fileSizeBytes: existingLog?.fileSizeBytes ?? null,
+            triggeredBy: existingLog?.triggeredBy ?? null,
+            startedAt: existingLog?.startedAt ?? new Date(),
+            ...statusData,
+          },
+        }),
+      { label: "sqlImportLog.upsert" }
+    );
+  }
+
   try {
     const sqlBuffer = await downloadSqlFile(SQL_FILE_URL);
     console.log(`[restore] Downloaded and decompressed — ${sqlBuffer.length} bytes.`);
@@ -163,25 +197,11 @@ async function main() {
     await runSchemaReconciliation();
     console.log("[restore] Schema reconciliation complete — database structure now matches schema.prisma.");
 
-    await withRetry(
-      () =>
-        prisma.sqlImportLog.update({
-          where: { id: IMPORT_LOG_ID },
-          data: { status: "success", completedAt: new Date() },
-        }),
-      { label: "sqlImportLog.update (success)" }
-    );
+    await upsertLogStatus({ status: "success", completedAt: new Date() });
     console.log("[restore] Done.");
   } catch (error) {
     console.error("[restore] FAILED:", error.message);
-    await withRetry(
-      () =>
-        prisma.sqlImportLog.update({
-          where: { id: IMPORT_LOG_ID },
-          data: { status: "failed", errorMessage: error.message, completedAt: new Date() },
-        }),
-      { label: "sqlImportLog.update (failure)" }
-    );
+    await upsertLogStatus({ status: "failed", errorMessage: error.message, completedAt: new Date() });
     process.exitCode = 1;
   }
 }

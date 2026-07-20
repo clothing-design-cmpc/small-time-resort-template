@@ -17,14 +17,15 @@
  * that a breach could plausibly be compromising. The passphrase hash
  * starts out in VAULT_PASSPHRASE_HASH (.env.local / host env) only, but
  * once services/breachResponse.js auto-rotates it for the first time,
- * SystemSettings.vaultPassphraseHash (DB) becomes the live value instead
- * — a running server can't rewrite its own .env.local at runtime, so the
+ * Vault.passphraseHash (DB — consolidated on the same singleton row as
+ * the OTP fields, see the Vault model) becomes the live value instead —
+ * a running server can't rewrite its own .env.local at runtime, so the
  * DB is the only place a rotation can actually take effect without a
  * restart. See verifyVaultPassphrase()'s priority order below.
  *
  * Hashing uses Node's built-in crypto.scrypt — no extra dependency
  * (bcrypt/argon2) needed for a single shared secret. Format stored in
- * both VAULT_PASSPHRASE_HASH and SystemSettings.vaultPassphraseHash is
+ * both VAULT_PASSPHRASE_HASH and Vault.passphraseHash is
  * "salt:hash", both hex-encoded.
  *
  * URL, NOT A FIXED PATH:
@@ -109,15 +110,15 @@ const VAULT_RECOVERY_PATH_PREFIX = "/system-vault/";
 async function getEffectivePassphraseHash() {
   let dbHash = null;
   try {
-    const settings = await prisma.systemSettings.findUnique({
-      where: { id: "singleton" },
-      select: { vaultPassphraseHash: true },
+    const vaultRow = await prisma.vault.findUnique({
+      where: { id: "vault" },
+      select: { passphraseHash: true },
     });
-    dbHash = settings?.vaultPassphraseHash ?? null;
+    dbHash = vaultRow?.passphraseHash ?? null;
   } catch (error) {
     // DB read failure must never crash vault login or URL generation —
     // fall back to env, same as verifyVaultPassphrase always has.
-    console.error("[vaultAuth] Failed to read vaultPassphraseHash from DB:", error.message);
+    console.error("[vaultAuth] Failed to read passphraseHash from DB:", error.message);
   }
 
   return dbHash || process.env.VAULT_PASSPHRASE_HASH || "";
@@ -217,7 +218,7 @@ export function generateVaultPassphrase() {
  * faster than a wrong passphrase would.
  *
  * Hash source priority:
- *  1. SystemSettings.vaultPassphraseHash (DB) — set once rotation has
+ *  1. Vault.passphraseHash (DB) — set once rotation has
  *     happened at least once (see rotateVaultPassphrase below). This is
  *     the only value a running server can update at runtime.
  *  2. VAULT_PASSPHRASE_HASH (.env.local) — the original manually-set
@@ -247,7 +248,7 @@ export async function verifyVaultPassphrase(submittedPassphrase) {
 /**
  * rotateVaultPassphrase
  * Generates a brand-new passphrase, hashes it, and saves the hash to
- * SystemSettings.vaultPassphraseHash — overwriting whatever the vault
+ * Vault.passphraseHash — overwriting whatever the vault
  * passphrase used to be, DB value or original .env.local value alike.
  * Returns the PLAINTEXT passphrase so the caller (services/
  * breachResponse.js) can email it immediately — this is the only place
@@ -265,10 +266,10 @@ export async function rotateVaultPassphrase() {
   const newPassphrase = generateVaultPassphrase();
   const newHash = hashVaultPassphrase(newPassphrase);
 
-  await prisma.systemSettings.upsert({
-    where: { id: "singleton" },
-    update: { vaultPassphraseHash: newHash },
-    create: { id: "singleton", vaultPassphraseHash: newHash },
+  await prisma.vault.upsert({
+    where: { id: "vault" },
+    update: { passphraseHash: newHash },
+    create: { id: "vault", passphraseHash: newHash },
   });
 
   return newPassphrase;

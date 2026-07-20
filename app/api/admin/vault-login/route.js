@@ -18,7 +18,7 @@
  *    login route — this endpoint gates disaster recovery, brute force
  *    here is just as serious as brute forcing the main password
  * 3. verifyVaultPassphrase() does a constant-time compare against
- *    SystemSettings.vaultPassphraseHash (DB), falling back to
+ *    Vault.passphraseHash (DB), falling back to
  *    VAULT_PASSPHRASE_HASH (.env.local) if no DB value has ever been
  *    set yet — see services/vaultAuth.js for why the DB is the source
  *    of truth once auto-rotation (services/breachResponse.js) runs

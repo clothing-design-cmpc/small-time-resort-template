@@ -22,7 +22,7 @@
  * 1. RecoveryClient shows a "View Blocked IPs" button, not the list,
  *    until the owner completes the step-up modal
  * 2. On a valid code, this GET returns the list and the code is
- *    consumed (verifyVaultOtp deletes it on success) — a second call
+ *    consumed (verifyVaultOtp clears the otp fields on success) — a second call
  *    needs a brand-new code, same as every other vault step-up
  * 3. Each row is then rendered with an "Unban" button that opens
  *    UnbanIpModal, which requests its own separate fresh code

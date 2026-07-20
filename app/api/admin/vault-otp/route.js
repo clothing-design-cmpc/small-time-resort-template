@@ -96,7 +96,7 @@ export async function POST(request) {
   try {
     result = await generateAndSendVaultOtp(forceNew);
   } catch (error) {
-    // Most likely cause: the VaultOtp table doesn't exist yet because
+    // Most likely cause: the vault table doesn't exist yet because
     // `npx prisma db push` hasn't been run against this database. Log
     // the real error server-side (visible in the terminal running
     // `npm run dev`) but never leak it to the client.

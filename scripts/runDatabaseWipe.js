@@ -23,8 +23,11 @@
  * "wipe the database" now means truncate EVERY table except these few,
  * so the hidden vault recovery path (and what it needs to investigate
  * and re-open the site afterward) always survives a wipe:
- *   - vault_otp, database_wipe_requests: the vault's own login/wipe
- *     state — truncating these mid-flow would strand the wipe itself
+ *   - vault: consolidated passphrase hash + OTP state (formerly split
+ *     across vault_otp and system_settings.vaultPassphraseHash) —
+ *     truncating this mid-flow would strand the vault's own login
+ *   - database_wipe_requests: the wipe's own in-flight request state —
+ *     truncating this mid-flow would strand the wipe itself
  *   - system_settings: holds postWipeLockdown/maintenanceMode — the
  *     ONLY thing that lets the vault lift the lockdown afterward
  *   - backup_logs: the R2/Google Drive links needed to actually
@@ -84,7 +87,7 @@ const gzipAsync = promisify(gzip);
 // The only tables a wipe must never touch. Everything else in the
 // public schema gets truncated — see getTablesToTruncate() below.
 const TABLES_TO_PRESERVE = [
-  "vault_otp",
+  "vault",
   "database_wipe_requests",
   "system_settings",
   "backup_logs",

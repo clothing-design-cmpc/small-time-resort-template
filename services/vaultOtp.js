@@ -7,8 +7,8 @@
  * After the vault passphrase (services/vaultAuth.js) is accepted, the
  * vault is only half-unlocked. This file generates a 12-character
  * alphanumeric + special-character code (services/vaultOtpConfig.js),
- * stores a HASH of it (never the plaintext) in the singleton VaultOtp
- * row, and emails the plaintext to VAULT_OWNER_EMAIL via
+ * stores a HASH of it (never the plaintext) in the otp* fields of the
+ * consolidated singleton Vault row, and emails the plaintext to VAULT_OWNER_EMAIL via
  * services/emailjs.js. The owner reads the code from their inbox and
  * types it into VaultOtpClient — the code itself never touches
  * localStorage, sessionStorage, or any client-readable storage, and
@@ -66,8 +66,9 @@ function hashOtpCode(plaintextCode) {
 
 /**
  * generateAndSendVaultOtp
- * Creates a new 12-character code, overwrites the singleton VaultOtp row
- * with its hash + a fresh expiry + attempts reset to 0, and emails the
+ * Creates a new 12-character code, overwrites the otp* fields on the
+ * consolidated Vault row with its hash + a fresh expiry + attempts reset
+ * to 0 (passphraseHash on the same row is left untouched), and emails the
  * plaintext code to VAULT_OWNER_EMAIL. Returns { success, message,
  * skipped, expiresAt } — best-effort on the email send, since a
  * misconfigured EmailJS env shouldn't crash the route, but the caller
@@ -97,16 +98,19 @@ export async function generateAndSendVaultOtp(forceNew = true) {
   // leave it alone. Re-sending here would just invalidate the one
   // already in the owner's inbox for no benefit.
   if (!forceNew) {
-    const existingRow = await prisma.vaultOtp.findUnique({ where: { id: OTP_ROW_ID } });
+    const existingRow = await prisma.vault.findUnique({ where: { id: OTP_ROW_ID } });
     const isStillUsable =
-      existingRow && existingRow.attempts < OTP_MAX_ATTEMPTS && new Date() < existingRow.expiresAt;
+      existingRow?.otpCodeHash &&
+      existingRow.otpAttempts < OTP_MAX_ATTEMPTS &&
+      existingRow.otpExpiresAt &&
+      new Date() < existingRow.otpExpiresAt;
 
     if (isStillUsable) {
       return {
         success: true,
         skipped: true,
         message: `A code was already sent to ${maskEmail(ownerEmail)}. Check your inbox.`,
-        expiresAt: existingRow.expiresAt,
+        expiresAt: existingRow.otpExpiresAt,
       };
     }
   }
@@ -121,15 +125,14 @@ export async function generateAndSendVaultOtp(forceNew = true) {
   ).join("");
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  // Upsert the singleton row — a new send always replaces whatever
+  // Upsert the singleton Vault row — a new send always replaces whatever
   // code (used or not) came before it, and resets attempts to 0. Only
-  // one row ever exists (id: "vault"), so this upsert overwrites the
-  // old codeHash/expiresAt/attempts in place — the old code is gone
-  // from the table the instant a new one is generated.
-  await prisma.vaultOtp.upsert({
+  // the otp* fields are listed here, so passphraseHash on this same row
+  // (if already set) is left completely untouched by this call.
+  await prisma.vault.upsert({
     where: { id: OTP_ROW_ID },
-    create: { id: OTP_ROW_ID, codeHash: hashOtpCode(plaintextCode), expiresAt, attempts: 0 },
-    update: { codeHash: hashOtpCode(plaintextCode), expiresAt, attempts: 0 },
+    create: { id: OTP_ROW_ID, otpCodeHash: hashOtpCode(plaintextCode), otpExpiresAt: expiresAt, otpAttempts: 0 },
+    update: { otpCodeHash: hashOtpCode(plaintextCode), otpExpiresAt: expiresAt, otpAttempts: 0 },
   });
 
   // Plain text only — no inline HTML. The EmailJS dashboard template
@@ -170,17 +173,17 @@ export async function generateAndSendVaultOtp(forceNew = true) {
  * message, mirroring vault-login's "never reveal which part failed").
  */
 export async function verifyVaultOtp(submittedCode) {
-  const otpRow = await prisma.vaultOtp.findUnique({ where: { id: OTP_ROW_ID } });
+  const otpRow = await prisma.vault.findUnique({ where: { id: OTP_ROW_ID } });
 
-  if (!otpRow) {
+  if (!otpRow?.otpCodeHash) {
     return { verified: false, reason: "No OTP has been issued." };
   }
 
-  if (otpRow.attempts >= OTP_MAX_ATTEMPTS) {
+  if (otpRow.otpAttempts >= OTP_MAX_ATTEMPTS) {
     return { verified: false, reason: "Max attempts exceeded for this code." };
   }
 
-  if (new Date() > otpRow.expiresAt) {
+  if (!otpRow.otpExpiresAt || new Date() > otpRow.otpExpiresAt) {
     return { verified: false, reason: "Code expired." };
   }
 
@@ -188,7 +191,7 @@ export async function verifyVaultOtp(submittedCode) {
   // function is the actual security boundary, so it can't depend on
   // the client having sent a clean value.
   const submittedHash = Buffer.from(hashOtpCode((submittedCode ?? "").trim()), "hex");
-  const storedHash = Buffer.from(otpRow.codeHash, "hex");
+  const storedHash = Buffer.from(otpRow.otpCodeHash, "hex");
 
   const isMatch =
     submittedHash.length === storedHash.length && timingSafeEqual(submittedHash, storedHash);
@@ -196,16 +199,20 @@ export async function verifyVaultOtp(submittedCode) {
   if (!isMatch) {
     // Record the failed attempt so brute-forcing this code has a hard
     // ceiling even within the expiry window.
-    await prisma.vaultOtp.update({
+    await prisma.vault.update({
       where: { id: OTP_ROW_ID },
-      data: { attempts: { increment: 1 } },
+      data: { otpAttempts: { increment: 1 } },
     });
     return { verified: false, reason: "Incorrect code." };
   }
 
-  // One-time use: delete the row on success so the same code can never
-  // be replayed, even before it would have naturally expired.
-  await prisma.vaultOtp.delete({ where: { id: OTP_ROW_ID } });
+  // One-time use: NULL out only the otp* fields on success (never delete
+  // the row) — this row also carries passphraseHash, which must survive.
+  // The same code can never be replayed once these are cleared.
+  await prisma.vault.update({
+    where: { id: OTP_ROW_ID },
+    data: { otpCodeHash: null, otpExpiresAt: null, otpAttempts: 0 },
+  });
 
   return { verified: true };
 }

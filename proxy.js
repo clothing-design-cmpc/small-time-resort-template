@@ -150,17 +150,22 @@ export async function proxy(request, event) {
   const { pathname } = request.nextUrl;
 
   // --- GATEKEEPER IP BLOCK CHECK (3-Gatekeeper breach response) ---
-  // Runs before anything else, on every matched route — visitor pages,
-  // super-admin pages, and API routes alike. An IP that tripped
-  // Gatekeeper 1 (login brute force) or Gatekeeper 2 (SQL injection
-  // attempt) lands here and gets a flat 403 with no further detail —
-  // never a reason, never a hint about which gatekeeper caught them.
-  // (Blocking itself can be disabled for local testing via
-  // GATEKEEPER_IP_BLOCK_DISABLED — see services/ipBlock.js's blockIp().
-  // When that's set, isIpBlocked() simply never finds a row to match,
-  // so this check needs no changes of its own to respect the toggle.)
+  // DISABLED FOR NOW (per Roza, July 2026) — testing the Danger Zone
+  // wipe flow was tripping this on her own IP and locking her out of
+  // the site, including the vault recovery page meant to fix exactly
+  // that. Feature is being held for a future pass, not deleted — flip
+  // GATEKEEPER_IP_BLOCK_ENABLED="true" in .env.local to turn it back
+  // on. When re-enabled, keep the /system-vault/ + vault standalone
+  // API exemption below — the vault owner's own account must never be
+  // able to lock itself out of the one page that can undo an IP block.
   const requestIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.ip ?? null;
-  if (requestIp && (await isIpBlocked(requestIp))) {
+  if (
+    process.env.GATEKEEPER_IP_BLOCK_ENABLED === "true" &&
+    requestIp &&
+    !pathname.startsWith(HIDDEN_RECOVERY_PATH_PREFIX) &&
+    !isVaultStandaloneApiPath(pathname) &&
+    (await isIpBlocked(requestIp))
+  ) {
     return new NextResponse("Access denied.", { status: 403 });
   }
 

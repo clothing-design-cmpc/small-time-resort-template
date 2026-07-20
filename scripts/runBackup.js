@@ -66,11 +66,38 @@ function backupFileLabel() {
  * Shells out to the `pg_dump` binary (must be installed on the runner —
  * the GitHub Actions workflow installs postgresql-client before this
  * runs) and returns the dump as a Buffer via stdout.
+ *
+ * Task 3 fix — RESTORE WAS FAILING ON SUPABASE-MANAGED SCHEMAS:
+ * A plain `pg_dump` with no --schema filter dumps the ENTIRE database,
+ * including schemas Supabase itself creates and manages (auth,
+ * storage, extensions, graphql, realtime, vault, etc.). Restoring that
+ * dump onto an existing Supabase project — which already has those
+ * schemas — made psql fail immediately on `CREATE SCHEMA auth`
+ * ("schema \"auth\" already exists"), aborting the whole
+ * --single-transaction restore before a single app table got touched.
+ * This app only ever owns the "public" schema (see prisma/schema.prisma
+ * — no @@schema attributes anywhere), so --schema=public is both
+ * correct and sufficient; Supabase's own schemas are never ours to
+ * back up or restore in the first place.
+ *
+ * --clean --if-exists: emits `DROP TABLE IF EXISTS ... CASCADE` (etc.)
+ * ahead of every CREATE, so the dump is idempotent against a database
+ * that still has its public-schema tables (a TRUNCATE-based wipe never
+ * drops them) — without this, restoring onto an un-dropped table would
+ * fail the exact same way on "relation ... already exists".
  */
 async function runPgDump() {
   const { stdout } = await execFileAsync(
     "pg_dump",
-    [process.env.DIRECT_URL, "--no-owner", "--no-privileges", "--format=plain"],
+    [
+      process.env.DIRECT_URL,
+      "--no-owner",
+      "--no-privileges",
+      "--format=plain",
+      "--schema=public",
+      "--clean",
+      "--if-exists",
+    ],
     { maxBuffer: 1024 * 1024 * 1024, encoding: "buffer" } // up to 1GB dump
   );
   return stdout;

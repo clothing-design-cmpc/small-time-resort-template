@@ -122,11 +122,24 @@ function backupFileLabel() {
   return now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
 }
 
-/** Same pg_dump invocation as scripts/runBackup.js — see that file for why these flags. */
+/**
+ * Same pg_dump invocation as scripts/runBackup.js — see that file's
+ * own runPgDump() comment for why --schema=public --clean --if-exists
+ * are required (otherwise a later restore of this exact pre-wipe
+ * backup fails on Supabase's own schemas / already-existing tables).
+ */
 async function runPgDump() {
   const { stdout } = await execFileAsync(
     "pg_dump",
-    [process.env.DIRECT_URL, "--no-owner", "--no-privileges", "--format=plain"],
+    [
+      process.env.DIRECT_URL,
+      "--no-owner",
+      "--no-privileges",
+      "--format=plain",
+      "--schema=public",
+      "--clean",
+      "--if-exists",
+    ],
     { maxBuffer: 1024 * 1024 * 1024, encoding: "buffer" }
   );
   return stdout;

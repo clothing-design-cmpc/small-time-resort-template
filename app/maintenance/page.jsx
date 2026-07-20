@@ -29,6 +29,14 @@
 import { prisma } from "@/services/prisma";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 
+// Forces this page to always re-run getMaintenanceMessage() on every
+// request instead of being statically cached (Next.js's default for a
+// Server Component with no cookies()/headers()/fetch() call to signal
+// "dynamic"). Without this, the FIRST render of /maintenance gets
+// cached and every later visit — even after the lockdown is lifted and
+// the DB row changes — kept serving that same stale HTML.
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Under Maintenance | Villa Azure Resort",
   description: "This website is currently under maintenance.",

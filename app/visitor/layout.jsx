@@ -21,6 +21,14 @@ import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
 import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 
+// Forces this layout to always re-run getMaintenanceStatus() on every
+// request instead of being statically cached (Next.js's default for a
+// Server Component with no cookies()/headers()/fetch() call to signal
+// "dynamic"). Without this, the first render could get cached and every
+// later visitor page load — even after a lockdown is lifted and the DB
+// row changes — would keep serving that same stale locked/unlocked state.
+export const dynamic = "force-dynamic";
+
 /**
  * getMaintenanceStatus
  * Reads the singleton SystemSettings row directly (Server Component,

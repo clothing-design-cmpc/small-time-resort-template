@@ -736,9 +736,16 @@ model Vault {
 //                  here. Read by getEffectivePassphraseHash() and
 //                  written by rotateVaultPassphrase() — never read or
 //                  written anywhere else.
+// expiresAt      — set to 30 days past whenever passphraseHash was
+//                  last written (manual generate from super-admin >
+//                  vault-passphrase, OR the automatic 30-day rotation
+//                  at app/api/system-vault-setup/auto-rotate). Read by
+//                  isVaultPassphraseExpired() to decide whether the
+//                  next auto-rotate run should generate a new one.
 model VaultPassphrase {
   id              String    @id @default("vault_passphrase")
   passphraseHash  String?   @map("passphrase_hash")
+  expiresAt       DateTime? @map("expires_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("vault_passphrase")

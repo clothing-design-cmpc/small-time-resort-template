@@ -85,6 +85,13 @@ const PASSPHRASE_WORD_LIST = [
 // the 30-minute idle-timeout standard used elsewhere in the admin area.
 export const VAULT_SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 60;
 
+// How long a vault passphrase stays valid before the scheduled
+// auto-rotate route (app/api/system-vault-setup/auto-rotate) generates
+// a fresh one automatically. Independent of manual generation — a
+// manual click (super-admin > vault-passphrase, or the hidden
+// system-vault-setup page) always resets this same 30-day window.
+export const VAULT_PASSPHRASE_EXPIRY_DAYS = 30;
+
 // The vault no longer inherits a super-admin's uid — there is no
 // super-admin session behind it anymore. This fixed literal is used as
 // the "uid" inside the vaultSession cookie and as the SecurityLog
@@ -247,32 +254,78 @@ export async function verifyVaultPassphrase(submittedPassphrase) {
 
 /**
  * rotateVaultPassphrase
- * Generates a brand-new passphrase, hashes it, and saves the hash to
- * Vault.passphraseHash — overwriting whatever the vault
- * passphrase used to be, DB value or original .env.local value alike.
- * Returns the PLAINTEXT passphrase so the caller (services/
- * breachResponse.js) can email it immediately — this is the only place
- * that plaintext ever exists outside the admin's inbox. It is never
- * logged, never written anywhere else, and never returned in any API
- * response body.
+ * Generates a brand-new passphrase, hashes it, and saves the hash (plus
+ * a fresh 30-day expiresAt) to VaultPassphrase.passphraseHash —
+ * overwriting whatever the vault passphrase used to be, DB value or
+ * original .env.local value alike. Returns the PLAINTEXT passphrase so
+ * the caller (services/breachResponse.js, the manual settings-page
+ * route, or the 30-day auto-rotate route below) can email it
+ * immediately — this is the only place that plaintext ever exists
+ * outside the admin's inbox. It is never logged, never written
+ * anywhere else, and never returned in any API response body except
+ * the one-time reveal on generate.
  *
  * Called automatically by triggerGatekeeperBreach() for Gatekeeper 1
- * (login brute force) and Gatekeeper 2 (SQL injection attempt) only —
- * never for Gatekeeper 3, since that one fires after a correct password
- * was already entered and may just be the real super-admin on a new
- * device or new location, not an actual intrusion.
+ * (login brute force) and Gatekeeper 2 (SQL injection attempt), by the
+ * manual "Generate New Passphrase" button (super-admin >
+ * vault-passphrase and the hidden system-vault-setup page), and by
+ * autoRotateVaultPassphraseIfExpired() below once VaultPassphrase.expiresAt
+ * has passed — never for Gatekeeper 3, since that one fires after a
+ * correct password was already entered and may just be the real
+ * super-admin on a new device or new location, not an actual intrusion.
  */
 export async function rotateVaultPassphrase() {
   const newPassphrase = generateVaultPassphrase();
   const newHash = hashVaultPassphrase(newPassphrase);
+  const newExpiresAt = new Date(Date.now() + VAULT_PASSPHRASE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
   await prisma.vaultPassphrase.upsert({
     where: { id: "vault_passphrase" },
-    update: { passphraseHash: newHash },
-    create: { id: "vault_passphrase", passphraseHash: newHash },
+    update: { passphraseHash: newHash, expiresAt: newExpiresAt },
+    create: { id: "vault_passphrase", passphraseHash: newHash, expiresAt: newExpiresAt },
   });
 
   return newPassphrase;
+}
+
+/**
+ * isVaultPassphraseExpired
+ * Reads VaultPassphrase.expiresAt and reports whether the current
+ * passphrase is due for its 30-day auto-rotation. No row yet, no
+ * expiresAt yet, or expiresAt in the past all count as "expired" —
+ * each of those means the next scheduled run should generate a fresh
+ * one. Read failures are treated as expired too (fail toward rotating,
+ * never toward silently running on a stale/unreadable value forever).
+ */
+export async function isVaultPassphraseExpired() {
+  try {
+    const row = await prisma.vaultPassphrase.findUnique({
+      where: { id: "vault_passphrase" },
+      select: { expiresAt: true },
+    });
+    if (!row?.expiresAt) return true;
+    return row.expiresAt.getTime() <= Date.now();
+  } catch (error) {
+    console.error("[vaultAuth] Failed to read VaultPassphrase.expiresAt:", error.message);
+    return true;
+  }
+}
+
+/**
+ * autoRotateVaultPassphraseIfExpired
+ * Called by the scheduled cron route
+ * (app/api/system-vault-setup/auto-rotate/route.js) only — never by a
+ * regular page load or login attempt, so the passphrase never changes
+ * out from under someone mid-session. Checks expiresAt first and only
+ * rotates when the 30 days are actually up; returns null on a no-op
+ * run so the route can report "not due yet" instead of pretending a
+ * rotation happened.
+ */
+export async function autoRotateVaultPassphraseIfExpired() {
+  const expired = await isVaultPassphraseExpired();
+  if (!expired) return null;
+
+  return rotateVaultPassphrase();
 }
 
 /**

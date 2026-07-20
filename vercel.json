@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/system-vault-setup/auto-rotate",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

@@ -16,7 +16,7 @@
  * value. Reading SystemSettings directly (same table the API route and
  * liftPostWipeLockdown() below already use) fixes that mismatch.
  */
-import { prisma } from "@/services/prisma";
+import { prisma } from "./prisma.js";
 
 /**
  * isPostWipeLockdownActive

@@ -1,21 +1,19 @@
 /**
- * FILE: app/superAdmin/(protected)/settings/vault-passphrase-generator/VaultPassphraseGeneratorClient.jsx
- * ROLE: Super-admin only — protected by proxy.js auth guard
+ * FILE: app/system-vault-setup/VaultPassphraseSetupClient.jsx
+ * ROLE: Owner only — gated by page.jsx server-side, re-checked again
+ *       by app/api/system-vault-setup/route.js on every request.
  *
  * PURPOSE:
  * Single button that generates a brand-new vault recovery passphrase
  * into the new, dedicated VaultPassphrase table and shows it exactly
- * once. Same one-time-reveal UX as settings/vault-passphrase, but
- * pointed at
- * app/api/superAdmin/settings/vault-passphrase-generator/route.js so
- * it always writes to the current, correct table.
+ * once. Deliberately plain markup — no Sidebar, no AdminHeader, no
+ * dashboard chrome — since this page is meant to be reached only by
+ * its exact hidden URL, never by navigating the admin dashboard.
  *
  * DATA FLOW:
- * 1. On mount: GET
- *    /api/superAdmin/settings/vault-passphrase-generator — just checks
- *    whether a passphrase currently exists in the new table, so the
- *    page can show "No passphrase set yet" vs "A passphrase is
- *    currently set"
+ * 1. On mount: GET /api/system-vault-setup — just checks whether a
+ *    passphrase currently exists in the new table, so the page can
+ *    show "No passphrase set yet" vs "A passphrase is currently set"
  * 2. "Generate New Passphrase" -> confirmation modal (this invalidates
  *    whatever passphrase used to work, same as an auto-rotation would)
  * 3. On confirm: POST the same endpoint -> server generates + hashes +
@@ -37,9 +35,9 @@ import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 // box from sitting on screen indefinitely if the admin walks away.
 const REVEAL_AUTO_HIDE_MS = 30 * 1000;
 
-const GENERATOR_ENDPOINT = "/api/superAdmin/settings/vault-passphrase-generator";
+const SETUP_ENDPOINT = "/api/system-vault-setup";
 
-export default function VaultPassphraseGeneratorClient() {
+export default function VaultPassphraseSetupClient() {
   const { toasts, showToast, dismissToast } = useToast();
 
   // Whether a passphrase currently exists at all — fetched once on
@@ -69,7 +67,7 @@ export default function VaultPassphraseGeneratorClient() {
   useEffect(() => {
     async function checkStatus() {
       try {
-        const response = await fetch(GENERATOR_ENDPOINT);
+        const response = await fetch(SETUP_ENDPOINT);
         const result = await response.json();
         setIsConfigured(result?.data?.isConfigured ?? false);
       } catch {
@@ -92,7 +90,7 @@ export default function VaultPassphraseGeneratorClient() {
   async function handleGenerate() {
     let response;
     try {
-      response = await fetch(GENERATOR_ENDPOINT, { method: "POST" });
+      response = await fetch(SETUP_ENDPOINT, { method: "POST" });
     } catch {
       showToast("✕ Network error — please try again.", "error");
       setIsModalOpen(false);
@@ -149,34 +147,34 @@ export default function VaultPassphraseGeneratorClient() {
   }
 
   return (
-    <section className="vaultPassphraseGeneratorSection">
+    <section className="vaultPassphraseSetupSection">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      <div className="vaultPassphraseGeneratorHeader">
-        <h1>Vault Passphrase Generator</h1>
+      <div className="vaultPassphraseSetupHeader">
+        <h1>Vault Passphrase Setup</h1>
         <p>
           Generates a passphrase into the new, dedicated passphrase
           table for the hidden disaster-recovery page.
         </p>
       </div>
 
-      <div className="vaultPassphraseGeneratorCard">
-        <div className="vaultPassphraseGeneratorStatusRow">
-          <span className="vaultPassphraseGeneratorStatusLabel">Current status:</span>
-          {isCheckingStatus && <span className="vaultPassphraseGeneratorStatusValue">Checking…</span>}
+      <div className="vaultPassphraseSetupCard">
+        <div className="vaultPassphraseSetupStatusRow">
+          <span className="vaultPassphraseSetupStatusLabel">Current status:</span>
+          {isCheckingStatus && <span className="vaultPassphraseSetupStatusValue">Checking…</span>}
           {!isCheckingStatus && isConfigured && (
-            <span className="vaultPassphraseGeneratorStatusValue vaultPassphraseGeneratorStatusValue--set">
+            <span className="vaultPassphraseSetupStatusValue vaultPassphraseSetupStatusValue--set">
               A passphrase is currently set
             </span>
           )}
           {!isCheckingStatus && !isConfigured && (
-            <span className="vaultPassphraseGeneratorStatusValue vaultPassphraseGeneratorStatusValue--unset">
+            <span className="vaultPassphraseSetupStatusValue vaultPassphraseSetupStatusValue--unset">
               No passphrase set yet
             </span>
           )}
         </div>
 
-        <p className="vaultPassphraseGeneratorWarning">
+        <p className="vaultPassphraseSetupWarning">
           Generating a new passphrase immediately replaces the old one —
           if you had one memorized or saved before, it will stop working
           the moment you click Generate.
@@ -184,35 +182,35 @@ export default function VaultPassphraseGeneratorClient() {
 
         <button
           type="button"
-          className="vaultPassphraseGeneratorButton"
+          className="vaultPassphraseSetupButton"
           onClick={() => setIsModalOpen(true)}
         >
           Generate New Passphrase
         </button>
 
         {revealedPassphrase && (
-          <div className="vaultPassphraseGeneratorRevealBox">
-            <span className="vaultPassphraseGeneratorRevealLabel">
+          <div className="vaultPassphraseSetupRevealBox">
+            <span className="vaultPassphraseSetupRevealLabel">
               ✓ A new passphrase has been generated.
             </span>
-            <p className="vaultPassphraseGeneratorRevealHint">
+            <p className="vaultPassphraseSetupRevealHint">
               It has been delivered through the channels below — it is
               never shown on this page and cannot be viewed again after
               this message. Use "Copy to clipboard" now if you'd like to
               paste it into a password manager without seeing it on screen.
             </p>
-            <button type="button" className="vaultPassphraseGeneratorCopyButton" onClick={handleCopy}>
+            <button type="button" className="vaultPassphraseSetupCopyButton" onClick={handleCopy}>
               Copy to clipboard
             </button>
 
             {deliveryStatus && (
-              <ul className="vaultPassphraseGeneratorDeliveryList">
-                <li className={deliveryStatus.emailSent ? "vaultPassphraseGeneratorDelivery--ok" : "vaultPassphraseGeneratorDelivery--fail"}>
+              <ul className="vaultPassphraseSetupDeliveryList">
+                <li className={deliveryStatus.emailSent ? "vaultPassphraseSetupDelivery--ok" : "vaultPassphraseSetupDelivery--fail"}>
                   {deliveryStatus.emailSent
                     ? "✓ Emailed to the vault owner's inbox."
                     : "✕ Email failed to send — use \"Copy to clipboard\" above instead."}
                 </li>
-                <li className={deliveryStatus.driveSaved ? "vaultPassphraseGeneratorDelivery--ok" : "vaultPassphraseGeneratorDelivery--fail"}>
+                <li className={deliveryStatus.driveSaved ? "vaultPassphraseSetupDelivery--ok" : "vaultPassphraseSetupDelivery--fail"}>
                   {deliveryStatus.driveSaved ? (
                     <>
                       ✓ Saved to Google Drive as a .txt file.{" "}

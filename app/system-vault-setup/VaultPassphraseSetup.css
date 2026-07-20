@@ -1,37 +1,38 @@
 /*
- * FILE: VaultPassphraseGenerator.css
- * Styles for the standalone Vault Passphrase Generator page — a single
- * card with a status row, a generate button, and a one-time reveal
- * box. Kept deliberately simple; this page has one job.
+ * FILE: VaultPassphraseSetup.css
+ * Styles for the standalone, hidden Vault Passphrase Setup page — a
+ * single centered card with a status row, a generate button, and a
+ * one-time reveal box. No Sidebar/AdminHeader chrome — full-page
+ * layout since this page is reached only by its exact hidden URL.
  */
 
-.vaultPassphraseGeneratorSection {
+.vaultPassphraseSetupSection {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--space-lg);
   padding: var(--space-lg);
+  min-height: 100dvh;
   max-width: var(--max-width-narrow, 720px);
-  /* Centers the whole card block within the page's content area,
-     rather than letting it sit flush against the left edge. */
   margin: 0 auto;
   text-align: center;
 }
 
-.vaultPassphraseGeneratorHeader h1 {
+.vaultPassphraseSetupHeader h1 {
   font-size: 1.5rem;
   letter-spacing: -0.02em;
   margin: 0 0 var(--space-sm);
 }
 
-.vaultPassphraseGeneratorHeader p {
+.vaultPassphraseSetupHeader p {
   color: var(--color-text-secondary);
   line-height: 1.65;
   max-width: 60ch;
   margin-inline: auto;
 }
 
-.vaultPassphraseGeneratorCard {
+.vaultPassphraseSetupCard {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -43,7 +44,7 @@
   width: 100%;
 }
 
-.vaultPassphraseGeneratorStatusRow {
+.vaultPassphraseSetupStatusRow {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,29 +52,29 @@
   flex-wrap: wrap;
 }
 
-.vaultPassphraseGeneratorStatusLabel {
+.vaultPassphraseSetupStatusLabel {
   font-size: 0.85rem;
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.vaultPassphraseGeneratorStatusValue {
+.vaultPassphraseSetupStatusValue {
   font-weight: 600;
 }
 
-.vaultPassphraseGeneratorStatusValue--set {
+.vaultPassphraseSetupStatusValue--set {
   color: var(--color-success);
 }
 
-.vaultPassphraseGeneratorStatusValue--unset {
+.vaultPassphraseSetupStatusValue--unset {
   color: var(--color-warning);
 }
 
 /* Amber-tinted callout — same visual weight as a warning toast, since
    this is the one line most likely to get skipped if it looked like
    ordinary body text. */
-.vaultPassphraseGeneratorWarning {
+.vaultPassphraseSetupWarning {
   padding: var(--space-sm) var(--space-md);
   border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
   background: color-mix(in srgb, var(--color-warning) 10%, transparent);
@@ -83,7 +84,7 @@
   line-height: 1.5;
 }
 
-.vaultPassphraseGeneratorButton {
+.vaultPassphraseSetupButton {
   align-self: center;
   padding: var(--space-sm) var(--space-lg);
   min-height: 44px;
@@ -97,13 +98,13 @@
   transition: background-color var(--transition-fast);
 }
 
-.vaultPassphraseGeneratorButton:hover,
-.vaultPassphraseGeneratorButton:focus-visible,
-.vaultPassphraseGeneratorButton:active {
+.vaultPassphraseSetupButton:hover,
+.vaultPassphraseSetupButton:focus-visible,
+.vaultPassphraseSetupButton:active {
   background: var(--color-accent-hover);
 }
 
-.vaultPassphraseGeneratorRevealBox {
+.vaultPassphraseSetupRevealBox {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -115,13 +116,13 @@
   width: 100%;
 }
 
-.vaultPassphraseGeneratorRevealLabel {
+.vaultPassphraseSetupRevealLabel {
   font-weight: 600;
   font-size: 0.9rem;
   color: var(--color-success);
 }
 
-.vaultPassphraseGeneratorCopyButton {
+.vaultPassphraseSetupCopyButton {
   padding: var(--space-sm) var(--space-md);
   min-height: 44px;
   border: 1px solid var(--color-border);
@@ -132,14 +133,14 @@
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.vaultPassphraseGeneratorCopyButton:hover,
-.vaultPassphraseGeneratorCopyButton:focus-visible,
-.vaultPassphraseGeneratorCopyButton:active {
+.vaultPassphraseSetupCopyButton:hover,
+.vaultPassphraseSetupCopyButton:focus-visible,
+.vaultPassphraseSetupCopyButton:active {
   background: var(--color-surface-hover);
   border-color: var(--color-border-hover);
 }
 
-.vaultPassphraseGeneratorRevealHint {
+.vaultPassphraseSetupRevealHint {
   font-size: 0.85rem;
   color: var(--color-text-secondary);
   line-height: 1.5;
@@ -147,7 +148,7 @@
   max-width: 55ch;
 }
 
-.vaultPassphraseGeneratorDeliveryList {
+.vaultPassphraseSetupDeliveryList {
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -158,15 +159,15 @@
   font-size: 0.85rem;
 }
 
-.vaultPassphraseGeneratorDeliveryList a {
+.vaultPassphraseSetupDeliveryList a {
   color: var(--color-accent);
   text-decoration: underline;
 }
 
-.vaultPassphraseGeneratorDelivery--ok {
+.vaultPassphraseSetupDelivery--ok {
   color: var(--color-success);
 }
 
-.vaultPassphraseGeneratorDelivery--fail {
+.vaultPassphraseSetupDelivery--fail {
   color: var(--color-error);
 }

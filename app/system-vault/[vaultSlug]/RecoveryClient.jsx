@@ -105,6 +105,17 @@ export default function RecoveryClient() {
 
   const { importLogs, isLoading: isImportHistoryLoading, uploadSqlFile } = useSqlImport();
 
+  // Mirrors the server-side guard in PATCH /api/admin/post-wipe-lockdown —
+  // sql_import_logs is truncated by every wipe, so any "success" row
+  // dated at/after postWipeLockdownAt proves a restore actually ran
+  // since this lockdown started. Used only to disable the button and
+  // explain why up front; the API call above is still the real gate.
+  const hasSuccessfulRestoreSincePostWipeLockdown = importLogs.some(
+    (log) =>
+      log.status === "success" &&
+      (!postWipeLockdownAt || new Date(log.completedAt) >= new Date(postWipeLockdownAt))
+  );
+
   // --- Step 3: Unban an IP ---
   // The list itself stays hidden (isBlockedIpsRevealed: false) until
   // its own step-up code is confirmed — see handleRevealBlockedIps.
@@ -367,10 +378,16 @@ export default function RecoveryClient() {
           <button
             type="button"
             className="recoveryEndLockdownButton"
+            disabled={!hasSuccessfulRestoreSincePostWipeLockdown}
             onClick={() => setIsLiftPostWipeModalOpen(true)}
           >
             Lift Post-Wipe Lockdown — Bring Website &amp; Super-Admin Back Online
           </button>
+          {!hasSuccessfulRestoreSincePostWipeLockdown && (
+            <p className="recoveryMutedText">
+              Disabled until a backup finishes restoring successfully under &quot;Fix SQL&quot; below.
+            </p>
+          )}
         </div>
       )}
 

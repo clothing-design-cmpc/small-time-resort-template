@@ -18,6 +18,12 @@
  *          and confirmed the database looks right again — mirrors
  *          app/api/admin/breach/route.js's PATCH exactly, one flag
  *          instead of two (no BreachEvent row involved here).
+ *          ENFORCED, not just advisory: refuses with 400 unless a
+ *          SqlImportLog with status "success" exists from after this
+ *          lockdown's postWipeLockdownAt — see the guard inside PATCH
+ *          below. Previously this was a pure honor-system click with
+ *          only a confirmation-modal warning, which let a fresh,
+ *          still-truncated database go live for every guest at once.
  *
  * DATA FLOW:
  * 1. scripts/runDatabaseWipe.js flips SystemSettings.postWipeLockdown
@@ -81,6 +87,41 @@ export async function PATCH(request) {
   }
 
   try {
+    // Guard: refuse to lift unless a SQL restore actually succeeded
+    // since this lockdown started. sql_import_logs is NOT on
+    // runDatabaseWipe.js's TABLES_TO_PRESERVE denylist, so it gets
+    // truncated by every wipe — any "success" row currently in the
+    // table necessarily happened after the wipe that triggered this
+    // lockdown. The postWipeLockdownAt comparison below is belt-and-
+    // suspenders for the (rare) case that table wasn't actually empty
+    // going in. Without this, "Lift Lockdown" was a pure honor-system
+    // click — nothing stopped bringing admin_profiles-empty, freshly
+    // truncated data back online for every guest and admin at once.
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: "singleton" },
+      select: { postWipeLockdownAt: true },
+    });
+
+    const successfulRestore = await prisma.sqlImportLog.findFirst({
+      where: {
+        status: "success",
+        ...(settings?.postWipeLockdownAt ? { completedAt: { gte: settings.postWipeLockdownAt } } : {}),
+      },
+      orderBy: { completedAt: "desc" },
+    });
+
+    if (!successfulRestore) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message:
+            'No successful SQL restore found since this lockdown started. Upload a backup under "Fix SQL" and wait for it to finish before lifting the lockdown.',
+        },
+        { status: 400 }
+      );
+    }
+
     await liftPostWipeLockdown();
 
     await logSecurityEvent({

@@ -128,15 +128,17 @@ async function runPsqlRestore(sqlBuffer) {
  * unattended on a GitHub runner has no terminal to answer that prompt,
  * and the restore that just ran is itself already the destructive
  * action; reconciling the schema afterward is comparatively safe.
- * --skip-generate: this script only needs the DB structure to match,
- * not a regenerated @prisma/client — Client was already generated once
- * earlier in the workflow (see database-restore.yml's own step) before
- * any of this runs.
+ * NOTE: Prisma 7 removed the --skip-generate flag entirely — db push no
+ * longer auto-runs `generate` at all, with or without the flag, so
+ * passing it now makes the CLI reject the whole command (prints --help,
+ * exits 1) instead of silently ignoring it. The flag is omitted here;
+ * Client was already generated once earlier in the workflow (see
+ * database-restore.yml's own step) before any of this runs.
  */
 async function runSchemaReconciliation() {
   await execFileAsync(
     "npx",
-    ["prisma", "db", "push", "--accept-data-loss", "--skip-generate"],
+    ["prisma", "db", "push", "--accept-data-loss"],
     { maxBuffer: 1024 * 1024 * 1024, env: process.env }
   );
 }

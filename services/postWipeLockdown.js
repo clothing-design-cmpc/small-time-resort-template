@@ -29,3 +29,24 @@ export async function isPostWipeLockdownActive() {
     return true;
   }
 }
+
+/**
+ * liftPostWipeLockdown
+ * Flips SystemSettings.postWipeLockdown + maintenanceMode back off and
+ * clears postWipeLockdownAt. Mirrors services/breachResponse.js's own
+ * lockdown-lift shape (see app/api/admin/breach/route.js's PATCH) —
+ * one flag instead of two, no BreachEvent row to resolve here since a
+ * scheduled wipe isn't tied to a gatekeeper incident.
+ *
+ * Called only from app/api/admin/post-wipe-lockdown/route.js's PATCH,
+ * itself only reachable after the vault owner has used the "Fix SQL"
+ * section to re-import a backup and confirmed the database looks
+ * right again.
+ */
+export async function liftPostWipeLockdown() {
+  await prisma.systemSettings.upsert({
+    where: { id: "singleton" },
+    update: { postWipeLockdown: false, maintenanceMode: false, postWipeLockdownAt: null },
+    create: { id: "singleton", postWipeLockdown: false, maintenanceMode: false },
+  });
+}

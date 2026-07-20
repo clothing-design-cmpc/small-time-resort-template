@@ -7,15 +7,23 @@
 # nothing here ever touches or slows down a booking request.
 #
 # Schedule: 18:00 UTC = 2:00 AM Philippine Time (UTC+8) every day.
-# Also runs on-demand via the "Run workflow" button in the Actions tab
-# (workflow_dispatch) — this is the ONLY approved way to trigger a
-# manual backup (Rule 40.6 forbids a "Run Backup Now" button in the app itself).
+# Also runs on-demand: either from the Backups page's "Run Backup Now"
+# button (app/api/admin/backup-logs/trigger/route.js dispatches this via
+# the GitHub API — still decoupled per Rule 40.1, since only the
+# dispatch call happens in-app and the actual pg_dump still runs here,
+# on GitHub's runners) or by pressing "Run workflow" directly in the
+# Actions tab.
 name: Nightly Database Backup
 
 on:
   schedule:
     - cron: "0 18 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      logId:
+        description: "BackupLog row ID pre-created by the app's trigger route (blank when dispatched manually from the Actions tab)"
+        required: false
+        type: string
 
 jobs:
   backup:
@@ -76,6 +84,14 @@ jobs:
           # and there's no need to: both mean a human wanted a backup
           # right now, as opposed to it happening automatically.
           TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'nightly' || 'manual' }}
+          # Set only when dispatched from the Backups page's "Run Backup
+          # Now" button — that route pre-creates the BackupLog row so it
+          # appears on the page instantly, and passes its id here so this
+          # script updates that SAME row instead of creating a second,
+          # duplicate one. Empty string on the nightly cron and on a
+          # manual "Run workflow" click from the Actions tab — the script
+          # falls back to creating its own row in both of those cases.
+          BACKUP_LOG_ID: ${{ github.event.inputs.logId }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}

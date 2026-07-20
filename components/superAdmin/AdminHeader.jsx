@@ -31,7 +31,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { LogOut, ChevronDown, Clock } from "lucide-react";
-import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useIdleTimeout, clearIdleDeadline } from "@/hooks/useIdleTimeout";
 import "./AdminHeader.css";
 
 const IDLE_TIMEOUT_MINUTES = 30;
@@ -162,6 +162,7 @@ export default function AdminHeader() {
    */
   async function handleSignOut() {
     setIsSigningOut(true);
+    clearIdleDeadline();
     try {
       await axios.post("/api/auth/logout");
     } catch {

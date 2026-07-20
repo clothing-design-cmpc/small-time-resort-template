@@ -19,7 +19,10 @@
  * 2. Gzips the dump in memory
  * 3. Uploads to R2 (services/r2.js) and Google Drive (services/googleDrive.js)
  *    — independently; one destination failing does not stop the other
- * 4. Writes one BackupLog row summarizing both results
+ * 4. Writes one BackupLog row summarizing both results — reusing the
+ *    row the trigger route already created (via BACKUP_LOG_ID) when
+ *    dispatched from the Backups page, or creating a fresh one
+ *    otherwise (nightly cron / manual "Run workflow" click)
  *
  * USAGE: npm run backup   (reads DIRECT_URL, R2, and Google Drive env
  * vars from the environment — GitHub Actions injects these from repo
@@ -114,16 +117,31 @@ async function main() {
   const triggerSource = process.env.TRIGGER_SOURCE || "manual";
   console.log(`[backup] Trigger source: ${triggerSource}`);
 
-  // Row created up front with status "running" so a crash mid-backup
-  // still leaves a visible (if incomplete) trail on the admin page,
-  // instead of the run disappearing silently. Wrapped in withRetry
-  // since this is the very first DB round-trip in the run — the one
-  // most likely to catch a transient DNS hiccup resolving the pooler
-  // hostname on a fresh GitHub Actions runner.
-  const logRow = await withRetry(
-    () => prisma.backupLog.create({ data: { status: "running", triggerSource } }),
-    { label: "backupLog.create" }
-  );
+  // Row created up front so a crash mid-backup still leaves a visible
+  // (if incomplete) trail on the admin page, instead of the run
+  // disappearing silently.
+  //
+  // When dispatched from the Backups page's "Run Backup Now" button,
+  // app/api/admin/backup-logs/trigger/route.js has ALREADY created this
+  // row (status "running", triggerSource "manual") in the same request
+  // that handled the click — that's what makes the row show up on the
+  // page instantly instead of only once this script gets around to
+  // running. BACKUP_LOG_ID carries that row's id through so we update
+  // it here instead of creating a second, duplicate row. On the
+  // nightly cron (and a manual "Run workflow" click from the Actions
+  // tab, which has no way to pre-create anything) BACKUP_LOG_ID is
+  // unset, so this falls back to creating its own row exactly as
+  // before.
+  let logRow;
+  if (process.env.BACKUP_LOG_ID) {
+    logRow = { id: process.env.BACKUP_LOG_ID };
+    console.log(`[backup] Using pre-created BackupLog row ${logRow.id} (dispatched from the Backups page).`);
+  } else {
+    logRow = await withRetry(
+      () => prisma.backupLog.create({ data: { status: "running", triggerSource } }),
+      { label: "backupLog.create" }
+    );
+  }
 
   let dumpBuffer;
   try {

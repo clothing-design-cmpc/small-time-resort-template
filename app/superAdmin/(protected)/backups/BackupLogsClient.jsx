@@ -20,7 +20,10 @@
  * 1. On mount and whenever the page changes, fetches
  *    GET /api/admin/backup-logs?page={page}
  * 2. "Run Backup Now" -> POST /api/admin/backup-logs/trigger, which
- *    dispatches database-backup.yml
+ *    creates the BackupLog row synchronously (status "running") and
+ *    dispatches database-backup.yml with that row's id. The returned
+ *    row is prepended to the table immediately — no delay, no manual
+ *    refresh needed to see that it started.
  * 3. DataTable renders the history with its own built-in
  *    loading/empty/error states and pagination footer
  *
@@ -72,6 +75,46 @@ function getNextScheduledRunLabel() {
 
   const isTonight = nextRunUtc.getUTCDate() === now.getUTCDate();
   return `${isTonight ? "tonight" : "tomorrow"} at 2:00 AM (Philippine time)`;
+}
+
+/**
+ * buildBackupLogRow
+ * Shapes one BackupLog record into the row object DataTable expects.
+ * Shared by the mapped history list AND by handleRunBackupNow's
+ * optimistic prepend, so the row that appears instantly on click looks
+ * pixel-identical to the same row once it's re-fetched from the server.
+ */
+function buildBackupLogRow(log) {
+  return {
+    id: log.id,
+    status: <StatusBadge status={log.status} />,
+    // Falls back to "manual" display via StatusBadge's own unknown-key
+    // fallback if a row predates this field (log.triggerSource will be
+    // undefined on rows written before the migration, not null) —
+    // never crashes on old data.
+    source: <StatusBadge status={log.triggerSource || "manual"} />,
+    startedAt: DATE_FORMATTER.format(new Date(log.startedAt)),
+    fileSize: formatFileSize(log.fileSizeBytes),
+    destinations: (
+      <div className="backupsDestinationLinks">
+        {log.r2Url ? (
+          <a href={log.r2Url} target="_blank" rel="noopener noreferrer" className="backupsDestinationLink">
+            R2 ↗
+          </a>
+        ) : (
+          <span className="backupsDestinationMissing">R2 —</span>
+        )}
+        {log.driveViewLink ? (
+          <a href={log.driveViewLink} target="_blank" rel="noopener noreferrer" className="backupsDestinationLink">
+            Drive ↗
+          </a>
+        ) : (
+          <span className="backupsDestinationMissing">Drive —</span>
+        )}
+      </div>
+    ),
+    details: log.errorMessage || (log.status === "running" ? "In progress…" : "—"),
+  };
 }
 
 const columns = [
@@ -145,15 +188,26 @@ export default function BackupLogsClient() {
 
   /**
    * handleRunBackupNow
-   * Fires the manual backup trigger. Success just means the workflow
-   * was dispatched - the actual BackupLog row appears a bit later once
-   * GitHub's runner finishes, so the toast tells the admin to refresh
-   * rather than pretending it's done already.
+   * Fires the manual backup trigger. The route now creates the
+   * BackupLog row synchronously and returns it — prepending it here
+   * puts it on screen the instant the click resolves, instead of the
+   * admin having to wait for GitHub's runner to start and refresh the
+   * page to see anything happened. Only prepends when already on page
+   * 1 (a new row belongs at the top of the newest-first list); on any
+   * other page the toast alone confirms it started, since inserting it
+   * there would just be a row that doesn't belong on that page.
    */
   async function handleRunBackupNow() {
     setIsTriggeringBackup(true);
     try {
       const response = await axios.post("/api/admin/backup-logs/trigger");
+      const newLog = response.data?.data?.backupLog;
+
+      if (newLog && page === 1) {
+        setBackupLogs((currentLogs) => [newLog, ...currentLogs]);
+        setTotalCount((currentCount) => currentCount + 1);
+      }
+
       showToast(`✓ ${response.data.message}`, "success");
     } catch (error) {
       const message = error.response?.data?.message || "Failed to start the backup. Please try again.";
@@ -163,36 +217,7 @@ export default function BackupLogsClient() {
     }
   }
 
-  const rows = backupLogs.map((log) => ({
-    id: log.id,
-    status: <StatusBadge status={log.status} />,
-    // Falls back to "manual" display via StatusBadge's own unknown-key
-    // fallback if a row predates this field (log.triggerSource will be
-    // undefined on rows written before the migration, not null) —
-    // never crashes on old data.
-    source: <StatusBadge status={log.triggerSource || "manual"} />,
-    startedAt: DATE_FORMATTER.format(new Date(log.startedAt)),
-    fileSize: formatFileSize(log.fileSizeBytes),
-    destinations: (
-      <div className="backupsDestinationLinks">
-        {log.r2Url ? (
-          <a href={log.r2Url} target="_blank" rel="noopener noreferrer" className="backupsDestinationLink">
-            R2 ↗
-          </a>
-        ) : (
-          <span className="backupsDestinationMissing">R2 —</span>
-        )}
-        {log.driveViewLink ? (
-          <a href={log.driveViewLink} target="_blank" rel="noopener noreferrer" className="backupsDestinationLink">
-            Drive ↗
-          </a>
-        ) : (
-          <span className="backupsDestinationMissing">Drive —</span>
-        )}
-      </div>
-    ),
-    details: log.errorMessage || (log.status === "running" ? "In progress…" : "—"),
-  }));
+  const rows = backupLogs.map(buildBackupLogRow);
 
   return (
     <section className="backupsSection">

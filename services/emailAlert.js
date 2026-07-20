@@ -117,7 +117,13 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
     bodyMessage:
       `This is a brand-new passphrase, generated just now — it replaces every passphrase that came before it, and the old one no longer works.\n\n` +
       `Save it somewhere safe immediately: it will not be shown on-screen or emailed again after this message.\n\n` +
-      `This passphrase gates the disaster-recovery page at ${vaultRecoveryUrl}.\n` +
+      // Recovery URL is deliberately on its own line with nothing after it —
+      // putting punctuation (e.g. a trailing period) directly after a bare
+      // URL causes some email clients' auto-linkers (Gmail included) to
+      // swallow that character into the clickable link itself, producing a
+      // slug that never matches computeVaultUrlSlug() and 404s.
+      `This passphrase gates the disaster-recovery page here:\n` +
+      `${vaultRecoveryUrl}\n\n` +
       `Generating another one from the dashboard will immediately replace this one too.\n` +
       `Keep this email private — do not forward or share it outside the resort owner.`,
   });

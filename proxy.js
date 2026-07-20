@@ -70,6 +70,22 @@ import { isPostWipeLockdownActive } from "@/services/postWipeLockdown";
 // needs to know the current correct slug.
 const HIDDEN_RECOVERY_PATH_PREFIX = "/system-vault/";
 
+// The hidden vault PASSPHRASE SETUP page (app/system-vault-setup) — a
+// separate standalone page from the recovery login above. Its whole
+// reason for existing (see that page's own docblock) is to bootstrap
+// or regenerate the passphrase using the normal admin "session" cookie
+// as a fallback credential, precisely BECAUSE there may be no working
+// vault passphrase to log in with otherwise. If this page were blocked
+// during lockdown like every other route, an owner who still holds a
+// valid session but has lost/forgotten the current passphrase would
+// have no way back in at all — locked out of both the regular admin
+// area (by lockdown) AND the vault (no known passphrase). It must
+// therefore stay reachable during lockdown exactly like the vault
+// login route family below; its own requireSuperAdmin()+isOwner check
+// (page.jsx and its API route) still fully gates who can use it.
+const HIDDEN_SETUP_PATH_PREFIX = "/system-vault-setup";
+const HIDDEN_SETUP_API_PREFIX = "/api/system-vault-setup";
+
 // The vault's own API routes must be excluded from the blanket
 // "/api/admin" super_admin gate below for the same reason — they
 // authenticate callers via vaultSession (and, going forward,
@@ -132,6 +148,8 @@ function isPostWipeLockdownExemptPath(pathname) {
   return (
     pathname === "/maintenance" ||
     pathname.startsWith(HIDDEN_RECOVERY_PATH_PREFIX) ||
+    pathname.startsWith(HIDDEN_SETUP_PATH_PREFIX) ||
+    pathname.startsWith(HIDDEN_SETUP_API_PREFIX) ||
     isVaultStandaloneApiPath(pathname) ||
     pathname.startsWith("/api/admin/post-wipe-lockdown") ||
     pathname.startsWith("/api/auth/logout")

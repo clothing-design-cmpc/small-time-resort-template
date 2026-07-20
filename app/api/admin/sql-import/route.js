@@ -29,6 +29,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
+import { requireVaultSession } from "@/services/vaultAuth";
 import { uploadToR2 } from "@/services/r2";
 import { triggerWorkflowDispatch } from "@/services/github";
 import { logSecurityEvent } from "@/services/securityLog";
@@ -37,8 +38,29 @@ const PAGE_SIZE = 10;
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_EXTENSIONS = [".sql", ".sql.gz"];
 
+/**
+ * requireSuperAdminOrVaultSession
+ * The normal Backups page reaches this route with a regular super-admin
+ * "session" cookie. RecoveryClient.jsx's "Fix SQL" step reuses this same
+ * route to restore during an ACTIVE post-wipe lockdown — but a
+ * completed wipe deletes the super-admin session cookie automatically
+ * (proxy.js), so requireSuperAdmin() alone would always fail exactly
+ * when the vault owner needs this route most. Accept either: a normal
+ * super-admin session, or a full (otpVerified) vault session — never
+ * a passphrase-only vault cookie.
+ */
+function requireSuperAdminOrVaultSession(request) {
+  const adminSession = requireSuperAdmin(request);
+  if (adminSession) return { uid: adminSession.uid };
+
+  const vaultSession = requireVaultSession(request);
+  if (vaultSession?.otpVerified) return { uid: vaultSession.uid };
+
+  return null;
+}
+
 export async function GET(request) {
-  const session = requireSuperAdmin(request);
+  const session = requireSuperAdminOrVaultSession(request);
   if (!session) {
     return NextResponse.json(
       { success: false, data: null, message: "You don't have permission to view this page." },
@@ -80,7 +102,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  const session = requireSuperAdmin(request);
+  const session = requireSuperAdminOrVaultSession(request);
   if (!session) {
     return NextResponse.json(
       { success: false, data: null, message: "You don't have permission to do this." },

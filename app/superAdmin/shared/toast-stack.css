@@ -1,17 +1,16 @@
 /*
  * .toastStack
- * Centered in the viewport (both axes), matching every modal backdrop
- * in the app (.adminModalBackdrop, .wipeDatabaseModalBackdrop,
- * .wipeGraceModalBackdrop all use the same fixed + flex-center
- * pattern). pointer-events: none so it never blocks clicks on the page
- * underneath; individual toast items re-enable pointer-events so they
- * can still be clicked to dismiss.
+ * Fixed top-center of the viewport (Rule 22.6) — never dead-center
+ * like a modal backdrop, so a toast never blocks the content
+ * underneath while it's reading it. pointer-events: none so it never
+ * blocks clicks on the page underneath; individual toast items
+ * re-enable pointer-events so they can still be clicked to dismiss.
  */
 .toastStack {
   position: fixed;
-  top: 50%;
+  top: 1.5rem;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: var(--z-toast);
   pointer-events: none;
   display: flex;

@@ -1,7 +1,8 @@
 /*
  * .adminToastStack
- * Centered in the viewport (both axes), matching every modal backdrop
- * in the app. pointerEvents is none on the wrapper so toasts never
+ * Fixed top-center of the viewport (Rule 22.6) — never dead-center
+ * like a modal backdrop, so a toast never sits over the content it's
+ * reporting on. pointerEvents is none on the wrapper so toasts never
  * block clicks underneath them — each individual toast re-enables
  * pointer events so it can still be dismissed early by clicking it.
  *
@@ -11,9 +12,9 @@
  */
 .adminToastStack {
   position: fixed;
-  top: 50%;
+  top: 1.5rem;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: var(--z-toast);
   pointer-events: none;
   display: flex;

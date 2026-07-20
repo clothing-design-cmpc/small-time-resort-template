@@ -101,6 +101,17 @@ const VAULT_STANDALONE_API_PATHS = [
   // back to the vault login screen seconds after landing on the
   // dashboard, even with a perfectly valid, freshly-OTP'd vault session.
   "/api/admin/post-wipe-lockdown",
+  // "Fix SQL" step (RecoveryClient.jsx) — reuses the same route the
+  // normal Backups page uses, but a completed wipe already deleted the
+  // super-admin session cookie by the time the vault owner reaches
+  // this page (see the LOCKDOWN-BLOCK comment below). Without this
+  // entry the route was double-blocked: the lockdown check 503'd it
+  // outright, and even once exempted there, the blanket "/api/admin
+  // needs a super_admin session" guard would still 401 it since that
+  // cookie is gone. The route itself now accepts a full (otpVerified)
+  // vault session as an alternative to a super-admin one — see
+  // requireSuperAdminOrVaultSession() in app/api/admin/sql-import/route.js.
+  "/api/admin/sql-import",
 ];
 
 function isVaultStandaloneApiPath(pathname) {

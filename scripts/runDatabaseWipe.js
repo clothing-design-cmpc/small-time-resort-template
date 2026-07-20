@@ -23,9 +23,11 @@
  * "wipe the database" now means truncate EVERY table except these few,
  * so the hidden vault recovery path (and what it needs to investigate
  * and re-open the site afterward) always survives a wipe:
- *   - vault: consolidated passphrase hash + OTP state (formerly split
- *     across vault_otp and system_settings.vaultPassphraseHash) —
- *     truncating this mid-flow would strand the vault's own login
+ *   - vault: OTP state (second factor) for the hidden recovery login
+ *   - vault_passphrase: passphrase hash + expiry (first factor) — split
+ *     out of `vault` into its own table; must be preserved alongside it
+ *     or the vault's own login is stranded, falling back to whatever
+ *     stale VAULT_PASSPHRASE_HASH is still set in env (if any)
  *   - database_wipe_requests: the wipe's own in-flight request state —
  *     truncating this mid-flow would strand the wipe itself
  *   - system_settings: holds postWipeLockdown/maintenanceMode — the
@@ -88,6 +90,10 @@ const gzipAsync = promisify(gzip);
 // public schema gets truncated — see getTablesToTruncate() below.
 const TABLES_TO_PRESERVE = [
   "vault",
+  "vault_passphrase", // split out of `vault` into its own table later —
+                      // must stay alongside it or a wipe strands the
+                      // vault's own login (first factor gone, falls
+                      // back silently to the stale env var instead)
   "database_wipe_requests",
   "system_settings",
   "backup_logs",

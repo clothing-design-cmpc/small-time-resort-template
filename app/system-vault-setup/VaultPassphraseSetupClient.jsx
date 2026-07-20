@@ -21,6 +21,15 @@
  *    only a "generated" confirmation is shown, with a "Copy to
  *    clipboard" button (copies from state, not from visible text) and
  *    the email/Drive delivery status
+ *
+ * vaultSetupKey PROP:
+ * Set by page.jsx only when the page itself was reached via a valid
+ * "?key=" query string instead of the normal admin session cookie
+ * (see services/adminSession.js's isValidVaultSetupKey()). A
+ * key-authenticated page load has no session cookie for these fetch
+ * calls to ride along on, so every request below forwards the same
+ * key as an "x-vault-setup-key" header — the API route accepts either
+ * credential independently, same as the page itself does.
  */
 "use client";
 
@@ -37,7 +46,12 @@ const REVEAL_AUTO_HIDE_MS = 30 * 1000;
 
 const SETUP_ENDPOINT = "/api/system-vault-setup";
 
-export default function VaultPassphraseSetupClient() {
+export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
+  // Only attached when this page load was key-authenticated — omitted
+  // entirely (not sent as an empty string) on a normal session-based
+  // visit, so the API route's own check behaves identically to before.
+  const setupKeyHeaders = vaultSetupKey ? { "x-vault-setup-key": vaultSetupKey } : undefined;
+
   const { toasts, showToast, dismissToast } = useToast();
 
   // Whether a passphrase currently exists at all — fetched once on
@@ -71,7 +85,7 @@ export default function VaultPassphraseSetupClient() {
   useEffect(() => {
     async function checkStatus() {
       try {
-        const response = await fetch(SETUP_ENDPOINT);
+        const response = await fetch(SETUP_ENDPOINT, { headers: setupKeyHeaders });
         const result = await response.json();
         setIsConfigured(result?.data?.isConfigured ?? false);
         setPassphraseSource(result?.data?.source ?? null);
@@ -96,7 +110,7 @@ export default function VaultPassphraseSetupClient() {
   async function handleGenerate() {
     let response;
     try {
-      response = await fetch(SETUP_ENDPOINT, { method: "POST" });
+      response = await fetch(SETUP_ENDPOINT, { method: "POST", headers: setupKeyHeaders });
     } catch {
       showToast("✕ Network error — please try again.", "error");
       setIsModalOpen(false);

@@ -8,6 +8,10 @@
  * same decode logic instead of trusting the request came from a
  * logged-in admin.
  *
+ * Also exports isValidVaultSetupKey() — a second, database-independent
+ * credential for app/system-vault-setup, see that function's own
+ * docblock below for why it exists.
+ *
  * DATA FLOW:
  * 1. An admin-only route handler calls requireSuperAdmin(request) first
  * 2. Reads and base64-decodes the "session" cookie set by
@@ -15,6 +19,7 @@
  * 3. Returns { uid, role } on a valid super_admin session, or null
  *    otherwise, so the caller can return 401 without touching the DB
  */
+import { timingSafeEqual } from "node:crypto";
 
 /**
  * requireSuperAdmin
@@ -56,4 +61,50 @@ export function requireSuperAdminFromCookieStore(cookieStore) {
   } catch {
     return null;
   }
+}
+
+/**
+ * isValidVaultSetupKey
+ * Constant-time comparison of a caller-supplied setup key against
+ * VAULT_SETUP_KEY — a dedicated recovery secret set once in
+ * .env.local, never written to any database table.
+ *
+ * WHY THIS EXISTS:
+ * app/system-vault-setup previously accepted only the regular
+ * super-admin "session" cookie + AdminProfile.isOwner. Both of those
+ * live in the database — the very thing scripts/runDatabaseWipe.js
+ * truncates (admin_profiles is deliberately NOT in that script's
+ * TABLES_TO_PRESERVE denylist, so a compromised admin account can
+ * never be the way back in after a real wipe). That left the setup
+ * page just as unreachable as everything else the moment a wipe
+ * completed — backwards for a page whose whole purpose is
+ * bootstrapping recovery access. VAULT_SETUP_KEY lives only in the
+ * deployment's environment, so it survives a full TRUNCATE untouched
+ * and reaches this one page with nothing but the secret itself — no
+ * session, no admin_profiles row, no database read at all. The
+ * existing session+isOwner path still works exactly as before (both
+ * app/system-vault-setup/page.jsx and its API route accept EITHER
+ * credential); this is an additional way in, not a replacement.
+ *
+ * Returns false immediately, with no comparison performed, if
+ * VAULT_SETUP_KEY isn't configured at all — a deployment that never
+ * set this env var behaves exactly as it did before this function
+ * existed, falling back to session+isOwner only.
+ *
+ * @param providedKey - value read from the "x-vault-setup-key" header
+ *   (API routes) or the "key" search param (page.jsx) — string, or
+ *   undefined/null if the caller didn't supply one
+ */
+export function isValidVaultSetupKey(providedKey) {
+  const configuredKey = process.env.VAULT_SETUP_KEY;
+  if (!configuredKey || !providedKey) return false;
+
+  const configuredBuffer = Buffer.from(configuredKey, "utf-8");
+  const providedBuffer = Buffer.from(providedKey, "utf-8");
+
+  // timingSafeEqual throws on mismatched buffer lengths — guard that
+  // first instead of letting a length mismatch surface as an exception.
+  if (configuredBuffer.length !== providedBuffer.length) return false;
+
+  return timingSafeEqual(configuredBuffer, providedBuffer);
 }

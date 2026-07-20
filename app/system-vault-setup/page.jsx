@@ -18,26 +18,49 @@
  * gated by its own passphrase + OTP login chain — but that passphrase
  * is exactly what this page exists to create in the first place. Until
  * VaultPassphrase.passphraseHash has a value, there's nothing to log in
- * with. So this one page has to fall back to the normal admin
- * "session" cookie + AdminProfile.isOwner check instead — the only
- * credential that can exist before a vault passphrase does. Once a
- * passphrase is generated here, the actual vault login at
- * /system-vault/[vaultSlug] takes over as normal.
+ * with.
+ *
+ * TWO INDEPENDENT WAYS IN (EITHER is sufficient):
+ * 1. The normal admin "session" cookie + AdminProfile.isOwner — the
+ *    original path, convenient while logged in normally.
+ * 2. A "key" query string matching VAULT_SETUP_KEY
+ *    (services/adminSession.js's isValidVaultSetupKey()) — an
+ *    env-only secret that never touches the database.
+ * Path 1 alone used to be the only way in, which meant this page went
+ * down with the site any time scripts/runDatabaseWipe.js ran: that
+ * script deliberately truncates admin_profiles along with everything
+ * else (TABLES_TO_PRESERVE in that file does not list it — a
+ * compromised admin account must never be the way back in after a
+ * real wipe), so the isOwner lookup below always failed post-wipe
+ * regardless of whether the session cookie itself was still present.
+ * Path 2 fixes that: VAULT_SETUP_KEY lives only in the deployment's
+ * environment, so it survives a TRUNCATE untouched, giving the owner
+ * a way to reach this page — and therefore generate/regenerate the
+ * vault passphrase used by /system-vault/[vaultSlug] — with no
+ * database read involved at all. Once a passphrase is generated here,
+ * the actual vault login at /system-vault/[vaultSlug] takes over as
+ * normal.
  *
  * DATA FLOW:
- * 1. Reads the "session" cookie, looks up AdminProfile.isOwner
- * 2. Not the owner (or no valid session) -> notFound() -> standard
- *    Next.js 404, indistinguishable from a URL that was never real
- * 3. Owner -> renders VaultPassphraseSetupClient, which owns the
- *    actual fetch/generate flow (also independently re-checked by
- *    app/api/system-vault-setup/route.js server-side — this
- *    page-level check is a UX/discoverability gate, not the only
- *    enforcement)
+ * 1. Reads the "key" search param -> isValidVaultSetupKey()
+ * 2. Valid key -> skip straight to rendering, no DB read at all
+ * 3. No valid key -> falls back to reading the "session" cookie and
+ *    looking up AdminProfile.isOwner, same as before
+ * 4. Neither credential valid -> notFound() -> standard Next.js 404,
+ *    indistinguishable from a URL that was never real
+ * 5. Either credential valid -> renders VaultPassphraseSetupClient,
+ *    which owns the actual fetch/generate flow (also independently
+ *    re-checked by app/api/system-vault-setup/route.js server-side —
+ *    this page-level check is a UX/discoverability gate, not the only
+ *    enforcement) — passed the setup key (if that's the credential
+ *    that worked) so it can forward it on every fetch call, since a
+ *    key-authenticated visit has no session cookie for those API
+ *    calls to ride along on
  */
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/services/prisma";
-import { requireSuperAdminFromCookieStore } from "@/services/adminSession";
+import { requireSuperAdminFromCookieStore, isValidVaultSetupKey } from "@/services/adminSession";
 import "./VaultPassphraseSetup.css";
 import VaultPassphraseSetupClient from "./VaultPassphraseSetupClient";
 
@@ -48,7 +71,19 @@ export const metadata = {
   description: "Restricted access.",
 };
 
-export default async function VaultPassphraseSetupPage() {
+export default async function VaultPassphraseSetupPage({ searchParams }) {
+  const resolvedSearchParams = await searchParams;
+  const providedKey = resolvedSearchParams?.key;
+
+  // Path 2 first — a valid key needs no cookie and no database read,
+  // so it works even when postWipeLockdown has wiped admin_profiles
+  // and cleared the session cookie on every other route.
+  if (isValidVaultSetupKey(providedKey)) {
+    return <VaultPassphraseSetupClient vaultSetupKey={providedKey} />;
+  }
+
+  // Path 1 — original behavior, unchanged: normal admin session +
+  // isOwner check, for convenient access while already logged in.
   const cookieStore = await cookies();
   const session = requireSuperAdminFromCookieStore(cookieStore);
   if (!session) notFound();
@@ -59,5 +94,5 @@ export default async function VaultPassphraseSetupPage() {
   });
   if (!adminProfile?.isOwner) notFound();
 
-  return <VaultPassphraseSetupClient />;
+  return <VaultPassphraseSetupClient vaultSetupKey={null} />;
 }

@@ -792,6 +792,45 @@ DEBUG POINTS:
   falls back to a placeholder "https://your-domain-here.com" instead of
   crashing the email/Drive-save flow — that placeholder is an obvious
   signal to go set the real value.)
+- VAULT_SETUP_KEY (optional but strongly recommended. A long random
+  secret, set once in .env.local — never written to any database
+  table. Lets the owner reach app/system-vault-setup by visiting
+  /system-vault-setup?key=<this value>, with no admin session and no
+  database read involved, even after scripts/runDatabaseWipe.js has
+  truncated admin_profiles. Unset -> that page falls back to the
+  original admin session + AdminProfile.isOwner check only, which
+  will 404 for everyone once a real wipe has run. See
+  services/adminSession.js's isValidVaultSetupKey().)
+
+=== PROCESS: Vault Setup Page Access (survives a full DB wipe) ===
+Step 1 : Owner visits /system-vault-setup, optionally with a "?key=" query string
+Step 2 : app/system-vault-setup/page.jsx checks the key first — isValidVaultSetupKey()
+         (services/adminSession.js) does a constant-time compare against
+         VAULT_SETUP_KEY, no cookie or database read involved
+Step 3 : Valid key -> page renders immediately, and that same key is passed to
+         VaultPassphraseSetupClient as a prop
+Step 4 : No valid key -> falls back to the original check: "session" cookie ->
+         AdminProfile.isOwner lookup in the database
+Step 5 : Neither credential valid -> notFound() -> plain Next.js 404
+Step 6 : VaultPassphraseSetupClient forwards the key (if it has one) as an
+         "x-vault-setup-key" header on every fetch to /api/system-vault-setup
+Step 7 : app/api/system-vault-setup/route.js (GET + POST) independently accepts
+         the same two credentials — a valid header short-circuits its own
+         session+isOwner check the same way
+
+DEBUG POINTS:
+- /system-vault-setup 404s even with a "?key=" in the URL -> VAULT_SETUP_KEY
+  isn't set in .env.local for this environment, or the value in the URL
+  doesn't match it exactly (constant-time compare, so it's an exact match
+  or nothing)
+- /system-vault-setup 404s after a database wipe with NO key in the URL ->
+  expected — admin_profiles was truncated by scripts/runDatabaseWipe.js
+  by design (TABLES_TO_PRESERVE never includes it), so the session+isOwner
+  fallback can never succeed post-wipe. Use the "?key=" URL instead.
+- Generate button on the setup page fails with a permission error even
+  though the URL loaded fine -> the "x-vault-setup-key" header isn't
+  reaching the API route (e.g. a proxy/CDN stripping custom headers) —
+  check the Network tab for that header on the POST request
 
 === PROCESS: Reseller License Check (owner-only feature, not client-facing) ===
 Step 1 : Every request to a matched route hits middleware.js first

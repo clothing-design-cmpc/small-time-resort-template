@@ -2,9 +2,14 @@
  * FILE: app/api/system-vault-setup/route.js
  * ROLE: Owner only — standalone, NOT under /api/superAdmin, same
  *       isolation reasoning as app/system-vault-setup/page.jsx above
- *       it. Gated by the normal admin "session" cookie + isOwner,
- *       since there is no vault passphrase to log in with until this
- *       route creates the first one.
+ *       it. Accepts EITHER the normal admin "session" cookie +
+ *       isOwner, OR an "x-vault-setup-key" header matching
+ *       VAULT_SETUP_KEY (services/adminSession.js's
+ *       isValidVaultSetupKey()) — see that page's own docblock for
+ *       why the key path exists: admin_profiles is truncated by
+ *       scripts/runDatabaseWipe.js by design, so the session+isOwner
+ *       path alone is unreachable after a real wipe, exactly when
+ *       this route is most needed.
  *
  * PURPOSE:
  * GET  -> tells the setup page whether a vault passphrase has ever
@@ -35,9 +40,9 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { requireSuperAdmin } from "@/services/adminSession";
+import { requireSuperAdmin, isValidVaultSetupKey } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
-import { rotateVaultPassphrase, getVaultRecoveryUrl } from "@/services/vaultAuth";
+import { rotateVaultPassphrase, getVaultRecoveryUrl, VAULT_IDENTITY } from "@/services/vaultAuth";
 import { sendVaultPassphraseRotationEmail } from "@/services/emailAlert";
 import { uploadToDrive } from "@/services/googleDrive";
 
@@ -49,23 +54,30 @@ import { uploadToDrive } from "@/services/googleDrive";
  * passphrase is currently set" without ever exposing the value itself.
  */
 export async function GET(request) {
-  const session = requireSuperAdmin(request);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to view this page." },
-      { status: 401 }
-    );
-  }
+  // Path 2 — a valid VAULT_SETUP_KEY header skips the session+DB check
+  // entirely; see this file's own header comment for why.
+  const hasValidSetupKey = isValidVaultSetupKey(request.headers.get("x-vault-setup-key"));
 
-  // Owner-only, same reasoning as page.jsx — a plain 404 here too, so a
-  // non-owner admin poking at this URL directly (not just through the
-  // UI) still can't tell this feature exists at all.
-  const adminProfile = await prisma.adminProfile.findUnique({
-    where: { id: session.uid },
-    select: { isOwner: true },
-  });
-  if (!adminProfile?.isOwner) {
-    return NextResponse.json({ success: false, data: null, message: "Not found." }, { status: 404 });
+  if (!hasValidSetupKey) {
+    // Path 1 — original behavior, unchanged.
+    const session = requireSuperAdmin(request);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, data: null, message: "You don't have permission to view this page." },
+        { status: 401 }
+      );
+    }
+
+    // Owner-only, same reasoning as page.jsx — a plain 404 here too, so
+    // a non-owner admin poking at this URL directly (not just through
+    // the UI) still can't tell this feature exists at all.
+    const adminProfile = await prisma.adminProfile.findUnique({
+      where: { id: session.uid },
+      select: { isOwner: true },
+    });
+    if (!adminProfile?.isOwner) {
+      return NextResponse.json({ success: false, data: null, message: "Not found." }, { status: 404 });
+    }
   }
 
   try {
@@ -109,26 +121,40 @@ export async function GET(request) {
  * ones from services/breachResponse.js.
  */
 export async function POST(request) {
-  const session = requireSuperAdmin(request);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to do this." },
-      { status: 401 }
-    );
-  }
+  // Path 2 — a valid VAULT_SETUP_KEY header skips the session+DB check
+  // entirely; see this file's own header comment for why. adminProfile
+  // stays null on this path since there is, by definition, no admin
+  // session to look one up for — the reason/audit-log text below
+  // accounts for that.
+  const hasValidSetupKey = isValidVaultSetupKey(request.headers.get("x-vault-setup-key"));
+  let session = null;
+  let adminProfile = null;
 
-  const adminProfile = await prisma.adminProfile.findUnique({
-    where: { id: session.uid },
-    select: { isOwner: true, fullName: true },
-  });
-  if (!adminProfile?.isOwner) {
-    return NextResponse.json({ success: false, data: null, message: "Not found." }, { status: 404 });
+  if (!hasValidSetupKey) {
+    // Path 1 — original behavior, unchanged.
+    session = requireSuperAdmin(request);
+    if (!session) {
+      return NextResponse.json(
+        { success: false, data: null, message: "You don't have permission to do this." },
+        { status: 401 }
+      );
+    }
+
+    adminProfile = await prisma.adminProfile.findUnique({
+      where: { id: session.uid },
+      select: { isOwner: true, fullName: true },
+    });
+    if (!adminProfile?.isOwner) {
+      return NextResponse.json({ success: false, data: null, message: "Not found." }, { status: 404 });
+    }
   }
 
   try {
     const newPassphrase = await rotateVaultPassphrase();
 
-    const reason = `Manually generated by ${adminProfile.fullName} from the hidden vault setup page`;
+    const reason = hasValidSetupKey
+      ? "Manually generated via the hidden vault setup key (no admin session available)"
+      : `Manually generated by ${adminProfile.fullName} from the hidden vault setup page`;
 
     // Email the plaintext to VAULT_OWNER_EMAIL — best-effort, reuses the
     // exact same template the auto-rotation path uses (Rule: one
@@ -145,7 +171,7 @@ export async function POST(request) {
       const fileContent =
         `Villa Azure Resort — Vault Recovery Passphrase\n` +
         `Generated: ${generatedAt}\n` +
-        `Generated by: ${adminProfile.fullName}\n\n` +
+        `Generated by: ${hasValidSetupKey ? "hidden vault setup key" : adminProfile.fullName}\n\n` +
         `Passphrase:\n${newPassphrase}\n\n` +
         `This passphrase gates the disaster-recovery page at [${vaultRecoveryUrl.replace(/^https?:\/\//, "")}](${vaultRecoveryUrl}).\n` +
         `Generating a new one from the hidden setup page replaces this one immediately.\n` +
@@ -167,7 +193,7 @@ export async function POST(request) {
     // "vault_passphrase_rotated" auto-rotation event (actor: "vault").
     await logSecurityEvent({
       eventType: "vault_passphrase_set",
-      actor: session.uid,
+      actor: hasValidSetupKey ? VAULT_IDENTITY : session.uid,
       request,
       details: `${reason}. Email sent: ${emailSent}. Saved to Drive: ${driveSaved}.`,
     });

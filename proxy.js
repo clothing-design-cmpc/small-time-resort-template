@@ -162,11 +162,21 @@ export async function proxy(request, event) {
   if (
     process.env.GATEKEEPER_IP_BLOCK_ENABLED === "true" &&
     requestIp &&
+    pathname !== "/access-denied" &&
     !pathname.startsWith(HIDDEN_RECOVERY_PATH_PREFIX) &&
     !isVaultStandaloneApiPath(pathname) &&
     (await isIpBlocked(requestIp))
   ) {
-    return new NextResponse("Access denied.", { status: 403 });
+    // API routes can't follow a redirect into an HTML page, so they
+    // keep the plain JSON 403. Page requests get the styled
+    // AccessDeniedScreen instead of a bare "Access denied." text blob.
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json(
+        { success: false, data: null, message: "Access denied." },
+        { status: 403 }
+      );
+    }
+    return NextResponse.redirect(new URL("/access-denied", request.url));
   }
 
   // --- POST-WIPE LOCKDOWN CHECK (Task 2) ---

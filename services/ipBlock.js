@@ -12,8 +12,9 @@ import { prisma } from "@/services/prisma";
 
 /**
  * isIpBlocked
- * Looks up the IP in the BlockedIp table. Returns true if a matching,
- * non-expired block exists.
+ * Looks up the IP in the BlockedIp table. Blocks have no expiry in this
+ * schema — a row's presence alone means blocked, until a super-admin
+ * unbans it via app/api/admin/blocked-ips/unban/route.js's deleteMany.
  *
  * @param {string} ipAddress - the requester's IP (from x-forwarded-for)
  */
@@ -21,11 +22,8 @@ export async function isIpBlocked(ipAddress) {
   if (!ipAddress) return false;
 
   try {
-    const blockedRecord = await prisma.blockedIp.findFirst({
-      where: {
-        ipAddress,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      },
+    const blockedRecord = await prisma.blockedIp.findUnique({
+      where: { ipAddress },
     });
 
     return Boolean(blockedRecord);
@@ -35,4 +33,26 @@ export async function isIpBlocked(ipAddress) {
     console.error("[ipBlock] Lookup failed, blocking by default:", error.message);
     return true;
   }
+}
+
+/**
+ * blockIp
+ * Inserts (or refreshes) a BlockedIp row for the given IP. Called only
+ * from services/breachResponse.js's Step 1 when Gatekeeper 1 or 2 trips
+ * (see that file's own comment on why Gatekeeper 3 never calls this).
+ * Upsert on the unique ipAddress column — a repeat trip from an IP
+ * that's somehow still reachable (e.g. blocked mid-request) just
+ * refreshes the reason/gatekeeper/timestamp instead of erroring on the
+ * unique constraint.
+ *
+ * @param {string} ipAddress - the offending IP to block
+ * @param {string} reason    - human-readable reason, shown on the vault's "View Blocked IPs" list
+ * @param {number} gatekeeper - 1 or 2, which gate this IP tripped
+ */
+export async function blockIp(ipAddress, reason, gatekeeper) {
+  await prisma.blockedIp.upsert({
+    where: { ipAddress },
+    update: { reason, gatekeeper, blockedBy: "system" },
+    create: { ipAddress, reason, gatekeeper, blockedBy: "system" },
+  });
 }

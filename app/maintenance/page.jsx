@@ -19,13 +19,29 @@
  *    SystemSettings.postWipeLockdown on
  * 2. proxy.js sees the flag on the very next request to ANY route and
  *    redirects here (pages) or 503s (API), clearing the session cookie
- * 3. This page reads the current maintenanceMessage directly (Server
- *    Component, no extra round trip) and renders MaintenanceLockdownScreen
+ * 3. This page reads postWipeLockdown + maintenanceMessage directly
+ *    (Server Component, no extra round trip) and renders
+ *    MaintenanceLockdownScreen
  * 4. Stays this way until a super-admin lifts it from the hidden vault
  *    recovery page (PATCH /api/admin/post-wipe-lockdown) — see
  *    app/system-vault/[vaultSlug]/RecoveryClient.jsx's "Post-Wipe
  *    Lockdown" section
+ *
+ * NOTE — self-check on lockdown state:
+ * This route is deliberately exempted from proxy.js's redirect (see
+ * isPostWipeLockdownExemptPath()) so it stays reachable while the rest
+ * of the site is dark. That exemption is unconditional by pathname —
+ * proxy.js never re-checks the flag for THIS route once you're already
+ * on it. Previously that meant the page rendered unconditionally: once
+ * lifted from the vault, every other route correctly stopped
+ * redirecting here, but a tab already sitting on /maintenance (or
+ * anyone who reloads/revisits it directly) kept seeing "Under
+ * Maintenance" forever, even though the site was already back online.
+ * This page now checks SystemSettings.postWipeLockdown itself on every
+ * request and bounces to "/" the moment it's false, so this page never
+ * outlives the lockdown it exists to represent.
  */
+import { redirect } from "next/navigation";
 import { prisma } from "@/services/prisma";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 
@@ -43,25 +59,40 @@ export const metadata = {
 };
 
 /**
- * getMaintenanceMessage
- * Fails open with the default in-component message on any DB error —
- * this page's entire job is to render SOMETHING even if the database
- * itself is in a bad state, which is exactly the scenario that put it
- * here in the first place.
+ * getMaintenanceState
+ * Reads both the lockdown flag and the message in one query. Fails
+ * open with postWipeLockdown: true (and the default message) on any
+ * DB error — this page's entire job is to render SOMETHING even if
+ * the database itself is in a bad state, which is exactly the
+ * scenario that put it here in the first place. Failing open here
+ * means "keep showing the maintenance screen," never "silently let
+ * guests back onto a site that might still be broken."
  */
-async function getMaintenanceMessage() {
+async function getMaintenanceState() {
   try {
     const settings = await prisma.systemSettings.findUnique({
       where: { id: "singleton" },
-      select: { maintenanceMessage: true },
+      select: { postWipeLockdown: true, maintenanceMessage: true },
     });
-    return settings?.maintenanceMessage ?? "";
+    return {
+      postWipeLockdown: settings?.postWipeLockdown ?? true,
+      message: settings?.maintenanceMessage ?? "",
+    };
   } catch {
-    return "";
+    return { postWipeLockdown: true, message: "" };
   }
 }
 
 export default async function MaintenancePage() {
-  const message = await getMaintenanceMessage();
+  const { postWipeLockdown, message } = await getMaintenanceState();
+
+  // The lockdown was already lifted from the vault — this tab is just
+  // stale (never navigated away) or someone hit the URL directly.
+  // Send them to the live site instead of showing a stale "Under
+  // Maintenance" screen forever.
+  if (!postWipeLockdown) {
+    redirect("/");
+  }
+
   return <MaintenanceLockdownScreen message={message} />;
 }

@@ -108,35 +108,39 @@ async function downloadSqlFile(url) {
 }
 
 /**
- * resetPublicSchema
- * Task 4 fix — SCHEMA-DROP CONFLICT WITH WIPE-PRESERVED OBJECTS:
- * The dump always contains an unqualified `DROP SCHEMA public;` (pg_dump
- * --clean's standard output) with no CASCADE. That fails outright
- * whenever the live public schema still has objects the dump script
- * itself never dropped — specifically, extensions like btree_gist, and
- * any table on runDatabaseWipe.js's TABLES_TO_PRESERVE denylist (e.g.
- * vault_passphrase) that a wipe deliberately left standing. Postgres
- * then refuses with "cannot drop schema public because other objects
- * depend on it" and the whole restore aborts before a single table
- * loads.
+ * resetPublicSchema — REMOVED (was causing restore failures).
  *
- * Fix: drop + recreate an EMPTY public schema ourselves first, with
- * CASCADE, in its own separate psql call (must commit on its own —
- * this can't live inside runPsqlRestore's --single-transaction run,
- * since the dump's own "DROP SCHEMA public;" line needs to hit an
- * already-empty, dependency-free schema). No data is lost beyond what
- * a full restore already implies: the dump recreates every table it
- * captured — including vault_passphrase, if that table existed at
- * backup time — moments later in the very same run.
+ * Task 4's original fix here was a manual `DROP SCHEMA public CASCADE;`
+ * before the restore, on the theory that the dump's own `--clean`
+ * preamble emits an unqualified `DROP SCHEMA public;` that would fail
+ * against wipe-preserved objects (extensions, vault_passphrase). That
+ * theory doesn't match what runBackup.js's pg_dump call actually does:
+ * it never passes `--create`, so pg_dump's plain-format `--clean
+ * --if-exists` output only ever drops individual objects INSIDE
+ * public — it never touches the schema itself. There was no
+ * "DROP SCHEMA public" conflict to solve.
+ *
+ * Worse, running a full CASCADE wipe first actively broke restores:
+ * this app has RLS policies and a gist EXCLUDE constraint on
+ * `bookings` (see prisma/addBookingExclusionConstraint.js), and
+ * pg_dump's --clean preamble includes statements like
+ * `DROP POLICY IF EXISTS "..." ON public.bookings;`. The IF EXISTS
+ * there only covers the policy name — the table itself still has to
+ * exist for that statement to parse against, since Postgres has no
+ * "IF EXISTS" form for a policy's target table. Wiping the schema
+ * first deleted `bookings` before the dump's own DROP POLICY line
+ * ran, so the restore failed with `relation "public.bookings" does
+ * not exist` — which then rolled back the whole --single-transaction
+ * run and left the schema (including sql_import_logs) empty, causing
+ * the log-status write to fail too.
+ *
+ * Fix: don't pre-wipe anything. pg_dump's `--clean --if-exists`
+ * preamble is already the correct, dependency-safe way to clear each
+ * object against a database where those objects still exist — which
+ * is always true here, since runDatabaseWipe.js TRUNCATEs tables
+ * rather than dropping them (see TABLES_TO_PRESERVE), so nothing this
+ * restore needs to clean up is ever actually missing beforehand.
  */
-async function resetPublicSchema() {
-  await execFileAsync(
-    "psql",
-    [process.env.DIRECT_URL, "--set", "ON_ERROR_STOP=1", "-c", "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"],
-    { maxBuffer: 1024 * 1024 * 1024 }
-  );
-}
-
 /**
  * runPsqlRestore
  * Writes the SQL to a temp file and pipes it into psql against
@@ -245,10 +249,6 @@ async function main() {
   try {
     const sqlBuffer = await downloadSqlFile(SQL_FILE_URL);
     console.log(`[restore] Downloaded and decompressed — ${sqlBuffer.length} bytes.`);
-
-    console.log("[restore] Resetting public schema to clear wipe-preserved objects before restore…");
-    await resetPublicSchema();
-    console.log("[restore] Public schema reset.");
 
     await runPsqlRestore(sqlBuffer);
     console.log("[restore] psql restore complete.");

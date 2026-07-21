@@ -651,19 +651,23 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   GITHUB_ACTIONS_TOKEN / GITHUB_REPO_OWNER / GITHUB_REPO_NAME /
   GITHUB_WORKFLOW_REF are all set - services/github.js throws immediately
   if any are missing.
-- SQL import row stuck on "running" for a long time: check the
-  "Database Restore (SQL Import)" run under the repo's Actions tab -
-  psql failures (bad SQL, wrong DIRECT_URL) show there even if the
-  SqlImportLog row update itself never fired.
+- SQL import row stuck on "running" for a long time: since
+  services/staleRunWatchdog.js was added, any row still "running" past
+  30 minutes auto-flips to "failed" the next time the Fix SQL history
+  is loaded — check the "Database Restore (SQL Import)" run under the
+  repo's Actions tab for the actual psql error if you need the real
+  cause, not just the generic timeout message.
 - "psql: command not found" when testing scripts/runRestore.js locally:
   same as pg_dump above - install the postgresql-client system package.
   (GOOGLE_SERVICE_ACCOUNT_EMAIL) as an Editor — a service account has no
   Drive storage of its own and can only write into folders explicitly
   shared with it (see services/googleDrive.js header comment).
-- A BackupLog row stuck on status "running" forever: the GitHub Actions
-  run crashed or was cancelled mid-script before reaching the final
-  prisma.backupLog.update() call — check the workflow's run log in the
-  GitHub Actions tab for the actual error.
+- A BackupLog row stuck on status "running" forever: as of
+  services/staleRunWatchdog.js, this now auto-resolves to "failed"
+  (with an explanatory errorMessage) the next time the Backups page is
+  loaded, instead of staying "Running" indefinitely. If you still need
+  the real underlying cause (vs. just the generic timeout message),
+  check the workflow's run log in the GitHub Actions tab.
 - If visitor pages 404: confirm folder is app/visitor/ (not Visitor/ or visitors/).
 - If styles missing: confirm globals.css and mediaQueries.css are imported in app/layout.jsx.
 - If /api/admin/* routes return 401 for a logged-in admin: confirm the "session" cookie

@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
+import { markStaleRunningRowsAsFailed } from "@/services/staleRunWatchdog";
 
 const PAGE_SIZE = 10;
 
@@ -36,6 +37,12 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+
+  // Auto-fail any row that's been stuck on "running" too long (e.g. the
+  // GitHub Actions runner crashed before it could update its own row) —
+  // see services/staleRunWatchdog.js. Runs before the read so the list
+  // below never shows a permanently-stuck "Running" row.
+  await markStaleRunningRowsAsFailed(prisma.backupLog, "backupLog");
 
   try {
     const [backupLogs, totalCount] = await Promise.all([

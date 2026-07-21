@@ -33,6 +33,7 @@ import { requireVaultSession } from "@/services/vaultAuth";
 import { uploadToR2 } from "@/services/r2";
 import { triggerWorkflowDispatch } from "@/services/github";
 import { logSecurityEvent } from "@/services/securityLog";
+import { markStaleRunningRowsAsFailed } from "@/services/staleRunWatchdog";
 
 const PAGE_SIZE = 10;
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -70,6 +71,10 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+
+  // Auto-fail any row stuck on "running" too long — same watchdog used
+  // by the Backups page (see services/staleRunWatchdog.js).
+  await markStaleRunningRowsAsFailed(prisma.sqlImportLog, "sqlImportLog");
 
   try {
     const [importLogs, totalCount] = await Promise.all([

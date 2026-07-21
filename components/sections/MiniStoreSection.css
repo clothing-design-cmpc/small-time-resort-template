@@ -210,3 +210,88 @@
   max-width: 52ch;
   line-height: 1.65;
 }
+
+/* ─── Loading skeleton (Rule 25.2) ──────────────────────────────────── */
+@keyframes skeletonPulse {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeletonBlock {
+  background: linear-gradient(90deg, var(--color-skeleton-base) 25%, var(--color-skeleton-shine) 50%, var(--color-skeleton-base) 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite;
+}
+
+/*
+ * .miniStoreCardSkeleton
+ * Same footprint as a real .miniStoreCard so the grid doesn't jump when
+ * the real cards replace the skeletons.
+ */
+.miniStoreCardSkeleton {
+  min-height: 360px;
+  border-radius: 14px;
+}
+
+/*
+ * .miniStoreErrorState / .miniStoreEmptyState
+ * Centered message block shown in place of the grid — never a blank
+ * section with no feedback (Rule 25.3 / 25.4).
+ */
+.miniStoreErrorState,
+.miniStoreEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.miniStoreErrorMessage,
+.miniStoreEmptyTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.miniStoreEmptySubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.miniStoreRetryButton {
+  min-height: 44px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border-radius: 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.miniStoreRetryButton:hover,
+.miniStoreRetryButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+/*
+ * .miniStoreImagePlaceholder
+ * Shown when a product has no uploaded image yet — keeps the card's
+ * fixed aspect ratio instead of collapsing the image area.
+ */
+.miniStoreImagePlaceholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-skeleton-base);
+}
+
+/*
+ * .miniStoreBadge--unavailable
+ * Overlay shown when a product is temporarily out of stock.
+ */
+.miniStoreBadge--unavailable {
+  background-color: var(--color-error, #c0392b);
+  color: #fff8ee;
+}

@@ -3,83 +3,50 @@
  * ROLE: Visitor — public, no auth required
  *
  * PURPOSE:
- * Shows top 8 resort amenities as an icon + label grid on the homepage.
- * Static content — no data fetching needed for the homepage highlight.
- * Full amenity list lives on /visitor/amenities.
+ * Shows top resort amenities as an icon + label grid on the homepage.
  *
  * DATA FLOW:
  * 1. Rendered inside app/visitor/page.jsx after FeaturedRoomsSection
- * 2. No data fetching — static amenity list
+ * 2. Server Component reads the Amenity table directly via Prisma (no
+ *    separate public API route needed — same pattern
+ *    app/visitor/policies/page.jsx already uses for SystemSettings),
+ *    scoped to isActive amenities, ordered by sortOrder, capped at 8
+ *    for the homepage highlight strip
+ * 3. Each amenity's stored Lucide icon name (set by the admin via
+ *    IconPicker under Content > Amenities) is resolved to its Lucide
+ *    component with getIconByName — the same lookup the admin form uses
+ * 4. Fails safe: if the query errors or no amenities are marked active
+ *    yet, falls back to a small set of sensible default amenities so
+ *    this section is never blank before an admin has added any
  */
+import { prisma } from "@/services/prisma";
+import { getIconByName } from "@/components/superAdmin/IconPicker";
 import "./AmenitiesHighlightSection.css";
 
-/* Inline SVG icons — single set, consistent stroke style */
-const WifiIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" />
-    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" />
-  </svg>
-);
-
-const PoolIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 12h20" /><path d="M2 6c1.5 0 3 1 4 2s2.5 2 4 2 2.5-1 4-2 2.5-2 4-2" />
-    <path d="M2 18c1.5 0 3 1 4 2s2.5 2 4 2 2.5-1 4-2 2.5-2 4-2" />
-  </svg>
-);
-
-const BeachIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.5 12c0 4.69-3.58 8.5-8 8.5" /><path d="M2 12c0-4.69 3.58-8.5 8-8.5" />
-    <path d="M12 3v18" /><path d="M3 20h18" />
-  </svg>
-);
-
-const AcIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9.5 4v16m5-16v16M4 9.5h16M4 14.5h16" />
-  </svg>
-);
-
-const DeskIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-const RestaurantIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-    <path d="M7 2v20" /><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-  </svg>
-);
-
-const SpaIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22c4.97 0 9-2.69 9-6s-4.03-6-9-6-9 2.69-9 6 4.03 6 9 6Z" />
-    <path d="M15.71 9.71C13.93 8.13 12 5 12 2c0 3-1.93 6.13-3.71 7.71" />
-  </svg>
-);
-
-const ParkingIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2" />
-    <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-  </svg>
-);
-
-const amenities = [
-  { id: "wifi", label: "Free WiFi", description: "High-speed in all villas", Icon: WifiIcon },
-  { id: "pool", label: "Swimming Pool", description: "Freshwater pool & lounge", Icon: PoolIcon },
-  { id: "beach", label: "Beach Access", description: "Private shoreline", Icon: BeachIcon },
-  { id: "ac", label: "Air Conditioning", description: "All rooms climate-controlled", Icon: AcIcon },
-  { id: "desk", label: "24/7 Front Desk", description: "Always available on-site", Icon: DeskIcon },
-  { id: "restaurant", label: "Restaurant", description: "On-site dining, local cuisine", Icon: RestaurantIcon },
-  { id: "spa", label: "Spa Services", description: "By appointment", Icon: SpaIcon },
-  { id: "parking", label: "Free Parking", description: "Secure on-property", Icon: ParkingIcon },
+/* Shown only as a fallback — before any admin has added amenities, or if
+   the query fails — so this section is never blank on a fresh install. */
+const DEFAULT_AMENITIES = [
+  { id: "wifi", name: "Free WiFi", description: "High-speed in all villas", icon: "wifi" },
+  { id: "pool", name: "Swimming Pool", description: "Freshwater pool & lounge", icon: "waves" },
+  { id: "ac", name: "Air Conditioning", description: "All rooms climate-controlled", icon: "wind" },
+  { id: "restaurant", name: "Restaurant", description: "On-site dining, local cuisine", icon: "utensils" },
+  { id: "spa", name: "Spa Services", description: "By appointment", icon: "sparkles" },
+  { id: "parking", name: "Free Parking", description: "Secure on-property", icon: "parking-circle" },
 ];
 
-export default function AmenitiesHighlightSection() {
+export default async function AmenitiesHighlightSection() {
+  // Read-only fetch of active amenities. Fails safe to an empty array so
+  // this public page never 500s just because the query hiccups.
+  const amenities = await prisma.amenity
+    .findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      take: 8,
+    })
+    .catch(() => []);
+
+  const displayAmenities = amenities.length > 0 ? amenities : DEFAULT_AMENITIES;
+
   return (
     <section className="amenitiesHighlightSection" id="amenities">
       <div className="amenitiesHighlightContainer">
@@ -92,17 +59,22 @@ export default function AmenitiesHighlightSection() {
         </div>
 
         <div className="amenitiesHighlightGrid">
-          {amenities.map(({ id, label, description, Icon }) => (
-            <div key={id} className="amenityHighlightCard">
-              <div className="amenityHighlightIcon" aria-hidden="true">
-                <Icon />
+          {displayAmenities.map((amenity) => {
+            const Icon = getIconByName(amenity.icon);
+            return (
+              <div key={amenity.id} className="amenityHighlightCard">
+                <div className="amenityHighlightIcon" aria-hidden="true">
+                  <Icon size={24} strokeWidth={1.5} />
+                </div>
+                <div className="amenityHighlightText">
+                  <span className="amenityHighlightLabel">{amenity.name}</span>
+                  {amenity.description && (
+                    <span className="amenityHighlightDescription">{amenity.description}</span>
+                  )}
+                </div>
               </div>
-              <div className="amenityHighlightText">
-                <span className="amenityHighlightLabel">{label}</span>
-                <span className="amenityHighlightDescription">{description}</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

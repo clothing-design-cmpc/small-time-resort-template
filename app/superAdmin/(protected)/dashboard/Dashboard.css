@@ -49,6 +49,95 @@
 }
 
 /*
+ * .statCardSkeleton
+ * Placeholder card shown while dashboard-stats is loading. Mirrors the
+ * real StatCard's internal layout (label, big value, trend line) so
+ * the grid doesn't jump when live data replaces it.
+ */
+.statCardSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeletonBlock {
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base) 25%,
+    var(--color-skeleton-shine) 50%,
+    var(--color-skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s infinite;
+  border-radius: 4px;
+}
+
+.statCardSkeletonLabel {
+  width: 55%;
+  height: 0.7rem;
+}
+
+.statCardSkeletonValue {
+  width: 70%;
+  height: 1.8rem;
+}
+
+.statCardSkeletonTrend {
+  width: 45%;
+  height: 0.7rem;
+}
+
+/*
+ * .dashboardStatsError
+ * Shown in place of the KPI grid when /api/admin/dashboard-stats fails.
+ * Always paired with a retry button — never a dead-end message.
+ */
+.dashboardStatsError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.dashboardStatsRetryButton {
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface-active);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dashboardStatsRetryButton:hover,
+.dashboardStatsRetryButton:focus-visible,
+.dashboardStatsRetryButton:active {
+  border-color: var(--color-border-hover);
+  background-color: var(--color-surface-hover);
+}
+
+/*
  * .maintenanceToggleCard
  * Standalone card below the KPI grid — deliberately visually distinct
  * (uses the error/warning token in the button, not the resort accent)

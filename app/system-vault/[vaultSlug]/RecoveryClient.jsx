@@ -45,7 +45,12 @@
  *    slug's own login screen without touching their regular
  *    super-admin session. A 401 from any GET above (vault session
  *    expired mid-visit, e.g. the 30-minute window ran out while this
- *    tab was open) does the same redirect automatically.
+ *    tab was open) does the same redirect automatically. The exact
+ *    same lock also fires automatically once this tab/window has been
+ *    hidden for 30 straight seconds (device sleep, lid close,
+ *    backgrounding, tab switch) — see the visibilitychange effect
+ *    below handleLockVault. A quick tab switch under 30 seconds does
+ *    not trigger it.
  * 7. Post-Wipe Lockdown (Task 2) — independent of the breach flow
  *    above. GET /api/admin/post-wipe-lockdown polls whether
  *    scripts/runDatabaseWipe.js has locked the site down after a
@@ -327,6 +332,55 @@ export default function RecoveryClient() {
     }
   }
 
+  // Auto-lock after this tab/window has stayed hidden for
+  // AUTO_LOCK_GRACE_PERIOD_MS — covers closing the laptop lid, the
+  // device going to sleep, switching to another app, or backgrounding
+  // the tab. The Page Visibility API (`visibilitychange` ->
+  // document.visibilityState === "hidden") is the closest a web page
+  // can get to detecting "device slept" or "lid closed" directly,
+  // since neither is exposed as its own browser event — in practice,
+  // OSes stop rendering/suspend the tab on sleep, which reliably fires
+  // this same event.
+  //
+  // This page is the single most privileged screen in the app (full
+  // disaster-recovery access: database wipe, the blocked-IP list,
+  // ending a breach lockdown) so it intentionally gets a stricter rule
+  // than the app's general 30-minute idle timeout (Rule 32.5) — locking
+  // on loss of visibility rather than waiting out a fixed idle window,
+  // since an unlocked device left sleeping/unattended is exactly the
+  // scenario a timer alone wouldn't catch in time.
+  //
+  // A short 30-second grace period is deliberately used instead of an
+  // instant lock so a quick tab switch (e.g. alt-tabbing to check a
+  // GitHub Actions run mid-restore) doesn't force a fresh passphrase +
+  // OTP re-entry — only staying away for the full 30 seconds triggers
+  // the lock. Returning to the tab before the timer fires cancels it.
+  const autoLockTimerRef = useRef(null);
+  useEffect(() => {
+    const AUTO_LOCK_GRACE_PERIOD_MS = 30 * 1000;
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        autoLockTimerRef.current = setTimeout(() => {
+          handleLockVault();
+        }, AUTO_LOCK_GRACE_PERIOD_MS);
+      } else if (autoLockTimerRef.current) {
+        // Tab became visible again before the grace period elapsed —
+        // cancel the pending lock.
+        clearTimeout(autoLockTimerRef.current);
+        autoLockTimerRef.current = null;
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (autoLockTimerRef.current) clearTimeout(autoLockTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleLockVault
+    // closes over vaultSlug/router only, both stable for this page's lifetime
+  }, []);
+
   return (
     <section className="recoveryContent">
       {/* recoveryContent (Recovery.css) supplies the max-width, page
@@ -444,22 +498,36 @@ export default function RecoveryClient() {
         {isImportHistoryLoading && <p className="recoveryMutedText">Loading import history…</p>}
       </div>
 
-      {/* --- Step 2: End lockdown once restore is verified --- */}
-      <div className="recoveryStepCard">
-        <h2>Confirmation of Fixed Database</h2>
-        <p>
-          Once you&apos;ve confirmed the restored database looks correct, end the lockdown to bring the
-          website back online for guests.
-        </p>
-        <button
-          type="button"
-          className="recoveryEndLockdownButton"
-          disabled={!breachLockdown}
-          onClick={() => setIsEndLockdownModalOpen(true)}
-        >
-          End Lockdown — Bring Website Back Online
-        </button>
-      </div>
+      {/* --- Step 2: End lockdown once restore is verified ---
+          Only shown when there's an actual active breach to end —
+          matches the Post-Wipe card and Active Incident card above,
+          which both hide themselves when not applicable. Previously
+          this card rendered unconditionally with its button always
+          disabled (and no explanation) whenever breachLockdown was
+          false, which read as a stuck/broken button right after a
+          successful restore instead of "there's nothing to end." */}
+      {activeBreach && (
+        <div className="recoveryStepCard">
+          <h2>Confirmation of Fixed Database</h2>
+          <p>
+            Once you&apos;ve confirmed the restored database looks correct, end the lockdown to bring the
+            website back online for guests.
+          </p>
+          <button
+            type="button"
+            className="recoveryEndLockdownButton"
+            disabled={!breachLockdown}
+            onClick={() => setIsEndLockdownModalOpen(true)}
+          >
+            End Lockdown — Bring Website Back Online
+          </button>
+          {!breachLockdown && (
+            <p className="recoveryMutedText">
+              Disabled — there&apos;s no active breach lockdown to end right now.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* --- Step 3: Unban an IP --- */}
       <div className="recoveryStepCard">

@@ -625,6 +625,24 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   app/api/admin/vault-login/route.js) and that the 30-minute window
   (services/vaultAuth.js's VAULT_SESSION_COOKIE_MAX_AGE_SECONDS) hasn't
   already elapsed.
+- Recovery page gets kicked back to /login after switching tabs or
+  briefly checking something else (e.g. a GitHub Actions run) for more
+  than 30 seconds -> expected, not a bug. RecoveryClient.jsx auto-locks
+  the vault once the tab/window has stayed hidden
+  (document.visibilityState === "hidden") for 30 straight seconds, on
+  purpose, since this is the single most privileged page in the app. A
+  quick switch under 30 seconds doesn't trigger it. Re-enter the
+  passphrase + OTP after switching back if the lock did fire.
+- "End Lockdown — Bring Website Back Online" button looks permanently
+  greyed out even right after a successful Fix SQL restore -> expected
+  once activeBreach/breachLockdown are both false (check the "No
+  active lockdown" badge at the top of the page). That button only
+  ends an ACTIVE Gatekeeper breach lockdown - it has nothing to do with
+  whether a restore succeeded. The whole "Confirmation of Fixed
+  Database" card only renders when activeBreach is set, matching the
+  Post-Wipe card's pattern, so this shouldn't normally be visible at
+  all with no active breach; if it is showing, GET /api/admin/breach's
+  response is the first place to check.
 - "Incorrect passphrase" even though you're sure it's right -> confirm
   VAULT_PASSPHRASE_HASH in the deployed environment actually contains a
   "salt:hash" pair (must include the colon) and wasn't accidentally set

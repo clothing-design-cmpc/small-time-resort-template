@@ -412,6 +412,38 @@ export default function RecoveryClient() {
     // closes over vaultSlug/router only, both stable for this page's lifetime
   }, []);
 
+  // Immediate lock on an actual tab/window close — separate from the
+  // 30-second visibilitychange grace timer above, and for a real reason:
+  // closing a tab also fires visibilitychange -> "hidden" first, but the
+  // page's JS context is then torn down almost immediately afterward, so
+  // that 30-second setTimeout (and the axios DELETE call inside
+  // handleLockVault) never gets the chance to run. The vaultSession
+  // cookie was left in place, so reopening the vault URL in a fresh tab
+  // (browser still running) walked straight back into the still-valid
+  // session instead of the login screen — closing the tab looked like it
+  // locked nothing.
+  //
+  // "pagehide" is used (not "beforeunload", which is unreliable for
+  // fire-and-forget network calls and increasingly restricted by
+  // browsers) together with fetch's `keepalive: true`, which is
+  // specifically designed to let a request outlive page teardown —
+  // axios does not support this, hence calling fetch directly here
+  // instead of handleLockVault. No 30-second wait: an actual tab close
+  // should lock the vault right away, not after a delay meant for
+  // brief tab switches.
+  useEffect(() => {
+    function handlePageHide() {
+      fetch("/api/admin/vault-login", { method: "DELETE", keepalive: true }).catch(() => {
+        // Best-effort — the page is already tearing down, nothing to
+        // recover here. Server-side, the cookie's own 30-minute expiry
+        // (services/vaultAuth.js) is still the final backstop either way.
+      });
+    }
+
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+  }, []);
+
   return (
     <section className="recoveryContent">
       {/* recoveryContent (Recovery.css) supplies the max-width, page

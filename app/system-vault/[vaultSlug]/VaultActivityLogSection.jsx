@@ -13,8 +13,13 @@
  * instead of being rebuilt by hand.
  *
  * DATA FLOW:
- * 1. On mount and every 30s, GET /api/admin/vault-activity-log —
- *    vault-session only (see that route's header comment)
+ * 1. On mount, on every page change, and every 30s, GET
+ *    /api/admin/vault-activity-log?page=N — vault-session only (see
+ *    that route's header comment). The 30s poll only refires while
+ *    on page 1 — polling a page the admin has paged away from would
+ *    either silently reset them back to page 1's data or require
+ *    re-fetching whatever page they're on every 30s for no reason,
+ *    so it's skipped entirely past page 1.
  * 2. Each row's eventType renders through the shared StatusBadge so
  *    the same color/label already used on the regular Security Logs
  *    page (app/superAdmin/(protected)/security-logs) is reused here
@@ -35,6 +40,7 @@ import StatusBadge from "@/components/superAdmin/StatusBadge";
 import "./VaultActivityLogSection.css";
 
 const POLL_INTERVAL_MS = 30 * 1000;
+const DEFAULT_PAGE_SIZE = 20;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -64,32 +70,55 @@ export default function VaultActivityLogSection({ showToast }) {
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const pollIntervalRef = useRef(null);
+  const pageRef = useRef(page);
+  pageRef.current = page;
 
-  const fetchActivityLog = useCallback(async () => {
-    try {
-      const response = await axios.get("/api/admin/vault-activity-log");
-      setLogs(response.data.data.logs);
-      setLoadError(null);
-    } catch (error) {
-      // 401 here means the vault session expired (30-minute window) or
-      // was never valid to begin with — same redirect every other GET
-      // in this recovery flow already falls back to.
-      if (error.response?.status === 401) {
-        router.push(`/system-vault/${vaultSlug}/login`);
-        return;
+  const fetchActivityLog = useCallback(
+    async (targetPage) => {
+      try {
+        const response = await axios.get("/api/admin/vault-activity-log", {
+          params: { page: targetPage },
+        });
+        const { logs: fetchedLogs, totalPages: fetchedTotalPages, totalCount: fetchedTotalCount } =
+          response.data.data;
+        setLogs(fetchedLogs);
+        setTotalPages(fetchedTotalPages);
+        setTotalCount(fetchedTotalCount);
+        setLoadError(null);
+      } catch (error) {
+        // 401 here means the vault session expired (30-minute window) or
+        // was never valid to begin with — same redirect every other GET
+        // in this recovery flow already falls back to.
+        if (error.response?.status === 401) {
+          router.push(`/system-vault/${vaultSlug}/login`);
+          return;
+        }
+        setLoadError(error);
+        showToast("✕ Couldn't load the vault activity log.", "error");
+      } finally {
+        setIsLoading(false);
       }
-      setLoadError(error);
-      showToast("✕ Couldn't load the vault activity log.", "error");
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, vaultSlug]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [router, vaultSlug]
+  );
 
+  // Page changes always fetch immediately, regardless of the poll below.
   useEffect(() => {
-    fetchActivityLog();
-    pollIntervalRef.current = setInterval(fetchActivityLog, POLL_INTERVAL_MS);
+    setIsLoading(true);
+    fetchActivityLog(page);
+  }, [page, fetchActivityLog]);
+
+  // The 30s background poll only refreshes page 1 — see the DATA FLOW
+  // header comment above for why paging away suspends it.
+  useEffect(() => {
+    pollIntervalRef.current = setInterval(() => {
+      if (pageRef.current === 1) fetchActivityLog(1);
+    }, POLL_INTERVAL_MS);
     return () => clearInterval(pollIntervalRef.current);
   }, [fetchActivityLog]);
 
@@ -111,6 +140,11 @@ export default function VaultActivityLogSection({ showToast }) {
         isLoading={isLoading}
         error={loadError}
         emptyMessage="No vault activity yet. Actions taken in this Danger Zone will show up here."
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={DEFAULT_PAGE_SIZE}
+        onPageChange={setPage}
       />
     </section>
   );

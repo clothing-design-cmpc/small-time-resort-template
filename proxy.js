@@ -104,6 +104,10 @@ const VAULT_STANDALONE_API_PATHS = [
   // authenticated via vaultSession only — mirrors /api/superAdmin/wipe
   // but reachable without a regular super-admin session.
   "/api/admin/vault-wipe",
+  // Danger Zone Activity Log (VaultActivityLogSection.jsx): read-only
+  // feed of the vault's own SecurityLog rows, authenticated via
+  // vaultSession only — same reasoning as vault-wipe above.
+  "/api/admin/vault-activity-log",
   // Post-Wipe Lockdown (RecoveryClient.jsx's own section): status poll
   // + "Lift Lockdown", authenticated via vaultSession only
   // (requireVaultSession + otpVerified inside the route itself — see

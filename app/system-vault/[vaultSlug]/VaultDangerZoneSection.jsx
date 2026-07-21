@@ -29,6 +29,10 @@
  * 5. Once time remaining reaches 2 hours, VaultWipeGraceModal (mounted
  *    by RecoveryClient.jsx) takes over as the final checkpoint — this
  *    component keeps showing the same countdown card underneath it.
+ * 6. VaultActivityLogSection (mounted below the button/countdown card)
+ *    shows the vault's own audit trail — every wipe scheduled/
+ *    truncated/cancelled, lockdown ended, code sent/verified, etc. —
+ *    pulled from SecurityLog via its own vault-session-only route.
  *
  * TOASTS: showToast is passed down as a prop from RecoveryClient.jsx,
  * which already owns the single toast stack for the recovery page.
@@ -39,6 +43,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "@/components/superAdmin/WipeDatabaseSection.css";
 import "./VaultDangerZoneSection.css";
 import VaultCodeConfirmModal from "./VaultCodeConfirmModal";
+import VaultActivityLogSection from "./VaultActivityLogSection";
 
 async function parseJsonResponse(response) {
   try {
@@ -259,6 +264,8 @@ export default function VaultDangerZoneSection({ showToast }) {
           Wipe Database
         </button>
       )}
+
+      <VaultActivityLogSection showToast={showToast} />
 
       {isModalOpen && (
         <div className="wipeDatabaseModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="vaultWipeModalTitle">

@@ -50,7 +50,13 @@
  *    hidden for 30 straight seconds (device sleep, lid close,
  *    backgrounding, tab switch) — see the visibilitychange effect
  *    below handleLockVault. A quick tab switch under 30 seconds does
- *    not trigger it.
+ *    not trigger it. This is timestamp-based, not just a bare
+ *    setTimeout: a setTimeout scheduled while hidden can be delayed by
+ *    background-tab throttling, or never fire at all if the OS fully
+ *    suspends the tab (lid close, device sleep) — so the real moment
+ *    the tab went hidden is also stored and re-checked the instant it
+ *    becomes visible again, in case the pending timer never got the
+ *    chance to run.
  * 7. Post-Wipe Lockdown (Task 2) — independent of the breach flow
  *    above. GET /api/admin/post-wipe-lockdown polls whether
  *    scripts/runDatabaseWipe.js has locked the site down after a
@@ -356,26 +362,51 @@ export default function RecoveryClient() {
   // OTP re-entry — only staying away for the full 30 seconds triggers
   // the lock. Returning to the tab before the timer fires cancels it.
   const autoLockTimerRef = useRef(null);
+  const hiddenAtRef = useRef(null);
   useEffect(() => {
     const AUTO_LOCK_GRACE_PERIOD_MS = 30 * 1000;
 
+    function clearPendingLock() {
+      if (autoLockTimerRef.current) {
+        clearTimeout(autoLockTimerRef.current);
+        autoLockTimerRef.current = null;
+      }
+    }
+
     function handleVisibilityChange() {
       if (document.visibilityState === "hidden") {
+        // Record the real wall-clock moment we went hidden. The
+        // setTimeout below is only a best-effort trigger for the
+        // common "tab just sat in the background" case — it can be
+        // delayed by the browser's background-tab throttling, or
+        // never run at all if the OS fully suspends this tab (lid
+        // close, device sleep). hiddenAtRef is the source of truth,
+        // re-checked below the instant the tab becomes visible again.
+        hiddenAtRef.current = Date.now();
         autoLockTimerRef.current = setTimeout(() => {
           handleLockVault();
         }, AUTO_LOCK_GRACE_PERIOD_MS);
-      } else if (autoLockTimerRef.current) {
-        // Tab became visible again before the grace period elapsed —
-        // cancel the pending lock.
-        clearTimeout(autoLockTimerRef.current);
-        autoLockTimerRef.current = null;
+      } else {
+        // Tab is visible again. If the device was asleep/suspended,
+        // the setTimeout above never got the chance to fire — so
+        // re-check the actual elapsed wall-clock time here instead of
+        // just cancelling the pending timer outright. Only treat it
+        // as "returned in time" if the grace period genuinely hasn't
+        // elapsed yet.
+        const hiddenAt = hiddenAtRef.current;
+        clearPendingLock();
+        hiddenAtRef.current = null;
+
+        if (hiddenAt && Date.now() - hiddenAt >= AUTO_LOCK_GRACE_PERIOD_MS) {
+          handleLockVault();
+        }
       }
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (autoLockTimerRef.current) clearTimeout(autoLockTimerRef.current);
+      clearPendingLock();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handleLockVault
     // closes over vaultSlug/router only, both stable for this page's lifetime

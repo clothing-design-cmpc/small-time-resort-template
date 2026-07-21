@@ -37,6 +37,11 @@ const STATUS_STYLES = {
   gatekeeper_breach: { label: "Gatekeeper Breach", color: "#dc2626" },
   vault_login_success: { label: "Vault Unlocked", color: "#10b981" },
   vault_login_failed: { label: "Vault Login Failed", color: "#f59e0b" },
+  vault_otp_sent: { label: "Code Sent", color: "#3b82f6" },
+  vault_otp_verified: { label: "Code Verified", color: "#10b981" },
+  vault_otp_failed: { label: "Code Rejected", color: "#f59e0b" },
+  vault_passphrase_set: { label: "Passphrase Set", color: "#3b82f6" },
+  vault_passphrase_rotated: { label: "Passphrase Rotated", color: "#8b5cf6" },
   // Backup Logs page (app/superAdmin/(protected)/backups)
   success: { label: "Success", color: "#10b981" },
   running: { label: "Running", color: "#3b82f6" },

@@ -1,0 +1,35 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/VaultActivityLogSection.css
+ * Sits directly under the Danger Zone's countdown card / trigger
+ * button, inside .vaultDangerZoneSection — spacing/border tokens
+ * match the rest of that card so the log reads as part of the same
+ * section rather than a bolted-on block.
+ */
+
+.vaultActivityLogSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.vaultActivityLogHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.vaultActivityLogTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.vaultActivityLogSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 70ch;
+}

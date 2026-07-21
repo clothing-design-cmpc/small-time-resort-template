@@ -7,12 +7,11 @@
 # nothing here ever touches or slows down a booking request.
 #
 # Schedule: 18:00 UTC = 2:00 AM Philippine Time (UTC+8) every day.
-# Also runs on-demand: either from the Backups page's "Run Backup Now"
-# button (app/api/admin/backup-logs/trigger/route.js dispatches this via
-# the GitHub API — still decoupled per Rule 40.1, since only the
-# dispatch call happens in-app and the actual pg_dump still runs here,
-# on GitHub's runners) or by pressing "Run workflow" directly in the
-# Actions tab.
+# The Backups page's "Run Backup Now" button no longer dispatches this
+# file — it dispatches manual-database-backup.yml instead, so the two
+# trigger sources never mix in this workflow's run history. This one's
+# workflow_dispatch trigger stays only so someone can still press "Run
+# workflow" by hand directly in the Actions tab if ever needed.
 name: Nightly Database Backup
 
 on:
@@ -21,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       logId:
-        description: "BackupLog row ID pre-created by the app's trigger route (blank when dispatched manually from the Actions tab)"
+        description: "BackupLog row ID (blank unless manually dispatched from the Actions tab with one)"
         required: false
         type: string
 
@@ -77,20 +76,15 @@ jobs:
       - name: Run backup script
         run: npm run backup
         env:
-          # schedule event = the 2 AM cron; any workflow_dispatch (the
-          # app's "Run Backup Now" button, or someone pressing "Run
-          # workflow" directly in GitHub) counts as "manual" — there's
-          # no way to tell those two dispatch sources apart from here,
-          # and there's no need to: both mean a human wanted a backup
-          # right now, as opposed to it happening automatically.
+          # schedule event = the 2 AM cron; a workflow_dispatch here now
+          # only ever means someone pressed "Run workflow" by hand in
+          # the Actions tab (the app's own button targets
+          # manual-database-backup.yml instead).
           TRIGGER_SOURCE: ${{ github.event_name == 'schedule' && 'nightly' || 'manual' }}
-          # Set only when dispatched from the Backups page's "Run Backup
-          # Now" button — that route pre-creates the BackupLog row so it
-          # appears on the page instantly, and passes its id here so this
-          # script updates that SAME row instead of creating a second,
-          # duplicate one. Empty string on the nightly cron and on a
-          # manual "Run workflow" click from the Actions tab — the script
-          # falls back to creating its own row in both of those cases.
+          # Always blank in practice now — the app's trigger route no
+          # longer dispatches this file, so there's no pre-created row
+          # to reuse. Left in place only for someone manually dispatching
+          # with a logId typed into the Actions tab's own form.
           BACKUP_LOG_ID: ${{ github.event.inputs.logId }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}

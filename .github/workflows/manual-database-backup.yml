@@ -1,0 +1,79 @@
+# FILE: .github/workflows/manual-database-backup.yml
+# PURPOSE:
+# Runs scripts/runBackup.js on GitHub's own cloud runners, triggered
+# ONLY by the "Run Backup Now" button on the super-admin Backups page
+# (app/api/admin/backup-logs/trigger/route.js) — never on a schedule.
+#
+# Split out from database-backup.yml (the 2:00 AM nightly cron) so the
+# two trigger sources never share one workflow run history. Before this
+# split, every manual click showed up as "Nightly Database Backup —
+# Manually run by ..." in the Actions tab, which read as if the nightly
+# cron itself had been run by hand — confusing when trying to tell an
+# actual scheduled run apart from an admin-triggered one at a glance.
+# The two workflows call the exact same script (scripts/runBackup.js)
+# with the exact same steps and secrets — only the trigger and the name
+# differ.
+name: Manual Database Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      logId:
+        description: "BackupLog row ID pre-created by the app's trigger route (blank when dispatched manually from the Actions tab)"
+        required: false
+        type: string
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # See database-backup.yml's identical step for why version 17
+      # specifically is required instead of Ubuntu's default client.
+      - name: Install PostgreSQL 17 client (pg_dump)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # See database-backup.yml's identical step — npm ci alone never
+      # generates the actual Prisma Client code.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Run backup script
+        run: npm run backup
+        env:
+          # Always "manual" here — this workflow only ever runs via
+          # workflow_dispatch (the Backups page button, or someone
+          # pressing "Run workflow" directly in the Actions tab for
+          # this specific workflow). No schedule trigger exists on this
+          # file, so there's no "nightly" case to branch on.
+          TRIGGER_SOURCE: manual
+          # Set only when dispatched from the Backups page's "Run Backup
+          # Now" button — see database-backup.yml's identical comment.
+          BACKUP_LOG_ID: ${{ github.event.inputs.logId }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}

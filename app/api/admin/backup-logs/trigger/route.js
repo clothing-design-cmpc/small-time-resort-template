@@ -5,10 +5,15 @@
  * PURPOSE:
  * Powers the "Run Backup Now" button on the Backups page. Does NOT run
  * pg_dump itself — it remotely presses the "Run workflow" button on
- * .github/workflows/database-backup.yml via the GitHub API
+ * .github/workflows/manual-database-backup.yml via the GitHub API
  * (workflow_dispatch), so the actual backup still only ever runs on
  * GitHub's own runners (Rule 40.1 — DB-heavy work stays off the live
- * request cycle).
+ * request cycle). This is a SEPARATE workflow file from the 2:00 AM
+ * nightly cron (database-backup.yml) — both run the identical
+ * scripts/runBackup.js, but keeping them in separate files means a
+ * manual click never shows up in the Actions tab as "Nightly Database
+ * Backup — Manually run by ...", which read as if the cron itself had
+ * been triggered by hand.
  *
  * REAL-TIME ROW, NO DELAY:
  * Previously this route only dispatched the workflow and returned a
@@ -60,7 +65,7 @@ export async function POST(request) {
     });
 
     try {
-      await triggerWorkflowDispatch("database-backup.yml", { logId: logRow.id });
+      await triggerWorkflowDispatch("manual-database-backup.yml", { logId: logRow.id });
     } catch (dispatchError) {
       // The row already exists and would otherwise sit at "running"
       // forever if the workflow never actually started — mark it

@@ -21,11 +21,21 @@
  *    GET /api/admin/backup-logs?page={page}
  * 2. "Run Backup Now" -> POST /api/admin/backup-logs/trigger, which
  *    creates the BackupLog row synchronously (status "running") and
- *    dispatches database-backup.yml with that row's id. The returned
- *    row is prepended to the table immediately — no delay, no manual
- *    refresh needed to see that it started.
+ *    dispatches manual-database-backup.yml with that row's id. The
+ *    returned row is prepended to the table immediately — no delay, no
+ *    manual refresh needed to see that it started.
  * 3. DataTable renders the history with its own built-in
  *    loading/empty/error states and pagination footer
+ *
+ * REALTIME "RUNNING" ROWS:
+ * A row created at step 2 sits at status "running" until GitHub's
+ * runner finishes scripts/runBackup.js and writes the final
+ * success/failed status — that used to only ever show up after the
+ * admin manually refreshed the page. Whenever the CURRENT page has at
+ * least one "running" row, a 4-second poll (same interval as Rule
+ * 30.4's pending-payments pattern) silently re-fetches this page in
+ * the background — no loading spinner, no layout jump — until none of
+ * the visible rows are "running" anymore, then it stops on its own.
  *
  * TOASTS: this component owns the single useToast instance and
  * <ToastStack> for the whole Backups page (Rule 22.2) — showToast is
@@ -159,16 +169,27 @@ export default function BackupLogsClient() {
 
   const { toasts, showToast, dismissToast } = useToast();
 
-  const fetchBackupLogs = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(null);
+  /**
+   * fetchBackupLogs
+   * @param {boolean} silent - when true (background poll), skips the
+   *   loading spinner and error banner so a "running" row quietly
+   *   flips to "success"/"failed" without flashing the whole table.
+   *   A silent poll that fails just gets retried on the next tick
+   *   instead of surfacing an error — only the initial/manual load
+   *   shows the error state.
+   */
+  const fetchBackupLogs = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+      setLoadError(null);
+    }
 
     try {
       const response = await fetch(`/api/admin/backup-logs?page=${page}`);
       const result = await parseJsonResponse(response);
 
       if (!result.success) {
-        setLoadError(result.message || "Failed to load backup history. Please try again.");
+        if (!silent) setLoadError(result.message || "Failed to load backup history. Please try again.");
         return;
       }
 
@@ -176,15 +197,34 @@ export default function BackupLogsClient() {
       setTotalPages(result.data.totalPages);
       setTotalCount(result.data.totalCount);
     } catch (error) {
-      setLoadError(error.message || "We couldn't reach the server. Check your connection and try again.");
+      if (!silent) {
+        setLoadError(error.message || "We couldn't reach the server. Check your connection and try again.");
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [page]);
 
   useEffect(() => {
     fetchBackupLogs();
   }, [fetchBackupLogs]);
+
+  // Whether the currently displayed page still has a row stuck at
+  // "running" — the only condition that needs a background poll at all.
+  const hasRunningRow = backupLogs.some((log) => log.status === "running");
+
+  // Background poll — only ticks while a "running" row is visible on
+  // this page, and tears itself down the moment that stops being true
+  // (rows resolve to success/failed) or the admin navigates away.
+  useEffect(() => {
+    if (!hasRunningRow) return;
+
+    const intervalId = setInterval(() => {
+      fetchBackupLogs(true);
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [hasRunningRow, fetchBackupLogs]);
 
   /**
    * handleRunBackupNow

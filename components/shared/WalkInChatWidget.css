@@ -1,0 +1,179 @@
+/*
+ * .walkInChatButton
+ * Floating circular icon fixed to the bottom-right corner, above all
+ * normal page content but below modals/toasts (Rule 33.2 z-index scale).
+ * 56px so it's comfortably above the 44px minimum tap target.
+ */
+.walkInChatButton {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  width: 56px;
+  height: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-accent);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: var(--shadow-card-hover);
+  z-index: var(--z-sticky);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  will-change: transform;
+}
+
+.walkInChatButton:hover,
+.walkInChatButton:focus-visible,
+.walkInChatButton:active {
+  background-color: var(--color-accent-hover);
+  transform: scale(1.05);
+}
+
+/*
+ * .walkInChatBackdrop / .walkInChatModal
+ * Same centered-dialog pattern as the super-admin ConfirmationModal,
+ * using the shared light resort palette tokens instead of the admin
+ * dark-surface ones.
+ */
+.walkInChatBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 43, 32, 0.45);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.walkInChatModal {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+}
+
+.walkInChatCloseButton {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.walkInChatCloseButton:hover,
+.walkInChatCloseButton:focus-visible,
+.walkInChatCloseButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.walkInChatTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.walkInChatSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-lg) 0;
+  max-width: 32ch;
+}
+
+.walkInChatField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.walkInChatField input {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.walkInChatError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.walkInChatSubmitButton {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  transition: background-color var(--transition-fast);
+}
+
+.walkInChatSubmitButton:hover,
+.walkInChatSubmitButton:focus-visible,
+.walkInChatSubmitButton:active {
+  background-color: var(--color-accent-hover);
+}
+
+.walkInChatSubmitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * .walkInChatSuccess
+ * Shown in place of the form immediately after a successful submit.
+ * Modal auto-closes a few seconds later (see component).
+ */
+.walkInChatSuccess {
+  text-align: center;
+  padding: var(--space-lg) 0;
+}
+
+.walkInChatSuccessTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.walkInChatSuccessSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}

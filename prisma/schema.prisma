@@ -188,6 +188,29 @@ model Booking {
 }
 
 // ============================================================
+// MODEL: WalkInInquiry  (floating chat widget lead capture)
+// ============================================================
+// Captured from the visitor site's floating "Chat with us" widget —
+// a guest fills in their name and phone number (IP is captured
+// server-side, never trusted from the client) so staff can call them
+// back about a walk-in or phone-in reservation. This is a lead, not a
+// confirmed Booking — staff convert it into a real Booking manually
+// once the reservation is agreed over the call (see the Bookings admin
+// page), and mark it "converted" here for their own tracking.
+model WalkInInquiry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guestName  String   @map("guest_name")
+  guestPhone String   @map("guest_phone")
+  ipAddress  String?  @map("ip_address")
+  status     String   @default("new") // new | contacted | converted
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("walkin_inquiries")
+}
+
+// ============================================================
 // MODEL: AdminProfile  (Super Admin accounts)
 // ============================================================
 // The `id` must match an existing Supabase Auth user's UID (created via

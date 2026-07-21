@@ -20,6 +20,7 @@ import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
 import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
+import WalkInChatWidget from "@/components/shared/WalkInChatWidget";
 
 // Forces this layout to always re-run getMaintenanceStatus() on every
 // request instead of being statically cached (Next.js's default for a
@@ -87,6 +88,8 @@ export default async function VisitorLayout({ children }) {
         {children}
       </div>
       <Footer />
+      {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
+      <WalkInChatWidget />
     </div>
   );
 }

@@ -1,0 +1,152 @@
+.walkInInquiriesHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.walkInInquiriesEyebrow {
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.walkInInquiriesTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ============================================================
+ * DATA TABLE
+ * ============================================================ */
+.walkInInquiriesTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-top: var(--space-lg);
+}
+
+.walkInInquiriesTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.walkInInquiriesTable thead th {
+  height: 44px;
+  background-color: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border-strong);
+  font-size: 0.85rem;
+  font-family: monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: left;
+  padding: 0 1rem;
+  position: sticky;
+  top: 0;
+}
+
+.walkInInquiriesTable tbody tr {
+  height: 48px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.walkInInquiriesTable tbody tr:nth-child(even) {
+  background-color: var(--color-surface);
+}
+
+.walkInInquiriesTable tbody tr:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.walkInInquiriesTable td {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+}
+
+.walkInInquiriesActionsCell {
+  text-align: right;
+}
+
+.walkInInquiriesAdvanceButton {
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.walkInInquiriesAdvanceButton:hover,
+.walkInInquiriesAdvanceButton:focus-visible,
+.walkInInquiriesAdvanceButton:active {
+  background-color: var(--color-surface-hover);
+}
+
+.walkInInquiriesAdvanceButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+ * LOADING / EMPTY / ERROR STATES
+ * No animation — matches the super-admin static design principle
+ * used on the Bookings page.
+ * ============================================================ */
+.walkInInquiriesLoadingText {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  padding: var(--space-lg) 0;
+}
+
+.walkInInquiriesErrorState,
+.walkInInquiriesEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  margin-top: var(--space-lg);
+}
+
+.walkInInquiriesErrorMessage {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.walkInInquiriesRetryButton {
+  padding: var(--space-sm) var(--space-lg);
+  min-height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.walkInInquiriesRetryButton:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.walkInInquiriesEmptyTitle {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.walkInInquiriesEmptySubtitle {
+  color: var(--color-text-secondary);
+}

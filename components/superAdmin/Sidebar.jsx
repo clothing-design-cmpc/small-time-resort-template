@@ -30,6 +30,7 @@ const navGroups = [
     links: [
       { label: "Dashboard", href: "/superAdmin/dashboard" },
       { label: "Bookings", href: "/superAdmin/bookings" },
+      { label: "Walk-in Inquiries", href: "/superAdmin/walkin-inquiries" },
     ],
   },
   {

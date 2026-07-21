@@ -245,7 +245,7 @@ model AdminProfile {
 // reviews after the fact to answer "what happened and who did it."
 model SecurityLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set | gatekeeper_vault_login_success | gatekeeper_vault_login_failed
   actor     String?  // email attempted/used, or the admin's full name for admin_action rows
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent") @db.Text
@@ -772,6 +772,23 @@ model VaultPassphrase {
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("vault_passphrase")
+}
+
+// ============================================================
+// MODEL: GatekeeperVaultPassphrase  (hidden Gatekeeper Tester page)
+// ============================================================
+// Singleton row (always id: "gatekeeper_vault_passphrase"), same shape
+// and rotation pattern as VaultPassphrase above but a completely
+// separate secret — services/gatekeeperVaultAuth.js never reads or
+// writes VaultPassphrase, and vice versa. Gates only the hidden
+// Gatekeeper Tester at app/gatekeeper-vault/[gatekeeperSlug]/.
+model GatekeeperVaultPassphrase {
+  id              String    @id @default("gatekeeper_vault_passphrase")
+  passphraseHash  String?   @map("passphrase_hash")
+  expiresAt       DateTime? @map("expires_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("gatekeeper_vault_passphrase")
 }
 
 // ============================================================

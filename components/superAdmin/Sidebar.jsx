@@ -63,7 +63,6 @@ const navGroups = [
     label: "Security",
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
-      { label: "Gatekeeper Tester", href: "/superAdmin/gatekeeper-tester" },
       { label: "Backups", href: "/superAdmin/backups" },
     ],
   },

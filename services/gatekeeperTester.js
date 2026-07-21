@@ -2,9 +2,9 @@
  * FILE: services/gatekeeperTester.js
  * PURPOSE:
  * Core logic for the two automatable Gatekeeper checks (login brute
- * force + booking SQL injection), used by the super-admin "Gatekeeper
- * Tester" page (app/superAdmin/(protected)/gatekeeper-tester) via its
- * API route. This is the browser-triggerable counterpart to
+ * force + booking SQL injection), used by the hidden "Gatekeeper
+ * Tester" page (app/gatekeeper-vault/[gatekeeperSlug]) via its API
+ * route. This is the browser-triggerable counterpart to
  * scripts/checkGatekeepers.js — that CLI script stays independent on
  * purpose (it runs standalone via `node`, outside the Next.js process,
  * with its own already-tested Prisma setup), so the two don't share

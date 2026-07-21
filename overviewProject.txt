@@ -801,6 +801,21 @@ DEBUG POINTS:
   original admin session + AdminProfile.isOwner check only, which
   will 404 for everyone once a real wipe has run. See
   services/adminSession.js's isValidVaultSetupKey().)
+- CRON_SECRET (REQUIRED for the 30-day vault passphrase auto-rotation
+  to actually run — app/api/system-vault-setup/auto-rotate/route.js
+  checks the incoming request's "Authorization: Bearer <CRON_SECRET>"
+  header against this value and 401s on any mismatch. Set it as an
+  env var in the Vercel project (Settings -> Environment Variables);
+  Vercel Cron automatically attaches it as that header to every
+  scheduled hit defined in vercel.json's "crons" entry — no extra
+  wiring needed once the env var exists. Unset/mismatched -> the cron
+  silently 401s every single day, forever, with no crash and no
+  alert, so VaultPassphrase.expiresAt just keeps sailing past 30 days
+  unrotated until someone happens to check. Purely additive to the
+  other two rotation paths (the manual "Generate New Passphrase"
+  button, and services/breachResponse.js's breach-triggered rotation)
+  — both of those still work fine with CRON_SECRET unset; only the
+  calendar-driven 30-day path depends on it.)
 
 === PROCESS: Vault Setup Page Access (survives a full DB wipe) ===
 Step 1 : Owner visits /system-vault-setup, optionally with a "?key=" query string
@@ -831,6 +846,14 @@ DEBUG POINTS:
   though the URL loaded fine -> the "x-vault-setup-key" header isn't
   reaching the API route (e.g. a proxy/CDN stripping custom headers) —
   check the Network tab for that header on the POST request
+- Vault passphrase never auto-rotates even though it's well past 30
+  days -> check Vercel's Cron logs (Project -> Settings -> Cron Jobs)
+  for repeated 401s on /api/system-vault-setup/auto-rotate — means
+  CRON_SECRET is unset or doesn't match between Vercel's env vars and
+  what the route is comparing against. This fails completely silently
+  otherwise: no crash, no email, no log row — VaultPassphrase.expiresAt
+  just sits in the past indefinitely until someone checks manually or
+  clicks "Generate New Passphrase" themselves.
 
 === PROCESS: Reseller License Check (owner-only feature, not client-facing) ===
 Step 1 : Every request to a matched route hits middleware.js first

@@ -141,6 +141,40 @@ async function downloadSqlFile(url) {
  * rather than dropping them (see TABLES_TO_PRESERVE), so nothing this
  * restore needs to clean up is ever actually missing beforehand.
  */
+
+/**
+ * stripPublicSchemaRecreate
+ * Removes the "DROP SCHEMA public;" / "CREATE SCHEMA public;" pair
+ * (plus its OWNER TO / COMMENT ON follow-up lines) that pg_dump emits
+ * for the public schema itself whenever --clean is used — regardless
+ * of whether --create was passed. This is a documented PostgreSQL 15+
+ * quirk: the public schema is special-cased and gets dropped/recreated
+ * on --clean even with no --create flag, unlike every other object in
+ * the dump (which does respect --if-exists correctly). The earlier
+ * comment block above (resetPublicSchema) assumed pg_dump never
+ * touches the schema itself without --create — that assumption is
+ * what this run's failure disproved: "DROP SCHEMA public;" showed up
+ * unqualified, with no IF EXISTS and no CASCADE, and Postgres refused
+ * it because public.vault_passphrase (preserved through the wipe,
+ * never dropped by --clean's own per-table DROP lines since those run
+ * AFTER this schema-level statement) still depends on the schema.
+ *
+ * The public schema already exists on the target Supabase database
+ * with the correct owner, grants, and extensions — it was never ours
+ * to drop and recreate in the first place (mirrors why runBackup.js
+ * scopes the dump to --schema=public to begin with: Supabase's own
+ * schemas aren't ours to touch, and neither is the public schema
+ * object itself, only what's inside it). Stripping these lines leaves
+ * every other --clean --if-exists DROP/CREATE statement for the
+ * actual tables, sequences, and functions inside public untouched.
+ */
+function stripPublicSchemaRecreate(sqlText) {
+  return sqlText
+    .replace(/^DROP SCHEMA (?:IF EXISTS )?public(?: CASCADE)?;\s*$/gim, "")
+    .replace(/^CREATE SCHEMA (?:IF NOT EXISTS )?public;\s*$/gim, "")
+    .replace(/^ALTER SCHEMA public OWNER TO .+;\s*$/gim, "")
+    .replace(/^COMMENT ON SCHEMA public IS .*;\s*$/gim, "");
+}
 /**
  * runPsqlRestore
  * Writes the SQL to a temp file and pipes it into psql against
@@ -148,7 +182,12 @@ async function downloadSqlFile(url) {
  * back instead of leaving the database half-restored.
  */
 async function runPsqlRestore(sqlBuffer) {
-  await writeFile(TEMP_SQL_PATH, sqlBuffer);
+  // Sanitize the dump text before it ever reaches psql — see
+  // stripPublicSchemaRecreate's own comment above for why this pair of
+  // statements has to go. Decoded as utf8 since pg_dump's plain-format
+  // output is always text, then written back as a Buffer for writeFile.
+  const sanitizedSql = stripPublicSchemaRecreate(sqlBuffer.toString("utf8"));
+  await writeFile(TEMP_SQL_PATH, sanitizedSql, "utf8");
   try {
     await execFileAsync(
       "psql",

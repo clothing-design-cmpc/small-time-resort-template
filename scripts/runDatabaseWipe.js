@@ -79,6 +79,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { uploadToR2 } from "../services/r2.js";
 import { uploadToDrive } from "../services/googleDrive.js";
 import { activatePostWipeLockdown } from "../services/postWipeLockdown.js";
+import { logSecurityEvent } from "../services/securityLog.js";
 import { withRetry } from "./lib/withRetry.js";
 import { logDbHost } from "./lib/logDbHost.js";
 
@@ -255,6 +256,11 @@ async function main() {
         where: { id: dueRequest.id },
         data: { status: "failed", errorMessage: "Pre-wipe backup failed on both R2 and Google Drive — wipe aborted.", completedAt: new Date() },
       });
+      await logSecurityEvent({
+        eventType: "admin_action",
+        actor: "system",
+        details: "Database wipe ABORTED — pre-wipe backup failed on both R2 and Google Drive. Nothing was truncated.",
+      });
       process.exitCode = 1;
       return;
     }
@@ -277,6 +283,14 @@ async function main() {
     await prisma.databaseWipeRequest.update({
       where: { id: dueRequest.id },
       data: { status: "completed", backupLogId, completedAt: new Date() },
+    });
+
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: "system",
+      details: `Database wipe completed successfully (${
+        dueRequest.backupOption === "with_backup" ? "with backup" : "WITHOUT backup"
+      }). ${tablesToTruncate.length} table(s) truncated.`,
     });
 
     // Flip site-wide post-wipe lockdown ON — Task 2. This is now a
@@ -311,6 +325,11 @@ async function main() {
     await prisma.databaseWipeRequest.update({
       where: { id: dueRequest.id },
       data: { status: "failed", backupLogId, errorMessage: `TRUNCATE failed: ${truncateError.message}`, completedAt: new Date() },
+    });
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: "system",
+      details: `Database wipe FAILED during TRUNCATE: ${truncateError.message}`,
     });
     process.exitCode = 1;
   }

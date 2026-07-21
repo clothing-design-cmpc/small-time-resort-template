@@ -6,33 +6,36 @@
  *
  * PURPOSE:
  * Read-only feed for the Danger Zone's "Activity Log" card
- * (VaultActivityLogSection.jsx) — every SecurityLog row written by
- * the vault itself (schedule/cancel/truncate a wipe, end a lockdown,
- * lift a post-wipe lockdown, unlock/lock the vault, OTP steps,
- * passphrase rotation). This exists as its own vault-scoped route,
- * separate from /api/admin/security-logs, because that route is
- * gated by requireSuperAdmin() — a session this page must work
- * without, same reasoning as every other route under
- * VAULT_STANDALONE_API_PATHS.
+ * (VaultActivityLogSection.jsx) — every SecurityLog row, full stop.
+ * Originally filtered to actor: VAULT_IDENTITY only, which excluded
+ * almost everything the docblock actually described showing: a wipe
+ * scheduled/cancelled via the vault logs with actor: vaultSession.uid
+ * (the owner's own admin uid), the auto-dispatch and the wipe script's
+ * own completion/failure log with actor: "system", and gatekeeper/
+ * breach events carry their own actor too — none of those are the
+ * literal string "vault". This route now returns every row, same as
+ * the superAdmin Security Logs page's own unfiltered default, so the
+ * owner genuinely sees everything from here without needing the
+ * regular super-admin session that a completed wipe deletes anyway.
+ * This exists as its own vault-scoped route, separate from
+ * /api/admin/security-logs, because that route is gated by
+ * requireSuperAdmin() — a session this page must work without, same
+ * reasoning as every other route under VAULT_STANDALONE_API_PATHS.
  *
  * DATA FLOW:
  * 1. On mount, on every page change, and every 30s (page 1 only —
  *    see VaultActivityLogSection.jsx), GETs this route with ?page=
  * 2. requireVaultSession() (OTP-verified) gates access — no super-admin
  *    session involved at any point
- * 3. Returns one VAULT_ACTIVITY_LOG_PAGE_SIZE page of SecurityLog rows
- *    whose actor is the vault's own identity (services/vaultAuth.js's
- *    VAULT_IDENTITY, "vault") — this naturally excludes every
- *    unrelated admin_action row (booking cancellations, etc.) written
- *    by the regular /superAdmin session, since those always log a
- *    real admin's name as the actor instead — plus totalCount/
- *    totalPages so DataTable's pagination footer can render
+ * 3. Returns one VAULT_ACTIVITY_LOG_PAGE_SIZE page of every SecurityLog
+ *    row, newest first, plus totalCount/totalPages so DataTable's
+ *    pagination footer can render
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { requireVaultSession, VAULT_IDENTITY } from "@/services/vaultAuth";
+import { requireVaultSession } from "@/services/vaultAuth";
 
 const VAULT_ACTIVITY_LOG_PAGE_SIZE = 20;
 
@@ -52,11 +55,8 @@ export async function GET(request) {
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
 
   try {
-    const where = { actor: VAULT_IDENTITY };
-
     const [logs, totalCount] = await Promise.all([
       prisma.securityLog.findMany({
-        where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * VAULT_ACTIVITY_LOG_PAGE_SIZE,
         take: VAULT_ACTIVITY_LOG_PAGE_SIZE,
@@ -67,7 +67,7 @@ export async function GET(request) {
           createdAt: true,
         },
       }),
-      prisma.securityLog.count({ where }),
+      prisma.securityLog.count(),
     ]);
 
     return NextResponse.json({

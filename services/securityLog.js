@@ -26,9 +26,9 @@
  * 3. For login_success events only, this queries the actor's most
  *    recent prior row to run anomaly detection before writing the new one
  */
-import { prisma } from "@/services/prisma";
-import { parseDeviceInfo, generateDeviceFingerprint } from "@/services/deviceFingerprint";
-import { lookupGeoLocation, haversineDistanceKm } from "@/services/geoip";
+import { prisma } from "./prisma.js";
+import { parseDeviceInfo, generateDeviceFingerprint } from "./deviceFingerprint.js";
+import { lookupGeoLocation, haversineDistanceKm } from "./geoip.js";
 
 // Anomaly detection only makes sense for events that represent a real,
 // successful session start — flagging every failed attempt as

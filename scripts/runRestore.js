@@ -175,6 +175,35 @@ function stripPublicSchemaRecreate(sqlText) {
     .replace(/^ALTER SCHEMA public OWNER TO .+;\s*$/gim, "")
     .replace(/^COMMENT ON SCHEMA public IS .*;\s*$/gim, "");
 }
+
+/**
+ * ensureBtreeGistExtension
+ * Prepends `CREATE EXTENSION IF NOT EXISTS btree_gist;` to the dump
+ * text so it runs BEFORE the dump's own `ALTER TABLE bookings ADD
+ * CONSTRAINT no_overlapping_bookings EXCLUDE USING gist (...)` line
+ * (see prisma/addBookingExclusionConstraint.js — that's where this
+ * constraint originally comes from; pg_dump captures it as-is since
+ * it's a real object on the `bookings` table, not something Prisma
+ * tracks in schema.prisma).
+ *
+ * Why this is needed: `--schema=public` scopes runBackup.js's pg_dump
+ * to the public schema's own objects, so it never emits a `CREATE
+ * EXTENSION` line for btree_gist even though the constraint below
+ * depends on it — extensions aren't "in" a schema the way tables are,
+ * they're server-level objects, and pg_dump only dumps CREATE
+ * EXTENSION when the extension's schema itself is inside the dump's
+ * scope. On a target database where btree_gist was never enabled (a
+ * fresh project, or one where it was somehow dropped), the GIST index
+ * has no operator class for comparing `room_id` (uuid) with `=`
+ * inside the exclusion constraint — Postgres can only tell you that
+ * failure at CREATE time, not at dump time, which is exactly the
+ * "data type uuid has no default operator class for access method
+ * gist" error this fixes. `IF NOT EXISTS` makes this a no-op on a
+ * database that already has it enabled.
+ */
+function ensureBtreeGistExtension(sqlText) {
+  return `CREATE EXTENSION IF NOT EXISTS btree_gist;\n\n${sqlText}`;
+}
 /**
  * runPsqlRestore
  * Writes the SQL to a temp file and pipes it into psql against
@@ -183,10 +212,11 @@ function stripPublicSchemaRecreate(sqlText) {
  */
 async function runPsqlRestore(sqlBuffer) {
   // Sanitize the dump text before it ever reaches psql — see
-  // stripPublicSchemaRecreate's own comment above for why this pair of
-  // statements has to go. Decoded as utf8 since pg_dump's plain-format
-  // output is always text, then written back as a Buffer for writeFile.
-  const sanitizedSql = stripPublicSchemaRecreate(sqlBuffer.toString("utf8"));
+  // stripPublicSchemaRecreate's and ensureBtreeGistExtension's own
+  // comments above for why each of these two passes is needed.
+  // Decoded as utf8 since pg_dump's plain-format output is always
+  // text, then written back as a Buffer for writeFile.
+  const sanitizedSql = ensureBtreeGistExtension(stripPublicSchemaRecreate(sqlBuffer.toString("utf8")));
   await writeFile(TEMP_SQL_PATH, sanitizedSql, "utf8");
   try {
     await execFileAsync(

@@ -73,6 +73,7 @@ const PAGE_TITLES = {
   "/superAdmin/visitor-logs": "Visitor Logs",
   "/superAdmin/account-activity": "Account Activity",
   "/superAdmin/security-logs": "Security Logs",
+  "/superAdmin/gatekeeper-tester": "Gatekeeper Tester",
   "/superAdmin/backups": "Backups",
 };
 

@@ -100,8 +100,12 @@ const BASE_URL = validateBaseUrl(RAW_BASE_URL);
 
 // RFC 5737 TEST-NET-3 — reserved specifically for documentation and
 // testing, guaranteed to never be a real visitor's or admin's IP.
-const TEST_IP_GATEKEEPER_1 = "203.0.113.11";
-const TEST_IP_GATEKEEPER_2 = "203.0.113.22";
+// Overridable via env vars for a dry run against a specific IP (e.g.
+// to rehearse the exact response for one that looked suspicious in
+// Security Logs) — same override the browser-based Gatekeeper Tester
+// page accepts (app/superAdmin/(protected)/gatekeeper-tester).
+const TEST_IP_GATEKEEPER_1 = process.env.TEST_IP_GATEKEEPER_1 || "203.0.113.11";
+const TEST_IP_GATEKEEPER_2 = process.env.TEST_IP_GATEKEEPER_2 || "203.0.113.22";
 
 const results = [];
 

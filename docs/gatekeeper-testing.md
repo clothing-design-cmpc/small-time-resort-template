@@ -12,10 +12,26 @@ actually locks down while you test it.
 
 ---
 
+## 0. Browser-based tester (Gatekeepers 1 & 2, no terminal needed)
+
+Super-admin -> Security -> **Gatekeeper Tester**
+(`/superAdmin/gatekeeper-tester`). Same two checks as the CLI script
+below, editable test IPs, results shown as a pass/fail checklist right
+in the page. Runs against whatever deployment you're logged into —
+same production warning applies. See `services/gatekeeperTester.js`
+for the exact logic.
+
 ## 1. Automated checker (Gatekeepers 1 & 2)
 
 ```bash
 BASE_URL=http://localhost:3000 npm run check:gatekeepers
+```
+
+Test IPs can be overridden if you need to dry-run against a specific
+address (defaults to the reserved 203.0.113.x range):
+
+```bash
+BASE_URL=http://localhost:3000 TEST_IP_GATEKEEPER_1=203.0.113.55 npm run check:gatekeepers
 ```
 
 What it does, in order:

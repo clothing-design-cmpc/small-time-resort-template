@@ -46,6 +46,23 @@
  * re-applied after it, so the passphrase in effect right before you
  * clicked "Restore" is still the one in effect right after.
  *
+ * Task 6 fix — LOCKDOWN STATE MUST SURVIVE A RESTORE UNCHANGED:
+ * system_settings is an ordinary public-schema table, so the dump's
+ * --clean DROP/CREATE reloads its row exactly like every other table —
+ * back to whatever postWipeLockdown/breachLockdown/maintenanceMode
+ * values were live AT BACKUP TIME. A pre-wipe backup was taken BEFORE
+ * scripts/runDatabaseWipe.js ever flipped postWipeLockdown on, so
+ * restoring it as-is silently turned the lockdown back OFF — which
+ * made RecoveryClient.jsx stop rendering the "Lift Post-Wipe Lockdown"
+ * card entirely (it only renders while postWipeLockdown is true),
+ * leaving the vault owner with no way to end a lockdown the restore
+ * itself had just erased the record of, even though the live site was
+ * still showing the maintenance screen to every guest. Same snapshot-
+ * before/reapply-after treatment as the vault passphrase above, scoped
+ * to only the lockdown fields so any other settings change the backup
+ * legitimately carries (house rules, cancellation policy, etc.) is left
+ * untouched.
+ *
  * DATA FLOW:
  * 1. app/api/admin/sql-import/route.js uploads the file to R2, creates
  *    a SqlImportLog row (status "running"), and dispatches this
@@ -287,6 +304,26 @@ async function main() {
   // always wins over whatever the backup happened to contain.
   const currentVaultPassphrase = await prisma.vaultPassphrase.findUnique({ where: { id: "vault_passphrase" } });
 
+  // Snapshot the CURRENTLY ACTIVE lockdown state BEFORE the restore runs.
+  // system_settings is a normal public-schema table — the dump's --clean
+  // DROP/CREATE wipes and reloads it exactly like every other table, and
+  // the row it reloads is whatever was live AT BACKUP TIME. For a
+  // pre-wipe backup specifically, that's BEFORE scripts/runDatabaseWipe.js
+  // ever flipped postWipeLockdown/maintenanceMode on — so restoring it
+  // as-is silently turns postWipeLockdown back to false and clears
+  // postWipeLockdownAt, even though the site is still supposed to stay
+  // locked down until the vault owner confirms the restore from THIS
+  // very page. The "Confirmation of Fixed Database" / "Lift Post-Wipe
+  // Lockdown" button would then never even render, since RecoveryClient
+  // only shows it while postWipeLockdown is true — the restore would be
+  // quietly erasing the one flag that lets the owner end it. Same failure
+  // mode as the vault passphrase above, same fix: snapshot the lockdown
+  // fields now, re-apply them after the restore so the state in effect
+  // right before "Restore Database" was clicked is still the state in
+  // effect right after — only the actual site data (rooms, bookings,
+  // etc.) should come from the backup, never the lockdown flags.
+  const currentSystemSettings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } });
+
   const existingLog = await prisma.sqlImportLog.findUnique({ where: { id: IMPORT_LOG_ID } });
 
   // upsertLogStatus
@@ -349,6 +386,36 @@ async function main() {
         { label: "vaultPassphrase.upsert (post-restore preserve)" }
       );
       console.log("[restore] Vault passphrase preserved — the vault URL and login are unaffected by this restore.");
+    }
+
+    // Re-apply the pre-restore lockdown-field snapshot — see
+    // currentSystemSettings' own comment above for why. Only the
+    // lockdown-specific fields are overwritten here, not the whole row —
+    // any OTHER settings field the backup legitimately changed (house
+    // rules text, cancellation policy, etc.) is left exactly as the
+    // restore loaded it. Only writes if a row existed before the
+    // restore; a fresh install with no settings row ever created stays
+    // untouched, letting the backup's row (if any) stand.
+    if (currentSystemSettings) {
+      console.log("[restore] Re-applying the currently active lockdown state over the restored one…");
+      await withRetry(
+        () =>
+          prisma.systemSettings.update({
+            where: { id: "singleton" },
+            data: {
+              maintenanceMode: currentSystemSettings.maintenanceMode,
+              maintenanceMessage: currentSystemSettings.maintenanceMessage,
+              breachLockdown: currentSystemSettings.breachLockdown,
+              breachActiveEventId: currentSystemSettings.breachActiveEventId,
+              postWipeLockdown: currentSystemSettings.postWipeLockdown,
+              postWipeLockdownAt: currentSystemSettings.postWipeLockdownAt,
+            },
+          }),
+        { label: "systemSettings.update (post-restore lockdown preserve)" }
+      );
+      console.log(
+        "[restore] Lockdown state preserved — postWipeLockdown/breachLockdown reflect reality, not the backup's older snapshot."
+      );
     }
 
     await upsertLogStatus({ status: "success", completedAt: new Date() });

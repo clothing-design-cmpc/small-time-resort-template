@@ -107,7 +107,7 @@ async function createBookingInTransaction(payload, attempt = 0) {
 
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const { allowed } = checkRateLimit(`booking:${ip}`, BOOKING_SUBMIT_MAX, BOOKING_SUBMIT_WINDOW_MS);
+  const { allowed } = await checkRateLimit(`booking:${ip}`, BOOKING_SUBMIT_MAX, BOOKING_SUBMIT_WINDOW_MS);
   if (!allowed) {
     await logSecurityEvent({
       eventType: "rate_limit_hit",

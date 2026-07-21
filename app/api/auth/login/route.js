@@ -66,7 +66,7 @@ export async function POST(request) {
     );
   }
 
-  const { allowed } = checkRateLimit(`login:${ip}`, LOGIN_ATTEMPT_MAX, LOGIN_ATTEMPT_WINDOW_MS);
+  const { allowed } = await checkRateLimit(`login:${ip}`, LOGIN_ATTEMPT_MAX, LOGIN_ATTEMPT_WINDOW_MS);
   if (!allowed) {
     await logSecurityEvent({
       eventType: "rate_limit_hit",

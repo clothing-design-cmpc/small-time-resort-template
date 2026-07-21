@@ -73,7 +73,7 @@ export async function POST(request) {
   }
 
   const ip = getIp(request);
-  const { allowed } = checkRateLimit(`vault-otp-send:${ip}`, OTP_SEND_MAX, OTP_SEND_WINDOW_MS);
+  const { allowed } = await checkRateLimit(`vault-otp-send:${ip}`, OTP_SEND_MAX, OTP_SEND_WINDOW_MS);
   if (!allowed) {
     return NextResponse.json(
       { success: false, data: null, message: "Too many code requests. Please wait a few minutes." },
@@ -151,7 +151,7 @@ export async function PATCH(request) {
   }
 
   const ip = getIp(request);
-  const { allowed } = checkRateLimit(`vault-otp-verify:${ip}`, OTP_VERIFY_MAX, OTP_VERIFY_WINDOW_MS);
+  const { allowed } = await checkRateLimit(`vault-otp-verify:${ip}`, OTP_VERIFY_MAX, OTP_VERIFY_WINDOW_MS);
   if (!allowed) {
     await logSecurityEvent({
       eventType: "vault_otp_failed",

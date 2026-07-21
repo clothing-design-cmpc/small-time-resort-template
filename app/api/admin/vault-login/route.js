@@ -55,7 +55,7 @@ const vaultLoginRequestSchema = z.object({
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
-  const { allowed } = checkRateLimit(`vault-login:${ip}`, VAULT_LOGIN_ATTEMPT_MAX, VAULT_LOGIN_ATTEMPT_WINDOW_MS);
+  const { allowed } = await checkRateLimit(`vault-login:${ip}`, VAULT_LOGIN_ATTEMPT_MAX, VAULT_LOGIN_ATTEMPT_WINDOW_MS);
   if (!allowed) {
     await logSecurityEvent({
       eventType: "vault_login_failed",

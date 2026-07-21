@@ -801,6 +801,13 @@ DEBUG POINTS:
   original admin session + AdminProfile.isOwner check only, which
   will 404 for everyone once a real wipe has run. See
   services/adminSession.js's isValidVaultSetupKey().)
+- UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN (powers the
+  distributed rate limiter in services/rateLimit.js — shared attempt
+  counts for login, vault login/OTP, and booking submission across
+  every server instance. Free tier at upstash.com is sufficient.
+  Missing/unset -> checkRateLimit() falls back to the old process-local
+  in-memory counter, which is fine for local dev but not safe once
+  deployed to more than one instance.)
 - CRON_SECRET (REQUIRED for the 30-day vault passphrase auto-rotation
   to actually run — app/api/system-vault-setup/auto-rotate/route.js
   checks the incoming request's "Authorization: Bearer <CRON_SECRET>"

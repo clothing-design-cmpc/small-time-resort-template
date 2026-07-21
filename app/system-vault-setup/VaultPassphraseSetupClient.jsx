@@ -190,64 +190,6 @@ export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
     }
   }
 
-  // --- VAULT_SETUP_KEY / CRON_SECRET generation ---
-  // Mirrors the passphrase flow's UX (confirm modal -> reveal-once box
-  // -> copy button -> auto-hide) but deliberately generates entirely
-  // client-side and is NEVER sent to any server or written to any
-  // database table — both of these are meant to live only in
-  // .env.local / the deployment's own env config. See
-  // services/adminSession.js's isValidVaultSetupKey() docblock for why
-  // VAULT_SETUP_KEY specifically must never touch the database: its
-  // whole purpose is surviving a full TRUNCATE untouched.
-  const [envSecretModalTarget, setEnvSecretModalTarget] = useState(null); // "VAULT_SETUP_KEY" | "CRON_SECRET" | null
-  const [revealedEnvSecret, setRevealedEnvSecret] = useState(null); // { name, value }
-  const envSecretAutoHideTimerRef = useRef(null);
-
-  useEffect(() => {
-    return () => {
-      if (envSecretAutoHideTimerRef.current) clearTimeout(envSecretAutoHideTimerRef.current);
-    };
-  }, []);
-
-  /**
-   * generateRandomEnvSecretValue
-   * 32 random bytes from the browser's own CSPRNG (window.crypto,
-   * never Math.random), base64url-encoded — same format and strength
-   * as crypto.randomBytes(32).toString("base64url") on the server
-   * side, just done in-browser so the value never has to leave this
-   * tab to be generated.
-   */
-  function generateRandomEnvSecretValue() {
-    const bytes = window.crypto.getRandomValues(new Uint8Array(32));
-    let binary = "";
-    bytes.forEach((byte) => {
-      binary += String.fromCharCode(byte);
-    });
-    return window.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
-
-  function handleGenerateEnvSecret() {
-    const name = envSecretModalTarget;
-    setEnvSecretModalTarget(null);
-
-    const value = generateRandomEnvSecretValue();
-    setRevealedEnvSecret({ name, value });
-
-    if (envSecretAutoHideTimerRef.current) clearTimeout(envSecretAutoHideTimerRef.current);
-    envSecretAutoHideTimerRef.current = setTimeout(() => {
-      setRevealedEnvSecret(null);
-    }, REVEAL_AUTO_HIDE_MS);
-  }
-
-  async function handleCopyEnvSecret() {
-    try {
-      await navigator.clipboard.writeText(revealedEnvSecret.value);
-      showToast("✓ Copied to clipboard.", "success");
-    } catch {
-      showToast("✕ Couldn't copy automatically — please copy it manually.", "error");
-    }
-  }
-
   return (
     <section className="vaultPassphraseSetupSection">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
@@ -336,68 +278,6 @@ export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
           </div>
         )}
       </div>
-
-      <div className="vaultPassphraseSetupCard">
-        <div className="vaultPassphraseSetupHeader" style={{ marginBottom: "0.75rem" }}>
-          <h2 style={{ fontSize: "1.1rem" }}>Other Setup Secrets</h2>
-          <p>
-            Generated entirely in your browser — never sent to any server or saved anywhere. Copy the
-            value straight into <code>.env.local</code> (and your deployment's env vars) yourself.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="vaultPassphraseSetupButton"
-            onClick={() => setEnvSecretModalTarget("VAULT_SETUP_KEY")}
-          >
-            Generate VAULT_SETUP_KEY
-          </button>
-          <button
-            type="button"
-            className="vaultPassphraseSetupButton"
-            onClick={() => setEnvSecretModalTarget("CRON_SECRET")}
-          >
-            Generate CRON_SECRET
-          </button>
-        </div>
-
-        {revealedEnvSecret && (
-          <div className="vaultPassphraseSetupRevealBox">
-            <span className="vaultPassphraseSetupRevealLabel">
-              ✓ New {revealedEnvSecret.name} generated.
-            </span>
-            <p className="vaultPassphraseSetupRevealHint">
-              This value only exists in this browser tab right now — it was never sent anywhere and
-              cannot be regenerated to the same value. Copy it now and paste it into{" "}
-              <code>.env.local</code> as <code>{revealedEnvSecret.name}=...</code>
-              {revealedEnvSecret.name === "CRON_SECRET"
-                ? ", and update your Vercel Cron config to match."
-                : "."}
-            </p>
-            <code className="adminMono" style={{ wordBreak: "break-all", display: "block", margin: "0.5rem 0" }}>
-              {revealedEnvSecret.value}
-            </code>
-            <button type="button" className="vaultPassphraseSetupCopyButton" onClick={handleCopyEnvSecret}>
-              Copy to clipboard
-            </button>
-          </div>
-        )}
-      </div>
-
-      <ConfirmationModal
-        isOpen={Boolean(envSecretModalTarget)}
-        title={`Generate New ${envSecretModalTarget}?`}
-        description={
-          envSecretModalTarget === "CRON_SECRET"
-            ? "This is only generated for you to copy — nothing is saved. If you already have a CRON_SECRET configured elsewhere (e.g. Vercel Cron), you'll need to update it there too, or the auto-rotate cron job will start failing its auth check."
-            : "This is only generated for you to copy — nothing is saved. If you already have a VAULT_SETUP_KEY configured in a live deployment, the old one keeps working there until you replace it — this doesn't invalidate anything by itself."
-        }
-        confirmLabel="Generate"
-        onConfirm={handleGenerateEnvSecret}
-        onCancel={() => setEnvSecretModalTarget(null)}
-      />
 
       <ConfirmationModal
         isOpen={isModalOpen}

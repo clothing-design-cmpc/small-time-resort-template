@@ -34,6 +34,18 @@
  * actually a safe, usable "success," even though the data itself
  * loaded fine.
  *
+ * Task 5 fix — VAULT PASSPHRASE MUST SURVIVE A RESTORE UNCHANGED:
+ * The dump is a snapshot from whenever the backup was taken, so it
+ * carries whatever vault_passphrase row was live back then — almost
+ * always older than one generated afterward (a manual rotation via
+ * /system-vault-setup, or an auto-rotation). Applying the dump as-is
+ * would silently roll the live passphrase (and computeVaultUrlSlug()'s
+ * derived URL) back to that stale value, locking the vault owner out
+ * of the very recovery page they're using to run this restore. The
+ * currently active row is snapshotted before the restore and
+ * re-applied after it, so the passphrase in effect right before you
+ * clicked "Restore" is still the one in effect right after.
+ *
  * DATA FLOW:
  * 1. app/api/admin/sql-import/route.js uploads the file to R2, creates
  *    a SqlImportLog row (status "running"), and dispatches this
@@ -190,6 +202,18 @@ async function main() {
   // is wiped out mid-restore. Without this snapshot, the later status write
   // has no fallback data to recreate the row with, and a plain .update()
   // throws P2025 ("no record found for an update") once the row is gone.
+  // Snapshot the CURRENTLY ACTIVE vault passphrase BEFORE the restore runs.
+  // The uploaded .sql is a pre-wipe (or otherwise older) backup — it
+  // contains whatever vault_passphrase row was live AT BACKUP TIME, which
+  // is almost always older than the one generated after the wipe (e.g. via
+  // /system-vault-setup). Restoring the dump as-is would silently revert
+  // the live passphrase (and therefore computeVaultUrlSlug()'s URL) back
+  // to that stale value — locking the vault owner out of the very page
+  // they're using to run this restore, since they'd only know the newer
+  // one. Re-applied after the restore below so the CURRENT passphrase
+  // always wins over whatever the backup happened to contain.
+  const currentVaultPassphrase = await prisma.vaultPassphrase.findUnique({ where: { id: "vault_passphrase" } });
+
   const existingLog = await prisma.sqlImportLog.findUnique({ where: { id: IMPORT_LOG_ID } });
 
   // upsertLogStatus
@@ -232,6 +256,31 @@ async function main() {
     console.log("[restore] Reconciling database schema against schema.prisma…");
     await runSchemaReconciliation();
     console.log("[restore] Schema reconciliation complete — database structure now matches schema.prisma.");
+
+    // Re-apply the pre-restore vault passphrase snapshot — see this
+    // variable's own comment above for why. Only writes if one existed
+    // before the restore; a fresh install with no passphrase ever set
+    // stays untouched, letting the backup's row (if any) stand.
+    if (currentVaultPassphrase) {
+      console.log("[restore] Re-applying the currently active vault passphrase over the restored one…");
+      await withRetry(
+        () =>
+          prisma.vaultPassphrase.upsert({
+            where: { id: "vault_passphrase" },
+            update: {
+              passphraseHash: currentVaultPassphrase.passphraseHash,
+              expiresAt: currentVaultPassphrase.expiresAt,
+            },
+            create: {
+              id: "vault_passphrase",
+              passphraseHash: currentVaultPassphrase.passphraseHash,
+              expiresAt: currentVaultPassphrase.expiresAt,
+            },
+          }),
+        { label: "vaultPassphrase.upsert (post-restore preserve)" }
+      );
+      console.log("[restore] Vault passphrase preserved — the vault URL and login are unaffected by this restore.");
+    }
 
     await upsertLogStatus({ status: "success", completedAt: new Date() });
     console.log("[restore] Done.");

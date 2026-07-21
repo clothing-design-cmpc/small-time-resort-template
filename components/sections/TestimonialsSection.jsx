@@ -3,36 +3,40 @@
  * ROLE: Visitor — public, no auth required
  *
  * PURPOSE:
- * Displays 3 guest reviews in a grid. Static placeholder content until
- * a reviews DB table is added. Simple quote + name + date layout.
+ * Displays guest reviews in a grid.
  *
  * DATA FLOW:
  * 1. Rendered inside app/visitor/page.jsx after AmenitiesHighlightSection
- * 2. No data fetching — static placeholder testimonials
+ * 2. Server Component reads the singleton SystemSettings row for the
+ *    section's own config (testimonialsSectionEnabled/Count/FeaturedOnly,
+ *    set by the super-admin under Content > Homepage), then queries the
+ *    Testimonial table using that config — same two-step pattern as the
+ *    Rooms "featured" query, just config-driven instead of hardcoded
+ * 3. Returns null entirely when the admin has turned the section off
+ * 4. Falls back to a small set of placeholder reviews if no testimonials
+ *    exist yet, so this section is never blank on a fresh install
  */
+import { prisma } from "@/services/prisma";
 import "./TestimonialsSection.css";
 
-const testimonials = [
+const DEFAULT_TESTIMONIALS = [
   {
     id: "t1",
     quote: "We came for a weekend and stayed for a week. The kind of quiet this place has is genuinely hard to find. Not a single thing to complain about.",
-    name: "Marie C.",
-    date: "June 2026",
-    stars: 5,
+    guestName: "Marie C.",
+    rating: 5,
   },
   {
     id: "t2",
     quote: "The team remembered our names on day two. The food was exceptional. The view from our villa at sunrise made everything else irrelevant.",
-    name: "James & Toni R.",
-    date: "April 2026",
-    stars: 5,
+    guestName: "James & Toni R.",
+    rating: 5,
   },
   {
     id: "t3",
     quote: "Exactly what we needed — no crowds, no noise, just water and stillness. We'll be back every year if they'll have us.",
-    name: "Katrina M.",
-    date: "March 2026",
-    stars: 5,
+    guestName: "Katrina M.",
+    rating: 5,
   },
 ];
 
@@ -47,7 +51,28 @@ function StarRating({ count }) {
   );
 }
 
-export default function TestimonialsSection() {
+export default async function TestimonialsSection() {
+  // Read-only fetch of the singleton settings row. Fails safe to null
+  // so this public page never 500s just because the row hasn't been
+  // created yet — defaults below mirror the schema's own defaults.
+  const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
+
+  const isEnabled = settings?.testimonialsSectionEnabled ?? true;
+  if (!isEnabled) return null;
+
+  const count = settings?.testimonialsSectionCount ?? 3;
+  const featuredOnly = settings?.testimonialsFeaturedOnly ?? true;
+
+  const testimonials = await prisma.testimonial
+    .findMany({
+      where: featuredOnly ? { isFeatured: true } : {},
+      orderBy: { displayOrder: "asc" },
+      take: count,
+    })
+    .catch(() => []);
+
+  const displayTestimonials = testimonials.length > 0 ? testimonials : DEFAULT_TESTIMONIALS;
+
   return (
     <section className="testimonialsSection" id="testimonials">
       <div className="testimonialsContainer">
@@ -57,13 +82,12 @@ export default function TestimonialsSection() {
         </div>
 
         <div className="testimonialsGrid">
-          {testimonials.map((t) => (
+          {displayTestimonials.map((t) => (
             <article key={t.id} className="testimonialCard">
-              <StarRating count={t.stars} />
+              <StarRating count={t.rating} />
               <blockquote className="testimonialQuote">&ldquo;{t.quote}&rdquo;</blockquote>
               <footer className="testimonialMeta">
-                <span className="testimonialName">{t.name}</span>
-                <span className="testimonialDate">{t.date}</span>
+                <span className="testimonialName">{t.guestName}</span>
               </footer>
             </article>
           ))}

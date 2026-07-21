@@ -29,6 +29,8 @@ const quickLinks = [
   { label: "Amenities",      href: "/visitor#amenities" },
   { label: "Shop",           href: "/visitor#shop" },
   { label: "About Us",       href: "/visitor#about" },
+  { label: "Activities",     href: "/visitor/activities" },
+  { label: "Gallery",        href: "/visitor/gallery" },
   { label: "Contact",        href: "/visitor#contact" },
 ];
 

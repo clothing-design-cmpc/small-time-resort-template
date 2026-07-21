@@ -33,6 +33,8 @@ const navLinks = [
   { label: "Amenities", href: "/visitor#amenities" },
   { label: "Shop", href: "/visitor#shop" },
   { label: "About", href: "/visitor#about" },
+  { label: "Activities", href: "/visitor/activities" },
+  { label: "Gallery", href: "/visitor/gallery" },
   { label: "Policies", href: "/visitor/policies" },
   { label: "Contact", href: "/visitor#contact" },
 ];

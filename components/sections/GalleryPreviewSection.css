@@ -1,0 +1,97 @@
+/*
+ * GalleryPreviewSection.css
+ * Homepage gallery teaser — compact photo strip with a link to the
+ * full /visitor/gallery page.
+ */
+.galleryPreviewSection {
+  scroll-margin-top: 96px;
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.galleryPreviewContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.galleryPreviewHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.galleryPreviewEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.galleryPreviewTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/*
+ * .galleryPreviewGrid
+ * Fixed-size thumbnail strip — auto-fill keeps it responsive without
+ * needing separate breakpoints.
+ */
+.galleryPreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.galleryPreviewImageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-skeleton-base);
+}
+
+.galleryPreviewImage {
+  object-fit: cover;
+  transition: transform var(--transition-base, 0.25s ease);
+}
+
+.galleryPreviewImageWrapper:hover .galleryPreviewImage {
+  transform: scale(1.04);
+}
+
+.galleryPreviewViewAll {
+  display: flex;
+}
+
+.galleryPreviewViewAllLink {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  touch-action: manipulation;
+  transition: color var(--transition-fast, 0.15s ease);
+}
+
+.galleryPreviewViewAllLink:hover,
+.galleryPreviewViewAllLink:focus-visible,
+.galleryPreviewViewAllLink:active {
+  color: var(--color-accent-hover);
+}

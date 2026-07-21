@@ -1,0 +1,152 @@
+/*
+ * Gallery.css
+ * Styles for /visitor/gallery — category tabs + responsive photo grid.
+ */
+
+/* ── Page wrapper ─────────────────────────────────────────────── */
+.galleryPageMain {
+  width: 100%;
+}
+
+/* ── Header banner ─────────────────────────────────────────────── */
+.galleryPageHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg) var(--space-lg);
+}
+
+.galleryPageEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.galleryPageTitle {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.galleryPageSubtitle {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+}
+
+/* ── Wrapper + tabs ───────────────────────────────────────────── */
+.galleryVisitorWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: 0 var(--space-lg) var(--space-2xl);
+}
+
+.galleryVisitorTabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .galleryVisitorTab
+ * Pill-style filter button. Min 44px tap target (Rule 29.1) and both
+ * :hover/:focus-visible/:active styled together (Rule 29.2 — no
+ * hover-only interactions).
+ */
+.galleryVisitorTab {
+  min-height: 44px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+
+.galleryVisitorTab:hover,
+.galleryVisitorTab:focus-visible,
+.galleryVisitorTab:active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.galleryVisitorTab--active {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* ── Empty state (Rule 25.3) ─────────────────────────────────── */
+.galleryVisitorEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.galleryVisitorEmptyTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.galleryVisitorEmptySubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+/* ── Photo grid ───────────────────────────────────────────────── */
+.galleryVisitorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+.galleryVisitorFigure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.galleryVisitorImageWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-skeleton-base);
+}
+
+.galleryVisitorImage {
+  object-fit: cover;
+}
+
+.galleryVisitorCaption {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}

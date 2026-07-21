@@ -5,11 +5,15 @@
  * PURPOSE:
  * Homepage that renders all visitor sections in sequence:
  * Hero → About → Featured Rooms → Amenities → Mini Store →
- * Testimonials → Booked Dates → CTA
+ * Testimonials → Activities → Gallery Preview → Booked Dates → CTA
  *
  * DATA FLOW:
  * 1. Visitor hits "/visitor"
- * 2. Server-side sections render without data fetching (static placeholders)
+ * 2. Hero, About, AmenitiesHighlightSection, TestimonialsSection,
+ *    ActivitiesHighlightSection, and GalleryPreviewSection are all
+ *    Server Components that read their data directly via Prisma —
+ *    same pattern app/visitor/policies/page.jsx uses. MiniStoreSection
+ *    is a Client Component that fetches from /api/shop.
  * 3. BookedDatesSection and CTASection are Client Components — they own
  *    interactive carousel state locally, no SSR data needed
  */
@@ -19,6 +23,8 @@ import FeaturedRoomsSection from "@/components/sections/FeaturedRoomsSection";
 import AmenitiesHighlightSection from "@/components/sections/AmenitiesHighlightSection";
 import MiniStoreSection from "@/components/sections/MiniStoreSection";
 import TestimonialsSection from "@/components/sections/TestimonialsSection";
+import ActivitiesHighlightSection from "@/components/sections/ActivitiesHighlightSection";
+import GalleryPreviewSection from "@/components/sections/GalleryPreviewSection";
 import BookedDatesSection from "@/components/sections/BookedDatesSection";
 import CTASection from "@/components/sections/CTASection";
 
@@ -41,6 +47,8 @@ export default function VisitorHomePage() {
       <AmenitiesHighlightSection />
       <MiniStoreSection />
       <TestimonialsSection />
+      <ActivitiesHighlightSection />
+      <GalleryPreviewSection />
       <BookedDatesSection />
       <CTASection />
     </main>

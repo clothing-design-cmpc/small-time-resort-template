@@ -140,9 +140,21 @@ export default async function PoliciesPage() {
   const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
 
   const houseRulesText = renderTextBlock(settings?.houseRules);
+  const bookingPoliciesText = renderTextBlock(settings?.bookingPolicies);
   const cancellationPolicyText = renderTextBlock(settings?.cancellationPolicy);
   const termsOfServiceText = renderTextBlock(settings?.termsOfService);
   const privacyPolicyText = renderTextBlock(settings?.privacyPolicy);
+
+  // Check-in/check-out — admin-editable under Content > Policies, with
+  // the original static copy as the fallback default.
+  const checkInTime = settings?.checkInTime?.trim() || "2:00 PM";
+  const checkOutTime = settings?.checkOutTime?.trim() || "12:00 PM";
+  const checkInNote =
+    settings?.checkInNote?.trim() ||
+    "Early check-in subject to availability. Request at least 48 hours in advance.";
+  const checkOutNote =
+    settings?.checkOutNote?.trim() ||
+    "Late check-out subject to availability. Additional half-day charge may apply.";
 
   return (
     <main className="policiesMain">
@@ -186,14 +198,18 @@ export default async function PoliciesPage() {
               <p className="policiesSectionIntro">
                 The following terms apply to all reservations made directly with Villa Azure Resort, whether by phone, email, or online inquiry.
               </p>
-              <ul className="policiesList">
-                {bookingPolicies.map((item) => (
-                  <li key={item.id} className="policiesItem">
-                    <h3 className="policiesItemTitle">{item.title}</h3>
-                    <p className="policiesItemBody">{item.body}</p>
-                  </li>
-                ))}
-              </ul>
+              {bookingPoliciesText ? (
+                <div className="policiesItem">{bookingPoliciesText}</div>
+              ) : (
+                <ul className="policiesList">
+                  {bookingPolicies.map((item) => (
+                    <li key={item.id} className="policiesItem">
+                      <h3 className="policiesItemTitle">{item.title}</h3>
+                      <p className="policiesItemBody">{item.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
 
             <div className="policiesDivider" />
@@ -286,13 +302,13 @@ export default async function PoliciesPage() {
               <div className="policiesTimesGrid">
                 <div className="policiesTimeCard">
                   <span className="policiesTimeLabel">Check-In</span>
-                  <span className="policiesTimeValue">2:00 PM</span>
-                  <span className="policiesTimeNote">Early check-in subject to availability. Request at least 48 hours in advance.</span>
+                  <span className="policiesTimeValue">{checkInTime}</span>
+                  <span className="policiesTimeNote">{checkInNote}</span>
                 </div>
                 <div className="policiesTimeCard">
                   <span className="policiesTimeLabel">Check-Out</span>
-                  <span className="policiesTimeValue">12:00 PM</span>
-                  <span className="policiesTimeNote">Late check-out subject to availability. Additional half-day charge may apply.</span>
+                  <span className="policiesTimeValue">{checkOutTime}</span>
+                  <span className="policiesTimeNote">{checkOutNote}</span>
                 </div>
               </div>
             </section>

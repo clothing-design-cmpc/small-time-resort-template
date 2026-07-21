@@ -11,18 +11,18 @@
  *    after <Hero />
  * 2. Server Component reads the singleton SystemSettings row directly
  *    via Prisma (same pattern app/visitor/policies/page.jsx already
- *    uses) — aboutPageContent is editable by the super-admin under
- *    Content > Homepage / Policies
- * 3. Falls back to the original placeholder story copy if the admin
- *    hasn't filled it in yet, so this section is never blank
- * 4. The three differentiator cards stay static — there is no schema
- *    field for them yet, so nothing to wire there
- * 5. Anchors to "#about" so the Hero's nav / footer links can jump here
+ *    uses) — aboutPageContent and the 3 differentiator cards
+ *    (title + description each) are editable by the super-admin under
+ *    Content > Homepage
+ * 3. Falls back to the original placeholder copy per-field if the
+ *    admin hasn't filled a given field in yet, so this section is
+ *    never blank
+ * 4. Anchors to "#about" so the Hero's nav / footer links can jump here
  */
 import { prisma } from "@/services/prisma";
 import "./About.css";
 
-const differentiators = [
+const DEFAULT_DIFFERENTIATORS = [
   {
     id: "diff-privacy",
     title: "True Privacy",
@@ -57,6 +57,17 @@ export default async function About() {
   const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
 
   const aboutBody = settings?.aboutPageContent?.trim() || DEFAULT_ABOUT_BODY;
+
+  // Each card falls back independently — an admin filling in only one
+  // card's title still keeps the other two cards' default copy intact.
+  const differentiators = DEFAULT_DIFFERENTIATORS.map((defaultCard, index) => {
+    const cardNumber = index + 1;
+    return {
+      id: defaultCard.id,
+      title: settings?.[`aboutDifferentiator${cardNumber}Title`]?.trim() || defaultCard.title,
+      description: settings?.[`aboutDifferentiator${cardNumber}Body`]?.trim() || defaultCard.description,
+    };
+  });
 
   return (
     <section className="aboutSection" id="about">

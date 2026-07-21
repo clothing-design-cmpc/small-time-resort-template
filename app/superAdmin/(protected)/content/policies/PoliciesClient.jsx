@@ -26,20 +26,27 @@ import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import "./Policies.css";
 
 const TABS = [
+  { key: "bookingPolicies", label: "Booking Policies" },
   { key: "houseRules", label: "House Rules" },
   { key: "cancellationPolicy", label: "Cancellation" },
   { key: "termsOfService", label: "Terms" },
   { key: "privacyPolicy", label: "Privacy" },
   { key: "aboutPageContent", label: "About" },
+  { key: "checkInOut", label: "Check-In / Out" },
   { key: "contactInfo", label: "Contact Info" },
 ];
 
 const EMPTY_FORM = {
   houseRules: "",
+  bookingPolicies: "",
   cancellationPolicy: "",
   termsOfService: "",
   privacyPolicy: "",
   aboutPageContent: "",
+  checkInTime: "",
+  checkOutTime: "",
+  checkInNote: "",
+  checkOutNote: "",
   resortPhone: "",
   resortEmail: "",
   resortAddress: "",
@@ -60,10 +67,15 @@ export default function PoliciesClient() {
     if (!policies) return;
     setFormValues({
       houseRules: policies.houseRules ?? "",
+      bookingPolicies: policies.bookingPolicies ?? "",
       cancellationPolicy: policies.cancellationPolicy ?? "",
       termsOfService: policies.termsOfService ?? "",
       privacyPolicy: policies.privacyPolicy ?? "",
       aboutPageContent: policies.aboutPageContent ?? "",
+      checkInTime: policies.checkInTime ?? "",
+      checkOutTime: policies.checkOutTime ?? "",
+      checkInNote: policies.checkInNote ?? "",
+      checkOutNote: policies.checkOutNote ?? "",
       resortPhone: policies.resortPhone ?? "",
       resortEmail: policies.resortEmail ?? "",
       resortAddress: policies.resortAddress ?? "",
@@ -139,7 +151,50 @@ export default function PoliciesClient() {
         ))}
       </div>
 
-      {activeTab === "contactInfo" ? (
+      {activeTab === "checkInOut" ? (
+        <div className="policiesTabPanel">
+          <div className="policiesFormField">
+            <label htmlFor="checkInTime">Check-In Time</label>
+            <input
+              id="checkInTime"
+              type="text"
+              placeholder="e.g. 2:00 PM"
+              value={formValues.checkInTime}
+              onChange={(event) => handleFieldChange("checkInTime", event.target.value)}
+            />
+          </div>
+          <div className="policiesFormField">
+            <label htmlFor="checkInNote">Check-In Note</label>
+            <textarea
+              id="checkInNote"
+              rows={2}
+              placeholder="e.g. Early check-in subject to availability. Request at least 48 hours in advance."
+              value={formValues.checkInNote}
+              onChange={(event) => handleFieldChange("checkInNote", event.target.value)}
+            />
+          </div>
+          <div className="policiesFormField">
+            <label htmlFor="checkOutTime">Check-Out Time</label>
+            <input
+              id="checkOutTime"
+              type="text"
+              placeholder="e.g. 12:00 PM"
+              value={formValues.checkOutTime}
+              onChange={(event) => handleFieldChange("checkOutTime", event.target.value)}
+            />
+          </div>
+          <div className="policiesFormField">
+            <label htmlFor="checkOutNote">Check-Out Note</label>
+            <textarea
+              id="checkOutNote"
+              rows={2}
+              placeholder="e.g. Late check-out subject to availability. Additional half-day charge may apply."
+              value={formValues.checkOutNote}
+              onChange={(event) => handleFieldChange("checkOutNote", event.target.value)}
+            />
+          </div>
+        </div>
+      ) : activeTab === "contactInfo" ? (
         <div className="policiesTabPanel">
           <div className="policiesFormField">
             <label htmlFor="resortPhone">Resort Phone</label>

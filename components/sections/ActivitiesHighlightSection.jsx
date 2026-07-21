@@ -9,9 +9,11 @@
  * DATA FLOW:
  * 1. Rendered inside app/visitor/page.jsx after TestimonialsSection
  * 2. Server Component reads the Activity table directly via Prisma
- *    (same pattern app/visitor/policies/page.jsx already uses),
- *    scoped to isActive activities, preferring isFeatured ones,
- *    capped at 3 for the homepage strip
+ *    (same pattern app/visitor/policies/page.jsx already uses), scoped
+ *    to isActive activities, ordered by sortOrder — same query as the
+ *    full /visitor/activities page (no featured-only filter, no cap)
+ *    so every active activity an admin adds shows up here too, not
+ *    just the first 3 marked featured
  * 3. Fails safe to an empty array — the section renders nothing rather
  *    than a broken/empty grid if no activities exist yet
  */
@@ -21,24 +23,15 @@ import { prisma } from "@/services/prisma";
 import "./ActivitiesHighlightSection.css";
 
 export default async function ActivitiesHighlightSection() {
-  // Prefer featured activities for the homepage strip; fall back to any
-  // active ones if nothing has been marked featured yet.
-  const featured = await prisma.activity
+  // Same query as the full activities page — every active activity,
+  // no featured-only filter and no cap, so the homepage strip is never
+  // missing activities the full page shows.
+  const activities = await prisma.activity
     .findMany({
-      where: { isActive: true, isFeatured: true },
+      where: { isActive: true },
       orderBy: { sortOrder: "asc" },
-      take: 3,
     })
     .catch(() => []);
-
-  const fallback =
-    featured.length > 0
-      ? []
-      : await prisma.activity
-          .findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" }, take: 3 })
-          .catch(() => []);
-
-  const activities = featured.length > 0 ? featured : fallback;
 
   // Nothing to show yet — admin hasn't added any activities.
   if (activities.length === 0) return null;

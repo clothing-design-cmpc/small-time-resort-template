@@ -619,10 +619,17 @@ model SystemSettings {
 
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")
+  bookingPolicies    String? @map("booking_policies")
   cancellationPolicy String? @map("cancellation_policy")
   termsOfService      String? @map("terms_of_service")
   privacyPolicy       String? @map("privacy_policy")
   aboutPageContent    String? @map("about_page_content")
+
+  // --- Check-In / Check-Out (Policies page) ---
+  checkInTime  String? @default("2:00 PM") @map("check_in_time")
+  checkOutTime String? @default("12:00 PM") @map("check_out_time")
+  checkInNote  String? @map("check_in_note")
+  checkOutNote String? @map("check_out_note")
 
   // --- Contact Info ---
   resortPhone   String? @map("resort_phone")
@@ -640,6 +647,14 @@ model SystemSettings {
 
   // Featured room selection for the homepage — up to 3 Room IDs, in order.
   featuredRoomIds String[] @default([]) @map("featured_room_ids")
+
+  // --- About Section Differentiators (3 fixed cards under the About story) ---
+  aboutDifferentiator1Title String? @map("about_differentiator1_title")
+  aboutDifferentiator1Body  String? @map("about_differentiator1_body")
+  aboutDifferentiator2Title String? @map("about_differentiator2_title")
+  aboutDifferentiator2Body  String? @map("about_differentiator2_body")
+  aboutDifferentiator3Title String? @map("about_differentiator3_title")
+  aboutDifferentiator3Body  String? @map("about_differentiator3_body")
 
   testimonialsSectionEnabled  Boolean @default(true) @map("testimonials_section_enabled")
   testimonialsSectionCount    Int     @default(3) @map("testimonials_section_count") // 3, 6, or 9

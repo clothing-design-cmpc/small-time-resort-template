@@ -31,6 +31,12 @@ const EMPTY_FORM = {
   heroImageUrl: null,
   heroImageKey: null,
   featuredRoomIds: [],
+  aboutDifferentiator1Title: "",
+  aboutDifferentiator1Body: "",
+  aboutDifferentiator2Title: "",
+  aboutDifferentiator2Body: "",
+  aboutDifferentiator3Title: "",
+  aboutDifferentiator3Body: "",
   testimonialsSectionEnabled: true,
   testimonialsSectionCount: 3,
   testimonialsFeaturedOnly: true,
@@ -62,6 +68,12 @@ export default function HomepageSettingsClient() {
       heroImageUrl: homepageSettings.heroImageUrl ?? null,
       heroImageKey: homepageSettings.heroImageKey ?? null,
       featuredRoomIds: homepageSettings.featuredRoomIds ?? [],
+      aboutDifferentiator1Title: homepageSettings.aboutDifferentiator1Title ?? "",
+      aboutDifferentiator1Body: homepageSettings.aboutDifferentiator1Body ?? "",
+      aboutDifferentiator2Title: homepageSettings.aboutDifferentiator2Title ?? "",
+      aboutDifferentiator2Body: homepageSettings.aboutDifferentiator2Body ?? "",
+      aboutDifferentiator3Title: homepageSettings.aboutDifferentiator3Title ?? "",
+      aboutDifferentiator3Body: homepageSettings.aboutDifferentiator3Body ?? "",
       testimonialsSectionEnabled: homepageSettings.testimonialsSectionEnabled ?? true,
       testimonialsSectionCount: homepageSettings.testimonialsSectionCount ?? 3,
       testimonialsFeaturedOnly: homepageSettings.testimonialsFeaturedOnly ?? true,
@@ -220,6 +232,36 @@ export default function HomepageSettingsClient() {
           })}
           {rooms.length === 0 && <p className="homepageFormHint">No rooms yet — add rooms under Rooms &amp; Villas first.</p>}
         </div>
+      </div>
+
+      {/* ---------- Section 2.5: About Section Differentiators ---------- */}
+      <div className="homepagePanel">
+        <h2 className="homepagePanelTitle">About Section Differentiators</h2>
+        <p className="homepageFormHint">
+          The 3 highlight cards shown under the story on the About section. Leave blank to keep the default copy.
+        </p>
+        {[1, 2, 3].map((cardNumber) => (
+          <div className="homepageFormRow" key={cardNumber}>
+            <div className="homepageFormField">
+              <label htmlFor={`aboutDifferentiator${cardNumber}Title`}>Card {cardNumber} Title</label>
+              <input
+                id={`aboutDifferentiator${cardNumber}Title`}
+                type="text"
+                value={formValues[`aboutDifferentiator${cardNumber}Title`]}
+                onChange={(event) => handleFieldChange(`aboutDifferentiator${cardNumber}Title`, event.target.value)}
+              />
+            </div>
+            <div className="homepageFormField">
+              <label htmlFor={`aboutDifferentiator${cardNumber}Body`}>Card {cardNumber} Description</label>
+              <input
+                id={`aboutDifferentiator${cardNumber}Body`}
+                type="text"
+                value={formValues[`aboutDifferentiator${cardNumber}Body`]}
+                onChange={(event) => handleFieldChange(`aboutDifferentiator${cardNumber}Body`, event.target.value)}
+              />
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ---------- Section 3: Testimonials Section ---------- */}

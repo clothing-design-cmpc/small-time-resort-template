@@ -96,6 +96,36 @@ async function downloadSqlFile(url) {
 }
 
 /**
+ * resetPublicSchema
+ * Task 4 fix — SCHEMA-DROP CONFLICT WITH WIPE-PRESERVED OBJECTS:
+ * The dump always contains an unqualified `DROP SCHEMA public;` (pg_dump
+ * --clean's standard output) with no CASCADE. That fails outright
+ * whenever the live public schema still has objects the dump script
+ * itself never dropped — specifically, extensions like btree_gist, and
+ * any table on runDatabaseWipe.js's TABLES_TO_PRESERVE denylist (e.g.
+ * vault_passphrase) that a wipe deliberately left standing. Postgres
+ * then refuses with "cannot drop schema public because other objects
+ * depend on it" and the whole restore aborts before a single table
+ * loads.
+ *
+ * Fix: drop + recreate an EMPTY public schema ourselves first, with
+ * CASCADE, in its own separate psql call (must commit on its own —
+ * this can't live inside runPsqlRestore's --single-transaction run,
+ * since the dump's own "DROP SCHEMA public;" line needs to hit an
+ * already-empty, dependency-free schema). No data is lost beyond what
+ * a full restore already implies: the dump recreates every table it
+ * captured — including vault_passphrase, if that table existed at
+ * backup time — moments later in the very same run.
+ */
+async function resetPublicSchema() {
+  await execFileAsync(
+    "psql",
+    [process.env.DIRECT_URL, "--set", "ON_ERROR_STOP=1", "-c", "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"],
+    { maxBuffer: 1024 * 1024 * 1024 }
+  );
+}
+
+/**
  * runPsqlRestore
  * Writes the SQL to a temp file and pipes it into psql against
  * DIRECT_URL. --single-transaction so a failure partway through rolls
@@ -191,6 +221,10 @@ async function main() {
   try {
     const sqlBuffer = await downloadSqlFile(SQL_FILE_URL);
     console.log(`[restore] Downloaded and decompressed — ${sqlBuffer.length} bytes.`);
+
+    console.log("[restore] Resetting public schema to clear wipe-preserved objects before restore…");
+    await resetPublicSchema();
+    console.log("[restore] Public schema reset.");
 
     await runPsqlRestore(sqlBuffer);
     console.log("[restore] psql restore complete.");

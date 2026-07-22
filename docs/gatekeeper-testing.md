@@ -14,31 +14,19 @@ actually locks down while you test it.
 
 ## 0. Browser-based tester (Gatekeepers 1 & 2, no terminal needed)
 
-This is now a **hidden, separately-gated page** — it is deliberately
-NOT linked in the Sidebar/AdminHeader and does NOT accept a regular
-super-admin session. It lives at `/gatekeeper-vault/<current-slug>`,
-where `<current-slug>` is whatever
-`computeGatekeeperVaultUrlSlug()` (`services/gatekeeperVaultAuth.js`)
-currently resolves to — this changes every time the passphrase is
-rotated, same technique as the disaster-recovery vault
-(`services/vaultAuth.js`), but with its own completely separate
-passphrase. Any other slug value 404s.
+Lives inside the disaster-recovery vault itself now (a "Gatekeeper
+Tester" card on the same page as Danger Zone, Recovery Channels, etc.)
+— reach it the same way you reach any other vault section: unlock
+`/system-vault/<slug>` with the vault passphrase + emailed OTP
+(`services/vaultAuth.js`). It does NOT have its own separate passphrase
+or hidden URL — one vault, one login, same as everything else on that
+page.
 
-**First-time setup:**
-```
-npm run hash-gatekeeper-vault-passphrase -- "your-chosen-passphrase"
-```
-Paste the printed `GATEKEEPER_VAULT_PASSPHRASE_HASH=...` line into
-`.env.local`, then visit `/gatekeeper-vault/<slug>` (compute the slug
-yourself, e.g. via a small script call to
-`computeGatekeeperVaultUrlSlug()`, or check server logs/DB) and enter
-the plaintext passphrase to unlock.
-
-Once unlocked, same two checks as the CLI script below, editable test
-IPs, results shown as a pass/fail checklist right in the page. Runs
-against whatever deployment you're visiting — same production warning
-applies. See `services/gatekeeperTester.js` for the exact dry-run
-logic and `services/gatekeeperVaultAuth.js` for the login gate.
+Same two checks as the CLI script below, editable test IPs, results
+shown as a pass/fail checklist right in the card. Runs against
+whatever deployment you're visiting — same production warning applies.
+See `services/gatekeeperTester.js` for the exact dry-run logic and
+`app/api/admin/gatekeeper-tester/route.js` for the vault-session gate.
 
 ## 1. Automated checker (Gatekeepers 1 & 2)
 

@@ -1,0 +1,105 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/VaultGatekeeperTesterSection.css
+ * The card wrapper itself (.recoveryStepCard) already comes from
+ * Recovery.css — this file only styles the parts specific to this
+ * section: the warning banner, the two IP fields, the run button, and
+ * the pass/fail pills. Token usage matches
+ * VaultRecoveryChannelsSection.css so it reads as part of the same
+ * recovery page.
+ */
+
+.vaultGatekeeperTesterWarningBanner {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  color: var(--color-warning);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.vaultGatekeeperTesterFieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.vaultGatekeeperTesterLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.vaultGatekeeperTesterFieldHint {
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.vaultGatekeeperTesterInput {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: monospace;
+  font-size: 1rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.vaultGatekeeperTesterInput:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.vaultGatekeeperTesterInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vaultGatekeeperTesterRunButton {
+  align-self: flex-start;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.vaultGatekeeperTesterRunButton:hover,
+.vaultGatekeeperTesterRunButton:focus-visible {
+  background: var(--color-accent-hover);
+}
+
+.vaultGatekeeperTesterRunButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vaultGatekeeperTesterPillPass,
+.vaultGatekeeperTesterPillFail {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  margin-right: var(--space-sm);
+}
+
+.vaultGatekeeperTesterPillPass {
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+
+.vaultGatekeeperTesterPillFail {
+  color: var(--color-error);
+  border: 1px solid color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}

@@ -1,9 +1,14 @@
 /**
- * FILE: app/api/gatekeeper-vault/run/route.js
- * ROLE: Gated ONLY by "gatekeeperVaultSession" (requireGatekeeperVaultSession)
- *       — a regular super_admin session cookie is never enough here.
- *       Replaces the old app/api/superAdmin/gatekeeper-tester/route.js,
- *       which required a super_admin session instead.
+ * FILE: app/api/admin/gatekeeper-tester/route.js
+ * ROLE: Vault-session only (requireVaultSession + otpVerified) —
+ *       excluded from proxy.js's blanket /api/admin super_admin gate
+ *       via VAULT_STANDALONE_API_PATHS. Never checks requireSuperAdmin()
+ *       and never accepts a regular admin session — only someone who
+ *       has actually solved the vault's own passphrase + OTP chain can
+ *       reach this route. Replaces the earlier standalone
+ *       app/api/gatekeeper-vault/run/route.js, which used its own
+ *       separate passphrase and hidden URL instead of living inside
+ *       this same vault.
  *
  * PURPOSE:
  * POST -> runs a live dry run of Gatekeeper 1 (login brute force) and
@@ -19,15 +24,15 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { requireGatekeeperVaultSession, GATEKEEPER_VAULT_IDENTITY } from "@/services/gatekeeperVaultAuth";
+import { requireVaultSession } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
 import { runGatekeeperDryRun } from "@/services/gatekeeperTester";
 
 export async function POST(request) {
-  const session = requireGatekeeperVaultSession(request);
-  if (!session) {
+  const vaultSession = requireVaultSession(request);
+  if (!vaultSession?.otpVerified) {
     return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to do this." },
+      { success: false, data: null, message: "Vault authentication required." },
       { status: 401 }
     );
   }
@@ -45,12 +50,13 @@ export async function POST(request) {
     });
 
     // Audit trail — this deliberately trips breach detectors, so it's
-    // always logged regardless of how many checks passed.
+    // always logged regardless of how many checks passed. Same actor
+    // convention every other Danger Zone / vault action already uses.
     await logSecurityEvent({
       eventType: "admin_action",
-      actor: GATEKEEPER_VAULT_IDENTITY,
+      actor: vaultSession.uid,
       request,
-      details: `Ran Gatekeeper dry run from the hidden vault — ${result.passedCount}/${result.totalCount} checks passed (test IPs: ${result.testIp1}, ${result.testIp2}).`,
+      details: `Ran Gatekeeper dry run from the vault — ${result.passedCount}/${result.totalCount} checks passed (test IPs: ${result.testIp1}, ${result.testIp2}).`,
     });
 
     return NextResponse.json({
@@ -61,7 +67,7 @@ export async function POST(request) {
         : `${result.passedCount}/${result.totalCount} checks passed — see results below.`,
     });
   } catch (error) {
-    console.error("[GatekeeperVault] Dry run failed:", error);
+    console.error("[GatekeeperTester] Dry run failed:", error);
     return NextResponse.json(
       { success: false, data: null, message: "The dry run couldn't complete. Please try again.", error: error.message },
       { status: 500 }

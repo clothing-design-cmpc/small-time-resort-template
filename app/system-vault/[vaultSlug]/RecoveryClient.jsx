@@ -80,6 +80,7 @@ import VaultIdleTimeoutGuard from "./VaultIdleTimeoutGuard";
 import VaultWipeGraceModal from "./VaultWipeGraceModal";
 import EnvCheckerSection from "./EnvCheckerSection";
 import RecoveryCardSection from "./RecoveryCardSection";
+import VaultGatekeeperTesterSection from "./VaultGatekeeperTesterSection";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -722,6 +723,12 @@ export default function RecoveryClient() {
 
       {/* --- Printable Recovery Card (Task 4) --- */}
       <RecoveryCardSection />
+
+      {/* --- Gatekeeper Tester — moved in here from its own standalone
+          hidden page/passphrase, same reasoning as the Danger Zone and
+          Recovery Channels sections above: one vault, one passphrase,
+          not a second separate secret to manage. --- */}
+      <VaultGatekeeperTesterSection showToast={showToast} />
 
       {/* --- Danger Zone: schedule/cancel/truncate-now a database wipe --- */}
       <VaultDangerZoneSection showToast={showToast} />

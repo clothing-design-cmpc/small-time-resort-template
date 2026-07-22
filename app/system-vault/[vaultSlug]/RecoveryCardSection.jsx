@@ -64,15 +64,7 @@ const HIDDEN_PAGES = [
   {
     path: "/system-vault/[current-slug]",
     purpose:
-      "This dashboard: breach lockdown status and database restore, unban blocked IPs, environment check, and the database-wipe danger zone.",
-  },
-  {
-    path: "/gatekeeper-vault/[gatekeeper-slug]/login",
-    purpose: "Separate, second passphrase-gated login for inspecting and testing the Gatekeeper defenses directly.",
-  },
-  {
-    path: "/gatekeeper-vault/[gatekeeper-slug]",
-    purpose: "Gatekeeper Vault dashboard — view and test the login/SQLi/anomaly gatekeepers in isolation.",
+      "This dashboard: breach lockdown status and database restore, unban blocked IPs, environment check, Gatekeeper Tester, and the database-wipe danger zone.",
   },
   {
     path: "/security-breach",

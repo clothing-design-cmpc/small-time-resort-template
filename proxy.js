@@ -136,6 +136,13 @@ const VAULT_STANDALONE_API_PATHS = [
   // vault session as an alternative to a super-admin one — see
   // requireSuperAdminOrVaultSession() in app/api/admin/sql-import/route.js.
   "/api/admin/sql-import",
+  // Gatekeeper Tester (VaultGatekeeperTesterSection.jsx): dry-runs
+  // Gatekeeper 1/2 against this deployment, authenticated via
+  // vaultSession only — same reasoning as vault-wipe above.
+  // Previously its own standalone hidden page/passphrase
+  // (app/gatekeeper-vault/[gatekeeperSlug]); moved in here so there's
+  // only one hidden URL and one passphrase to manage.
+  "/api/admin/gatekeeper-tester",
 ];
 
 function isVaultStandaloneApiPath(pathname) {

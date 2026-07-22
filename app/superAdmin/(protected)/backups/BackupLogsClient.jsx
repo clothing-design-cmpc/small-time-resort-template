@@ -88,13 +88,45 @@ function getNextScheduledRunLabel() {
 }
 
 /**
+ * CopyChecksumButton
+ * Task 6 — Backup integrity check. Shows the first 12 hex characters
+ * of the stored SHA-256 (full value in the title tooltip and copied to
+ * the clipboard) so the owner can compare it against a checksum they
+ * compute locally on a downloaded backup file before trusting it for
+ * a restore — without cluttering the table with a 64-character string.
+ */
+function CopyChecksumButton({ checksumSha256, showToast }) {
+  if (!checksumSha256) return <span className="backupsDestinationMissing">—</span>;
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(checksumSha256);
+      showToast("✓ Checksum copied to clipboard.", "success");
+    } catch {
+      showToast("✕ Couldn't copy the checksum. Copy it manually instead.", "error");
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="backupsChecksumButton adminMono"
+      title={checksumSha256}
+      onClick={handleCopy}
+    >
+      {checksumSha256.slice(0, 12)}…
+    </button>
+  );
+}
+
+/**
  * buildBackupLogRow
  * Shapes one BackupLog record into the row object DataTable expects.
  * Shared by the mapped history list AND by handleRunBackupNow's
  * optimistic prepend, so the row that appears instantly on click looks
  * pixel-identical to the same row once it's re-fetched from the server.
  */
-function buildBackupLogRow(log) {
+function buildBackupLogRow(log, showToast) {
   return {
     id: log.id,
     status: <StatusBadge status={log.status} />,
@@ -105,6 +137,7 @@ function buildBackupLogRow(log) {
     source: <StatusBadge status={log.triggerSource || "manual"} />,
     startedAt: DATE_FORMATTER.format(new Date(log.startedAt)),
     fileSize: formatFileSize(log.fileSizeBytes),
+    checksum: <CopyChecksumButton checksumSha256={log.checksumSha256} showToast={showToast} />,
     destinations: (
       <div className="backupsDestinationLinks">
         {log.r2Url ? (
@@ -132,6 +165,7 @@ const columns = [
   { key: "source", label: "Source" },
   { key: "startedAt", label: "Started", mono: true },
   { key: "fileSize", label: "Size", mono: true },
+  { key: "checksum", label: "Checksum (SHA-256)" },
   { key: "destinations", label: "Destinations" },
   { key: "details", label: "Details" },
 ];
@@ -257,7 +291,7 @@ export default function BackupLogsClient() {
     }
   }
 
-  const rows = backupLogs.map(buildBackupLogRow);
+  const rows = backupLogs.map((log) => buildBackupLogRow(log, showToast));
 
   return (
     <section className="backupsSection">

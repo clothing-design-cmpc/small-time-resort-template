@@ -115,6 +115,13 @@ export default function RecoveryClient() {
   const [isLiftPostWipeModalOpen, setIsLiftPostWipeModalOpen] = useState(false);
 
   const [pendingImportFile, setPendingImportFile] = useState(null);
+  // Task 6 — Backup integrity check. Computed client-side (never
+  // uploaded anywhere just to get this value) so the owner can eyeball-
+  // compare it against the checksum shown on the super-admin Backups
+  // page for the specific backup they downloaded, before trusting this
+  // file for a restore.
+  const [pendingFileChecksum, setPendingFileChecksum] = useState(null);
+  const [isComputingChecksum, setIsComputingChecksum] = useState(false);
   const [isEndLockdownModalOpen, setIsEndLockdownModalOpen] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -258,10 +265,36 @@ export default function RecoveryClient() {
    * Holds the picked file in state so ConfirmationModal can show the
    * exact file name before anything is actually restored (Rule 34.4) —
    * a database restore is the single most destructive action in this app.
+   *
+   * Task 6 addition: also computes the file's SHA-256 entirely
+   * client-side via the browser's native SubtleCrypto — the file
+   * itself never leaves the browser just to get this value. Shown next
+   * to the picker so the owner can compare it against the checksum
+   * recorded for the specific backup on the super-admin Backups page
+   * before trusting it enough to restore.
    */
-  function handleFileSelected(event) {
+  async function handleFileSelected(event) {
     const file = event.target.files?.[0];
-    if (file) setPendingImportFile(file);
+    if (!file) return;
+
+    setPendingImportFile(file);
+    setPendingFileChecksum(null);
+    setIsComputingChecksum(true);
+    try {
+      const fileBuffer = await file.arrayBuffer();
+      const digestBuffer = await crypto.subtle.digest("SHA-256", fileBuffer);
+      const checksumHex = Array.from(new Uint8Array(digestBuffer))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+      setPendingFileChecksum(checksumHex);
+    } catch {
+      // Never block the restore flow itself if the browser can't
+      // compute a digest for some reason — the owner just won't have
+      // a checksum to compare this time.
+      setPendingFileChecksum(null);
+    } finally {
+      setIsComputingChecksum(false);
+    }
   }
 
   async function handleConfirmImport() {
@@ -273,6 +306,7 @@ export default function RecoveryClient() {
       showToast(`✕ ${message}`, "error");
     } finally {
       setPendingImportFile(null);
+      setPendingFileChecksum(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -552,6 +586,13 @@ export default function RecoveryClient() {
           onChange={handleFileSelected}
           className="recoveryFileInput"
         />
+        {isComputingChecksum && <p className="recoveryMutedText">Computing checksum…</p>}
+        {pendingFileChecksum && (
+          <p className="recoveryMutedText">
+            SHA-256: <span className="adminMono">{pendingFileChecksum}</span> — compare this against the
+            checksum shown for this backup on the Backups page before restoring.
+          </p>
+        )}
         {importLogs.length > 0 && (
           <ul className="recoveryImportHistory">
             {importLogs.slice(0, 5).map((log) => (
@@ -672,11 +713,14 @@ export default function RecoveryClient() {
       <ConfirmationModal
         isOpen={Boolean(pendingImportFile)}
         title="Restore Database from Backup?"
-        description={`This will overwrite the current database with the contents of "${pendingImportFile?.name}". This cannot be undone.`}
+        description={`This will overwrite the current database with the contents of "${pendingImportFile?.name}". This cannot be undone.${
+          pendingFileChecksum ? ` SHA-256: ${pendingFileChecksum}` : ""
+        }`}
         confirmLabel="Restore Database"
         onConfirm={handleConfirmImport}
         onCancel={() => {
           setPendingImportFile(null);
+          setPendingFileChecksum(null);
           if (fileInputRef.current) fileInputRef.current.value = "";
         }}
       />

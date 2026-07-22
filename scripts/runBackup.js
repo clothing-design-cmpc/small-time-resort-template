@@ -16,13 +16,16 @@
  * DATA FLOW:
  * 1. Runs `pg_dump` against DIRECT_URL (session pooler — pg_dump needs
  *    prepared-statement support the transaction pooler doesn't give)
- * 2. Gzips the dump in memory
+ * 2. Gzips the dump in memory, then computes its SHA-256 checksum
+ *    (Task 6 — backup integrity check) — BEFORE either upload, so the
+ *    stored checksum always reflects the actual uploaded bytes
  * 3. Uploads to R2 (services/r2.js) and Google Drive (services/googleDrive.js)
  *    — independently; one destination failing does not stop the other
- * 4. Writes one BackupLog row summarizing both results — reusing the
- *    row the trigger route already created (via BACKUP_LOG_ID) when
- *    dispatched from the Backups page, or creating a fresh one
- *    otherwise (nightly cron / manual "Run workflow" click)
+ * 4. Writes one BackupLog row summarizing both results (plus the
+ *    checksum) — reusing the row the trigger route already created
+ *    (via BACKUP_LOG_ID) when dispatched from the Backups page, or
+ *    creating a fresh one otherwise (nightly cron / manual "Run
+ *    workflow" click)
  *
  * USAGE: npm run backup   (reads DIRECT_URL, R2, and Google Drive env
  * vars from the environment — GitHub Actions injects these from repo
@@ -32,6 +35,7 @@ import "./loadEnv.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gzip } from "node:zlib";
+import { createHash } from "node:crypto";
 // @prisma/client is a CommonJS module — Node's ESM loader (used when
 // GitHub Actions runs this script directly with `node`, unlike Next.js's
 // bundler which papers over this) can't statically resolve named exports
@@ -165,6 +169,13 @@ async function main() {
   const fileName = `villa-azure-backup-${backupFileLabel()}.sql.gz`;
   const r2Key = `backups/${fileName}`;
 
+  // Task 6 — Backup integrity check. Computed on the exact bytes that
+  // go to BOTH destinations below, BEFORE either upload — so it always
+  // reflects the actual file content, never something derived from a
+  // (possibly already-corrupted) copy at the destination.
+  const checksumSha256 = createHash("sha256").update(compressed).digest("hex");
+  console.log(`[backup] SHA-256: ${checksumSha256}`);
+
   // Upload to both destinations independently — one failing must not
   // silently hide the other's result, so each is caught on its own.
   let r2Result = null;
@@ -200,6 +211,7 @@ async function main() {
         data: {
           status: bothFailed ? "failed" : "success",
           fileSizeBytes: compressed.length,
+          checksumSha256,
           r2Key: r2Result?.key ?? null,
           r2Url: r2Result?.url ?? null,
           driveFileId: driveResult?.fileId ?? null,

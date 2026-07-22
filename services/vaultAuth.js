@@ -132,22 +132,79 @@ async function getEffectivePassphraseHash() {
 }
 
 /**
+ * getEffectiveUrlSalt
+ * Task 5 — Rotating vault slug, independent of the passphrase. Reads
+ * VaultPassphrase.urlSalt (same singleton row the passphrase hash
+ * lives on, since the slug is already derived alongside it — see
+ * computeVaultUrlSlug()). Returns "" when never rotated, so an
+ * install that has never called rotateVaultUrlSalt() computes the
+ * exact same slug it always has (effectiveHash alone) — this field
+ * changes nothing until the Danger Zone button is used at least once.
+ */
+async function getEffectiveUrlSalt() {
+  try {
+    const vaultPassphraseRow = await prisma.vaultPassphrase.findUnique({
+      where: { id: "vault_passphrase" },
+      select: { urlSalt: true },
+    });
+    return vaultPassphraseRow?.urlSalt ?? "";
+  } catch (error) {
+    // Same fail-open-to-old-behavior reasoning as getEffectivePassphraseHash
+    // above — a DB read failure here must never break vault login.
+    console.error("[vaultAuth] Failed to read urlSalt from DB:", error.message);
+    return "";
+  }
+}
+
+/**
+ * rotateVaultUrlSalt
+ * Task 5 — forces a new recovery-page URL WITHOUT touching the
+ * passphrase, for the case where the URL itself may have leaked (e.g.
+ * shared over an insecure channel, appeared in a proxy/browser log)
+ * but the passphrase is still believed safe. Generates a fresh random
+ * salt, writes ONLY that column, and returns the new full recovery
+ * URL so the caller (the Danger Zone route) can email/display it
+ * immediately — the old URL 404s the instant this resolves, same as
+ * a passphrase rotation does today.
+ */
+export async function rotateVaultUrlSalt() {
+  const newSalt = randomBytes(16).toString("hex");
+
+  await prisma.vaultPassphrase.upsert({
+    where: { id: "vault_passphrase" },
+    update: { urlSalt: newSalt },
+    // create{} only matters if this is somehow called before any
+    // passphrase has ever been set — passphraseHash stays null, same
+    // as a fresh install, so getEffectivePassphraseHash() still falls
+    // back to VAULT_PASSPHRASE_HASH as usual.
+    create: { id: "vault_passphrase", urlSalt: newSalt },
+  });
+
+  return getVaultRecoveryUrl();
+}
+
+/**
  * computeVaultUrlSlug
  * Derives the recovery page's URL slug from the CURRENT passphrase
- * hash: sha256(effectiveHash), first 7 hex characters. Deliberately
- * hashes the hash again rather than slicing the stored "salt:hash"
- * value directly — the stored value is itself a credential, and a
- * public URL segment is the last place a fragment of it should ever
- * appear, even indirectly. Returns null if no passphrase hash is
- * configured yet at all (fresh install, before the one-time
- * hashVaultPassphrase.js setup step) — callers must treat null as
- * "the vault isn't configured, nothing should resolve".
+ * hash AND the current urlSalt (Task 5): sha256(effectiveHash +
+ * ":" + urlSalt), first 7 hex characters. Deliberately hashes the hash
+ * again rather than slicing the stored "salt:hash" value directly —
+ * the stored value is itself a credential, and a public URL segment
+ * is the last place a fragment of it should ever appear, even
+ * indirectly. Folding urlSalt into the same hash (rather than, say,
+ * appending it to the slug) means there's still only one opaque
+ * 7-character segment in the URL — no visible seam between "the part
+ * from the passphrase" and "the part from the salt". Returns null if
+ * no passphrase hash is configured yet at all (fresh install, before
+ * the one-time hashVaultPassphrase.js setup step) — callers must
+ * treat null as "the vault isn't configured, nothing should resolve".
  */
 export async function computeVaultUrlSlug() {
   const effectiveHash = await getEffectivePassphraseHash();
   if (!effectiveHash) return null;
 
-  return createHash("sha256").update(effectiveHash).digest("hex").slice(0, 7);
+  const urlSalt = await getEffectiveUrlSalt();
+  return createHash("sha256").update(`${effectiveHash}:${urlSalt}`).digest("hex").slice(0, 7);
 }
 
 /**

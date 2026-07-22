@@ -146,3 +146,54 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
       `Keep this email private — do not forward or share it outside the resort owner.`,
   });
 }
+
+/**
+ * sendVaultUrlRotationEmail
+ * Task 5 — emails the brand-new recovery URL right after
+ * services/vaultAuth.js's rotateVaultUrlSalt() generates it. Mirrors
+ * sendVaultPassphraseRotationEmail above, but deliberately does NOT
+ * include a passphrase — the whole point of this action is that the
+ * passphrase is untouched, so this email only ever needs to say "the
+ * link changed, here's the new one."
+ *
+ * Best-effort — never throws. If the email fails, the rotation itself
+ * has already happened (old URL is already 404ing) — the caller logs
+ * a SecurityLog row either way.
+ *
+ * @param {string} newVaultRecoveryUrl - the freshly-rotated full URL
+ */
+export async function sendVaultUrlRotationEmail(newVaultRecoveryUrl) {
+  await sendVaultWebhookAlert(
+    "🔗 Vault recovery URL rotated\nThe passphrase is unchanged. Check the vault owner's email for the new link."
+  );
+
+  const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
+  if (!vaultOwnerEmail) {
+    console.error("[emailAlert] VAULT_OWNER_EMAIL is not set — skipping vault-URL-rotation email.");
+    return false;
+  }
+
+  const rotatedAtReadable =
+    new Date().toLocaleString("en-US", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }) + " UTC";
+
+  return sendGeneralEmail({
+    toEmail: vaultOwnerEmail,
+    subject: "Your vault recovery URL was rotated",
+    eyebrow: "VAULT URL ROTATED",
+    heading: "New recovery URL generated",
+    intro: "The vault passphrase is unchanged — only the link itself changed.",
+    highlightLine1: `NEW URL: ${newVaultRecoveryUrl}`,
+    highlightLine2: `Rotated ${rotatedAtReadable}`,
+    bodyMessage:
+      `This replaces every recovery URL that came before it — the old link now shows a plain 404, ` +
+      `even with the correct passphrase.\n\n` +
+      `Your passphrase itself has NOT changed — use the same one you already have on this new link.\n\n` +
+      `Save this new link somewhere safe immediately: it will not be shown on-screen or emailed again ` +
+      `after this message.\n\n` +
+      `Keep this email private — do not forward or share it outside the resort owner.`,
+  });
+}

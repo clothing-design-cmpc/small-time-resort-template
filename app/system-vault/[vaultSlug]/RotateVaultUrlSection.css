@@ -1,0 +1,32 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/RotateVaultUrlSection.css
+ * Mirrors .wipeDatabaseActiveCard's layout (components/superAdmin/
+ * WipeDatabaseSection.css) but with a neutral border — this action
+ * is lower-stakes than a wipe, so it doesn't use --color-error.
+ */
+.rotateVaultUrlSection {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  margin-top: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+}
+
+.rotateVaultUrlText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.rotateVaultUrlText strong {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}

@@ -367,6 +367,14 @@ model BackupLog {
   // passes in — never inferred after the fact.
   triggerSource  String    @default("manual") @map("trigger_source")
   fileSizeBytes  Int?      @map("file_size_bytes")
+  // Task 6 — Backup integrity check. SHA-256 of the gzipped dump,
+  // computed by scripts/runBackup.js right after gzip and before
+  // either upload — so it verifies the exact bytes that went to BOTH
+  // R2 and Drive (one shared value, not one per destination).
+  // Displayed on the Backups page and in the vault's "Fix SQL" step
+  // so the owner can confirm a downloaded file wasn't corrupted or
+  // tampered with before restoring it.
+  checksumSha256 String?   @map("checksum_sha256")
   r2Key          String?   @map("r2_key")
   r2Url          String?   @map("r2_url") @db.Text
   driveFileId    String?   @map("drive_file_id")
@@ -821,10 +829,20 @@ model Vault {
 //                  at app/api/system-vault-setup/auto-rotate). Read by
 //                  isVaultPassphraseExpired() to decide whether the
 //                  next auto-rotate run should generate a new one.
+// urlSalt        — Task 5: rotating vault slug, INDEPENDENT of the
+//                  passphrase. computeVaultUrlSlug() now hashes
+//                  effectiveHash + urlSalt together, so forcing a new
+//                  urlSalt (rotateVaultUrlSalt(), Danger Zone button)
+//                  changes the URL immediately without touching — or
+//                  invalidating — the passphrase itself. Starts NULL
+//                  (empty string used in the hash) so an install that
+//                  has never force-rotated its URL behaves exactly as
+//                  before this field existed.
 model VaultPassphrase {
   id              String    @id @default("vault_passphrase")
   passphraseHash  String?   @map("passphrase_hash")
   expiresAt       DateTime? @map("expires_at")
+  urlSalt         String?   @map("url_salt")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("vault_passphrase")

@@ -112,6 +112,12 @@ const VAULT_STANDALONE_API_PATHS = [
   // of which .env keys are set (never their values), authenticated via
   // vaultSession only — same reasoning as vault-wipe above.
   "/api/admin/env-check",
+  // Rotate Recovery URL (VaultDangerZoneSection.jsx, Task 5): forces a
+  // new recovery-page slug without touching the passphrase,
+  // authenticated via vaultSession only — same reasoning as vault-wipe
+  // above (this action must remain reachable even if the regular
+  // super-admin session is unavailable/untrusted).
+  "/api/admin/rotate-vault-url",
   // Post-Wipe Lockdown (RecoveryClient.jsx's own section): status poll
   // + "Lift Lockdown", authenticated via vaultSession only
   // (requireVaultSession + otpVerified inside the route itself — see

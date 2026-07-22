@@ -54,6 +54,13 @@ export default function VaultPassphraseClient() {
   // unmount) can clear the previous one instead of stacking timers.
   const autoHideTimerRef = useRef(null);
 
+  // Test Recovery Channels — completely separate from the passphrase
+  // state above. Never fetched on mount; only populated after the
+  // owner explicitly clicks "Run Test" (Rule: read-only health check,
+  // not something that should run silently on every page load).
+  const [isTestingChannels, setIsTestingChannels] = useState(false);
+  const [channelTestResult, setChannelTestResult] = useState(null);
+
   // Cleanup on unmount only — clears whatever timer is still pending
   // so it never fires setState after the page has navigated away.
   useEffect(() => {
@@ -130,6 +137,45 @@ export default function VaultPassphraseClient() {
       showToast("✓ New passphrase generated, emailed, and saved to Drive.", "success");
     } else {
       showToast("⚠ Passphrase generated — check below, email or Drive save may have failed.", "warning");
+    }
+  }
+
+  /**
+   * handleTestRecoveryChannels
+   * Runs the read-only dry-run checks (GitHub, Drive, EmailJS) and
+   * shows per-channel results. Never touches the passphrase itself —
+   * completely independent of handleGenerate above.
+   */
+  async function handleTestRecoveryChannels() {
+    setIsTestingChannels(true);
+    setChannelTestResult(null);
+
+    let response;
+    try {
+      response = await fetch("/api/superAdmin/settings/vault-passphrase/test-recovery-channels", {
+        method: "POST",
+      });
+    } catch {
+      showToast("✕ Network error — please try again.", "error");
+      setIsTestingChannels(false);
+      return;
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      showToast(`✕ ${result.message || "Failed to run the recovery channel tests."}`, "error");
+      setIsTestingChannels(false);
+      return;
+    }
+
+    setChannelTestResult(result.data);
+    setIsTestingChannels(false);
+
+    if (result.data.allPassed) {
+      showToast("✓ All recovery channels are working.", "success");
+    } else {
+      showToast(`⚠ ${result.data.passedCount}/${result.data.totalCount} recovery channels are working — see details below.`, "warning");
     }
   }
 
@@ -235,6 +281,46 @@ export default function VaultPassphraseClient() {
               </ul>
             )}
           </div>
+        )}
+      </div>
+
+      <div className="recoveryChannelsCard">
+        <h2>Test Recovery Channels</h2>
+        <p>
+          Confirms GitHub Actions, Google Drive, EmailJS, and the optional
+          secondary alert webhook are all reachable — without rotating the
+          passphrase, running a backup, or sending a real email. (The
+          webhook check does send one real, clearly-labeled test message,
+          since unlike EmailJS it costs nothing to send.) Run this
+          monthly, or after changing any of these credentials, to catch a
+          dead token before a real emergency.
+        </p>
+
+        <button
+          type="button"
+          className="recoveryChannelsTestButton"
+          onClick={handleTestRecoveryChannels}
+          disabled={isTestingChannels}
+        >
+          {isTestingChannels ? "Testing…" : "Run Test"}
+        </button>
+
+        {channelTestResult && (
+          <ul className="recoveryChannelsResultList">
+            {channelTestResult.results.map((result) => (
+              <li
+                key={result.channel}
+                className={`recoveryChannelsResultRow ${
+                  result.passed ? "recoveryChannelsResultRow--pass" : "recoveryChannelsResultRow--fail"
+                }`}
+              >
+                <span className="recoveryChannelsResultLabel">
+                  {result.passed ? "✓" : "✕"} {result.label}
+                </span>
+                <span className="recoveryChannelsResultMessage">{result.message}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 

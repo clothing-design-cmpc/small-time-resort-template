@@ -44,6 +44,18 @@
  * exact same deadline instead of two independently-computed timers
  * that could drift apart from each other by a second or two.
  *
+ * OPTIONAL STORAGE KEY OVERRIDE: a caller guarding a DIFFERENT,
+ * independent session (e.g. VaultIdleTimeoutGuard, which locks the
+ * separate "vaultSession" cookie on its own shorter timer) must NOT
+ * share the default "superAdmin:idleDeadline" key — if it did, and
+ * an admin navigated from the normal dashboard into the vault in the
+ * same browser tab, the vault guard would read the admin session's
+ * still-in-the-future 30-minute deadline off that shared key instead
+ * of starting its own fresh, shorter one. The optional third
+ * parameter lets a caller supply its own key so its deadline is
+ * tracked completely separately. Existing callers that don't pass it
+ * are unaffected — they keep using the original shared default.
+ *
  * DATA FLOW:
  * 1. Mounted inside app/superAdmin/(protected)/layout.jsx via
  *    components/superAdmin/IdleTimeoutGuard.jsx (drives the real
@@ -78,9 +90,9 @@ const IDLE_DEADLINE_STORAGE_KEY = "superAdmin:idleDeadline";
  * corrupted value, storage simply being empty) so the caller always
  * has a clean fallback: treat it exactly like no deadline exists yet.
  */
-function readStoredDeadline() {
+function readStoredDeadline(storageKey) {
   try {
-    const raw = sessionStorage.getItem(IDLE_DEADLINE_STORAGE_KEY);
+    const raw = sessionStorage.getItem(storageKey);
     const parsed = raw ? Number(raw) : null;
     return Number.isFinite(parsed) ? parsed : null;
   } catch {
@@ -94,18 +106,18 @@ function readStoredDeadline() {
  * never crash the idle timer itself, it just means this particular
  * remount-survival guarantee silently doesn't apply that one time.
  */
-function writeStoredDeadline(deadline) {
+function writeStoredDeadline(storageKey, deadline) {
   try {
-    sessionStorage.setItem(IDLE_DEADLINE_STORAGE_KEY, String(deadline));
+    sessionStorage.setItem(storageKey, String(deadline));
   } catch {
     // Ignore — the in-memory timer below still works for this mount.
   }
 }
 
 /** Clears the persisted deadline — called once onIdle actually fires. */
-function clearStoredDeadline() {
+function clearStoredDeadline(storageKey) {
   try {
-    sessionStorage.removeItem(IDLE_DEADLINE_STORAGE_KEY);
+    sessionStorage.removeItem(storageKey);
   } catch {
     // Ignore.
   }
@@ -120,18 +132,26 @@ function clearStoredDeadline() {
  * and apply to whichever admin logs in next on this same tab, and an
  * already-past one would fire an immediate, confusing "session expired"
  * the moment the fresh login's IdleTimeoutGuard mounts.
+ *
+ * @param {string} [storageKey] - defaults to the shared admin key; pass
+ * the same override used with useIdleTimeout() if clearing a different
+ * guard's (e.g. the vault's) deadline.
  */
-export function clearIdleDeadline() {
-  clearStoredDeadline();
+export function clearIdleDeadline(storageKey = IDLE_DEADLINE_STORAGE_KEY) {
+  clearStoredDeadline(storageKey);
 }
 
 /**
  * useIdleTimeout
  * @param {() => void} onIdle - Callback fired when idle timeout is reached (logout function)
  * @param {number} idleMinutes - Minutes of inactivity before firing onIdle (default: 30)
+ * @param {string} [storageKey] - sessionStorage key the deadline is persisted under.
+ * Defaults to the shared admin key so existing callers (IdleTimeoutGuard, AdminHeader)
+ * are unaffected. A caller guarding a separate session (see file header) must pass its
+ * own distinct key so the two timers never read/overwrite each other's deadline.
  * @returns {number} secondsRemaining - live countdown, for display purposes
  */
-export function useIdleTimeout(onIdle, idleMinutes = 30) {
+export function useIdleTimeout(onIdle, idleMinutes = 30, storageKey = IDLE_DEADLINE_STORAGE_KEY) {
   const idleTimerRef = useRef(null);
   const tickIntervalRef = useRef(null);
   const targetTimeRef = useRef(null);
@@ -160,7 +180,7 @@ export function useIdleTimeout(onIdle, idleMinutes = 30) {
       // completes uninterrupted, the admin has been idle too long and
       // onIdle() (auto-logout) fires.
       idleTimerRef.current = setTimeout(() => {
-        clearStoredDeadline();
+        clearStoredDeadline(storageKey);
         onIdle();
       }, msRemaining);
 
@@ -173,7 +193,7 @@ export function useIdleTimeout(onIdle, idleMinutes = 30) {
         setSecondsRemaining(remaining);
       }, 1000);
     },
-    [onIdle]
+    [onIdle, storageKey]
   );
 
   /**
@@ -184,9 +204,9 @@ export function useIdleTimeout(onIdle, idleMinutes = 30) {
    */
   const extendDeadline = useCallback(() => {
     const newDeadline = Date.now() + idleDurationMs;
-    writeStoredDeadline(newDeadline);
+    writeStoredDeadline(storageKey, newDeadline);
     scheduleForDeadline(newDeadline);
-  }, [idleDurationMs, scheduleForDeadline]);
+  }, [idleDurationMs, scheduleForDeadline, storageKey]);
 
   useEffect(() => {
     // Events that signal the admin is actively using the page — covers
@@ -199,19 +219,19 @@ export function useIdleTimeout(onIdle, idleMinutes = 30) {
     // tab rather than always minting a fresh one — this is what makes
     // a remount (new tab opened and switched back to, focus change,
     // etc.) a no-op instead of a 30-minute extension.
-    const existingDeadline = readStoredDeadline();
+    const existingDeadline = readStoredDeadline(storageKey);
     if (existingDeadline === null) {
       // Genuinely nothing on record yet — this really is a fresh
       // session on this tab, so start the full duration.
       const freshDeadline = Date.now() + idleDurationMs;
-      writeStoredDeadline(freshDeadline);
+      writeStoredDeadline(storageKey, freshDeadline);
       scheduleForDeadline(freshDeadline);
     } else if (existingDeadline <= Date.now()) {
       // The admin was idle past the deadline while this specific
       // component instance wasn't mounted to catch it (e.g. this tab's
       // JS was suspended). Fire the logout immediately rather than
       // silently granting another full 30 minutes.
-      clearStoredDeadline();
+      clearStoredDeadline(storageKey);
       onIdle();
     } else {
       // A deadline is already in progress and still in the future —

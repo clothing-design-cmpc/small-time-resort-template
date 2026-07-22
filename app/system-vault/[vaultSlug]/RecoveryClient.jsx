@@ -76,6 +76,7 @@ import { useSqlImport } from "@/hooks/useSqlImport";
 import UnbanIpModal from "./UnbanIpModal";
 import VaultCodeConfirmModal from "./VaultCodeConfirmModal";
 import VaultDangerZoneSection from "./VaultDangerZoneSection";
+import VaultIdleTimeoutGuard from "./VaultIdleTimeoutGuard";
 import VaultWipeGraceModal from "./VaultWipeGraceModal";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
@@ -450,6 +451,11 @@ export default function RecoveryClient() {
           padding, and vertical gap between the cards below — this
           section previously used an unstyled "recoverySection" class
           and rendered full-bleed with no spacing. */}
+      {/* Locks the vault after 5 minutes of no mouse/keyboard/scroll/
+          touch activity — covers the tab staying open and visible but
+          genuinely untouched, which the visibilitychange auto-lock
+          above does not catch. */}
+      <VaultIdleTimeoutGuard />
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="recoveryHeaderRow">

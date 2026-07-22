@@ -109,7 +109,11 @@ function getOAuthClient() {
   return oauth2Client;
 }
 
-function getDriveClient() {
+// Exported (previously module-private) so services/recoveryChannelTester.js
+// can run a read-only files.list dry run against the same authenticated
+// client uploadToDrive() below uses — without duplicating the OAuth2
+// wiring above, and without ever calling files.create/upload itself.
+export function getDriveClient() {
   return google.drive({ version: "v3", auth: getOAuthClient() });
 }
 

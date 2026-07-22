@@ -184,3 +184,100 @@
 .vaultPassphraseDelivery--fail {
   color: var(--color-error);
 }
+
+/* ============================================================
+ * TEST RECOVERY CHANNELS — separate card below the passphrase
+ * card. Reuses the same tokens/patterns as the card above it.
+ * ============================================================ */
+.recoveryChannelsCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  width: 100%;
+}
+
+.recoveryChannelsCard h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.recoveryChannelsCard > p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  font-size: 0.9rem;
+  max-width: 55ch;
+  margin: 0;
+}
+
+.recoveryChannelsTestButton {
+  padding: var(--space-sm) var(--space-lg);
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.recoveryChannelsTestButton:hover,
+.recoveryChannelsTestButton:focus-visible,
+.recoveryChannelsTestButton:active {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.recoveryChannelsResultList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.recoveryChannelsResultRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.recoveryChannelsResultRow--pass {
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+
+.recoveryChannelsResultRow--fail {
+  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+.recoveryChannelsResultLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.recoveryChannelsResultRow--pass .recoveryChannelsResultLabel {
+  color: var(--color-success);
+}
+
+.recoveryChannelsResultRow--fail .recoveryChannelsResultLabel {
+  color: var(--color-error);
+}
+
+.recoveryChannelsResultMessage {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}

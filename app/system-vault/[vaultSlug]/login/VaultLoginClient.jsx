@@ -22,11 +22,12 @@
  */
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import VaultIdleTimeoutNotice from "./VaultIdleTimeoutNotice";
 
 const vaultLoginSchema = z.object({
   passphrase: z.string().min(1, "Enter the vault passphrase."),
@@ -100,6 +101,11 @@ export default function VaultLoginClient() {
           This area has its own separate login — enter the vault passphrase to continue.
         </p>
       </div>
+
+      {/* Wrapped in Suspense because useSearchParams() requires it. */}
+      <Suspense fallback={null}>
+        <VaultIdleTimeoutNotice />
+      </Suspense>
 
       {authError && (
         <p role="alert" className="vaultLoginAuthError">

@@ -30,6 +30,7 @@
 
 import { sendGeneralEmail } from "@/services/emailjs";
 import { getVaultRecoveryUrl } from "@/services/vaultAuth";
+import { sendVaultWebhookAlert } from "@/services/webhookAlert";
 
 /**
  * sendBreachAlertEmail
@@ -44,6 +45,14 @@ import { getVaultRecoveryUrl } from "@/services/vaultAuth";
  * @param {string} input.details
  */
 export async function sendBreachAlertEmail({ gatekeeper, ipAddress, details }) {
+  // Second, independent channel — sent regardless of whether the email
+  // below succeeds, so a compromised/unreachable inbox doesn't leave
+  // this alert with nowhere to land. Never includes anything the email
+  // itself doesn't already say; this is additive, not a replacement.
+  await sendVaultWebhookAlert(
+    `🚨 Breach Alert — Gatekeeper ${gatekeeper} triggered\nIP: ${ipAddress ?? "unknown"}\n${details}`
+  );
+
   const superAdminEmail = process.env.SUPER_ADMIN_ALERT_EMAIL;
   if (!superAdminEmail) {
     console.error("[emailAlert] SUPER_ADMIN_ALERT_EMAIL is not set — skipping breach alert email.");
@@ -81,6 +90,15 @@ export async function sendBreachAlertEmail({ gatekeeper, ipAddress, details }) {
  * @param {string} input.reason - one-liner, e.g. "Gatekeeper 1 — Login brute force"
  */
 export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }) {
+  // Second, independent channel — sent regardless of whether the email
+  // below succeeds. Deliberately never includes newPassphrase itself:
+  // a Slack/Discord workspace is typically visible to more people than
+  // a single owner's inbox, so this only confirms a rotation HAPPENED,
+  // pointing back to the email for the actual value.
+  await sendVaultWebhookAlert(
+    `🔑 Vault passphrase rotated\nReason: ${reason}\nCheck the vault owner's email for the new passphrase.`
+  );
+
   const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
   if (!vaultOwnerEmail) {
     console.error("[emailAlert] VAULT_OWNER_EMAIL is not set — skipping vault-rotation email.");

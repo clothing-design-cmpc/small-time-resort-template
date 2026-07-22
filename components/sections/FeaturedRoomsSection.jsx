@@ -91,6 +91,15 @@ export default function FeaturedRoomsSection() {
                     className="roomCardImage"
                     sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
                   />
+                  {/* Photo-count badge — only shown when the admin has added
+                      gallery photos beyond the single main image. Links
+                      through the whole card to the room detail page, where
+                      the full gallery actually opens. */}
+                  {room.roomImages?.length > 0 && (
+                    <span className="roomCardPhotoBadge">
+                      {room.roomImages.length + 1} photos
+                    </span>
+                  )}
                 </div>
 
                 {/* Room info */}

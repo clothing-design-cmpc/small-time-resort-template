@@ -122,6 +122,28 @@
 }
 
 /*
+ * .roomCardPhotoBadge
+ * Small pill in the bottom-right corner of the card image, shown only
+ * when the room has gallery photos beyond the single main image. An
+ * overlay, not layout — position:absolute is intentional here (Rule 23.9
+ * permits it for badges/overlays).
+ */
+.roomCardPhotoBadge {
+  position: absolute;
+  right: var(--space-sm);
+  bottom: var(--space-sm);
+  z-index: var(--z-raised);
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background-color: rgba(9, 9, 11, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+/*
  * .roomCardBody
  * Padding and stacked content inside the card below the image.
  * flex-grow:1 pushes the footer to the bottom even when card heights differ.

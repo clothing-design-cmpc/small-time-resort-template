@@ -13,7 +13,12 @@
  * 1. hooks/usePublicRooms.js calls GET /api/rooms (optionally
  *    ?featured=true for the homepage's featured selection)
  * 2. Query is scoped to isActive rooms only, ordered by sortOrder
- * 3. Response is trimmed to the fields the visitor UI actually renders
+ * 3. Response is trimmed to the fields the visitor UI actually renders,
+ *    including the roomImages gallery relation (id/url/caption only —
+ *    never imageKey, which is R2-internal/admin-only) so room cards can
+ *    show a photo-count badge (superadmin-audit-followup.txt Priority 2
+ *    item 4 — this relation was previously never selected here, so the
+ *    per-room gallery the admin manages never reached the visitor site)
  */
 export const dynamic = "force-dynamic";
 
@@ -40,6 +45,10 @@ export async function GET(request) {
         capacity: true,
         bedType: true,
         imageUrl: true,
+        roomImages: {
+          orderBy: { displayOrder: "asc" },
+          select: { id: true, imageUrl: true, caption: true, isFeatured: true },
+        },
       },
     });
 

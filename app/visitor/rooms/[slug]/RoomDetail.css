@@ -1,0 +1,279 @@
+/*
+ * RoomDetail.css
+ * Room detail page: back link, photo gallery (main image + thumbnail
+ * strip + lightbox), and the room info block below it.
+ */
+
+.roomDetailMain {
+  width: 100%;
+  padding: var(--space-xl) var(--space-lg) var(--space-2xl);
+}
+
+.roomDetailContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.roomDetailBackLink {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.roomDetailBackLink:hover {
+  color: var(--color-accent);
+}
+
+/* ============================================================
+ * GALLERY — main image + thumbnail strip
+ * ============================================================ */
+
+.roomDetailGallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.roomDetailGalleryEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+/*
+ * .roomDetailMainImageWrapper
+ * The large hero photo. A <button> (not a div) so it's keyboard-
+ * focusable and gets the global focus-visible ring — clicking/pressing
+ * Enter opens the lightbox.
+ */
+.roomDetailMainImageWrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background-color: var(--color-surface);
+  padding: 0;
+}
+
+.roomDetailMainImage {
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+}
+
+.roomDetailMainImageWrapper:hover .roomDetailMainImage {
+  transform: scale(1.02);
+}
+
+.roomDetailThumbnailStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.roomDetailThumbnail {
+  position: relative;
+  flex: 0 0 88px;
+  width: 88px;
+  aspect-ratio: 1 / 1;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background-color: var(--color-surface);
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+  opacity: 0.7;
+}
+
+.roomDetailThumbnail:hover {
+  opacity: 1;
+}
+
+.roomDetailThumbnail--active {
+  border-color: var(--color-accent);
+  opacity: 1;
+}
+
+.roomDetailThumbnailImage {
+  object-fit: cover;
+}
+
+/* ============================================================
+ * LIGHTBOX
+ * ============================================================ */
+
+.roomDetailLightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+.roomDetailLightboxImageWrapper {
+  position: relative;
+  z-index: var(--z-modal);
+  width: 100%;
+  max-width: 1100px;
+  aspect-ratio: 16 / 9;
+}
+
+.roomDetailLightboxImage {
+  object-fit: contain;
+}
+
+.roomDetailLightboxClose {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  z-index: var(--z-tooltip);
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.roomDetailLightboxClose:hover,
+.roomDetailLightboxClose:focus-visible {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.roomDetailLightboxNav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-tooltip);
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.roomDetailLightboxNav:hover,
+.roomDetailLightboxNav:focus-visible {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.roomDetailLightboxNav--prev {
+  left: var(--space-lg);
+}
+
+.roomDetailLightboxNav--next {
+  right: var(--space-lg);
+}
+
+/* ============================================================
+ * ROOM INFO BLOCK
+ * ============================================================ */
+
+.roomDetailInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.roomDetailMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.roomDetailTitle {
+  font-size: 1.85rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.roomDetailDescription {
+  max-width: 70ch;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.roomDetailFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-top: var(--space-sm);
+}
+
+.roomDetailPrice {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.roomDetailPriceAmount {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.roomDetailPriceLabel {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.roomDetailBookButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--color-accent);
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.roomDetailBookButton:hover,
+.roomDetailBookButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}

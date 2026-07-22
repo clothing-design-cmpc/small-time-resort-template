@@ -39,7 +39,13 @@ const TABS = [
 const EMPTY_FORM = {
   houseRules: "",
   bookingPolicies: "",
+  bookingPoliciesIntro: "",
   cancellationPolicy: "",
+  cancellationPolicyIntro: "",
+  refundFullWindowDays: "",
+  refundFullRefundFee: "",
+  refundPartialWindowDays: "",
+  refundPartialPercent: "",
   termsOfService: "",
   privacyPolicy: "",
   aboutPageContent: "",
@@ -68,7 +74,13 @@ export default function PoliciesClient() {
     setFormValues({
       houseRules: policies.houseRules ?? "",
       bookingPolicies: policies.bookingPolicies ?? "",
+      bookingPoliciesIntro: policies.bookingPoliciesIntro ?? "",
       cancellationPolicy: policies.cancellationPolicy ?? "",
+      cancellationPolicyIntro: policies.cancellationPolicyIntro ?? "",
+      refundFullWindowDays: policies.refundFullWindowDays ?? "",
+      refundFullRefundFee: policies.refundFullRefundFee ?? "",
+      refundPartialWindowDays: policies.refundPartialWindowDays ?? "",
+      refundPartialPercent: policies.refundPartialPercent ?? "",
       termsOfService: policies.termsOfService ?? "",
       privacyPolicy: policies.privacyPolicy ?? "",
       aboutPageContent: policies.aboutPageContent ?? "",
@@ -89,7 +101,17 @@ export default function PoliciesClient() {
   async function handleSaveAll() {
     setIsSaving(true);
     try {
-      await savePolicies(formValues);
+      // The refund table fields are numeric in the schema (Int?), but the
+      // number inputs above hand back strings — convert here so Prisma
+      // doesn't reject the write. Blank input -> null (falls back to the
+      // schema default on the visitor page).
+      await savePolicies({
+        ...formValues,
+        refundFullWindowDays: formValues.refundFullWindowDays === "" ? null : Number(formValues.refundFullWindowDays),
+        refundPartialWindowDays:
+          formValues.refundPartialWindowDays === "" ? null : Number(formValues.refundPartialWindowDays),
+        refundPartialPercent: formValues.refundPartialPercent === "" ? null : Number(formValues.refundPartialPercent),
+      });
       showToast("✓ Policies saved successfully.", "success");
     } catch (submitError) {
       const message = submitError?.response?.data?.message || "We couldn't save the policies. Please try again.";
@@ -226,6 +248,76 @@ export default function PoliciesClient() {
         </div>
       ) : (
         <div className="policiesTabPanel">
+          {activeTab === "bookingPolicies" ? (
+            <div className="policiesFormField">
+              <label htmlFor="bookingPoliciesIntro">Section Intro</label>
+              <input
+                id="bookingPoliciesIntro"
+                type="text"
+                placeholder="The following terms apply to all reservations made directly with Villa Azure Resort…"
+                value={formValues.bookingPoliciesIntro}
+                onChange={(event) => handleFieldChange("bookingPoliciesIntro", event.target.value)}
+              />
+            </div>
+          ) : null}
+          {activeTab === "cancellationPolicy" ? (
+            <>
+              <div className="policiesFormField">
+                <label htmlFor="cancellationPolicyIntro">Section Intro</label>
+                <input
+                  id="cancellationPolicyIntro"
+                  type="text"
+                  placeholder="We understand that plans change. The following refund schedule applies…"
+                  value={formValues.cancellationPolicyIntro}
+                  onChange={(event) => handleFieldChange("cancellationPolicyIntro", event.target.value)}
+                />
+              </div>
+              <div className="policiesFormField">
+                <label htmlFor="refundFullWindowDays">Full-Refund Window (days before check-in)</label>
+                <input
+                  id="refundFullWindowDays"
+                  type="number"
+                  min="0"
+                  placeholder="14"
+                  value={formValues.refundFullWindowDays}
+                  onChange={(event) => handleFieldChange("refundFullWindowDays", event.target.value)}
+                />
+              </div>
+              <div className="policiesFormField">
+                <label htmlFor="refundFullRefundFee">Processing Fee (deducted from full refund)</label>
+                <input
+                  id="refundFullRefundFee"
+                  type="text"
+                  placeholder="₱500"
+                  value={formValues.refundFullRefundFee}
+                  onChange={(event) => handleFieldChange("refundFullRefundFee", event.target.value)}
+                />
+              </div>
+              <div className="policiesFormField">
+                <label htmlFor="refundPartialWindowDays">Partial-Refund Window (days before check-in)</label>
+                <input
+                  id="refundPartialWindowDays"
+                  type="number"
+                  min="0"
+                  placeholder="7"
+                  value={formValues.refundPartialWindowDays}
+                  onChange={(event) => handleFieldChange("refundPartialWindowDays", event.target.value)}
+                />
+              </div>
+              <div className="policiesFormField">
+                <label htmlFor="refundPartialPercent">Partial-Refund Percentage</label>
+                <input
+                  id="refundPartialPercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="50"
+                  value={formValues.refundPartialPercent}
+                  onChange={(event) => handleFieldChange("refundPartialPercent", event.target.value)}
+                />
+              </div>
+            </>
+          ) : null}
           {isPreviewMode ? (
             <div className="policiesPreview">
               {formValues[activeTab] ? (

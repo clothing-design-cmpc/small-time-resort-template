@@ -620,10 +620,18 @@ model SystemSettings {
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")
   bookingPolicies    String? @map("booking_policies")
+  bookingPoliciesIntro String? @map("booking_policies_intro")
   cancellationPolicy String? @map("cancellation_policy")
+  cancellationPolicyIntro String? @map("cancellation_policy_intro")
   termsOfService      String? @map("terms_of_service")
   privacyPolicy       String? @map("privacy_policy")
   aboutPageContent    String? @map("about_page_content")
+
+  // --- Refund Summary Table (Policies page — Refund & Cancellation section) ---
+  refundFullWindowDays    Int?    @default(14) @map("refund_full_window_days")
+  refundFullRefundFee     String? @default("₱500") @map("refund_full_refund_fee")
+  refundPartialWindowDays Int?    @default(7) @map("refund_partial_window_days")
+  refundPartialPercent    Int?    @default(50) @map("refund_partial_percent")
 
   // --- Check-In / Check-Out (Policies page) ---
   checkInTime  String? @default("2:00 PM") @map("check_in_time")
@@ -637,6 +645,8 @@ model SystemSettings {
   resortAddress String? @map("resort_address")
 
   // --- Homepage Customization (Page 9) ---
+  heroEyebrow       String? @map("hero_eyebrow")
+  heroTitle         String? @map("hero_title")
   heroTagline       String? @default("Experience Luxury") @map("hero_tagline")
   heroImageUrl      String? @map("hero_image_url")
   heroImageKey      String? @map("hero_image_key") // R2 object key, needed to delete the old file on replace
@@ -649,12 +659,43 @@ model SystemSettings {
   featuredRoomIds String[] @default([]) @map("featured_room_ids")
 
   // --- About Section Differentiators (3 fixed cards under the About story) ---
+  aboutEyebrow              String? @map("about_eyebrow")
+  aboutTitle                String? @map("about_title")
   aboutDifferentiator1Title String? @map("about_differentiator1_title")
   aboutDifferentiator1Body  String? @map("about_differentiator1_body")
   aboutDifferentiator2Title String? @map("about_differentiator2_title")
   aboutDifferentiator2Body  String? @map("about_differentiator2_body")
   aboutDifferentiator3Title String? @map("about_differentiator3_title")
   aboutDifferentiator3Body  String? @map("about_differentiator3_body")
+
+  // --- Section Headers (eyebrow / title / subtitle shown above each
+  // homepage or standalone section's content — the data inside each
+  // section, e.g. rooms/amenities/products themselves, is separately
+  // admin-managed under its own Content page; these fields only cover
+  // the heading copy that introduces each section) ---
+  roomsEyebrow        String? @map("rooms_eyebrow")
+  roomsTitle          String? @map("rooms_title")
+  roomsSubtitle       String? @map("rooms_subtitle")
+  amenitiesEyebrow    String? @map("amenities_eyebrow")
+  amenitiesTitle      String? @map("amenities_title")
+  amenitiesSubtitle   String? @map("amenities_subtitle")
+  shopEyebrow         String? @map("shop_eyebrow")
+  shopTitle           String? @map("shop_title")
+  shopSubtitle        String? @map("shop_subtitle")
+  shopFootnote        String? @map("shop_footnote")
+  testimonialsEyebrow String? @map("testimonials_eyebrow")
+  testimonialsTitle   String? @map("testimonials_title")
+  activitiesEyebrow   String? @map("activities_eyebrow")
+  activitiesTitle     String? @map("activities_title")
+  activitiesSubtitle  String? @map("activities_subtitle")
+  galleryEyebrow      String? @map("gallery_eyebrow")
+  galleryTitle        String? @map("gallery_title")
+  bookedDatesEyebrow  String? @map("booked_dates_eyebrow")
+  bookedDatesTitle    String? @map("booked_dates_title")
+  bookedDatesSubtitle String? @map("booked_dates_subtitle")
+  policiesEyebrow     String? @map("policies_eyebrow")
+  policiesTitle       String? @map("policies_title")
+  policiesSubtitle    String? @map("policies_subtitle")
 
   testimonialsSectionEnabled  Boolean @default(true) @map("testimonials_section_enabled")
   testimonialsSectionCount    Int     @default(3) @map("testimonials_section_count") // 3, 6, or 9

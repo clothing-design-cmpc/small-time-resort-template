@@ -1,11 +1,14 @@
 /*
  * FILE: app/system-vault/[vaultSlug]/RecoveryCard.css
  *
- * .recoveryCardPrintArea is invisible on screen — it only exists to be
- * printed. When "Print Recovery Card" calls window.print(), the
- * @media print block below hides every other element on the page and
- * shows only this one, so the printed/PDF output is just the card
- * itself, not the whole dashboard.
+ * .recoveryCardPrintArea is portaled to a direct child of <body>
+ * (see RecoveryCardSection.jsx) and invisible on screen — it only
+ * exists to be printed. When "Print Recovery Card" calls
+ * window.print(), the @media print block below hides every OTHER
+ * direct child of <body> with display:none (which removes the box
+ * from layout entirely, unlike visibility:hidden which keeps its
+ * space reserved and was causing a run of blank printed pages before
+ * the card) so the printed/PDF output is just the card itself.
  */
 
 .recoveryCardPrintArea {
@@ -45,22 +48,19 @@
 }
 
 @media print {
-  /* Hide the entire app... */
-  body * {
-    visibility: hidden;
+  /* Hide every OTHER direct child of <body> — not just visually, but
+     removed from layout entirely, so no blank pages get allocated for
+     the (now zero-height) rest of the app. The print root itself is
+     also a direct child of <body> (via the portal), so this single
+     :not() selector is enough — no need to reach into the dashboard's
+     nested structure at all. */
+  body > *:not(#recovery-card-print-root) {
+    display: none !important;
   }
 
-  /* ...then reveal only the print area and everything inside it. */
-  .recoveryCardPrintArea,
-  .recoveryCardPrintArea * {
-    visibility: visible;
-  }
-
-  .recoveryCardPrintArea {
-    display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
+  #recovery-card-print-root {
+    display: block !important;
+    position: static;
     width: 100%;
     padding: 0.5in;
     color: #111;

@@ -30,9 +30,21 @@
  * secret — so someone with only the physical card (no working laptop
  * access to email or Drive) at least knows what exists and where to
  * start looking once they're back at a working device.
+ * FIX — blank pages on print:
+ * Previously this used `visibility: hidden` on `body *` to hide the
+ * dashboard, then `position: absolute` to pull the print area out.
+ * `visibility: hidden` keeps the hidden elements' layout space intact
+ * (only their pixels disappear), so the full-height dashboard still
+ * occupied its normal scroll height — the print engine allocated that
+ * many blank pages before/around the card. Portaling the print area
+ * to a direct child of <body> and hiding everything else with
+ * `display: none` (removes the box from layout entirely, zero height)
+ * fixes it — see the @media print rules in RecoveryCard.css.
  */
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import "./RecoveryCard.css";
 
 const HIDDEN_PAGES = [
@@ -89,9 +101,68 @@ export default function RecoveryCardSection() {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain-here.com").replace(/\/$/, "");
   const urlPattern = `${siteUrl}/system-vault/[current-slug]/login`;
 
+  // The print area only exists in the DOM once this Client Component
+  // has mounted in the browser — createPortal needs document.body,
+  // which isn't available during server rendering.
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   function handlePrint() {
     window.print();
   }
+
+  const printArea = (
+    // Rendered as a direct child of <body> (see the portal below) —
+    // not nested inside the dashboard layout — so the @media print
+    // rule in RecoveryCard.css can hide every OTHER body child with a
+    // simple display:none, and this element renders in normal page
+    // flow with no leftover blank space from the rest of the app.
+    <div className="recoveryCardPrintArea" id="recovery-card-print-root">
+      <h1>Vault Recovery Card</h1>
+
+      <p>Recovery URL pattern:</p>
+      <p className="recoveryCardUrlPattern">{urlPattern}</p>
+
+      <ol>
+        <li>
+          Replace <strong>[current-slug]</strong> above with the slug from the most recent
+          passphrase-rotation email in the vault owner&apos;s inbox, or the matching file in the Google
+          Drive backup folder.
+        </li>
+        <li>Open that URL in a browser.</li>
+        <li>Enter the current passphrase from that same email or Drive file.</li>
+        <li>Enter the one-time code sent to the vault owner&apos;s email.</li>
+        <li>You are now on this recovery dashboard.</li>
+      </ol>
+
+      <h2>Hidden Pages Directory</h2>
+      <table className="recoveryCardTable">
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          {HIDDEN_PAGES.map((page) => (
+            <tr key={page.path}>
+              <td className="adminMono">{page.path}</td>
+              <td>{page.purpose}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p className="recoveryCardWarning">
+        This card intentionally contains no live passphrase, OTP, or URL slug — those change on every
+        rotation and are only ever available via email or Google Drive. Store this card somewhere
+        physically secure (a safe, locked drawer). Re-print it whenever NEXT_PUBLIC_SITE_URL changes or a
+        hidden page is added or removed.
+      </p>
+    </div>
+  );
 
   return (
     <div className="recoveryStepCard">
@@ -104,50 +175,7 @@ export default function RecoveryCardSection() {
         Print Recovery Card
       </button>
 
-      {/* Hidden on screen (see RecoveryCard.css), visible only inside the print dialog. */}
-      <div className="recoveryCardPrintArea">
-        <h1>Vault Recovery Card</h1>
-
-        <p>Recovery URL pattern:</p>
-        <p className="recoveryCardUrlPattern">{urlPattern}</p>
-
-        <ol>
-          <li>
-            Replace <strong>[current-slug]</strong> above with the slug from the most recent
-            passphrase-rotation email in the vault owner&apos;s inbox, or the matching file in the Google
-            Drive backup folder.
-          </li>
-          <li>Open that URL in a browser.</li>
-          <li>Enter the current passphrase from that same email or Drive file.</li>
-          <li>Enter the one-time code sent to the vault owner&apos;s email.</li>
-          <li>You are now on this recovery dashboard.</li>
-        </ol>
-
-        <h2>Hidden Pages Directory</h2>
-        <table className="recoveryCardTable">
-          <thead>
-            <tr>
-              <th>Path</th>
-              <th>Purpose</th>
-            </tr>
-          </thead>
-          <tbody>
-            {HIDDEN_PAGES.map((page) => (
-              <tr key={page.path}>
-                <td className="adminMono">{page.path}</td>
-                <td>{page.purpose}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <p className="recoveryCardWarning">
-          This card intentionally contains no live passphrase, OTP, or URL slug — those change on every
-          rotation and are only ever available via email or Google Drive. Store this card somewhere
-          physically secure (a safe, locked drawer). Re-print it whenever NEXT_PUBLIC_SITE_URL changes or a
-          hidden page is added or removed.
-        </p>
-      </div>
+      {isMounted ? createPortal(printArea, document.body) : null}
     </div>
   );
 }

@@ -145,6 +145,21 @@ export default async function PoliciesPage() {
   const termsOfServiceText = renderTextBlock(settings?.termsOfService);
   const privacyPolicyText = renderTextBlock(settings?.privacyPolicy);
 
+  const bookingPoliciesIntro =
+    settings?.bookingPoliciesIntro?.trim() ||
+    "The following terms apply to all reservations made directly with Villa Azure Resort, whether by phone, email, or online inquiry.";
+  const cancellationPolicyIntro =
+    settings?.cancellationPolicyIntro?.trim() ||
+    "We understand that plans change. The following refund schedule applies to all cancellations. We recommend travel insurance for peace of mind.";
+
+  // Refund summary table — every number and the fee amount are
+  // admin-editable under Content > Policies > Cancellation, with the
+  // original static values as fallback defaults.
+  const refundFullWindowDays = settings?.refundFullWindowDays ?? 14;
+  const refundFullRefundFee = settings?.refundFullRefundFee?.trim() || "₱500";
+  const refundPartialWindowDays = settings?.refundPartialWindowDays ?? 7;
+  const refundPartialPercent = settings?.refundPartialPercent ?? 50;
+
   // Check-in/check-out — admin-editable under Content > Policies, with
   // the original static copy as the fallback default.
   const checkInTime = settings?.checkInTime?.trim() || "2:00 PM";
@@ -196,7 +211,7 @@ export default async function PoliciesPage() {
             <section id="booking-policies" className="policiesSection">
               <h2 className="policiesSectionTitle">Booking Policies</h2>
               <p className="policiesSectionIntro">
-                The following terms apply to all reservations made directly with Villa Azure Resort, whether by phone, email, or online inquiry.
+                {bookingPoliciesIntro}
               </p>
               {bookingPoliciesText ? (
                 <div className="policiesItem">{bookingPoliciesText}</div>
@@ -218,7 +233,7 @@ export default async function PoliciesPage() {
             <section id="refund-policies" className="policiesSection">
               <h2 className="policiesSectionTitle">Refund &amp; Cancellation Policy</h2>
               <p className="policiesSectionIntro">
-                We understand that plans change. The following refund schedule applies to all cancellations. We recommend travel insurance for peace of mind.
+                {cancellationPolicyIntro}
               </p>
 
               {/* Summary table */}
@@ -228,15 +243,15 @@ export default async function PoliciesPage() {
                   <span>Refund Amount</span>
                 </div>
                 <div className="policiesRefundTableRow">
-                  <span>More than 14 days before check-in</span>
-                  <span className="policiesRefundBadge policiesRefundBadgeGreen">Full refund (less ₱500 fee)</span>
+                  <span>More than {refundFullWindowDays} days before check-in</span>
+                  <span className="policiesRefundBadge policiesRefundBadgeGreen">Full refund (less {refundFullRefundFee} fee)</span>
                 </div>
                 <div className="policiesRefundTableRow">
-                  <span>7 – 14 days before check-in</span>
-                  <span className="policiesRefundBadge policiesRefundBadgeAmber">50% refund</span>
+                  <span>{refundPartialWindowDays} – {refundFullWindowDays} days before check-in</span>
+                  <span className="policiesRefundBadge policiesRefundBadgeAmber">{refundPartialPercent}% refund</span>
                 </div>
                 <div className="policiesRefundTableRow">
-                  <span>Less than 7 days before check-in</span>
+                  <span>Less than {refundPartialWindowDays} days before check-in</span>
                   <span className="policiesRefundBadge policiesRefundBadgeRed">Non-refundable</span>
                 </div>
                 <div className="policiesRefundTableRow">

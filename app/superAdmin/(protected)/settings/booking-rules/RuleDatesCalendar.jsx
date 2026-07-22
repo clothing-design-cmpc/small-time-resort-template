@@ -14,8 +14,13 @@
  * DATA FLOW:
  * 1. Parent (BookingRuleForm) owns the selected dates as a Set of
  *    "YYYY-MM-DD" strings and passes it down with onToggleDate.
- * 2. Clicking a day calls onToggleDate(dateKey) — parent adds/removes it.
+ * 2. Clicking a day calls onToggleDate(dateKey) — parent adds/removes it,
+ *    or (per its own anchor+range logic) fills in every date between
+ *    the previous single selection and this click.
  * 3. Parent watches the Set's size to decide which fields to render below.
+ * 4. Past dates (before today) are rendered dark gray and are not
+ *    clickable — a rule set can never be scheduled for a date that has
+ *    already passed.
  */
 "use client";
 
@@ -28,11 +33,33 @@ const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  * Formats a Date as "YYYY-MM-DD" — matches the key format stored in
  * the parent's selectedDates Set and the ruleDates DB column.
  */
-function toDateKey(date) {
+export function toDateKey(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+/**
+ * getDateRangeKeys
+ * Given two "YYYY-MM-DD" keys in any order, returns every date key from
+ * the earlier one to the later one, inclusive. Used by the parent form
+ * to fill in a full range when the admin clicks a second date (e.g.
+ * clicking July 1 then July 5 selects July 1-5, all 5 days).
+ */
+export function getDateRangeKeys(keyA, keyB) {
+  const [startKey, endKey] = [keyA, keyB].sort();
+  const [startYear, startMonth, startDay] = startKey.split("-").map(Number);
+  const [endYear, endMonth, endDay] = endKey.split("-").map(Number);
+  const cursor = new Date(startYear, startMonth - 1, startDay);
+  const end = new Date(endYear, endMonth - 1, endDay);
+
+  const keys = [];
+  while (cursor <= end) {
+    keys.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return keys;
 }
 
 export default function RuleDatesCalendar({ selectedDates, onToggleDate }) {
@@ -52,6 +79,10 @@ export default function RuleDatesCalendar({ selectedDates, onToggleDate }) {
   for (let day = 1; day <= daysInMonth; day += 1) cells.push(new Date(year, month, day));
 
   const monthLabel = visibleMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Today, normalized to midnight, so "past" means strictly before
+  // today — today itself remains selectable.
+  const todayKey = toDateKey(new Date());
 
   return (
     <div className="bookingRulesCalendarCard">
@@ -87,14 +118,16 @@ export default function RuleDatesCalendar({ selectedDates, onToggleDate }) {
 
           const dateKey = toDateKey(date);
           const isSelected = selectedDates.has(dateKey);
+          const isPast = dateKey < todayKey;
 
           return (
             <button
               key={dateKey}
               type="button"
-              className={`bookingRulesCalendarCell${isSelected ? " bookingRulesCalendarCell--selected" : ""}`}
-              onClick={() => onToggleDate(dateKey)}
-              title={isSelected ? "Selected — click to remove" : "Click to select this date"}
+              disabled={isPast}
+              className={`bookingRulesCalendarCell${isSelected ? " bookingRulesCalendarCell--selected" : ""}${isPast ? " bookingRulesCalendarCell--past" : ""}`}
+              onClick={() => !isPast && onToggleDate(dateKey)}
+              title={isPast ? "Past date — cannot be selected" : isSelected ? "Selected — click to remove" : "Click to select this date"}
             >
               {date.getDate()}
             </button>

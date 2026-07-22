@@ -27,7 +27,7 @@ import { z } from "zod";
 import axios from "axios";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
-import RuleDatesCalendar from "./RuleDatesCalendar";
+import RuleDatesCalendar, { getDateRangeKeys } from "./RuleDatesCalendar";
 import "./BookingRules.css";
 
 /* z.coerce.number() on every numeric field is what actually makes this
@@ -42,10 +42,18 @@ const bookingRuleSchema = z.object({
   allowOvernightStay: z.boolean(),
   allowDayTour: z.boolean(),
   allowNightTour: z.boolean(),
-  dayTourStartTime: z.string().min(1),
+  // Day Tour check-in must fall between 1:00 AM and 11:59 AM.
+  dayTourStartTime: z.string().min(1).refine(
+    (value) => value >= "01:00" && value <= "11:59",
+    "Day Tour check-in must be between 1:00 AM and 11:59 AM."
+  ),
   dayTourEndTime: z.string().min(1),
   dayTourPricePerGuest: z.coerce.number().min(0),
-  nightTourStartTime: z.string().min(1),
+  // Night Tour check-in must fall between 1:00 PM and 11:59 PM.
+  nightTourStartTime: z.string().min(1).refine(
+    (value) => value >= "13:00" && value <= "23:59",
+    "Night Tour check-in must be between 1:00 PM and 11:59 PM."
+  ),
   nightTourEndTime: z.string().min(1),
   nightTourPricePerGuest: z.coerce.number().min(0),
   hourlyChargeAmount: z.coerce.number().min(0),
@@ -142,18 +150,34 @@ export default function BookingRuleForm({ existingRule, rooms }) {
 
   /**
    * handleToggleDate
-   * Adds/removes a date from the Section 1 calendar selection. Selecting
-   * a 2nd+ date forces booking type to Overnight (Customized) — Day/Night
-   * Tour only make sense for a single day, so a stale selection from
-   * single-date mode can't linger once the admin picks more dates.
+   * Section 1's calendar click behavior:
+   *   - No date selected yet -> selects just the clicked date (range anchor).
+   *   - Exactly one date already selected -> clicking the SAME date
+   *     deselects it (back to empty); clicking a DIFFERENT date fills
+   *     in every date between the anchor and this click, inclusive
+   *     (e.g. July 1 selected, then July 5 clicked -> July 1-5 all
+   *     selected).
+   *   - A range/multiple dates are already selected -> clicking any
+   *     date starts a fresh selection with just that date as the new
+   *     anchor, so the admin can redo the range without having to
+   *     click every day off one at a time.
+   * Selecting 2+ dates forces booking type to Overnight (Customized) —
+   * Day/Night Tour only make sense for a single day, so a stale
+   * selection from single-date mode can't linger once a range is picked.
    */
   function handleToggleDate(dateKey) {
     setSelectedDates((previousDates) => {
-      const nextDates = new Set(previousDates);
-      if (nextDates.has(dateKey)) {
-        nextDates.delete(dateKey);
+      let nextDates;
+
+      if (previousDates.size === 0) {
+        nextDates = new Set([dateKey]);
+      } else if (previousDates.size === 1) {
+        const [anchorKey] = previousDates;
+        nextDates = anchorKey === dateKey
+          ? new Set()
+          : new Set(getDateRangeKeys(anchorKey, dateKey));
       } else {
-        nextDates.add(dateKey);
+        nextDates = new Set([dateKey]);
       }
 
       const sortedDateList = Array.from(nextDates).sort();
@@ -361,8 +385,9 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                 <div className="bookingRulesFormRow">
                   <div className="bookingRulesFormField">
                     <label htmlFor="dayTourStartTime">Check-in Date &amp; Time</label>
-                    <input id="dayTourStartTime" type="time" {...register("dayTourStartTime")} />
+                    <input id="dayTourStartTime" type="time" min="01:00" max="11:59" {...register("dayTourStartTime")} />
                     <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
+                    {errors.dayTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.dayTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="dayTourEndTime">Check-out Date &amp; Time</label>
@@ -380,8 +405,9 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                 <div className="bookingRulesFormRow">
                   <div className="bookingRulesFormField">
                     <label htmlFor="nightTourStartTime">Check-in Date &amp; Time</label>
-                    <input id="nightTourStartTime" type="time" {...register("nightTourStartTime")} />
+                    <input id="nightTourStartTime" type="time" min="13:00" max="23:59" {...register("nightTourStartTime")} />
                     <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
+                    {errors.nightTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.nightTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="nightTourEndTime">Check-out Date &amp; Time</label>

@@ -488,3 +488,22 @@
   color: var(--color-accent, #22c55e);
   font-weight: 700;
 }
+
+/*
+ * .bookingRulesCalendarCell--past
+ * Dates before today — visually de-emphasized (dark gray) and
+ * non-interactive. A rule set can never be scheduled for a date that
+ * has already passed, so these cells never carry the selected style
+ * even if somehow already in ruleDates.
+ */
+.bookingRulesCalendarCell--past {
+  background-color: #3f3f46;
+  border-color: #3f3f46;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: not-allowed;
+}
+
+.bookingRulesCalendarCell--past:hover,
+.bookingRulesCalendarCell--past:focus-visible {
+  border-color: #3f3f46;
+}

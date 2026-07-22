@@ -12,6 +12,7 @@
     "purge-security-logs": "node scripts/purgeSecurityLogs.js",
     "check:gatekeepers": "node scripts/checkGatekeepers.js",
     "hash-gatekeeper-vault-passphrase": "node scripts/hashGatekeeperVaultPassphrase.js",
+    "print-gatekeeper-vault-url": "node scripts/printGatekeeperVaultUrl.js",
     "generate-recovery-card": "node scripts/generateRecoveryCard.mjs"
   },
   "dependencies": {

@@ -88,8 +88,8 @@ export const VAULT_SESSION_COOKIE_MAX_AGE_SECONDS = 30 * 60;
 // How long a vault passphrase stays valid before the scheduled
 // auto-rotate route (app/api/system-vault-setup/auto-rotate) generates
 // a fresh one automatically. Independent of manual generation — a
-// manual click (super-admin > vault-passphrase, or the hidden
-// system-vault-setup page) always resets this same 30-day window.
+// manual click (the hidden system-vault-setup page — the only place
+// generation happens) always resets this same 30-day window.
 export const VAULT_PASSPHRASE_EXPIRY_DAYS = 30;
 
 // The vault no longer inherits a super-admin's uid — there is no

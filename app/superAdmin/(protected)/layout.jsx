@@ -11,20 +11,10 @@
  *
  * DATA FLOW:
  * 1. Every route under app/superAdmin/(protected)/ renders inside this layout's {children}
- * 2. Now checks AdminProfile.isOwner once here (not previously done —
- *    see note below) and passes it to Sidebar as a prop, so the
- *    "Vault Passphrase" nav link only ever renders for the actual
- *    owner — every other admin account (role is always "super_admin"
- *    regardless of who they are) never sees that link exists at all.
- *    The page and API route it points to enforce this independently
- *    too (app/superAdmin/(protected)/settings/vault-passphrase/page.jsx),
- *    so hiding the link here is a discoverability improvement, not the
- *    only enforcement.
- * 3. AdminHeader is rendered once, shared across all admin pages
- * 4. Beyond the isOwner lookup, no session check happens here —
- *    proxy.js already blocked anyone without a valid superAdmin
- *    session before this layout ever renders
- * 5. SessionCloseGuard signs the admin out on tab/browser close;
+ * 2. AdminHeader is rendered once, shared across all admin pages
+ * 3. No session check happens here — proxy.js already blocked anyone
+ *    without a valid superAdmin session before this layout ever renders
+ * 4. SessionCloseGuard signs the admin out on tab/browser close;
  *    IdleTimeoutGuard signs the admin out after 30 minutes of no
  *    mouse/keyboard/scroll/touch activity while the tab stays open;
  *    SessionExpiryGuard catches the case those two don't — an already-
@@ -38,10 +28,7 @@
  * element in the DOM, so keyboard/screen-reader users can bypass the
  * Sidebar and AdminHeader and jump straight to #mainContent (WCAG 2.1 AAA).
  */
-import { cookies } from "next/headers";
 import "../SuperAdmin.css";
-import { prisma } from "@/services/prisma";
-import { requireSuperAdminFromCookieStore } from "@/services/adminSession";
 import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
 import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
@@ -57,26 +44,6 @@ export const metadata = {
 };
 
 export default async function SuperAdminLayout({ children }) {
-  // Best-effort lookup only — proxy.js has already confirmed a valid
-  // super_admin session exists before this layout ever renders, so a
-  // missing/failed lookup here just means "don't show the owner-only
-  // link," never "block the page." The page/API route behind that
-  // link re-check ownership themselves regardless.
-  let isOwner = false;
-  try {
-    const cookieStore = await cookies();
-    const session = requireSuperAdminFromCookieStore(cookieStore);
-    if (session) {
-      const adminProfile = await prisma.adminProfile.findUnique({
-        where: { id: session.uid },
-        select: { isOwner: true },
-      });
-      isOwner = Boolean(adminProfile?.isOwner);
-    }
-  } catch (error) {
-    console.error("[SuperAdminLayout] Failed to check isOwner:", error.message);
-  }
-
   return (
     // superAdminRoot scopes the dark enterprise color tokens (SuperAdmin.css)
     // so they never leak into the visitor site's light theme.
@@ -105,7 +72,7 @@ export default async function SuperAdminLayout({ children }) {
       <a href="#mainContent" className="superAdminSkipLink">
         Skip to main content
       </a>
-      <Sidebar isOwner={isOwner} />
+      <Sidebar />
       <div className="superAdminBody">
         <AdminHeader />
         <main id="mainContent" className="superAdminContent">

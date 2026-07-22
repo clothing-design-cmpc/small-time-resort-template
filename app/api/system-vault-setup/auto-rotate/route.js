@@ -13,12 +13,12 @@
  * by the calendar instead of an owner's click. If the 30 days aren't up
  * yet, this is a no-op and returns rotated: false.
  *
- * WHY A SEPARATE ROUTE FROM THE MANUAL ONES:
- * app/api/system-vault-setup/route.js and
- * app/api/superAdmin/settings/vault-passphrase/route.js both require
- * requireSuperAdmin() + AdminProfile.isOwner — an actual logged-in
- * person. A cron job has no session cookie at all, so it needs its own
- * check (CRON_SECRET) instead of trying to reuse either of those.
+ * WHY A SEPARATE ROUTE FROM THE MANUAL ONE:
+ * app/api/system-vault-setup/route.js requires either a valid
+ * VAULT_SETUP_KEY or requireSuperAdmin() + AdminProfile.isOwner — an
+ * actual logged-in person or a developer-held env secret. A cron job
+ * has no session cookie and no reason to hold that key, so it needs
+ * its own check (CRON_SECRET) instead of reusing either credential.
  *
  * DATA FLOW:
  * 1. Vercel Cron hits this route on schedule with an
@@ -88,8 +88,8 @@ export async function GET(request) {
         `Passphrase:\n${newPassphrase}\n\n` +
         `This passphrase gates the disaster-recovery page at [${vaultRecoveryUrl.replace(/^https?:\/\//, "")}](${vaultRecoveryUrl}).\n` +
         `The next automatic rotation replaces this one in 30 days; a manual` +
-        ` generate from super-admin > vault-passphrase (or the hidden setup` +
-        ` page) replaces it sooner and resets that 30-day window.\n` +
+        ` generate from the hidden vault setup page replaces it sooner and` +
+        ` resets that 30-day window.\n` +
         `Keep this file private — do not share it outside the resort owner.\n`;
 
       const driveResult = await uploadToDrive(

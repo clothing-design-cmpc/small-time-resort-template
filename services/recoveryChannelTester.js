@@ -171,6 +171,13 @@ function testEmailJsChannel() {
  * round-trip is the only way to confirm the URL still works. The
  * message is clearly labeled as a test so it's never mistaken for a
  * real breach/rotation alert if someone is watching the channel.
+ *
+ * This channel is OPTIONAL: it's a secondary alert path on top of the
+ * required GitHub/Drive/EmailJS channels, so a missing
+ * VAULT_ALERT_WEBHOOK_URL is reported as "skipped" (not "failed") and
+ * is excluded from the pass/total counts in runRecoveryChannelTests —
+ * an owner who never set up a webhook shouldn't see a permanent
+ * "3/4 channels working" that never reaches 100%.
  */
 async function testWebhookChannel() {
   const webhookUrl = process.env.VAULT_ALERT_WEBHOOK_URL;
@@ -179,7 +186,9 @@ async function testWebhookChannel() {
       channel: "webhook",
       label: "Secondary Alert Webhook",
       passed: false,
-      message: "Not configured — this optional second alert channel has no VAULT_ALERT_WEBHOOK_URL set.",
+      optional: true,
+      status: "skipped",
+      message: "Optional — not set up. Add VAULT_ALERT_WEBHOOK_URL if you want a secondary Slack/Discord alert channel.",
     };
   }
 
@@ -191,6 +200,8 @@ async function testWebhookChannel() {
     channel: "webhook",
     label: "Secondary Alert Webhook",
     passed: delivered,
+    optional: true,
+    status: delivered ? "pass" : "fail",
     message: delivered
       ? "Test alert delivered — check the configured Slack/Discord channel."
       : "The webhook URL rejected the test alert or couldn't be reached.",
@@ -199,9 +210,17 @@ async function testWebhookChannel() {
 
 /**
  * runRecoveryChannelTests
- * Runs all three checks in parallel and summarizes the result. Never
+ * Runs all four checks in parallel and summarizes the result. Never
  * throws — an individual channel's own failure is reported inline,
  * not surfaced as a route-level error.
+ *
+ * The webhook channel is optional (see testWebhookChannel above): when
+ * it's skipped (not configured), it's excluded from passedCount /
+ * totalCount / allPassed entirely, so an owner who never set up the
+ * secondary webhook still sees "All required channels are working"
+ * once GitHub, Drive, and EmailJS pass — the skipped result still
+ * shows in `results` for visibility, it just doesn't count against
+ * the summary.
  */
 export async function runRecoveryChannelTests() {
   const [github, drive, emailjs, webhook] = await Promise.all([
@@ -212,12 +231,18 @@ export async function runRecoveryChannelTests() {
   ]);
 
   const results = [github, drive, emailjs, webhook];
-  const passedCount = results.filter((result) => result.passed).length;
+
+  // Required channels are counted normally; an optional channel only
+  // counts toward the summary once it's actually configured (status
+  // !== "skipped") — a skipped optional channel is neither a pass nor
+  // a drag on the total.
+  const countedResults = results.filter((result) => !(result.optional && result.status === "skipped"));
+  const passedCount = countedResults.filter((result) => result.passed).length;
 
   return {
     results,
     passedCount,
-    totalCount: results.length,
-    allPassed: passedCount === results.length,
+    totalCount: countedResults.length,
+    allPassed: passedCount === countedResults.length,
   };
 }

@@ -71,17 +71,13 @@ const navGroups = [
 export default function Sidebar({ isOwner = false }) {
   const pathname = usePathname();
 
-  // Owner-only link, appended here (never in the static navGroups
-  // array above) so a non-owner admin's Sidebar never renders it, and
-  // never has a reason to inspect the page source for a link that was
-  // conditionally removed vs. one that was simply never built yet.
-  const visibleNavGroups = isOwner
-    ? navGroups.map((group) =>
-        group.label === "Security"
-          ? { ...group, links: [...group.links, { label: "Vault Passphrase", href: "/superAdmin/settings/vault-passphrase" }] }
-          : group
-      )
-    : navGroups;
+  // Vault passphrase generation/rotation and recovery-channel testing
+  // are deliberately NOT exposed anywhere in this dashboard, even to
+  // the owner — that credential is managed exclusively through the
+  // hidden app/system-vault-setup page (VAULT_SETUP_KEY-gated, never
+  // linked from here), keeping it out of the account a client logs
+  // into daily. See app/system-vault-setup/page.jsx for why.
+  const visibleNavGroups = navGroups;
 
   return (
     <nav className="adminSidebar" aria-label="Super-admin navigation">

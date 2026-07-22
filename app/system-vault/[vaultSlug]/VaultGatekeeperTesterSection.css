@@ -18,6 +18,27 @@
   line-height: 1.5;
 }
 
+/*
+ * .vaultGatekeeperTesterHowToList
+ * Numbered step-by-step usage guide shown above the test-IP fields —
+ * gives whoever holds vault access a clear, ordered walkthrough
+ * instead of leaving them to guess the run order or what a Fail means.
+ */
+.vaultGatekeeperTesterHowToList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.vaultGatekeeperTesterHowToList li {
+  padding-left: var(--space-xs);
+}
+
 .vaultGatekeeperTesterFieldRow {
   display: flex;
   flex-direction: column;

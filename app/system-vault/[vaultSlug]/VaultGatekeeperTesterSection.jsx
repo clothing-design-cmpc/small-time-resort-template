@@ -92,6 +92,15 @@ export default function VaultGatekeeperTesterSection({ showToast }) {
         breach detectors and briefly locks the site down while it runs.
       </p>
 
+      <ol className="vaultGatekeeperTesterHowToList">
+        <li>Run this only on staging, or on production during a scheduled maintenance window — never while real visitors are on the site.</li>
+        <li>Leave Test IP 1 and Test IP 2 as the reserved defaults below, unless you specifically need to rehearse the response for a real IP.</li>
+        <li>Click &quot;Run Dry Run&quot; and confirm the warning modal — this is your last chance to back out before it trips the site&apos;s real breach detectors.</li>
+        <li>Wait for the checklist to finish. Every check should show <span className="vaultGatekeeperTesterPillPass">Pass</span> — a <span className="vaultGatekeeperTesterPillFail">Fail</span> means that part of the breach response isn&apos;t working and needs to be fixed before relying on it.</li>
+        <li>Cleanup runs automatically — the test IPs, breach events, and lockdown flag are all reverted when the run finishes, even if a check fails.</li>
+        <li>This dry run does not cover Gatekeeper 3 (anomalous admin login) — see the note and <code>docs/gatekeeper-testing.md</code> below for how to test that one manually.</li>
+      </ol>
+
       <div className="vaultGatekeeperTesterFieldRow">
         <label className="vaultGatekeeperTesterLabel" htmlFor="testIp1Input">
           Test IP 1 <span className="vaultGatekeeperTesterFieldHint">(Gatekeeper 1 — login brute force)</span>

@@ -1,0 +1,134 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/VaultRecoveryChannelsSection.css
+ * Standalone card between the blocked-IPs step and the Danger Zone —
+ * spacing/border tokens match VaultActivityLogSection.css so it reads
+ * as part of the same recovery page rather than a bolted-on block.
+ */
+
+.vaultRecoveryChannelsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.vaultRecoveryChannelsHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.vaultRecoveryChannelsTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.vaultRecoveryChannelsSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 70ch;
+}
+
+.vaultRecoveryChannelsTestButton {
+  align-self: flex-start;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.vaultRecoveryChannelsTestButton:hover,
+.vaultRecoveryChannelsTestButton:focus-visible {
+  background: var(--color-accent-hover);
+}
+
+.vaultRecoveryChannelsTestButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.vaultRecoveryChannelsResultList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.vaultRecoveryChannelsResultRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.vaultRecoveryChannelsResultRow--pass {
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+}
+
+.vaultRecoveryChannelsResultRow--fail {
+  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+/* Neutral row for an optional channel that simply isn't configured —
+   not a failure, so it uses muted styling rather than the error color. */
+.vaultRecoveryChannelsResultRow--skip {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.vaultRecoveryChannelsResultLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.vaultRecoveryChannelsResultRow--pass .vaultRecoveryChannelsResultLabel {
+  color: var(--color-success);
+}
+
+.vaultRecoveryChannelsResultRow--fail .vaultRecoveryChannelsResultLabel {
+  color: var(--color-error);
+}
+
+.vaultRecoveryChannelsResultRow--skip .vaultRecoveryChannelsResultLabel {
+  color: var(--color-text-secondary);
+}
+
+/* Small pill next to an optional channel's label, e.g. the secondary
+   alert webhook — signals it's not required for "all channels working". */
+.vaultRecoveryChannelsOptionalTag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.vaultRecoveryChannelsResultMessage {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}

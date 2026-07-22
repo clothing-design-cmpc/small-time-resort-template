@@ -78,6 +78,8 @@ import VaultCodeConfirmModal from "./VaultCodeConfirmModal";
 import VaultDangerZoneSection from "./VaultDangerZoneSection";
 import VaultIdleTimeoutGuard from "./VaultIdleTimeoutGuard";
 import VaultWipeGraceModal from "./VaultWipeGraceModal";
+import EnvCheckerSection from "./EnvCheckerSection";
+import RecoveryCardSection from "./RecoveryCardSection";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -714,6 +716,12 @@ export default function RecoveryClient() {
           onCancel={() => setSelectedIpToUnban(null)}
         />
       )}
+
+      {/* --- Environment Check (Task 3) --- */}
+      <EnvCheckerSection showToast={showToast} />
+
+      {/* --- Printable Recovery Card (Task 4) --- */}
+      <RecoveryCardSection />
 
       {/* --- Danger Zone: schedule/cancel/truncate-now a database wipe --- */}
       <VaultDangerZoneSection showToast={showToast} />

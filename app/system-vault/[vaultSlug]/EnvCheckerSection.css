@@ -1,0 +1,55 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/EnvCheckerSection.css
+ * Layout for the Environment Check card's per-group results list.
+ * Reuses tokens already defined in Recovery.css / globals.css — no
+ * new colors introduced here.
+ */
+
+.envCheckerResults {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+/*
+ * .envCheckerGroup
+ * One card per service (Database, Supabase, R2, etc). Border + subtle
+ * background give each group a defined edge, per the card spacing
+ * standard — never flush against its neighbors.
+ */
+.envCheckerGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+}
+
+.envCheckerGroupHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-weight: 600;
+}
+
+.envCheckerItemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.envCheckerItemList li {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}

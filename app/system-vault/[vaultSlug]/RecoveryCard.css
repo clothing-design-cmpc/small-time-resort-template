@@ -1,0 +1,68 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/RecoveryCard.css
+ *
+ * .recoveryCardPrintArea is invisible on screen — it only exists to be
+ * printed. When "Print Recovery Card" calls window.print(), the
+ * @media print block below hides every other element on the page and
+ * shows only this one, so the printed/PDF output is just the card
+ * itself, not the whole dashboard.
+ */
+
+.recoveryCardPrintArea {
+  display: none;
+}
+
+.recoveryCardUrlPattern {
+  font-family: monospace;
+  font-size: 0.85rem;
+  background: var(--color-surface);
+  padding: var(--space-sm);
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+.recoveryCardTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: var(--space-sm);
+}
+
+.recoveryCardTable th,
+.recoveryCardTable td {
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.recoveryCardWarning {
+  font-size: 0.8rem;
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+@media print {
+  /* Hide the entire app... */
+  body * {
+    visibility: hidden;
+  }
+
+  /* ...then reveal only the print area and everything inside it. */
+  .recoveryCardPrintArea,
+  .recoveryCardPrintArea * {
+    visibility: visible;
+  }
+
+  .recoveryCardPrintArea {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.5in;
+    color: #111;
+  }
+}

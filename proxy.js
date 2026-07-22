@@ -108,6 +108,10 @@ const VAULT_STANDALONE_API_PATHS = [
   // feed of the vault's own SecurityLog rows, authenticated via
   // vaultSession only — same reasoning as vault-wipe above.
   "/api/admin/vault-activity-log",
+  // Environment Check (EnvCheckerSection.jsx, Task 3): read-only report
+  // of which .env keys are set (never their values), authenticated via
+  // vaultSession only — same reasoning as vault-wipe above.
+  "/api/admin/env-check",
   // Post-Wipe Lockdown (RecoveryClient.jsx's own section): status poll
   // + "Lift Lockdown", authenticated via vaultSession only
   // (requireVaultSession + otpVerified inside the route itself — see

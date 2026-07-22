@@ -22,6 +22,14 @@
  * slug, plus the generic steps for where to actually find the current
  * slug and passphrase when the card is needed for real.
  *
+ * NOTE: The vault dashboard (app/system-vault/[vaultSlug]/
+ * RecoveryCardSection.jsx) now offers a "Print Recovery Card" button
+ * that renders and prints the same style of card directly in the
+ * browser, plus a directory of every hidden page — no terminal
+ * needed. This script remains as a fully-offline fallback for when
+ * the dashboard itself isn't reachable yet (e.g. before the vault
+ * passphrase has ever been set).
+ *
  * USAGE:
  *   node scripts/generateRecoveryCard.mjs
  *

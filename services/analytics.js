@@ -13,31 +13,35 @@
  * DATA FLOW:
  * 1. app/api/analytics/track/route.js calls recordPageView() with the
  *    incoming Request and the path the visitor is on
- * 2. resolveCountryCode() looks up the request IP against the bundled
- *    geoip-lite dataset (pure local lookup, zero network calls,
- *    zero storage of the IP) and returns only a 2-letter country code
+ * 2. resolveCountryCode() looks up the request IP against the
+ *    self-hosted MaxMind DB (services/geoip.js — same source already
+ *    fixed for Security Logs, Rule 38.5) and returns only a 2-letter
+ *    country code. Was previously reading the bundled geoip-lite
+ *    dataset instead, which ships a much smaller, staler IP range
+ *    table than MaxMind and returned wrong/blank countries for a
+ *    large share of real visitor IPs.
  * 3. resolveDeviceType() classifies the User-Agent into mobile/tablet/desktop
  * 4. A daily counter row is upserted (created at viewCount 1, or
  *    incremented) keyed on [date, path, referrerHost, deviceType, countryCode]
  */
-import geoip from "geoip-lite";
+import { lookupGeoLocation } from "@/services/geoip";
 import { prisma } from "@/services/prisma";
 
 /**
  * resolveCountryCode
- * Looks up the request's IP against the local geoip-lite dataset and
+ * Looks up the request's IP against the self-hosted MaxMind DB and
  * returns only the 2-letter country code. The IP itself is read once
  * into this function's local variable and discarded — it is never
  * passed to logSecurityEvent, never written to any table, and never
  * returned to the caller.
  */
-function resolveCountryCode(request) {
+async function resolveCountryCode(request) {
   const ipAddress = request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
   if (!ipAddress) return null;
 
   try {
-    const lookup = geoip.lookup(ipAddress);
-    return lookup?.country ?? null; // ISO 3166-1 alpha-2, e.g. "PH"
+    const location = await lookupGeoLocation(ipAddress);
+    return location.countryCode ?? null; // ISO 3166-1 alpha-2, e.g. "PH"
   } catch {
     return null;
   }
@@ -76,7 +80,7 @@ export async function recordPageView({ request, path, referrerHost = null }) {
     // values the admin analytics reader already falls back to display
     // (app/api/admin/analytics/route.js: "Direct" / "Unknown"), so read and
     // write sides agree on what a missing value looks like.
-    const countryCode = resolveCountryCode(request) ?? "Unknown";
+    const countryCode = (await resolveCountryCode(request)) ?? "Unknown";
     const resolvedReferrerHost = referrerHost ?? "Direct";
     const deviceType = resolveDeviceType(request);
 

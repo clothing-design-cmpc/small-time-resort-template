@@ -22,7 +22,6 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "axios": "^1.18.1",
-    "geoip-lite": "^2.0.3",
     "googleapis": "^144.0.0",
     "lucide-react": "^0.469.0",
     "maxmind": "^4.3.19",

@@ -24,7 +24,7 @@ import { logVisitorActivity } from "@/services/visitorLog";
 export async function POST(request) {
   try {
     const { path } = await request.json();
-    await logVisitorActivity({ request, action: "page_view", path, withLocation: false });
+    await logVisitorActivity({ request, action: "page_view", path });
     return NextResponse.json({ success: true, data: null, message: "Logged." });
   } catch (error) {
     // Never let a tracking failure surface anywhere — this is best-effort telemetry.

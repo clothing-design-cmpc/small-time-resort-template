@@ -15,25 +15,17 @@
  *    since Edge middleware cannot reach Prisma directly)
  * 2. Route handlers for notable actions (e.g. app/api/bookings/route.js)
  *    call logVisitorActivity() directly after the outcome is known
- * 3. geolocateIp() only runs for "action" events, not routine page
- *    views — ip-api.com's free tier is rate-limited (45 req/min), and a
- *    small resort site's page-view volume would burn through that fast
- *    for very little admin value; knowing where a booking came from
- *    matters more than where a page view came from
+ * 3. geolocateIp() now runs for every event, page views included. This
+ *    used to skip page views on purpose because the old lookup went
+ *    out to ip-api.com's free tier (rate-limited to 45 req/min, and a
+ *    plain-HTTP call leaking every visitor's IP to a third party). Now
+ *    that it reads the self-hosted MaxMind DB (services/geoip.js — the
+ *    same source already fixed for Security Logs, Rule 38.5) there's
+ *    no external call, no rate limit, and no reason left to leave page
+ *    views without a location.
  */
+import { lookupGeoLocation } from "@/services/geoip";
 import { prisma } from "@/services/prisma";
-
-// In-memory cache so the same visitor browsing multiple pages within a
-// session doesn't trigger a fresh geolocation lookup every single time.
-// Cleared on server restart — fine, since it's just a courtesy cache.
-const geoCache = new Map();
-
-const PRIVATE_IP_PATTERNS = [/^127\./, /^10\./, /^192\.168\./, /^::1$/, /^0\.0\.0\.0$/];
-
-function isPrivateOrLocalIp(ip) {
-  if (!ip) return true;
-  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(ip));
-}
 
 /**
  * getRequestMeta
@@ -48,37 +40,14 @@ function getRequestMeta(request) {
 
 /**
  * geolocateIp
- * Best-effort city/country lookup for a public IP using ip-api.com's
- * free, keyless endpoint. Returns { city: null, country: null } for
- * local/private IPs (always the case in local dev) or on any failure —
- * this must never throw or block the caller.
+ * Best-effort city/country lookup for a public IP via the self-hosted
+ * MaxMind DB. lookupGeoLocation() already returns nulls for
+ * private/loopback IPs and on any failure — this must never throw or
+ * block the caller either way.
  */
 async function geolocateIp(ipAddress) {
-  if (isPrivateOrLocalIp(ipAddress)) return { city: null, country: null };
-  if (geoCache.has(ipAddress)) return geoCache.get(ipAddress);
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2500);
-
-    const response = await fetch(
-      `http://ip-api.com/json/${ipAddress}?fields=status,city,country`,
-      { signal: controller.signal }
-    );
-    clearTimeout(timeout);
-
-    const result = await response.json();
-    const location =
-      result?.status === "success"
-        ? { city: result.city ?? null, country: result.country ?? null }
-        : { city: null, country: null };
-
-    geoCache.set(ipAddress, location);
-    return location;
-  } catch (error) {
-    console.error("[visitorLog] Geolocation lookup failed:", error.message);
-    return { city: null, country: null };
-  }
+  const location = await lookupGeoLocation(ipAddress);
+  return { city: location.city, country: location.countryCode };
 }
 
 /**
@@ -88,15 +57,17 @@ async function geolocateIp(ipAddress) {
  * @param {string} input.action - "page_view" | "booking_submitted"
  * @param {string|null} input.path - page path being visited (page_view events)
  * @param {string|null} input.details - human-readable one-line summary
- * @param {boolean} input.withLocation - whether to run the geo lookup
- *   (skip for high-volume page_view events, run for notable transactions)
+ * @param {boolean} input.withLocation - whether to run the geo lookup.
+ *   Defaults to true now that lookupGeoLocation() is a free, local,
+ *   no-rate-limit MaxMind read — kept as an opt-out, not an opt-in, in
+ *   case a future caller ever needs to skip it for its own reason.
  */
 export async function logVisitorActivity({
   request = null,
   action = "page_view",
   path = null,
   details = null,
-  withLocation = false,
+  withLocation = true,
 }) {
   const { ipAddress, userAgent } = getRequestMeta(request);
   const { city, country } = withLocation

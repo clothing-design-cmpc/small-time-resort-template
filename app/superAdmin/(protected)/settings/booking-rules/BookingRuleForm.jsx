@@ -177,6 +177,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
   const groupDiscountPercent = watch("groupDiscountPercent");
   const depositPercentage = watch("depositPercentage");
   const depositRequired = watch("depositRequired");
+  const allowOvernightStay = watch("allowOvernightStay");
   const allowDayTour = watch("allowDayTour");
   const allowNightTour = watch("allowNightTour");
 

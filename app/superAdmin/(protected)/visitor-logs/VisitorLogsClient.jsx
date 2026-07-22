@@ -110,8 +110,8 @@ export default function VisitorLogsClient() {
         <h1 className="visitorLogsTitle">Visitor Logs</h1>
         <p className="visitorLogsSubtitle">
           Every page view and notable transaction from the visitor site — IP address, best-effort
-          location, and what they did — newest first. Location is only looked up for transactions
-          (like bookings), not routine page views.
+          location, and what they did — newest first. Location won&apos;t show for local/loopback
+          testing (e.g. localhost) since there&apos;s no real IP to geolocate.
         </p>
       </div>
 

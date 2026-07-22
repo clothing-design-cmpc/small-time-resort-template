@@ -66,9 +66,13 @@ export async function PUT(request, { params }) {
       where: { id: ruleId },
       data: {
         name: name || existingRule.name,
+        // minNightsRequired / maxNightsAllowed / advanceBookingDays are no
+        // longer sent by the form. Prisma skips `undefined` values on
+        // update, so the existing DB value is left untouched here.
         minNightsRequired: body.minNightsRequired,
         maxNightsAllowed: body.maxNightsAllowed,
         advanceBookingDays: body.advanceBookingDays,
+        ruleDates: Array.isArray(body.ruleDates) ? body.ruleDates : undefined,
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         allowOvernightStay: body.allowOvernightStay,
@@ -80,6 +84,7 @@ export async function PUT(request, { params }) {
         nightTourStartTime: body.nightTourStartTime,
         nightTourEndTime: body.nightTourEndTime,
         nightTourPricePerGuest: body.nightTourPricePerGuest,
+        hourlyChargeAmount: body.hourlyChargeAmount,
         refundPercentage: body.refundPercentage,
         cancellationCutoffDays: body.cancellationCutoffDays,
         depositRequired: body.depositRequired,

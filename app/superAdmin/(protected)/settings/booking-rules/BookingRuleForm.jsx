@@ -27,6 +27,7 @@ import { z } from "zod";
 import axios from "axios";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
+import RuleDatesCalendar from "./RuleDatesCalendar";
 import "./BookingRules.css";
 
 /* z.coerce.number() on every numeric field is what actually makes this
@@ -35,9 +36,7 @@ import "./BookingRules.css";
    columns, which throws. */
 const bookingRuleSchema = z.object({
   name: z.string().min(1, "Give this rule set a name, e.g. \"Regular Season\"."),
-  minNightsRequired: z.coerce.number().int().min(1),
-  maxNightsAllowed: z.coerce.number().int().min(1),
-  advanceBookingDays: z.coerce.number().int().min(0),
+  ruleDates: z.array(z.string()).min(1, "Pumili ng kahit isang petsa para sa rule na ito."),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
   allowOvernightStay: z.boolean(),
@@ -49,6 +48,7 @@ const bookingRuleSchema = z.object({
   nightTourStartTime: z.string().min(1),
   nightTourEndTime: z.string().min(1),
   nightTourPricePerGuest: z.coerce.number().min(0),
+  hourlyChargeAmount: z.coerce.number().min(0),
   refundPercentage: z.coerce.number().int().min(0).max(100),
   cancellationCutoffDays: z.coerce.number().int().min(0),
   depositRequired: z.boolean(),
@@ -65,9 +65,7 @@ const bookingRuleSchema = z.object({
    the admin already typed) — nothing is saved to the DB until the
    admin clicks "Save". */
 const DEFAULT_BOOKING_RULE_VALUES = {
-  minNightsRequired: 1,
-  maxNightsAllowed: 30,
-  advanceBookingDays: 365,
+  ruleDates: [],
   checkInTime: "14:00",
   checkOutTime: "11:00",
   allowOvernightStay: true,
@@ -79,6 +77,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   nightTourStartTime: "18:00",
   nightTourEndTime: "23:00",
   nightTourPricePerGuest: 600,
+  hourlyChargeAmount: 0,
   refundPercentage: 100,
   cancellationCutoffDays: 7,
   depositRequired: true,
@@ -100,15 +99,14 @@ export default function BookingRuleForm({ existingRule, rooms }) {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { isSubmitting, errors },
   } = useForm({
     resolver: zodResolver(bookingRuleSchema),
     defaultValues: existingRule
       ? {
           name: existingRule.name,
-          minNightsRequired: existingRule.minNightsRequired,
-          maxNightsAllowed: existingRule.maxNightsAllowed,
-          advanceBookingDays: existingRule.advanceBookingDays,
+          ruleDates: existingRule.ruleDates ?? [],
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
           allowOvernightStay: existingRule.allowOvernightStay,
@@ -120,6 +118,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
           nightTourStartTime: existingRule.nightTourStartTime,
           nightTourEndTime: existingRule.nightTourEndTime,
           nightTourPricePerGuest: existingRule.nightTourPricePerGuest,
+          hourlyChargeAmount: existingRule.hourlyChargeAmount ?? 0,
           refundPercentage: existingRule.refundPercentage,
           cancellationCutoffDays: existingRule.cancellationCutoffDays,
           depositRequired: existingRule.depositRequired,
@@ -132,6 +131,43 @@ export default function BookingRuleForm({ existingRule, rooms }) {
         }
       : { name: "", ...DEFAULT_BOOKING_RULE_VALUES },
   });
+
+  // Section 1's date-selection state — a Set of "YYYY-MM-DD" keys, kept
+  // separately from react-hook-form's own state since RuleDatesCalendar
+  // isn't a native input. Synced into the "ruleDates" form field via
+  // setValue on every toggle so validation/submit still see it.
+  const [selectedDates, setSelectedDates] = useState(
+    () => new Set(existingRule?.ruleDates ?? [])
+  );
+
+  /**
+   * handleToggleDate
+   * Adds/removes a date from the Section 1 calendar selection. Selecting
+   * a 2nd+ date forces booking type to Overnight (Customized) — Day/Night
+   * Tour only make sense for a single day, so a stale selection from
+   * single-date mode can't linger once the admin picks more dates.
+   */
+  function handleToggleDate(dateKey) {
+    setSelectedDates((previousDates) => {
+      const nextDates = new Set(previousDates);
+      if (nextDates.has(dateKey)) {
+        nextDates.delete(dateKey);
+      } else {
+        nextDates.add(dateKey);
+      }
+
+      const sortedDateList = Array.from(nextDates).sort();
+      setValue("ruleDates", sortedDateList, { shouldValidate: true });
+
+      if (sortedDateList.length > 1) {
+        setValue("allowOvernightStay", true);
+        setValue("allowDayTour", false);
+        setValue("allowNightTour", false);
+      }
+
+      return nextDates;
+    });
+  }
 
   // Every field below feeds Preview Impact directly, so changing any of
   // them updates the numbers immediately — no separate "recalculate" button.
@@ -219,6 +255,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
 
   function handleResetToDefault() {
     reset({ name: watch("name"), ...DEFAULT_BOOKING_RULE_VALUES });
+    setSelectedDates(new Set());
     showToast("Form reset to default values — click “Save” to apply.", "warning");
   }
 
@@ -243,117 +280,146 @@ export default function BookingRuleForm({ existingRule, rooms }) {
           </div>
         </div>
 
-        {/* --- Section 1: General Booking Settings --- */}
+        {/* --- Section 1: Rule Schedule ---
+             Calendar-driven — the admin picks date(s) first, and the
+             fields below change shape based on how many are selected:
+               1 date   -> Rule 1: choose Overnight/Day Tour/Night Tour
+               2+ dates -> Rule 2: Overnight (Customized) + Hourly Charge
+             minNightsRequired/maxNightsAllowed/advanceBookingDays were
+             removed from this form per admin request — no longer
+             editable here, but remain in the DB at their defaults so
+             existing booking validation is unaffected. */}
         <div className="bookingRulesSection">
-          <h2 className="bookingRulesSectionTitle">Section 1: General Booking Settings</h2>
-          <p className="bookingRulesSectionSubtitle">How long, how far ahead, and what times guests check in/out under this rule set.</p>
+          <h2 className="bookingRulesSectionTitle">Section 1: Rule Schedule</h2>
+          <p className="bookingRulesSectionSubtitle">Piliin ang petsa (o mga petsa) na sasakupin ng rule na ito, tapos punan ang mga detalye.</p>
 
-          <div className="bookingRulesFormRow">
-            <div className="bookingRulesFormField">
-              <label htmlFor="minNightsRequired">Shortest Stay Allowed (nights)</label>
-              <input id="minNightsRequired" type="number" {...register("minNightsRequired")} />
-              <p className="bookingRulesHint">Halimbawa: kung 2 ang nilagay, hindi puwedeng mag-book ng 1 gabi lang — dapat 2 gabi pataas.</p>
-              {errors.minNightsRequired && <span role="alert" className="bookingRulesFormError">{errors.minNightsRequired.message}</span>}
-            </div>
-            <div className="bookingRulesFormField">
-              <label htmlFor="maxNightsAllowed">Longest Stay Allowed (nights)</label>
-              <input id="maxNightsAllowed" type="number" {...register("maxNightsAllowed")} />
-              <p className="bookingRulesHint">Halimbawa: kung 14 ang nilagay, hanggang 14 gabi lang puwede sa isang booking. Ito na ang tanging pinagmumulan ng limit — hindi na ito nao-override ng anumang setting sa Rooms.</p>
-              {errors.maxNightsAllowed && <span role="alert" className="bookingRulesFormError">{errors.maxNightsAllowed.message}</span>}
-            </div>
-          </div>
+          <RuleDatesCalendar selectedDates={selectedDates} onToggleDate={handleToggleDate} />
+          {errors.ruleDates && <span role="alert" className="bookingRulesFormError">{errors.ruleDates.message}</span>}
 
-          <div className="bookingRulesFormRow">
-            <div className="bookingRulesFormField">
-              <label htmlFor="advanceBookingDays">How Far Ahead Guests Can Book (days)</label>
-              <input id="advanceBookingDays" type="number" {...register("advanceBookingDays")} />
-              <p className="bookingRulesHint">Halimbawa: 365 = puwedeng mag-book ang guest hanggang 1 taon bago ang check-in date nila.</p>
-              {errors.advanceBookingDays && <span role="alert" className="bookingRulesFormError">{errors.advanceBookingDays.message}</span>}
-            </div>
-            <div className="bookingRulesFormField">
-              <label htmlFor="checkInTime">Check-in Time</label>
-              <input id="checkInTime" type="time" {...register("checkInTime")} />
-              <p className="bookingRulesHint">Pinakamaagang oras na puwedeng dumating ang guest para mag-check-in.</p>
-            </div>
-            <div className="bookingRulesFormField">
-              <label htmlFor="checkOutTime">Check-out Time</label>
-              <input id="checkOutTime" type="time" {...register("checkOutTime")} />
-              <p className="bookingRulesHint">Pinakahuling oras na dapat umalis ang guest sa araw ng check-out.</p>
-            </div>
-          </div>
-
-          <div className="bookingRulesFormField">
-            <label>Types of Booking Guests Can Make</label>
-            <p className="bookingRulesHint">
-              <strong>Overnight Stay</strong> = tulog sa isang room, gamit ang Check-in/Check-out Time sa itaas.{" "}
-              <strong>Day Tour</strong> at <strong>Night Tour</strong> = walang room, walang tulog — pasok lang sa
-              resort sa loob ng ilang oras, may sariling oras at bayad na hiwalay sa presyo ng room.
-            </p>
-            <div className="bookingRulesToggleRow">
-              <label className="bookingRulesToggle">
-                <input type="checkbox" {...register("allowOvernightStay")} />
-                Overnight Stay (tulugan, may room)
-              </label>
-              <label className="bookingRulesToggle">
-                <input type="checkbox" {...register("allowDayTour")} />
-                Day Tour (araw lang, walang room)
-              </label>
-              <label className="bookingRulesToggle">
-                <input type="checkbox" {...register("allowNightTour")} />
-                Night Tour (gabi lang, walang room)
-              </label>
-            </div>
-          </div>
-
-          {allowDayTour && (
+          {/* --- Rule 1: exactly one date selected --- */}
+          {selectedDates.size === 1 && (
             <div className="bookingRulesSubPanel">
-              <p className="bookingRulesSubPanelTitle">Day Tour Settings</p>
-              <p className="bookingRulesHint">Ito ang mangyayari kapag pinili ng guest ang &quot;Day Tour&quot; sa booking form nila.</p>
-              <div className="bookingRulesFormRow">
-                <div className="bookingRulesFormField">
-                  <label htmlFor="dayTourStartTime">Simula ng Day Tour</label>
-                  <input id="dayTourStartTime" type="time" {...register("dayTourStartTime")} />
-                </div>
-                <div className="bookingRulesFormField">
-                  <label htmlFor="dayTourEndTime">Katapusan ng Day Tour</label>
-                  <input id="dayTourEndTime" type="time" {...register("dayTourEndTime")} />
-                </div>
-                <div className="bookingRulesFormField">
-                  <label htmlFor="dayTourPricePerGuest">Bayad Kada Guest (₱)</label>
-                  <input id="dayTourPricePerGuest" type="number" step="0.01" {...register("dayTourPricePerGuest")} />
-                  {errors.dayTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.dayTourPricePerGuest.message}</span>}
-                </div>
+              <p className="bookingRulesSubPanelTitle">Uri ng Booking</p>
+              <div className="bookingRulesToggleRow">
+                <label className="bookingRulesToggle">
+                  <input
+                    type="radio"
+                    name="singleDateBookingType"
+                    checked={allowOvernightStay && !allowDayTour && !allowNightTour}
+                    onChange={() => {
+                      setValue("allowOvernightStay", true);
+                      setValue("allowDayTour", false);
+                      setValue("allowNightTour", false);
+                    }}
+                  />
+                  Overnight Stay (tulugan, may room)
+                </label>
+                <label className="bookingRulesToggle">
+                  <input
+                    type="radio"
+                    name="singleDateBookingType"
+                    checked={allowDayTour}
+                    onChange={() => {
+                      setValue("allowOvernightStay", false);
+                      setValue("allowDayTour", true);
+                      setValue("allowNightTour", false);
+                    }}
+                  />
+                  Day Tour (araw lang, walang room)
+                </label>
+                <label className="bookingRulesToggle">
+                  <input
+                    type="radio"
+                    name="singleDateBookingType"
+                    checked={allowNightTour}
+                    onChange={() => {
+                      setValue("allowOvernightStay", false);
+                      setValue("allowDayTour", false);
+                      setValue("allowNightTour", true);
+                    }}
+                  />
+                  Night Tour (gabi lang, walang room)
+                </label>
               </div>
-              <p className="bookingRulesHint">
-                Halimbawa: {watch("dayTourStartTime")}–{watch("dayTourEndTime")}, ₱{Number(watch("dayTourPricePerGuest") || 0).toLocaleString()} kada tao —
-                walang assigned na room, gagamitin lang ng guest ang pool/facilities sa oras na ito.
-              </p>
+
+              {allowOvernightStay && !allowDayTour && !allowNightTour && (
+                <div className="bookingRulesFormRow">
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="checkInTimeSingle">Check-in Date &amp; Time</label>
+                    <input id="checkInTimeSingle" type="time" {...register("checkInTime")} />
+                    <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="checkOutTimeSingle">Check-out Date &amp; Time</label>
+                    <input id="checkOutTimeSingle" type="time" {...register("checkOutTime")} />
+                  </div>
+                </div>
+              )}
+
+              {allowDayTour && (
+                <div className="bookingRulesFormRow">
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourStartTime">Check-in Date &amp; Time</label>
+                    <input id="dayTourStartTime" type="time" {...register("dayTourStartTime")} />
+                    <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourEndTime">Check-out Date &amp; Time</label>
+                    <input id="dayTourEndTime" type="time" {...register("dayTourEndTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourPricePerGuest">Bayad Kada Guest (₱)</label>
+                    <input id="dayTourPricePerGuest" type="number" step="0.01" {...register("dayTourPricePerGuest")} />
+                    {errors.dayTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.dayTourPricePerGuest.message}</span>}
+                  </div>
+                </div>
+              )}
+
+              {allowNightTour && (
+                <div className="bookingRulesFormRow">
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourStartTime">Check-in Date &amp; Time</label>
+                    <input id="nightTourStartTime" type="time" {...register("nightTourStartTime")} />
+                    <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourEndTime">Check-out Date &amp; Time</label>
+                    <input id="nightTourEndTime" type="time" {...register("nightTourEndTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourPricePerGuest">Bayad Kada Guest (₱)</label>
+                    <input id="nightTourPricePerGuest" type="number" step="0.01" {...register("nightTourPricePerGuest")} />
+                    {errors.nightTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.nightTourPricePerGuest.message}</span>}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {allowNightTour && (
+          {/* --- Rule 2: two or more dates selected --- */}
+          {selectedDates.size > 1 && (
             <div className="bookingRulesSubPanel">
-              <p className="bookingRulesSubPanelTitle">Night Tour Settings</p>
-              <p className="bookingRulesHint">Ito ang mangyayari kapag pinili ng guest ang &quot;Night Tour&quot; sa booking form nila.</p>
+              <p className="bookingRulesSubPanelTitle">Overnight (Customized)</p>
+              <p className="bookingRulesHint">
+                {selectedDates.size} na petsa ang napili — overnight lagi ang type kapag maraming petsa, may sariling
+                check-in/check-out at dagdag na hourly charge sa ibabaw ng normal na per-night rate.
+              </p>
               <div className="bookingRulesFormRow">
                 <div className="bookingRulesFormField">
-                  <label htmlFor="nightTourStartTime">Simula ng Night Tour</label>
-                  <input id="nightTourStartTime" type="time" {...register("nightTourStartTime")} />
+                  <label htmlFor="checkInTimeMulti">Check-in Date &amp; Time</label>
+                  <input id="checkInTimeMulti" type="time" {...register("checkInTime")} />
                 </div>
                 <div className="bookingRulesFormField">
-                  <label htmlFor="nightTourEndTime">Katapusan ng Night Tour</label>
-                  <input id="nightTourEndTime" type="time" {...register("nightTourEndTime")} />
+                  <label htmlFor="checkOutTimeMulti">Check-out Date &amp; Time</label>
+                  <input id="checkOutTimeMulti" type="time" {...register("checkOutTime")} />
                 </div>
                 <div className="bookingRulesFormField">
-                  <label htmlFor="nightTourPricePerGuest">Bayad Kada Guest (₱)</label>
-                  <input id="nightTourPricePerGuest" type="number" step="0.01" {...register("nightTourPricePerGuest")} />
-                  {errors.nightTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.nightTourPricePerGuest.message}</span>}
+                  <label htmlFor="hourlyChargeAmount">Hourly Charge (₱)</label>
+                  <input id="hourlyChargeAmount" type="number" step="0.01" min="0" {...register("hourlyChargeAmount")} />
+                  <p className="bookingRulesHint">Dagdag na bayad kada oras, sa ibabaw ng normal na per-night rate.</p>
+                  {errors.hourlyChargeAmount && <span role="alert" className="bookingRulesFormError">{errors.hourlyChargeAmount.message}</span>}
                 </div>
               </div>
-              <p className="bookingRulesHint">
-                Halimbawa: {watch("nightTourStartTime")}–{watch("nightTourEndTime")}, ₱{Number(watch("nightTourPricePerGuest") || 0).toLocaleString()} kada tao —
-                walang assigned na room, gagamitin lang ng guest ang pool/facilities sa oras na ito.
-              </p>
             </div>
           )}
         </div>

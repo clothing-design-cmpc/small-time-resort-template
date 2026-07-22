@@ -1,17 +1,18 @@
 /**
- * FILE: app/api/superAdmin/settings/booking-rules/route.js
+ * FILE: app/api/superAdmin/settings/booking-rules/[ruleId]/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * GET  -> returns every BookingRule set, newest first, for the Booking
- *         Rules list page. Bootstraps a "Default Rules" row via
- *         getActiveBookingRule() if none exist yet, so the list is
- *         never empty on a brand-new project.
- * POST -> creates a new named rule set (e.g. "Holiday Season Rules").
- *         Pre-save duplicate check on name (Rule 6) since the DB
- *         unique constraint alone would surface as an unfriendly 500.
- *         Never sets isActive here — a new rule set only becomes
- *         active through the dedicated activate endpoint.
+ * GET    -> fetch a single booking rule set for the edit form.
+ * PUT    -> update a rule set. Re-checks name uniqueness (excluding
+ *           itself). Never touches isActive here — that's handled only
+ *           by the dedicated activate endpoint, so "Save Changes" on a
+ *           rule set can never silently make it (or another rule) the
+ *           active one by accident.
+ * DELETE -> deletes a rule set. Blocked if it's currently active (an
+ *           admin must activate a different one first) or if it's the
+ *           only rule set left (the resort must always have at least
+ *           one to fall back on).
  */
 export const dynamic = "force-dynamic";
 
@@ -19,102 +20,143 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
-import { getActiveBookingRule } from "@/services/bookingRules";
 
-export async function GET() {
+export async function GET(request, { params }) {
+  const { ruleId } = await params;
+
   try {
-    // Bootstraps a "Default Rules" row on a brand-new project so the
-    // list is never empty before an admin has created anything.
-    await getActiveBookingRule();
-
-    const bookingRules = await prisma.bookingRule.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: bookingRules,
-      message: "Booking rule sets fetched successfully.",
-    });
+    const rule = await prisma.bookingRule.findUnique({ where: { id: ruleId } });
+    if (!rule) {
+      return NextResponse.json({ success: false, data: null, message: "Booking rule set not found." }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, data: rule, message: "Booking rule set fetched successfully." });
   } catch (error) {
     console.error("[BookingRules] Failed to fetch:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't load the booking rule sets. Please try again." },
+      { success: false, data: null, message: "We couldn't load this rule set. Please try again." },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request) {
+export async function PUT(request, { params }) {
+  const { ruleId } = await params;
+
   try {
     const body = await request.json();
     const name = body.name?.trim();
 
-    if (!name) {
-      return NextResponse.json(
-        { success: false, data: null, message: "A name is required for this rule set." },
-        { status: 400 }
-      );
+    const existingRule = await prisma.bookingRule.findUnique({ where: { id: ruleId } });
+    if (!existingRule) {
+      return NextResponse.json({ success: false, data: null, message: "Booking rule set not found." }, { status: 404 });
     }
 
-    // Pre-save duplicate check (Rule 6) — never rely on the DB unique constraint alone.
-    const nameTaken = await prisma.bookingRule.findUnique({ where: { name } });
-    if (nameTaken) {
-      return NextResponse.json(
-        { success: false, data: null, message: "A booking rule set with this name already exists." },
-        { status: 409 }
-      );
+    // Duplicate check excludes this rule's own current name.
+    if (name && name !== existingRule.name) {
+      const nameTaken = await prisma.bookingRule.findUnique({ where: { name } });
+      if (nameTaken) {
+        return NextResponse.json(
+          { success: false, data: null, message: "A booking rule set with this name already exists." },
+          { status: 409 }
+        );
+      }
     }
 
-    const newRule = await prisma.bookingRule.create({
+    const updatedRule = await prisma.bookingRule.update({
+      where: { id: ruleId },
       data: {
-        name,
-        // isActive intentionally omitted — defaults to false (schema
-        // default). Activating a new rule set is a separate, explicit action.
-        minNightsRequired: body.minNightsRequired ?? 1,
-        maxNightsAllowed: body.maxNightsAllowed ?? 30,
-        advanceBookingDays: body.advanceBookingDays ?? 365,
-        checkInTime: body.checkInTime ?? "14:00",
-        checkOutTime: body.checkOutTime ?? "11:00",
-        allowOvernightStay: body.allowOvernightStay ?? true,
-        allowDayTour: body.allowDayTour ?? false,
-        allowNightTour: body.allowNightTour ?? false,
-        dayTourStartTime: body.dayTourStartTime ?? "08:00",
-        dayTourEndTime: body.dayTourEndTime ?? "17:00",
-        dayTourPricePerGuest: body.dayTourPricePerGuest ?? 500,
-        nightTourStartTime: body.nightTourStartTime ?? "18:00",
-        nightTourEndTime: body.nightTourEndTime ?? "23:00",
-        nightTourPricePerGuest: body.nightTourPricePerGuest ?? 600,
-        refundPercentage: body.refundPercentage ?? 100,
-        cancellationCutoffDays: body.cancellationCutoffDays ?? 7,
-        depositRequired: body.depositRequired ?? true,
-        depositPercentage: body.depositPercentage ?? 50,
-        weekendSurchargePercent: body.weekendSurchargePercent ?? 0,
-        lastMinuteDiscountPercent: body.lastMinuteDiscountPercent ?? 0,
-        groupDiscountThreshold: body.groupDiscountThreshold ?? 3,
-        groupDiscountPercent: body.groupDiscountPercent ?? 0,
-        seasonalPricingEnabled: body.seasonalPricingEnabled ?? true,
+        name: name || existingRule.name,
+        // minNightsRequired / maxNightsAllowed / advanceBookingDays are no
+        // longer sent by the form. Prisma skips `undefined` values on
+        // update, so the existing DB value is left untouched here.
+        minNightsRequired: body.minNightsRequired,
+        maxNightsAllowed: body.maxNightsAllowed,
+        advanceBookingDays: body.advanceBookingDays,
+        ruleDates: Array.isArray(body.ruleDates) ? body.ruleDates : undefined,
+        checkInTime: body.checkInTime,
+        checkOutTime: body.checkOutTime,
+        allowOvernightStay: body.allowOvernightStay,
+        allowDayTour: body.allowDayTour,
+        allowNightTour: body.allowNightTour,
+        dayTourStartTime: body.dayTourStartTime,
+        dayTourEndTime: body.dayTourEndTime,
+        dayTourPricePerGuest: body.dayTourPricePerGuest,
+        nightTourStartTime: body.nightTourStartTime,
+        nightTourEndTime: body.nightTourEndTime,
+        nightTourPricePerGuest: body.nightTourPricePerGuest,
+        hourlyChargeAmount: body.hourlyChargeAmount,
+        refundPercentage: body.refundPercentage,
+        cancellationCutoffDays: body.cancellationCutoffDays,
+        depositRequired: body.depositRequired,
+        depositPercentage: body.depositPercentage,
+        weekendSurchargePercent: body.weekendSurchargePercent,
+        lastMinuteDiscountPercent: body.lastMinuteDiscountPercent,
+        groupDiscountThreshold: body.groupDiscountThreshold,
+        groupDiscountPercent: body.groupDiscountPercent,
+        seasonalPricingEnabled: body.seasonalPricingEnabled,
         updatedBy: body.updatedBy || null,
       },
     });
 
-    // Audit trail (Rule 6) — who created which rule set.
+    // Audit trail (Rule 6) — which rule set changed, and who changed it.
     const session = requireSuperAdmin(request);
     await logSecurityEvent({
       eventType: "admin_action",
       actor: session?.uid ?? null,
       request,
-      details: `Created booking rule set "${newRule.name}".`,
+      details: `Updated booking rule set "${existingRule.name}".`,
     });
 
-    return NextResponse.json(
-      { success: true, data: newRule, message: "Booking rule set created successfully." },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, data: updatedRule, message: "Booking rule set saved successfully." });
   } catch (error) {
-    console.error("[BookingRules] Failed to create:", error);
+    console.error("[BookingRules] Failed to update:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't create this rule set. Please try again." },
+      { success: false, data: null, message: "We couldn't save this rule set. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const { ruleId } = await params;
+
+  try {
+    const rule = await prisma.bookingRule.findUnique({ where: { id: ruleId } });
+    if (!rule) {
+      return NextResponse.json({ success: false, data: null, message: "Booking rule set not found." }, { status: 404 });
+    }
+
+    if (rule.isActive) {
+      return NextResponse.json(
+        { success: false, data: null, message: "This rule set is currently active. Activate a different rule set before deleting it." },
+        { status: 409 }
+      );
+    }
+
+    const totalRuleCount = await prisma.bookingRule.count();
+    if (totalRuleCount <= 1) {
+      return NextResponse.json(
+        { success: false, data: null, message: "The resort must always have at least one booking rule set." },
+        { status: 409 }
+      );
+    }
+
+    await prisma.bookingRule.delete({ where: { id: ruleId } });
+
+    // Audit trail (Rule 6) — deletions are the most important action to trace.
+    const session = requireSuperAdmin(request);
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: session?.uid ?? null,
+      request,
+      details: `Deleted booking rule set "${rule.name}".`,
+    });
+
+    return NextResponse.json({ success: true, data: null, message: "Booking rule set deleted successfully." });
+  } catch (error) {
+    console.error("[BookingRules] Failed to delete:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "We couldn't delete this rule set. Please try again." },
       { status: 500 }
     );
   }

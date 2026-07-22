@@ -299,9 +299,9 @@ export default function HomepageSettingsClient() {
         </div>
       </div>
 
-      {/* ---------- Section 4: CTA Section ---------- */}
+      {/* ---------- Section 4: Booking Prompt (was "CTA Section") ---------- */}
       <div className="homepagePanel">
-        <h2 className="homepagePanelTitle">CTA Section</h2>
+        <h2 className="homepagePanelTitle">Booking Prompt</h2>
         <label className="homepageFormToggle">
           <input
             type="checkbox"

@@ -430,16 +430,33 @@ model BookingRule {
   isActive Boolean @default(false) @map("is_active") // exactly one row should be true at a time — enforced in the activate API route, not the DB
 
   // --- Section 1: General Booking Settings ---
+  // minNightsRequired / maxNightsAllowed / advanceBookingDays are no longer
+  // editable from the Create/Edit form (removed from Section 1 per admin
+  // request — the calendar-driven flow below replaced them). Fields and
+  // their defaults are kept here so existing booking validation
+  // (services/bookingPricing.js, availability route) keeps working
+  // unchanged — only the UI stopped exposing them.
   minNightsRequired  Int    @default(1) @map("min_nights_required")
   maxNightsAllowed   Int    @default(30) @map("max_nights_allowed")
   advanceBookingDays Int    @default(365) @map("advance_booking_days") // guests can book at most this many days ahead
   checkInTime        String @default("14:00") @map("check_in_time") // 24h "HH:mm"
   checkOutTime       String @default("11:00") @map("check_out_time") // 24h "HH:mm"
 
+  // --- Rule Schedule — which specific calendar dates this rule set's
+  //     Section 1 settings apply to. Stored as "YYYY-MM-DD" keys.
+  //     Empty array = no specific dates picked yet (rule set still needs
+  //     Section 1 completed before it's meaningful to activate). ---
+  ruleDates String[] @default([]) @map("rule_dates")
+
   // --- Booking Types (extension beyond the base blueprint, per admin request) ---
   allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
   allowDayTour       Boolean @default(false) @map("allow_day_tour")
   allowNightTour     Boolean @default(false) @map("allow_night_tour")
+
+  // --- Hourly Charge — only meaningful when ruleDates has 2+ dates
+  //     selected ("Overnight (Customized)" mode in Section 1). Extra
+  //     charge applied per hour on top of the normal per-night rate. ---
+  hourlyChargeAmount Decimal @default(0) @map("hourly_charge_amount") @db.Decimal(10, 2)
 
   // --- Day Tour settings — only meaningful when allowDayTour is true.
   //     A Day Tour is a same-day, no-room, no-overnight visit (guest

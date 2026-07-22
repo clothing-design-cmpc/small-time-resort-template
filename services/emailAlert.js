@@ -110,14 +110,14 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
   // Human-readable rotation timestamp for the email — the raw ISO string
   // ("2026-07-16T11:37:16.992Z") reads fine in a filename or a log row,
   // but is unnecessarily hard to parse at a glance in an email a real
-  // person has to read quickly. UTC is spelled out explicitly since the
-  // owner could be reading this from any timezone.
+  // person has to read quickly. Rendered in Philippine time (the resort
+  // owner's timezone) with the offset spelled out explicitly.
   const rotatedAtReadable =
     new Date().toLocaleString("en-US", {
       dateStyle: "long",
       timeStyle: "short",
-      timeZone: "UTC",
-    }) + " UTC";
+      timeZone: "Asia/Manila",
+    }) + " PHT";
 
   return sendGeneralEmail({
     toEmail: vaultOwnerEmail,
@@ -177,8 +177,8 @@ export async function sendVaultUrlRotationEmail(newVaultRecoveryUrl) {
     new Date().toLocaleString("en-US", {
       dateStyle: "long",
       timeStyle: "short",
-      timeZone: "UTC",
-    }) + " UTC";
+      timeZone: "Asia/Manila",
+    }) + " PHT";
 
   return sendGeneralEmail({
     toEmail: vaultOwnerEmail,

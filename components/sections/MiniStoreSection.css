@@ -57,6 +57,38 @@
   max-width: 52ch;
 }
 
+/* ─── Shop info bar (hours / location, admin-configured) ───────────────── */
+/*
+ * .miniStoreInfoBar
+ * Small centered row under the header showing shop hours and location
+ * when the admin has set either one. Pulled up slightly with a negative
+ * margin so it sits closer to the header than the section's default gap.
+ */
+.miniStoreInfoBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: calc(var(--space-2xl) * -1 + var(--space-sm));
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.miniStoreInfoItem {
+  white-space: nowrap;
+}
+
+.miniStoreInfoItem:not(:last-child)::after {
+  content: "•";
+  margin-left: var(--space-md);
+  color: var(--color-text-muted);
+}
+
 /* ─── Product grid ──────────────────────────────────────────────────── */
 /*
  * .miniStoreGrid

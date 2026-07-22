@@ -12,7 +12,12 @@
  *    Resort Shop data the super-admin manages under Content > Resort
  *    Shop, filtered to isActive. Replaces the old hardcoded PRODUCTS
  *    constant that lived directly in this file.
- * 3. Renders a loading skeleton, an error state with retry, an empty
+ * 3. The same response also returns the ShopConfig singleton (hours,
+ *    location, alcohol warning text — Content > Resort Shop > Config).
+ *    Hours/location render as an info bar under the section header;
+ *    alcoholWarningText replaces the footer note when the admin has
+ *    set one, falling back to the original static footnote otherwise.
+ * 4. Renders a loading skeleton, an error state with retry, an empty
  *    state (no products marked active yet), or the real grid (Rule 25)
  */
 "use client";
@@ -20,6 +25,10 @@
 import Image from "next/image";
 import { usePublicShopProducts } from "@/hooks/usePublicShopProducts";
 import "./MiniStoreSection.css";
+
+const DEFAULT_FOOTNOTE =
+  "All drinks are available at the gazebo bar, pool bar, or via " +
+  "in-villa delivery. Ask our team about pairings or custom orders.";
 
 /* Formats a number as Philippine Peso */
 function formatPrice(amount) {
@@ -31,7 +40,12 @@ function formatPrice(amount) {
 }
 
 export default function MiniStoreSection() {
-  const { products, isLoading, error, refetchProducts } = usePublicShopProducts();
+  const { products, config, isLoading, error, refetchProducts } = usePublicShopProducts();
+
+  // Only render the info bar once at least one of hours/location is set —
+  // an empty bar with nothing in it would just be dead space.
+  const hasShopInfo = Boolean(config?.shopHours || config?.shopLocation);
+  const footnote = config?.alcoholWarningText?.trim() || DEFAULT_FOOTNOTE;
 
   return (
     <section className="miniStoreSection" id="shop">
@@ -46,6 +60,18 @@ export default function MiniStoreSection() {
             gazebo bar, pool bar, or delivered to your villa anytime.
           </p>
         </div>
+
+        {/* Shop hours/location info bar — admin-configured, hidden if unset */}
+        {hasShopInfo && (
+          <div className="miniStoreInfoBar">
+            {config.shopHours && (
+              <span className="miniStoreInfoItem">{config.shopHours}</span>
+            )}
+            {config.shopLocation && (
+              <span className="miniStoreInfoItem">{config.shopLocation}</span>
+            )}
+          </div>
+        )}
 
         {/* Loading skeleton — mirrors the card grid shape */}
         {isLoading && (
@@ -124,11 +150,8 @@ export default function MiniStoreSection() {
           </div>
         )}
 
-        {/* Footer note */}
-        <p className="miniStoreFootnote">
-          All drinks are available at the gazebo bar, pool bar, or via
-          in-villa delivery. Ask our team about pairings or custom orders.
-        </p>
+        {/* Footer note — admin-configured alcohol warning text, or default */}
+        <p className="miniStoreFootnote">{footnote}</p>
 
       </div>
     </section>

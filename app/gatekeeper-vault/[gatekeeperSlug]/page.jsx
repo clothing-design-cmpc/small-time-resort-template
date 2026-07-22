@@ -1,43 +1,48 @@
 /**
- * FILE: app/gatekeeper-vault/[gatekeeperSlug]/login/page.jsx
- * ROLE: Standalone — NOT protected by proxy.js's super_admin gate. Also
- *       validates [gatekeeperSlug] itself — see below.
+ * FILE: app/gatekeeper-vault/[gatekeeperSlug]/page.jsx
+ * ROLE: Standalone — NOT protected by proxy.js's super_admin gate, NOT
+ *       part of the app/superAdmin route group, and NOT linked from
+ *       the Sidebar, AdminHeader, or anywhere else in the app. Gated
+ *       entirely by its own login chain plus the [gatekeeperSlug] check
+ *       below. Replaces the old, nav-linked
+ *       app/superAdmin/(protected)/gatekeeper-tester page.
  *
  * PURPOSE:
- * The Gatekeeper Vault's own login screen. No super_admin "session"
- * cookie is required to reach this page or submit this form — the
- * passphrase (GATEKEEPER_VAULT_PASSPHRASE_HASH /
- * GatekeeperVaultPassphrase.passphraseHash, services/gatekeeperVaultAuth.js)
- * is checked entirely on its own here.
+ * Hosts the Gatekeeper Tester (dry-runs Gatekeeper 1/2 breach
+ * detectors against this deployment) behind its own hidden URL and its
+ * own passphrase — completely separate secret from the disaster-
+ * recovery vault at app/system-vault/[vaultSlug]/.
  *
  * [gatekeeperSlug] IS NOT A FREE-FORM PARAMETER:
- * Only the ONE current value computeGatekeeperVaultUrlSlug() computes
- * ever resolves here. A wrong slug gets a plain 404 (notFound()),
- * never a redirect, so even this screen's existence is never confirmed
- * to someone guessing paths.
+ * Only ONE value ever resolves to anything — whatever
+ * computeGatekeeperVaultUrlSlug() (services/gatekeeperVaultAuth.js)
+ * currently computes from the live passphrase hash. Any other value
+ * hits notFound() and gets a plain 404, identical to a route that was
+ * never built.
  *
  * DATA FLOW:
  * 1. params.gatekeeperSlug doesn't match computeGatekeeperVaultUrlSlug() -> notFound()
- * 2. Server Component renders the shell + hands off to
- *    GatekeeperVaultLoginClient
- * 3. Client POSTs { passphrase } to /api/gatekeeper-vault/login
- * 4. On success that route sets the "gatekeeperVaultSession" cookie and
- *    this page redirects back to this same slug's root
+ * 2. No gatekeeperVaultSession cookie -> redirect to this slug's /login
+ * 3. Valid session -> render GatekeeperVaultClient (the dry-run UI)
  */
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { redirect, notFound } from "next/navigation";
 import "@/app/superAdmin/SuperAdmin.css";
-import "./GatekeeperVaultLogin.css";
-import { computeGatekeeperVaultUrlSlug } from "@/services/gatekeeperVaultAuth";
-import GatekeeperVaultLoginClient from "./GatekeeperVaultLoginClient";
+import "./GatekeeperVault.css";
+import {
+  requireGatekeeperVaultSessionFromCookieStore,
+  computeGatekeeperVaultUrlSlug,
+} from "@/services/gatekeeperVaultAuth";
+import GatekeeperVaultClient from "./GatekeeperVaultClient";
 
 export const metadata = {
   title: "System Recovery",
-  // Deliberately generic — never hint at what this gates to anyone who
-  // stumbles onto the URL.
+  // Same deliberately generic metadata as the login screen — never
+  // hint at what this gates to anyone who stumbles onto the URL.
   description: "Restricted access.",
 };
 
-export default async function GatekeeperVaultLoginPage({ params }) {
+export default async function GatekeeperVaultPage({ params }) {
   const { gatekeeperSlug } = await params;
 
   const expectedSlug = await computeGatekeeperVaultUrlSlug();
@@ -45,13 +50,16 @@ export default async function GatekeeperVaultLoginPage({ params }) {
     notFound();
   }
 
+  const cookieStore = await cookies();
+  const session = requireGatekeeperVaultSessionFromCookieStore(cookieStore);
+
+  if (!session) {
+    redirect(`/gatekeeper-vault/${gatekeeperSlug}/login`);
+  }
+
   return (
     <div className="superAdminRoot">
-      <section className="gatekeeperVaultLoginSection">
-        <div className="gatekeeperVaultLoginCard">
-          <GatekeeperVaultLoginClient />
-        </div>
-      </section>
+      <GatekeeperVaultClient />
     </div>
   );
 }

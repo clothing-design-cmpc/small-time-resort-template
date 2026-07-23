@@ -40,7 +40,7 @@ import {
 } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
-import { blockIp } from "@/services/ipBlock";
+import { triggerGatekeeperBreach } from "@/services/breachResponse";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -66,16 +66,21 @@ export async function POST(request) {
       details: reason,
     });
 
-    // Same direct blockIp() pattern proxy.js's own vault-slug guess guard
-    // uses (gatekeeper: null — this isn't one of the 3 numbered
-    // Gatekeepers, it's a standalone guard on the vault's first factor).
-    // Once blocked, the owner's very next request to /system-vault/* is
-    // caught by that same guard and bounced to /access-denied before the
-    // page even renders — the client below reloads to land on exactly
-    // that check.
+    // GATEKEEPER 1 TRIPPED — same treatment as brute-forcing the main
+    // login route (app/api/auth/login/route.js): this is disaster
+    // recovery's own front door, and brute-forcing it is exactly as
+    // serious. triggerGatekeeperBreach() blocks the IP (step 1) AND
+    // rotates + emails + Drive-backs-up a fresh passphrase (step 6) —
+    // previously this branch only called blockIp() directly, so a
+    // brute-force attempt against the passphrase itself never actually
+    // invalidated the passphrase being attacked. Once blocked, the
+    // owner's very next request to /system-vault/* is caught by
+    // proxy.js's vault-slug guess guard and bounced to /access-denied
+    // before the page even renders — the client below reloads to land
+    // on exactly that check.
     if (ip !== "unknown") {
-      await blockIp(ip, reason, null).catch((error) =>
-        console.error("[vault-login] blockIp failed:", error.message)
+      await triggerGatekeeperBreach({ gatekeeper: 1, ipAddress: ip, details: reason }).catch((error) =>
+        console.error("[vault-login] Gatekeeper 1 breach response failed:", error.message)
       );
     }
 

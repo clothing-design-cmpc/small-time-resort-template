@@ -30,7 +30,7 @@ import { requireVaultSession, reissueVaultSessionCookieValue, VAULT_IDENTITY } f
 import { generateAndSendVaultOtp, verifyVaultOtp } from "@/services/vaultOtp";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
-import { blockIp } from "@/services/ipBlock";
+import { triggerGatekeeperBreach } from "@/services/breachResponse";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -84,13 +84,14 @@ export async function POST(request) {
       details: reason,
     });
 
-    // Same direct blockIp() pattern as vault-login's own rate-limit
-    // branch — the owner's very next request to /system-vault/* is
-    // caught by proxy.js's vault-slug guess guard and bounced to
-    // /access-denied before the page even renders.
+    // GATEKEEPER 1 TRIPPED — same full breach response as vault-login's
+    // own rate-limit branch (blocks the IP AND rotates + emails +
+    // Drive-backs-up a fresh passphrase). The owner's very next request
+    // to /system-vault/* is caught by proxy.js's vault-slug guess guard
+    // and bounced to /access-denied before the page even renders.
     if (ip !== "unknown") {
-      await blockIp(ip, reason, null).catch((error) =>
-        console.error("[vault-otp] blockIp failed (send):", error.message)
+      await triggerGatekeeperBreach({ gatekeeper: 1, ipAddress: ip, details: reason }).catch((error) =>
+        console.error("[vault-otp] Gatekeeper 1 breach response failed (send):", error.message)
       );
     }
 
@@ -180,13 +181,14 @@ export async function PATCH(request) {
       details: reason,
     });
 
-    // Same direct blockIp() pattern as vault-login's own rate-limit
-    // branch — the owner's very next request to /system-vault/* is
-    // caught by proxy.js's vault-slug guess guard and bounced to
-    // /access-denied before the page even renders.
+    // GATEKEEPER 1 TRIPPED — same full breach response as vault-login's
+    // own rate-limit branch (blocks the IP AND rotates + emails +
+    // Drive-backs-up a fresh passphrase). The owner's very next request
+    // to /system-vault/* is caught by proxy.js's vault-slug guess guard
+    // and bounced to /access-denied before the page even renders.
     if (ip !== "unknown") {
-      await blockIp(ip, reason, null).catch((error) =>
-        console.error("[vault-otp] blockIp failed (verify):", error.message)
+      await triggerGatekeeperBreach({ gatekeeper: 1, ipAddress: ip, details: reason }).catch((error) =>
+        console.error("[vault-otp] Gatekeeper 1 breach response failed (verify):", error.message)
       );
     }
 

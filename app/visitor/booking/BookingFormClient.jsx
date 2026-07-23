@@ -63,7 +63,7 @@ const bookingFormSchema = z
     path: ["checkOutDate"],
   });
 
-export default function BookingFormClient({ initialCheckInDate }) {
+export default function BookingFormClient({ initialCheckInDate, initialCheckOutDate }) {
   const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules();
   const { rooms, isLoading: roomsLoading } = usePublicRooms(false);
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
@@ -86,7 +86,7 @@ export default function BookingFormClient({ initialCheckInDate }) {
       bookingType: "overnight",
       roomId: "",
       checkInDate: initialCheckInDate || todayKey(),
-      checkOutDate: "",
+      checkOutDate: initialCheckOutDate || "",
       numberOfGuests: 2,
       guestName: "",
       guestEmail: "",

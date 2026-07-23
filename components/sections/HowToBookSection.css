@@ -210,6 +210,20 @@
   font-weight: 700;
 }
 
+/* Selected day — visitor has tapped this open date as part of their
+   stay range. Solid accent fill so multi-selected days read clearly
+   as a group at a glance, distinct from the outline-only Today state. */
+.howToBookCalendarDaySelected {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+
+.howToBookCalendarDaySelected:hover,
+.howToBookCalendarDaySelected:focus-visible {
+  background-color: var(--color-accent);
+  opacity: 0.9;
+}
+
 /* ─── Legend ─────────────────────────────────────────────────────────── */
 .howToBookCalendarLegend {
   display: flex;
@@ -247,6 +261,47 @@
 
 .howToBookCalendarLegendDotToday {
   background-color: var(--color-border-hover);
+}
+
+/* ─── Selection row (multi-date continue) ───────────────────────────── */
+.howToBookSelectionRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.howToBookSelectionSummary {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.howToBookContinueButton {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  min-height: 44px;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.howToBookContinueButton:hover:not(:disabled),
+.howToBookContinueButton:focus-visible {
+  opacity: 0.9;
+}
+
+.howToBookContinueButton:disabled {
+  background-color: var(--color-border-hover);
+  cursor: not-allowed;
 }
 
 /* ─── Loading / error states ─────────────────────────────────────────── */

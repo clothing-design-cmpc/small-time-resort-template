@@ -4,18 +4,19 @@
  *
  * PURPOSE:
  * Real booking entry point for the "Book Now" header CTA and the
- * homepage's "Reserve Your Villa" date carousel. Replaces the old
+ * homepage Availability calendar (HowToBookSection). Replaces the old
  * static "coming soon" placeholder — this Server Component reads the
- * optional ?checkin= query param DateCarousel links with and passes it
- * to BookingFormClient as a pre-filled starting date.
+ * optional ?checkin= and ?checkout= query params HowToBookSection links
+ * with and passes them to BookingFormClient as pre-filled dates.
  *
  * DATA FLOW:
  * 1. Visitor arrives here either from Header's "Book Now" link (no
- *    query param) or DateCarousel's "Continue with this date" link
- *    (?checkin=YYYY-MM-DD)
+ *    query params) or HowToBookSection's "Continue" button, which
+ *    passes the earliest selected date as ?checkin= and, if more than
+ *    one date was selected, the latest as ?checkout=
  * 2. All actual data fetching (rooms, booking rules, availability,
  *    quote, submission) happens client-side inside BookingFormClient —
- *    this Server Component only forwards the initial date
+ *    this Server Component only forwards the initial dates
  */
 import BookingFormClient from "./BookingFormClient";
 import "./Booking.css";
@@ -28,6 +29,7 @@ export const metadata = {
 export default async function BookingPage({ searchParams }) {
   const params = await searchParams;
   const initialCheckInDate = typeof params?.checkin === "string" ? params.checkin : null;
+  const initialCheckOutDate = typeof params?.checkout === "string" ? params.checkout : null;
 
   return (
     <section className="bookingSection">
@@ -38,7 +40,7 @@ export default async function BookingPage({ searchParams }) {
           Pick your dates, choose a villa, and confirm — no phone call needed.
         </p>
 
-        <BookingFormClient initialCheckInDate={initialCheckInDate} />
+        <BookingFormClient initialCheckInDate={initialCheckInDate} initialCheckOutDate={initialCheckOutDate} />
       </div>
     </section>
   );

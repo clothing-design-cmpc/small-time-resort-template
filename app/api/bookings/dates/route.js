@@ -1,17 +1,17 @@
 /**
  * FILE: app/api/bookings/dates/route.js
- * ROLE: Public endpoint — called by BookedDatesSection.jsx and DateCarousel.jsx
+ * ROLE: Public endpoint — called by BookedDatesSection.jsx and HowToBookSection.jsx
  *
  * PURPOSE:
  * Returns every calendar date currently reserved by a confirmed Booking,
  * as a flat array of "YYYY-MM-DD" strings. Replaces the old hardcoded
  * BOOKED_DATES constant that used to live in BookedDatesSection.jsx —
- * both the Booked Dates carousel/calendar and the Reserve Your Villa
- * date picker now read from this one source of truth.
+ * both the Booked Dates carousel and the Availability calendar now
+ * read from this one source of truth.
  *
  * DATA FLOW:
- * 1. Visitor loads the homepage; BookedDatesSection and DateCarousel each
- *    fetch this route on mount
+ * 1. Visitor loads the homepage; BookedDatesSection and HowToBookSection
+ *    each fetch this route on mount
  * 2. Query confirmed bookings from the DB
  * 3. Expand each booking's [checkInDate, checkOutDate) range into
  *    individual date keys (checkout day itself is not occupied)

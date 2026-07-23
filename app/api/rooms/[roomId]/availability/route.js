@@ -8,7 +8,7 @@
  * Booking, plus dates the super-admin closed off with a BlackoutDate
  * range for that room. Separate from app/api/bookings/dates/route.js,
  * which returns booked dates across ALL rooms combined (used by the
- * homepage's read-only Booked Dates/DateCarousel sections).
+ * homepage's read-only Booked Dates / Availability calendar sections).
  *
  * DATA FLOW:
  * 1. BookingFormClient fetches this once a room is selected

@@ -1,0 +1,60 @@
+/*
+ * .toastStack
+ * Fixed top-center of the viewport (Rule 22.6) — never dead-center
+ * like a modal backdrop, so a toast never blocks the content
+ * underneath while it's reading it. pointer-events: none so it never
+ * blocks clicks on the page underneath; individual toast items
+ * re-enable pointer-events so they can still be clicked to dismiss.
+ */
+.toastStack {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .toastItem
+ * Individual toast pill. Slides in from above and fades in; color
+ * varies by type (success/error/warning) via the modifier classes below.
+ */
+.toastItem {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #f8f9fa;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: toastSlideIn var(--transition-slow, 0.4s cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.toastItem--success {
+  background-color: var(--color-success, #2f9e5b);
+}
+
+.toastItem--error {
+  background-color: var(--color-error, #d64545);
+}
+
+.toastItem--warning {
+  background-color: var(--color-warning, #d98a24);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

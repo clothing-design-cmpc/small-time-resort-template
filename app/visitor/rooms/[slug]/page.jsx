@@ -14,7 +14,7 @@
  * 1. Visitor clicks "View Room" on a room card -> /visitor/rooms/{slug}
  * 2. Server Component reads the Room row + its roomImages relation
  *    directly via Prisma (same pattern app/visitor/gallery/page.jsx and
- *    CTASection.jsx already use) — isActive rooms only, images ordered
+ *    already use) — isActive rooms only, images ordered
  *    by displayOrder
  * 3. notFound() if the slug doesn't match any active room (Rule 31.10)
  * 4. generateMetadata (Rule 31.9) sets a per-room title/description

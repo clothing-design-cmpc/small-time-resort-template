@@ -1,59 +1,130 @@
 /**
- * FILE: app/visitor/page.jsx
- * ROLE: Visitor — public landing page
+ * FILE: app/visitor/rooms/[slug]/page.jsx
+ * ROLE: Visitor — public, no auth required
  *
  * PURPOSE:
- * Homepage that renders all visitor sections in sequence:
- * Hero → About → Featured Rooms → Amenities → Mini Store →
- * Testimonials → Activities → Gallery Preview → How to Book →
- * Booked Dates → CTA
+ * Room detail page. Previously this route did not exist at all — the
+ * "View Room" link on every FeaturedRoomsSection card already pointed
+ * here, but hitting it 404'd. This page is also where a room's full
+ * RoomImage gallery finally reaches the visitor site (the card only has
+ * room for a single thumbnail preview + photo-count badge; the full set
+ * is shown here) — superadmin-audit-followup.txt Priority 2 item 4.
  *
  * DATA FLOW:
- * 1. Visitor hits "/visitor"
- * 2. Hero, About, AmenitiesHighlightSection, TestimonialsSection,
- *    ActivitiesHighlightSection, and GalleryPreviewSection are all
- *    Server Components that read their data directly via Prisma —
- *    same pattern app/visitor/policies/page.jsx uses. MiniStoreSection
- *    is a Client Component that fetches from /api/shop.
- * 3. BookedDatesSection and CTASection are Client Components — they own
- *    interactive carousel state locally, no SSR data needed
+ * 1. Visitor clicks "View Room" on a room card -> /visitor/rooms/{slug}
+ * 2. Server Component reads the Room row + its roomImages relation
+ *    directly via Prisma (same pattern app/visitor/gallery/page.jsx and
+ *    already use) — isActive rooms only, images ordered
+ *    by displayOrder
+ * 3. notFound() if the slug doesn't match any active room (Rule 31.10)
+ * 4. generateMetadata (Rule 31.9) sets a per-room title/description
+ * 5. Room info + gallery are handed to RoomDetailClient, a small Client
+ *    Component that owns which photo is the current "main" image and
+ *    the full-size lightbox open/closed state
  */
-import Hero from "@/components/Hero";
-import About from "@/components/About";
-import FeaturedRoomsSection from "@/components/sections/FeaturedRoomsSection";
-import AmenitiesHighlightSection from "@/components/sections/AmenitiesHighlightSection";
-import MiniStoreSection from "@/components/sections/MiniStoreSection";
-import TestimonialsSection from "@/components/sections/TestimonialsSection";
-import ActivitiesHighlightSection from "@/components/sections/ActivitiesHighlightSection";
-import GalleryPreviewSection from "@/components/sections/GalleryPreviewSection";
-import HowToBookSection from "@/components/sections/HowToBookSection";
-import BookedDatesSection from "@/components/sections/BookedDatesSection";
-import CTASection from "@/components/sections/CTASection";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { prisma } from "@/services/prisma";
+import RoomDetailClient from "./RoomDetailClient";
+import "./RoomDetail.css";
 
-export const metadata = {
-  title: "Villa Azure Resort | Home",
-  description: "A private resort offering an intimate escape — rooms, amenities, and a quiet shoreline.",
-  openGraph: {
-    title: "Villa Azure Resort",
-    description: "A private resort offering an intimate escape.",
-    images: ["/images/og-villa-azure.jpg"],
-  },
-};
+/**
+ * getRoom
+ * Single shared query used by both generateMetadata and the page body,
+ * so the room is only fetched once per request thanks to Next.js's
+ * automatic fetch/query memoization within a single render pass.
+ */
+async function getRoom(slug) {
+  return prisma.room.findFirst({
+    where: { slug, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      pricePerNight: true,
+      capacity: true,
+      bedType: true,
+      imageUrl: true,
+      roomImages: {
+        orderBy: { displayOrder: "asc" },
+        select: { id: true, imageUrl: true, caption: true },
+      },
+    },
+  });
+}
 
-export default function VisitorHomePage() {
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const room = await getRoom(slug).catch(() => null);
+
+  if (!room) {
+    return { title: "Room Not Found | Villa Azure Resort" };
+  }
+
+  return {
+    title: `${room.name} | Villa Azure Resort`,
+    description: room.description || `Book ${room.name} at Villa Azure Resort.`,
+    openGraph: {
+      title: room.name,
+      description: room.description || `Book ${room.name} at Villa Azure Resort.`,
+      images: room.imageUrl ? [room.imageUrl] : [],
+    },
+  };
+}
+
+/* Formats a number as Philippine Peso — same formatter FeaturedRoomsSection uses */
+function formatPrice(amount) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
+export default async function RoomDetailPage({ params }) {
+  const { slug } = await params;
+  const room = await getRoom(slug).catch(() => null);
+
+  if (!room) {
+    notFound();
+  }
+
+  // The main image plus every gallery photo, deduped by URL, in one
+  // ordered list — RoomDetailClient doesn't need to know which one was
+  // the room's single "main image" vs. an added gallery photo.
+  const galleryImages = [
+    { id: "main", imageUrl: room.imageUrl, caption: room.name },
+    ...room.roomImages.filter((image) => image.imageUrl !== room.imageUrl),
+  ].filter((image) => image.imageUrl);
+
   return (
-    <main>
-      <Hero />
-      <About />
-      <FeaturedRoomsSection />
-      <AmenitiesHighlightSection />
-      <MiniStoreSection />
-      <TestimonialsSection />
-      <ActivitiesHighlightSection />
-      <GalleryPreviewSection />
-      <HowToBookSection />
-      <BookedDatesSection />
-      <CTASection />
+    <main className="roomDetailMain">
+      <div className="roomDetailContainer">
+        <Link href="/visitor/#rooms" className="roomDetailBackLink">
+          ← Back to Rooms & Villas
+        </Link>
+
+        <RoomDetailClient images={galleryImages} roomName={room.name} />
+
+        <div className="roomDetailInfo">
+          <div className="roomDetailMeta">
+            <span className="roomDetailBedType">{room.bedType}</span>
+            <span className="roomDetailGuests">Up to {room.capacity} guests</span>
+          </div>
+          <h1 className="roomDetailTitle">{room.name}</h1>
+          {room.description && <p className="roomDetailDescription">{room.description}</p>}
+
+          <div className="roomDetailFooter">
+            <div className="roomDetailPrice">
+              <span className="roomDetailPriceAmount">{formatPrice(room.pricePerNight)}</span>
+              <span className="roomDetailPriceLabel">/ night</span>
+            </div>
+            <Link href="/visitor/booking" className="roomDetailBookButton">
+              Book This Room
+            </Link>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

@@ -4,9 +4,15 @@
 # separate-infrastructure reasoning as database-backup.yml (Rule 40.1):
 # this never runs inside the live app or a guest's request.
 #
-# Schedule: 18:00 UTC = 2:00 AM Philippine Time (UTC+8) every day —
-# same window as the nightly database backup, so both housekeeping
-# jobs run back-to-back in the lowest-traffic hours.
+# Schedule: 17:50 UTC = 1:50 AM Philippine Time (UTC+8) every day —
+# 10 minutes before the nightly database backup (database-backup.yml,
+# 18:00 UTC), not the identical minute. Both used to fire at exactly
+# "0 18 * * *" — GitHub Actions does not guarantee two workflows in the
+# same repo both actually run when they share one trigger minute; under
+# load it can delay or silently drop one of them. That collision was
+# the most likely reason the nightly backup was intermittently missing
+# from the Actions history. Staggering by 10 minutes keeps both jobs in
+# the same low-traffic window while giving each its own trigger tick.
 #
 # The script itself decides whether to email — it only sends an alert
 # when something is actually missing or failing (see that file's
@@ -17,7 +23,7 @@ name: Nightly Environment Check
 
 on:
   schedule:
-    - cron: "0 18 * * *"
+    - cron: "50 17 * * *"
   workflow_dispatch:
 
 jobs:

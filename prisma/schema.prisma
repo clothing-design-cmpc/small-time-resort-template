@@ -442,6 +442,7 @@ model BookingRule {
   advanceBookingDays Int    @default(365) @map("advance_booking_days") // guests can book at most this many days ahead
   checkInTime        String @default("14:00") @map("check_in_time") // 24h "HH:mm"
   checkOutTime       String @default("11:00") @map("check_out_time") // 24h "HH:mm"
+  cleaningHours       Int    @default(2) @map("cleaning_hours") // hours a room auto-shows "Checked-out — Cleaning" after checkOutTime before flipping to Available (Booking Rules Section 6)
 
   // --- Rule Schedule — which specific calendar dates this rule set's
   //     Section 1 settings apply to. Stored as "YYYY-MM-DD" keys.

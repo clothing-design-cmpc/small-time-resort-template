@@ -151,7 +151,7 @@ export default function BookingRulesListClient({ rooms }) {
       />
 
       <SeasonalPricingSection rooms={rooms} showToast={showToast} />
-      <BlackoutDatesSection rooms={rooms} showToast={showToast} />
+      <BlackoutDatesSection showToast={showToast} />
     </section>
   );
 }

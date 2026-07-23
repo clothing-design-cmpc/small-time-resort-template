@@ -13,7 +13,9 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
-const VALID_REASONS = ["Cleaning", "Maintenance", "Private", "Custom"];
+// See app/api/superAdmin/settings/blackout-dates/route.js for why
+// "Cleaning" was removed from this list.
+const VALID_REASONS = ["Maintenance", "Private", "Custom"];
 
 export async function PUT(request, { params }) {
   const { blackoutId } = await params;

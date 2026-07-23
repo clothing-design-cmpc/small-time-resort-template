@@ -73,6 +73,7 @@ const bookingRuleSchema = z.object({
   ruleDates: z.array(z.string()).min(1, "Pumili ng kahit isang petsa para sa rule na ito."),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
+  cleaningHours: z.coerce.number().min(0),
   allowOvernightStay: z.boolean(),
   allowDayTour: z.boolean(),
   allowNightTour: z.boolean(),
@@ -110,6 +111,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   ruleDates: [],
   checkInTime: "14:00",
   checkOutTime: "11:00",
+  cleaningHours: 2,
   allowOvernightStay: true,
   allowDayTour: false,
   allowNightTour: false,
@@ -151,6 +153,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
           ruleDates: existingRule.ruleDates ?? [],
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
+          cleaningHours: existingRule.cleaningHours ?? 2,
           allowOvernightStay: existingRule.allowOvernightStay,
           allowDayTour: existingRule.allowDayTour,
           allowNightTour: existingRule.allowNightTour,
@@ -379,6 +382,17 @@ export default function BookingRuleForm({ existingRule, rooms }) {
 
           <RuleDatesCalendar selectedDates={selectedDates} onToggleDate={handleToggleDate} />
           {errors.ruleDates && <span role="alert" className="bookingRulesFormError">{errors.ruleDates.message}</span>}
+
+          {/* General setting, always visible regardless of the calendar
+              selection above — drives Section 6's auto "Cleaning" status:
+              how many hours after checkout a room stays flagged Cleaning
+              before flipping to Available on its own. */}
+          <div className="bookingRulesFormField" style={{ maxWidth: 220 }}>
+            <label htmlFor="cleaningHours">Cleaning Hours</label>
+            <input id="cleaningHours" type="number" min="0" {...register("cleaningHours")} />
+            <p className="bookingRulesHint">Ilang oras pagkatapos mag-checkout bago mag-Available ang room sa Section 6.</p>
+            {errors.cleaningHours && <span role="alert" className="bookingRulesFormError">{errors.cleaningHours.message}</span>}
+          </div>
 
           {/* --- Rule 1: exactly one date selected --- */}
           {selectedDates.size === 1 && (

@@ -63,6 +63,7 @@ export async function POST(request) {
         ruleDates: Array.isArray(body.ruleDates) ? body.ruleDates : undefined,
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
+        cleaningHours: body.cleaningHours,
         allowOvernightStay: body.allowOvernightStay,
         allowDayTour: body.allowDayTour,
         allowNightTour: body.allowNightTour,

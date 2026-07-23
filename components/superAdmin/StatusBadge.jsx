@@ -54,6 +54,13 @@ const STATUS_STYLES = {
   nightly: { label: "Nightly", color: "#71717a" },
   manual: { label: "Manual", color: "#3b82f6" },
   pre_wipe: { label: "Pre-Wipe", color: "#f59e0b" },
+  // Booking Rules Section 6 — room showcase (services/roomStatus.js)
+  booked: { label: "Booked (Auto)", color: "#3b82f6" },
+  cleaning: { label: "Cleaning (Auto)", color: "#f59e0b" },
+  available: { label: "Available (Auto)", color: "#10b981" },
+  maintenance: { label: "Maintenance", color: "#8b5cf6" },
+  private: { label: "Private", color: "#ec4899" },
+  custom: { label: "Custom", color: "#71717a" },
 };
 
 export default function StatusBadge({ status }) {

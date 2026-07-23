@@ -14,7 +14,13 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 
-const VALID_REASONS = ["Cleaning", "Maintenance", "Private", "Custom"];
+// "Cleaning" is no longer a manually-selectable reason — it's now
+// computed automatically from the active BookingRule's cleaningHours
+// (services/roomStatus.js) once a guest checks out. Kept out of this
+// list so new blackout ranges can't be created with it, but existing
+// rows saved with reason "Cleaning" before this change still display
+// fine (StatusBadge falls back to a neutral badge for unknown keys).
+const VALID_REASONS = ["Maintenance", "Private", "Custom"];
 
 export async function GET() {
   try {

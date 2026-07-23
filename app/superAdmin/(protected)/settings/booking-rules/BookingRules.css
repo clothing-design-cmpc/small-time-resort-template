@@ -462,6 +462,22 @@
 }
 
 /*
+ * .bookingRulesModalDialog--compact
+ * Tighter variant for short forms (e.g. Section 6's Block Dates modal,
+ * which dropped its room picker) — smaller max-width and reduced gaps
+ * so the dialog doesn't read as mostly empty space.
+ */
+.bookingRulesModalDialog--compact {
+  gap: var(--space-md);
+  max-width: 400px;
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+}
+
+.bookingRulesModalDialog--compact .bookingRulesForm {
+  gap: var(--space-sm);
+}
+
+/*
  * .bookingRulesCalendarCard
  * Month-grid calendar used in Section 1 (Rule Schedule) to pick which
  * specific date(s) a rule set applies to. Mirrors the card standard

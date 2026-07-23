@@ -45,6 +45,11 @@ export default function SuperAdminLoginPage() {
   // Server-side auth error (wrong credentials, not a super admin, etc.) —
   // separate from Zod field errors since it applies to the whole form.
   const [authError, setAuthError] = useState(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  // Counts consecutive failed submits so we can auto-refresh the page
+  // once the 3rd one still fails — matches Gatekeeper 1's own 3-attempt
+  // limit, so the user sees a clean reload right as the account would
+  // be rate-limited anyway, instead of continuing to retry into a wall.
 
   const {
     register,
@@ -95,6 +100,18 @@ export default function SuperAdminLoginPage() {
 
     if (!result.success) {
       setAuthError(result.message || "Invalid email or password.");
+
+      const nextFailedAttempts = failedAttempts + 1;
+      setFailedAttempts(nextFailedAttempts);
+
+      // 3rd consecutive failed attempt — refresh the page so the user
+      // sees a clean form instead of continuing to submit into what is
+      // about to become a rate-limited/blocked state (Gatekeeper 1 trips
+      // at the 4th attempt). Short delay so the error message is still
+      // readable for a moment before the reload happens.
+      if (nextFailedAttempts >= 3) {
+        setTimeout(() => window.location.reload(), 1500);
+      }
       return;
     }
 

@@ -612,14 +612,18 @@ export default function RecoveryClient() {
       </div>
 
       {/* --- Step 2: End lockdown once restore is verified ---
-          Only shown when there's an actual active breach to end —
-          matches the Post-Wipe card and Active Incident card above,
-          which both hide themselves when not applicable. Previously
-          this card rendered unconditionally with its button always
-          disabled (and no explanation) whenever breachLockdown was
-          false, which read as a stuck/broken button right after a
-          successful restore instead of "there's nothing to end." */}
-      {activeBreach && (
+          Gated on breachLockdown (the flag that actually controls what
+          guests see, per app/visitor/layout.jsx) — NOT on activeBreach.
+          Those two can desync: a BreachEvent row can end up resolved/
+          missing while SystemSettings.breachLockdown is still true (or
+          vice versa). Gating this card on activeBreach alone meant that
+          whenever they desynced with breachLockdown still true, this
+          card — the ONLY UI path to clear the flag — never rendered at
+          all, leaving no button anywhere to end the lockdown. Showing
+          it whenever breachLockdown is true (regardless of whether an
+          activeBreach row happens to exist) guarantees the exit is
+          always reachable. */}
+      {breachLockdown && (
         <div className="recoveryStepCard">
           <h2>Confirmation of Fixed Database</h2>
           <p>
@@ -629,14 +633,14 @@ export default function RecoveryClient() {
           <button
             type="button"
             className="recoveryEndLockdownButton"
-            disabled={!breachLockdown}
             onClick={() => setIsEndLockdownModalOpen(true)}
           >
             End Lockdown — Bring Website Back Online
           </button>
-          {!breachLockdown && (
+          {!activeBreach && (
             <p className="recoveryMutedText">
-              Disabled — there&apos;s no active breach lockdown to end right now.
+              No active incident row was found, but the lockdown flag is still on — clicking this will still
+              clear it.
             </p>
           )}
         </div>

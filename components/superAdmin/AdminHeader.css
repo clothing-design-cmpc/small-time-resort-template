@@ -99,6 +99,43 @@
 }
 
 /*
+ * .adminHeaderInfoGroup / .adminHeaderInfoBadge
+ * Date/Time/Event/Season badges — same quiet/muted visual language as
+ * .adminSessionTimer (small, mono, bordered pill) so the whole right
+ * side of the header reads as one consistent family of status chips
+ * rather than two different styles competing for attention.
+ */
+.adminHeaderInfoGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.adminHeaderInfoBadge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+/* Peak season gets the same warning-amber accent used for the idle
+   timer's near-expiry state — reused rather than introducing a third
+   accent color, per Rule 33.1's one-accent-per-purpose guidance. */
+.adminHeaderInfoBadge--peak {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+  background-color: rgba(217, 138, 36, 0.08);
+}
+
+/*
  * .adminUserMenu
  * Positioning context for the dropdown — trigger button + absolutely
  * positioned dropdown panel beneath it.

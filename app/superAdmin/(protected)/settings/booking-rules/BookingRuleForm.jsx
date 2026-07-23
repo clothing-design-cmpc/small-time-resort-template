@@ -27,7 +27,9 @@ import { z } from "zod";
 import axios from "axios";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
+import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import RuleDatesCalendar, { getDateRangeKeys } from "./RuleDatesCalendar";
+import SeasonDefinitionsPanel from "./SeasonDefinitionsPanel";
 import "./BookingRules.css";
 
 /**
@@ -307,6 +309,31 @@ export default function BookingRuleForm({ existingRule, rooms }) {
     } catch (submitError) {
       const message = submitError?.response?.data?.message || "We couldn't save this rule set. Please try again.";
       showToast(`✕ ${message}`, "error");
+    }
+  }
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  /**
+   * handleDeleteRuleSet
+   * Deletes this rule set from the edit page itself, not just the list
+   * page — the list already had a Delete action (BookingRulesListClient),
+   * but an admin already viewing/editing a rule set had no way to
+   * delete it without navigating back out first. The API route this
+   * calls already blocks deleting the currently active rule set or the
+   * last remaining one, so those error messages surface here too via
+   * the same generic catch/toast pattern as onSubmit above.
+   */
+  async function handleDeleteRuleSet() {
+    try {
+      await axios.delete(`/api/superAdmin/settings/booking-rules/${existingRule.id}`);
+      showToast(`✓ "${existingRule.name}" deleted successfully.`, "success");
+      router.push("/superAdmin/settings/booking-rules");
+    } catch (deleteError) {
+      const message = deleteError?.response?.data?.message || "Failed to delete booking rule set.";
+      showToast(`✕ ${message}`, "error");
+    } finally {
+      setIsDeleteModalOpen(false);
     }
   }
 
@@ -598,8 +625,9 @@ export default function BookingRuleForm({ existingRule, rooms }) {
           </div>
         </div>
 
-        {/* --- Section 5: Seasonal Pricing (enable toggle only — the actual
-             season list is managed on the list page, per-room) --- */}
+        {/* --- Section 5: Seasonal Pricing (enable toggle + the Philippine
+             Peak/Off season reference below — the per-room override list
+             itself is still managed on the list page) --- */}
         <div className="bookingRulesSection">
           <h2 className="bookingRulesSectionTitle">Section 5: Seasonal Pricing</h2>
           <p className="bookingRulesSectionSubtitle">I-on o i-off ang special pricing para sa mga piling petsa (hal. Peak Season, Off-Season) habang active ang rule set na ito.</p>
@@ -608,6 +636,8 @@ export default function BookingRuleForm({ existingRule, rooms }) {
             I-enable ang seasonal pricing
           </label>
           <p className="bookingRulesHint">Kapag naka-off ito, hindi gagamitin ang mga seasonal price sa baba — regular rate lagi ang gagamitin ng bawat room.</p>
+
+          <SeasonDefinitionsPanel showToast={showToast} />
         </div>
 
         {/* --- Preview Impact --- */}
@@ -692,11 +722,35 @@ export default function BookingRuleForm({ existingRule, rooms }) {
           <button type="button" className="bookingRulesButton bookingRulesButton--neutral" onClick={handleResetToDefault}>
             Reset to Default
           </button>
+          {/* Delete only makes sense once the rule set already exists —
+              never shown in create mode. Placed on its own so it never
+              sits directly next to "Save Changes," reducing the chance
+              of a misclick between them. */}
+          {isEditMode && (
+            <button
+              type="button"
+              className="bookingRulesButton bookingRulesButton--destructive"
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              Delete Rule Set
+            </button>
+          )}
           <button type="submit" className="bookingRulesButton bookingRulesButton--primary" disabled={isSubmitting}>
             {isSubmitting ? "Saving…" : isEditMode ? "Save Changes" : "Create Rule Set"}
           </button>
         </div>
       </form>
+
+      {isEditMode && (
+        <ConfirmationModal
+          isOpen={isDeleteModalOpen}
+          title="Delete Rule Set?"
+          description={`Are you sure you want to delete "${existingRule?.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={handleDeleteRuleSet}
+          onCancel={() => setIsDeleteModalOpen(false)}
+        />
+      )}
     </section>
   );
 }

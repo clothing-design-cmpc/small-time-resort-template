@@ -517,6 +517,36 @@ model SeasonalPrice {
 }
 
 // ============================================================
+// MODEL: SeasonDefinition  (Booking Rules — Section 5, "current
+// season" reference used by Section 5's info panel AND the
+// super-admin top bar's Season display)
+// ============================================================
+// Deliberately separate from SeasonalPrice above: SeasonalPrice is a
+// per-room, specific-date-range price OVERRIDE the admin manually adds
+// (e.g. "Villa 3, Dec 20-31, ₱8000/night"). SeasonDefinition instead
+// answers the simpler, resort-wide question "is today generally
+// Peak or Off season in the Philippines?" — a recurring (year-over-
+// year, month/day only, no specific year) reference the admin can
+// tweak, seeded with the typical PH pattern (summer + Christmas peak,
+// rainy-season off) on first load if the table is empty.
+// startMonth/startDay..endMonth/endDay can wrap the year boundary
+// (e.g. Dec 16 -> Jan 15) — services/seasonInfo.js's date-in-range
+// check handles that wrap explicitly.
+model SeasonDefinition {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonType String   @map("season_type") // "peak" | "off"
+  label      String   // e.g. "Summer Peak", "Holiday Peak", "Rainy / Off-Season"
+  startMonth Int      @map("start_month") // 1-12
+  startDay   Int      @map("start_day") // 1-31
+  endMonth   Int      @map("end_month")
+  endDay     Int      @map("end_day")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("season_definitions")
+}
+
+// ============================================================
 // MODEL: BlackoutDate  (Booking Rules — Section 6: Blackout Dates)
 // ============================================================
 model BlackoutDate {

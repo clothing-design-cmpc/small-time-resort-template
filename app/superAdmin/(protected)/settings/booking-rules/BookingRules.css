@@ -168,12 +168,11 @@
 
 /*
  * .bookingRulesFormGrid3x2
- * Explicit 3-row x 2-column grid for the single-date "Uri ng Booking"
- * panel: Check-in Date/Time, Check-out Date/Time, Hourly Charge (last
- * cell left empty). Fixed 2-column grid rather than the flex-wrap row
- * above, since this panel's field count and order are meant to stay
- * exactly 3x2 regardless of viewport width, not reflow with content.
- * Collapses to 1 column on narrow screens via mediaQueries.css.
+ * Single-column stack for the single-date "Uri ng Booking" panel:
+ * Check-in Date, Check-in Time, Check-out Date, Check-out Time, Hourly
+ * Charge — one field per row at every breakpoint (superseded the
+ * earlier 3-row x 2-column layout per a later, more specific request).
+ * Class name kept as-is to avoid touching the JSX that references it.
  */
 .bookingRulesFormGrid3x2 {
   display: grid;
@@ -277,6 +276,24 @@
 .bookingRulesButton--primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/*
+ * .bookingRulesButton--destructive
+ * Red outline (Rule 34.4 — destructive actions never use the accent
+ * color) for "Delete Rule Set." Outline rather than solid fill so it
+ * doesn't visually compete with "Save Changes" as the primary action.
+ */
+.bookingRulesButton--destructive {
+  border: 1px solid var(--color-error);
+  background-color: transparent;
+  color: var(--color-error);
+}
+
+.bookingRulesButton--destructive:hover,
+.bookingRulesButton--destructive:focus-visible {
+  background-color: var(--color-error);
+  color: #ffffff;
 }
 
 .bookingRulesAddButton {
@@ -540,4 +557,105 @@
 .bookingRulesCalendarCell--past:hover,
 .bookingRulesCalendarCell--past:focus-visible {
   border-color: #3f3f46;
+}
+
+/*
+ * .seasonDefinitionsPanel
+ * "Current Philippine Seasons" reference panel inside Section 5,
+ * visually nested under the enable toggle via a left border + inset
+ * background rather than a full bordered card, so it reads as part of
+ * Section 5 rather than a separate section of its own.
+ */
+.seasonDefinitionsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  border-left: 3px solid var(--color-border-strong);
+  background-color: var(--color-surface);
+  border-radius: 8px;
+}
+
+.seasonDefinitionsPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.seasonDefinitionsPanelTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.seasonDefinitionsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/*
+ * .seasonDefinitionRow
+ * One read-only row per season: type badge, label, month/day range,
+ * then row actions — laid out as a flex row that wraps on narrow
+ * screens rather than a rigid grid, since the label length varies a
+ * lot ("Off-Season" vs "Holiday Peak (Christmas & New Year)").
+ */
+.seasonDefinitionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+}
+
+.seasonDefinitionLabel {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.seasonDefinitionRange {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-right: auto;
+}
+
+/*
+ * .seasonDefinitionBadge
+ * Peak vs. Off-Season color distinction — amber for peak (busy,
+ * premium pricing), blue-gray for off (quiet, standard/lower pricing).
+ * Kept as the only two colors here regardless of how many labels exist.
+ */
+.seasonDefinitionBadge {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.seasonDefinitionBadge--peak {
+  background-color: rgba(245, 158, 11, 0.16);
+  color: var(--color-warning, #f59e0b);
+}
+
+.seasonDefinitionBadge--off {
+  background-color: rgba(59, 130, 246, 0.16);
+  color: var(--color-info, #3b82f6);
+}
+
+.seasonDefinitionForm {
+  padding: var(--space-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background-color: var(--color-bg);
 }

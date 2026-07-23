@@ -24,13 +24,21 @@
  *    number shown here always matches when that guard will actually
  *    sign the admin out — but its own onIdle is a no-op, so this
  *    component never fires a second, duplicate logout itself.
+ * 6. Date/Time: a plain client-side clock (Asia/Manila), ticking every
+ *    second via setInterval — no server round-trip needed since it's
+ *    just the current moment.
+ * 7. Event/Season: fetched once on mount from GET /api/superAdmin/
+ *    season-info (services/seasonInfo.js — same current-season logic
+ *    Section 5's panel uses on the Booking Rules page), then
+ *    refreshed every 5 minutes. Fails silently to "—" so a fetch
+ *    error here never blocks the rest of the header from rendering.
  */
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
-import { LogOut, ChevronDown, Clock } from "lucide-react";
+import { LogOut, ChevronDown, Clock, Calendar, Sparkles, Sun } from "lucide-react";
 import { useIdleTimeout, clearIdleDeadline } from "@/hooks/useIdleTimeout";
 import "./AdminHeader.css";
 
@@ -39,6 +47,24 @@ const IDLE_TIMEOUT_MINUTES = 30;
 // gives the admin a clear heads-up before the countdown actually hits
 // zero, instead of the number just quietly turning red at 0:00.
 const IDLE_WARNING_THRESHOLD_SECONDS = 120;
+
+// Season/event rarely change within a session, so this only re-fetches
+// every 5 minutes rather than polling constantly like the idle timer.
+const SEASON_INFO_REFRESH_MS = 5 * 60 * 1000;
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Manila",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+const TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Manila",
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: true,
+});
 
 /**
  * formatCountdown
@@ -123,6 +149,36 @@ export default function AdminHeader() {
   const secondsRemaining = useIdleTimeout(noOpOnIdle, IDLE_TIMEOUT_MINUTES);
   const isNearExpiry = secondsRemaining <= IDLE_WARNING_THRESHOLD_SECONDS;
 
+  // Live clock — ticks every second, purely client-side (no server
+  // round-trip needed for "what time is it right now").
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
+
+  // Season/event — fetched from the server since both depend on
+  // SeasonDefinition/BlackoutDate/BookingRule data the client doesn't
+  // have locally. Refreshed periodically rather than on every render;
+  // a stale-by-a-few-minutes season label is harmless.
+  const [seasonInfo, setSeasonInfo] = useState({ season: null, event: null });
+  const fetchSeasonInfo = useCallback(() => {
+    axios
+      .get("/api/superAdmin/season-info")
+      .then((response) => {
+        if (response.data?.success) setSeasonInfo(response.data.data);
+      })
+      .catch(() => {
+        // Fails silently — the header still shows "—" for these two
+        // fields rather than blocking the rest of the top bar.
+      });
+  }, []);
+  useEffect(() => {
+    fetchSeasonInfo();
+    const refresh = setInterval(fetchSeasonInfo, SEASON_INFO_REFRESH_MS);
+    return () => clearInterval(refresh);
+  }, [fetchSeasonInfo]);
+
   // Loads the signed-in admin's name once on mount for the user menu.
   // Fails silently to a generic "Admin" label — a failed name fetch
   // should never block the admin from using the rest of the page.
@@ -187,6 +243,35 @@ export default function AdminHeader() {
       <span className="adminHeaderTitle">{pageTitle}</span>
 
       <div className="adminHeaderRight">
+        {/* Date, Time, Event, Season — glanceable resort context without
+            leaving the current page. Order matches the request: date
+            first, then time, then what's happening today, then the
+            general season. Each is its own small badge rather than one
+            long string, so they wrap cleanly on narrower admin screens. */}
+        <div className="adminHeaderInfoGroup">
+          <span className="adminHeaderInfoBadge" title="Today's date (Asia/Manila)">
+            <Calendar size={14} aria-hidden="true" />
+            {DATE_FORMATTER.format(now)}
+          </span>
+          <span className="adminHeaderInfoBadge" title="Current time (Asia/Manila)">
+            <Clock size={14} aria-hidden="true" />
+            {TIME_FORMATTER.format(now)}
+          </span>
+          <span className="adminHeaderInfoBadge" title="What's happening today">
+            <Sparkles size={14} aria-hidden="true" />
+            {seasonInfo.event?.label ?? "No active event"}
+          </span>
+          <span
+            className={`adminHeaderInfoBadge${
+              seasonInfo.season?.seasonType === "peak" ? " adminHeaderInfoBadge--peak" : ""
+            }`}
+            title="Current Philippine season (Section 5, Booking Rules)"
+          >
+            <Sun size={14} aria-hidden="true" />
+            {seasonInfo.season?.label ?? "No season set"}
+          </span>
+        </div>
+
         {/* Live countdown to the same 30-minute idle logout that
             IdleTimeoutGuard actually enforces — purely informational,
             never triggers the sign-out itself (see hook comment above). */}

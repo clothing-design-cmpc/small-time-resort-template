@@ -14,12 +14,14 @@
  */
 import "./Visitor.css";
 import { prisma } from "@/services/prisma";
+import { isScheduledLockdownActive } from "@/services/scheduledLockdown";
 import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
 import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
 import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
+import ScheduledMaintenanceNotice from "@/components/shared/ScheduledMaintenanceNotice";
 import WalkInChatWidget from "@/components/shared/WalkInChatWidget";
 
 // Forces this layout to always re-run getMaintenanceStatus() on every
@@ -103,6 +105,14 @@ export default async function VisitorLayout({ children }) {
     return <BreachLockdownScreen message={maintenanceMessage} gatekeeper={activeGatekeeper} />;
   }
 
+  // Scheduled nightly window (default 2:00-3:00 AM PHT) — proxy.js
+  // already redirects here first for every request that hits it, but
+  // this stays as a second line of defense for any render path that
+  // skips proxy.js, same reasoning as the postWipeLockdown check above.
+  if (isScheduledLockdownActive()) {
+    return <MaintenanceLockdownScreen message="This website is briefly unavailable for scheduled nightly maintenance. Please check back shortly." />;
+  }
+
   return (
     <div className="visitorShell">
       {/* Ensures every page load/refresh opens on the Hero section
@@ -110,6 +120,7 @@ export default async function VisitorLayout({ children }) {
       <ScrollToTopOnLoad />
       {maintenanceMode && <MaintenanceBanner message={maintenanceMessage} />}
       <Header />
+      <ScheduledMaintenanceNotice />
       {/* pt-[header height] so page content is never hidden behind the sticky header */}
       <div className="visitorContent">
         {children}

@@ -43,6 +43,7 @@
  */
 import { redirect } from "next/navigation";
 import { prisma } from "@/services/prisma";
+import { isScheduledLockdownActive, getScheduledLockdownWindowLabel } from "@/services/scheduledLockdown";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 
 // Forces this page to always re-run getMaintenanceMessage() on every
@@ -86,13 +87,25 @@ async function getMaintenanceState() {
 export default async function MaintenancePage() {
   const { postWipeLockdown, message } = await getMaintenanceState();
 
-  // The lockdown was already lifted from the vault — this tab is just
-  // stale (never navigated away) or someone hit the URL directly.
-  // Send them to the live site instead of showing a stale "Under
-  // Maintenance" screen forever.
-  if (!postWipeLockdown) {
-    redirect("/");
+  // Post-wipe takes priority — it's the more severe, indefinite
+  // lockdown and always shows its own DB-configured message.
+  if (postWipeLockdown) {
+    return <MaintenanceLockdownScreen message={message} />;
   }
 
-  return <MaintenanceLockdownScreen message={message} />;
+  // Scheduled nightly window (proxy.js already redirected here for
+  // this reason) — self-computed, so re-check it directly rather than
+  // trusting a DB flag that doesn't exist for this case.
+  if (isScheduledLockdownActive()) {
+    return (
+      <MaintenanceLockdownScreen
+        message={`This website is briefly unavailable for scheduled nightly maintenance, ${getScheduledLockdownWindowLabel()}. Please check back shortly.`}
+      />
+    );
+  }
+
+  // Neither lockdown is active — this tab is just stale (never
+  // navigated away) or someone hit the URL directly. Send them to the
+  // live site instead of showing a stale "Under Maintenance" screen.
+  redirect("/");
 }

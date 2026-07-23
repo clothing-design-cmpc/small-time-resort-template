@@ -44,6 +44,7 @@
 import { NextResponse } from "next/server";
 import { isIpBlocked, blockIp } from "@/services/ipBlock";
 import { isPostWipeLockdownActive } from "@/services/postWipeLockdown";
+import { isScheduledLockdownActive } from "@/services/scheduledLockdown";
 import { computeVaultUrlSlug } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
 
@@ -173,6 +174,29 @@ function isPostWipeLockdownExemptPath(pathname) {
   );
 }
 
+// --- Scheduled Nightly Lockdown exemptions ---
+// Unlike postWipeLockdown, this is routine daily downtime, not an
+// incident — the super-admin dashboard and its API routes stay fully
+// reachable so staff/owner can keep working during the window if
+// needed. Only the public visitor site (pages + public booking/shop
+// APIs) actually goes dark. Also exempt: the maintenance page itself
+// (no redirect loop), auth routes (so an admin mid-login isn't
+// blocked), and the same hidden vault/setup paths postWipeLockdown
+// already leaves reachable.
+function isScheduledLockdownExemptPath(pathname) {
+  return (
+    pathname === "/maintenance" ||
+    pathname.startsWith("/superAdmin") ||
+    pathname.startsWith("/api/admin") ||
+    pathname.startsWith("/api/superAdmin") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith(HIDDEN_RECOVERY_PATH_PREFIX) ||
+    pathname.startsWith(HIDDEN_SETUP_PATH_PREFIX) ||
+    pathname.startsWith(HIDDEN_SETUP_API_PREFIX) ||
+    isVaultStandaloneApiPath(pathname)
+  );
+}
+
 /**
  * decodeRole
  * Reads the role out of the session cookie value. The cookie is a
@@ -292,6 +316,25 @@ export async function proxy(request, event) {
     const lockedResponse = NextResponse.redirect(new URL("/maintenance", request.url));
     lockedResponse.cookies.delete("session");
     return lockedResponse;
+  }
+
+  // --- SCHEDULED NIGHTLY LOCKDOWN CHECK ---
+  // Daily maintenance window (default 2:00-3:00 AM PHT, see
+  // services/scheduledLockdown.js for why this is time-computed
+  // instead of a DB flag toggled by a cron job). Runs after the
+  // post-wipe check (that's the more severe, indefinite lockdown) but
+  // before the auth guard below, so it applies to visitor pages and
+  // public APIs the same way regardless of login state. The session
+  // cookie is NOT cleared here — this is routine downtime, not a
+  // security incident, and /superAdmin routes are exempt anyway.
+  if (!isScheduledLockdownExemptPath(pathname) && isScheduledLockdownActive()) {
+    if (pathname.startsWith("/api")) {
+      return NextResponse.json(
+        { success: false, data: null, message: "This website is undergoing brief nightly maintenance. Please try again shortly." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.redirect(new URL("/maintenance", request.url));
   }
 
   // --- VISITOR PAGE VIEW TRACKING ---

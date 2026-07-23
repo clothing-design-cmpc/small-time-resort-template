@@ -124,6 +124,16 @@ export function getDriveClient() {
  * Runs as the delegated human account, so the upload counts against that
  * account's own storage quota — not against any service account quota.
  *
+ * Every caller so far (scripts/runBackup.js, the auto-rotate cron route,
+ * services/breachResponse.js) only logs `error.message` on failure — and
+ * googleapis' errors put the actually-useful detail (invalid_grant,
+ * insufficient permission on the shared folder, storage quota exceeded,
+ * etc.) inside `error.response.data.error`, not in `.message`, which is
+ * often just a generic "Bad Request"/"invalid_grant" with no context.
+ * Logging the full detail HERE means every caller's existing
+ * `console.error("...", error.message)` line now has something useful
+ * to point at, without touching any of those call sites.
+ *
  * @param {string} fileName - e.g. "villa-azure-backup-2026-07-09.sql.gz"
  * @param {Buffer} buffer
  * @param {string} mimeType - e.g. "application/gzip"
@@ -132,6 +142,27 @@ export async function uploadToDrive(fileName, buffer, mimeType) {
   const drive = getDriveClient();
   const folderId = normalizeFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID);
 
+  try {
+    return await uploadFileToFolder(drive, folderId, fileName, buffer, mimeType);
+  } catch (error) {
+    // googleapis (Gaxios) errors carry the real reason under
+    // error.response.data.error — e.g. { message, errors, code } for
+    // Drive API errors, or { error: "invalid_grant", error_description }
+    // for OAuth/token errors. Log both shapes so whichever it is shows up.
+    const apiErrorDetail = error?.response?.data?.error ?? error?.response?.data ?? null;
+    console.error(
+      "[googleDrive] uploadToDrive failed:",
+      error.message,
+      apiErrorDetail ? `| API detail: ${JSON.stringify(apiErrorDetail)}` : "| No response body from Google API."
+    );
+    // Re-throw so existing callers' own try/catch + fallback behavior
+    // (email still sent, rotation still happens, etc.) is unchanged —
+    // this only adds a log line, it never swallows or changes the error.
+    throw error;
+  }
+}
+
+async function uploadFileToFolder(drive, folderId, fileName, buffer, mimeType) {
   const uploadResponse = await drive.files.create({
     requestBody: {
       name: fileName,

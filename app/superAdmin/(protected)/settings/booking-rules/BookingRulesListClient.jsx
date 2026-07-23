@@ -30,7 +30,7 @@ import DataTable from "@/components/superAdmin/DataTable";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import SeasonalPricingSection from "./SeasonalPricingSection";
-import BlackoutDatesSection from "./BlackoutDatesSection";
+import RoomStatusSection from "./RoomStatusSection";
 
 export default function BookingRulesListClient({ rooms }) {
   const router = useRouter();
@@ -151,7 +151,7 @@ export default function BookingRulesListClient({ rooms }) {
       />
 
       <SeasonalPricingSection rooms={rooms} showToast={showToast} />
-      <BlackoutDatesSection showToast={showToast} />
+      <RoomStatusSection showToast={showToast} />
     </section>
   );
 }

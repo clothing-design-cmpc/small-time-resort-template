@@ -462,22 +462,6 @@
 }
 
 /*
- * .bookingRulesModalDialog--compact
- * Tighter variant for short forms (e.g. Section 6's Block Dates modal,
- * which dropped its room picker) — smaller max-width and reduced gaps
- * so the dialog doesn't read as mostly empty space.
- */
-.bookingRulesModalDialog--compact {
-  gap: var(--space-md);
-  max-width: 400px;
-  padding: var(--space-lg) var(--space-lg) var(--space-md);
-}
-
-.bookingRulesModalDialog--compact .bookingRulesForm {
-  gap: var(--space-sm);
-}
-
-/*
  * .bookingRulesCalendarCard
  * Month-grid calendar used in Section 1 (Rule Schedule) to pick which
  * specific date(s) a rule set applies to. Mirrors the card standard
@@ -674,4 +658,135 @@
   border: 1px solid var(--color-border-strong);
   border-radius: 8px;
   background-color: var(--color-bg);
+}
+/*
+ * .roomStatusGrid / .roomStatusCard
+ * Section 6's per-room card grid (replaces the old flat blackout-dates
+ * table). Auto-fill + minmax per Rule 23.2 so it reflows cleanly
+ * regardless of how many active rooms exist, without a breakpoint.
+ */
+.roomStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-md);
+}
+
+.roomStatusCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.roomStatusCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.roomStatusCardName {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.roomStatusCardMeta {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+/*
+ * .roomStatusBadge
+ * One shared pill shape; color comes entirely from the per-status dot
+ * + text color modifier below, so adding a status later never needs a
+ * new badge shape, just a new --status color pair.
+ */
+.roomStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.roomStatusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.roomStatusBadge--available {
+  color: var(--color-success, #22c55e);
+  background-color: rgba(34, 197, 94, 0.14);
+}
+
+.roomStatusBadge--booked {
+  color: var(--color-info, #3b82f6);
+  background-color: rgba(59, 130, 246, 0.14);
+}
+
+.roomStatusBadge--cleaning {
+  color: var(--color-warning, #f59e0b);
+  background-color: rgba(245, 158, 11, 0.14);
+}
+
+.roomStatusBadge--maintenance,
+.roomStatusBadge--custom {
+  color: var(--color-error, #ef4444);
+  background-color: rgba(239, 68, 68, 0.14);
+}
+
+.roomStatusBadge--private {
+  color: #a855f7;
+  background-color: rgba(168, 85, 247, 0.14);
+}
+
+/*
+ * .roomStatusCleaningHoursField
+ * Small inline number input in Section 6's header row — kept tiny on
+ * purpose (this is one number, not a form) so it never competes
+ * visually with the section title next to it.
+ */
+.roomStatusCleaningHoursField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.roomStatusCleaningHoursField label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.roomStatusCleaningHoursField input {
+  width: 4.5rem;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+/*
+ * .bookingRulesModalDialog--compact
+ * Used by RoomStatusModal — a fixed max-width narrower than the
+ * default 480px modal, since this one only ever has 3 fields
+ * (Reason, Start Date, End Date). Prevents the large empty space the
+ * old, taller Room+Dates+Reason+hint modal used to leave once a field
+ * was removed.
+ */
+.bookingRulesModalDialog--compact {
+  max-width: 380px;
+  gap: var(--space-md);
 }

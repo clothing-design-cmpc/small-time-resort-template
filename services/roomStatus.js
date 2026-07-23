@@ -1,167 +1,149 @@
 /**
  * FILE: services/roomStatus.js
  * PURPOSE:
- * Computes the live status of every room for Booking Rules Section 6
- * (Blackout Dates / room showcase). A room's status is either:
- *   - A manual override (Maintenance | Private | Custom) from a
- *     BlackoutDate row that covers today — admin-set, wins over
- *     everything else.
- *   - An automatic state derived from confirmed bookings + the active
- *     BookingRule's checkInTime/checkOutTime/cleaningHours:
- *       "booked"    -> now falls inside [checkIn, checkOut)
- *       "cleaning"  -> now falls inside [checkOut, checkOut + cleaningHours)
- *       "available" -> neither of the above
+ * Computes each room's CURRENT status for Booking Rules Section 6 —
+ * the auto lifecycle requested: a confirmed booking makes a room
+ * "Booked" for its stay, then "Checked-Out — Cleaning" for a
+ * resort-wide configurable window after checkout
+ * (BookingRule.cleaningHours, on the currently active rule set), then "Available" once that window
+ * passes — with no manual date-range entry needed for any of those
+ * three states. A manual BlackoutDate row (reason: Maintenance,
+ * Private, or Custom — "Cleaning" is no longer a manual option, since
+ * cleaning is now fully automatic) always takes priority over the
+ * auto-computed booking states, since it represents a deliberate
+ * admin decision to take the room offline regardless of booking data.
  *
- * Never called from a Client Component — only from the room-status API
- * route (server-side, Rule 31.1).
+ * PRIORITY ORDER (highest wins):
+ *   1. Manual BlackoutDate (Maintenance / Private / Custom) covering now
+ *   2. Booked        — a confirmed booking's stay window covers now
+ *   3. Cleaning       — now is within cleaningHours after that
+ *                       booking's checkout moment
+ *   4. Available      — none of the above
  */
 import { prisma } from "@/services/prisma";
 import { getActiveBookingRule } from "@/services/bookingRules";
 
+const MANUAL_REASONS = ["Maintenance", "Private", "Custom"];
+
 /**
  * combineDateAndTime
- * Merges a Date-only value (e.g. Booking.checkInDate, which Prisma
- * returns at midnight UTC) with a "HH:mm" time string into one
- * timestamp, so it can be compared directly against "now".
+ * Combines a @db.Date-only value (midnight, no time-of-day) with a
+ * "HH:mm" 24-hour string from the active BookingRule into one real
+ * Date/time instant, in Asia/Manila. BookingRule stores times as plain
+ * "HH:mm" strings (not DateTime), since they're resort-wide schedule
+ * settings, not tied to any one day.
  */
-function combineDateAndTime(dateValue, timeString) {
-  const combined = new Date(dateValue);
-  const [hours, minutes] = String(timeString ?? "00:00").split(":").map(Number);
-  combined.setHours(hours || 0, minutes || 0, 0, 0);
+function combineDateAndTime(dateOnly, hhmm) {
+  const [hours, minutes] = (hhmm ?? "12:00").split(":").map(Number);
+  const manilaDateString = dateOnly.toLocaleString("en-US", { timeZone: "Asia/Manila" });
+  const combined = new Date(manilaDateString);
+  combined.setHours(hours, minutes, 0, 0);
   return combined;
 }
 
-function startOfToday() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today;
+/**
+ * getCheckInOutMoments
+ * Picks the right pair of "HH:mm" schedule fields off the active
+ * BookingRule based on this specific booking's bookingType, then
+ * combines them with the booking's checkInDate/checkOutDate into real
+ * check-in/checkout instants.
+ */
+function getCheckInOutMoments(booking, activeRule) {
+  if (booking.bookingType === "day_tour") {
+    return {
+      checkInMoment: combineDateAndTime(booking.checkInDate, activeRule.dayTourStartTime),
+      checkOutMoment: combineDateAndTime(booking.checkOutDate, activeRule.dayTourEndTime),
+    };
+  }
+  if (booking.bookingType === "night_tour") {
+    return {
+      checkInMoment: combineDateAndTime(booking.checkInDate, activeRule.nightTourStartTime),
+      checkOutMoment: combineDateAndTime(booking.checkOutDate, activeRule.nightTourEndTime),
+    };
+  }
+  // Default: overnight
+  return {
+    checkInMoment: combineDateAndTime(booking.checkInDate, activeRule.checkInTime),
+    checkOutMoment: combineDateAndTime(booking.checkOutDate, activeRule.checkOutTime),
+  };
 }
 
 /**
- * getRoomStatuses
- * Returns one status object per room, ordered the same way the Rooms
- * Management list is (sortOrder). Every room is included — there is no
- * filtering — so the Section 6 showcase always reflects every room
- * that exists, active or not.
+ * getAllRoomStatuses
+ * Returns one entry per active Room: { room, status, label, auto,
+ * since, until }. `status` is one of "booked" | "cleaning" |
+ * "maintenance" | "private" | "custom" | "available". `auto` is false
+ * only for the manual BlackoutDate case.
  */
-export async function getRoomStatuses() {
-  const [rooms, rule] = await Promise.all([
-    prisma.room.findMany({ orderBy: { sortOrder: "asc" } }),
+export async function getAllRoomStatuses(now = new Date()) {
+  const [rooms, activeRule, manualBlackouts, confirmedBookings] = await Promise.all([
+    prisma.room.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
     getActiveBookingRule(),
+    prisma.blackoutDate.findMany({ where: { reason: { in: MANUAL_REASONS } } }),
+    prisma.booking.findMany({ where: { status: "confirmed" } }),
   ]);
-
-  const now = new Date();
-  const today = startOfToday();
-  const cleaningHours = rule.cleaningHours ?? 2;
-
-  // Only need bookings that could still be "current" or recently
-  // checked out — widen the lower bound generously past the cleaning
-  // window so a large cleaningHours value never misses a real match.
-  const lookbackStart = new Date(now.getTime() - (cleaningHours + 24) * 60 * 60 * 1000);
-
-  const [relevantBookings, activeBlackouts] = await Promise.all([
-    prisma.booking.findMany({
-      where: {
-        status: "confirmed",
-        roomId: { not: null },
-        checkOutDate: { gte: lookbackStart },
-        checkInDate: { lte: now },
-      },
-      orderBy: { checkOutDate: "desc" },
-    }),
-    prisma.blackoutDate.findMany({
-      where: { startDate: { lte: today }, endDate: { gte: today } },
-      orderBy: { startDate: "desc" },
-    }),
-  ]);
-
-  const bookingsByRoom = new Map();
-  for (const booking of relevantBookings) {
-    if (!bookingsByRoom.has(booking.roomId)) bookingsByRoom.set(booking.roomId, []);
-    bookingsByRoom.get(booking.roomId).push(booking);
-  }
-
-  // If more than one manual block somehow overlaps today for the same
-  // room, the most recently started one wins (findMany above is
-  // ordered startDate desc, so the first match per room is that one).
-  const blackoutByRoom = new Map();
-  for (const entry of activeBlackouts) {
-    if (!blackoutByRoom.has(entry.roomId)) blackoutByRoom.set(entry.roomId, entry);
-  }
+  // Per-rule-set, not resort-wide — see the field's own schema comment.
+  const cleaningHours = activeRule.cleaningHours ?? 2;
 
   return rooms.map((room) => {
-    const manualBlock = blackoutByRoom.get(room.id);
-    if (manualBlock) {
-      // Rows saved before "Cleaning" was removed as a manual reason
-      // (see app/api/superAdmin/settings/blackout-dates/route.js) would
-      // otherwise render with the same badge as the new auto-computed
-      // "Cleaning (Auto)" state below — fall back to a generic key so
-      // a manual override never looks like an automatic one.
-      const validManualReasons = ["Maintenance", "Private", "Custom"];
-      const statusKey = validManualReasons.includes(manualBlock.reason)
-        ? manualBlock.reason.toLowerCase()
-        : "custom";
-
+    // Priority 1 — manual override covering today, for this room.
+    const activeManualBlackout = manualBlackouts.find(
+      (blackout) =>
+        blackout.roomId === room.id &&
+        now >= new Date(blackout.startDate) &&
+        now <= new Date(new Date(blackout.endDate).setHours(23, 59, 59, 999))
+    );
+    if (activeManualBlackout) {
       return {
-        roomId: room.id,
-        roomName: room.name,
-        status: statusKey,
-        reasonLabel: manualBlock.reason,
-        source: "manual",
-        blackoutId: manualBlock.id,
-        startDate: manualBlock.startDate,
-        endDate: manualBlock.endDate,
+        room,
+        status: activeManualBlackout.reason.toLowerCase(),
+        label: activeManualBlackout.reason,
+        auto: false,
+        since: activeManualBlackout.startDate,
+        until: activeManualBlackout.endDate,
+        blackoutId: activeManualBlackout.id,
       };
     }
 
-    const roomBookings = bookingsByRoom.get(room.id) ?? [];
-    let currentBooking = null;
-    let mostRecentCheckout = null;
+    // Priority 2/3 — the most relevant confirmed booking for this room:
+    // whichever one's checkout is closest to (at or before) now, since
+    // that's the only booking whose Booked/Cleaning window could still
+    // be active. Bookings fully in the future or long in the past for
+    // this room don't affect its CURRENT status.
+    const roomBookings = confirmedBookings
+      .filter((booking) => booking.roomId === room.id)
+      .map((booking) => ({ booking, ...getCheckInOutMoments(booking, activeRule) }))
+      .sort((a, b) => b.checkOutMoment - a.checkOutMoment);
 
-    for (const booking of roomBookings) {
-      const checkInAt = combineDateAndTime(booking.checkInDate, rule.checkInTime);
-      const checkOutAt = combineDateAndTime(booking.checkOutDate, rule.checkOutTime);
-
-      if (now >= checkInAt && now < checkOutAt) {
-        currentBooking = { booking, checkInAt, checkOutAt };
-        break;
-      }
-      if (checkOutAt <= now && (!mostRecentCheckout || checkOutAt > mostRecentCheckout.checkOutAt)) {
-        mostRecentCheckout = { booking, checkOutAt };
-      }
-    }
-
-    if (currentBooking) {
+    const currentStay = roomBookings.find((entry) => now >= entry.checkInMoment && now <= entry.checkOutMoment);
+    if (currentStay) {
       return {
-        roomId: room.id,
-        roomName: room.name,
+        room,
         status: "booked",
-        source: "auto",
-        guestName: currentBooking.booking.guestName,
-        checkInDate: currentBooking.booking.checkInDate,
-        checkOutDate: currentBooking.booking.checkOutDate,
-        checkOutAt: currentBooking.checkOutAt,
+        label: "Booked",
+        auto: true,
+        since: currentStay.checkInMoment,
+        until: currentStay.checkOutMoment,
       };
     }
 
+    const mostRecentCheckout = roomBookings.find((entry) => entry.checkOutMoment <= now);
     if (mostRecentCheckout) {
-      const cleaningUntil = new Date(mostRecentCheckout.checkOutAt.getTime() + cleaningHours * 60 * 60 * 1000);
-      if (now < cleaningUntil) {
+      const cleaningEndsAt = new Date(mostRecentCheckout.checkOutMoment);
+      cleaningEndsAt.setHours(cleaningEndsAt.getHours() + cleaningHours);
+      if (now <= cleaningEndsAt) {
         return {
-          roomId: room.id,
-          roomName: room.name,
+          room,
           status: "cleaning",
-          source: "auto",
-          cleaningUntil,
+          label: "Checked-Out — Cleaning",
+          auto: true,
+          since: mostRecentCheckout.checkOutMoment,
+          until: cleaningEndsAt,
         };
       }
     }
 
-    return {
-      roomId: room.id,
-      roomName: room.name,
-      status: "available",
-      source: "auto",
-    };
+    // Priority 4 — nothing else applies.
+    return { room, status: "available", label: "Available", auto: true, since: null, until: null };
   });
 }

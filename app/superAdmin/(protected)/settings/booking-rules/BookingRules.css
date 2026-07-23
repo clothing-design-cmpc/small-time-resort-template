@@ -183,6 +183,25 @@
   color: var(--color-text-muted);
 }
 
+/*
+ * .bookingRulesStaticDate
+ * Read-only display of the Check-in/Check-out Date — derived from the
+ * Section 1 calendar selection, shown as its own field next to (not
+ * combined with) the editable Check-in/Check-out Time input, so the
+ * two are never confused as one field.
+ */
+.bookingRulesStaticDate {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
 .bookingRulesToggleRow {
   display: flex;
   flex-direction: row;

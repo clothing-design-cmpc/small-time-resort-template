@@ -30,6 +30,38 @@ import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import RuleDatesCalendar, { getDateRangeKeys } from "./RuleDatesCalendar";
 import "./BookingRules.css";
 
+/**
+ * addOneDay
+ * Given a "YYYY-MM-DD" key, returns the next calendar day's key. Used
+ * for the Overnight (single date) booking type, where the stay's
+ * check-out date is the day after the selected rule date.
+ */
+function addOneDay(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const nextDay = new Date(year, month - 1, day + 1);
+  const y = nextDay.getFullYear();
+  const m = String(nextDay.getMonth() + 1).padStart(2, "0");
+  const d = String(nextDay.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * formatDisplayDate
+ * Formats a "YYYY-MM-DD" key as a readable date (e.g. "July 1, 2026")
+ * for the read-only Check-in/Check-out Date fields — kept separate
+ * from the Time inputs so the admin sees both values at a glance
+ * instead of a single ambiguous "Date & Time" field that only ever
+ * held a time.
+ */
+function formatDisplayDate(dateKey) {
+  if (!dateKey) return "—";
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 /* z.coerce.number() on every numeric field is what actually makes this
    form work — native number inputs hand React Hook Form a string, and
    without coercion that string gets PUT straight to Prisma's Int
@@ -370,12 +402,19 @@ export default function BookingRuleForm({ existingRule, rooms }) {
               {allowOvernightStay && !allowDayTour && !allowNightTour && (
                 <div className="bookingRulesFormRow">
                   <div className="bookingRulesFormField">
-                    <label htmlFor="checkInTimeSingle">Check-in Date &amp; Time</label>
-                    <input id="checkInTimeSingle" type="time" {...register("checkInTime")} />
-                    <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
+                    <label>Check-in Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
                   </div>
                   <div className="bookingRulesFormField">
-                    <label htmlFor="checkOutTimeSingle">Check-out Date &amp; Time</label>
+                    <label htmlFor="checkInTimeSingle">Check-in Time</label>
+                    <input id="checkInTimeSingle" type="time" {...register("checkInTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label>Check-out Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(addOneDay(Array.from(selectedDates)[0]))}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="checkOutTimeSingle">Check-out Time</label>
                     <input id="checkOutTimeSingle" type="time" {...register("checkOutTime")} />
                   </div>
                 </div>
@@ -384,13 +423,20 @@ export default function BookingRuleForm({ existingRule, rooms }) {
               {allowDayTour && (
                 <div className="bookingRulesFormRow">
                   <div className="bookingRulesFormField">
-                    <label htmlFor="dayTourStartTime">Check-in Date &amp; Time</label>
+                    <label>Check-in Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourStartTime">Check-in Time</label>
                     <input id="dayTourStartTime" type="time" min="01:00" max="11:59" {...register("dayTourStartTime")} />
-                    <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
                     {errors.dayTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.dayTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
-                    <label htmlFor="dayTourEndTime">Check-out Date &amp; Time</label>
+                    <label>Check-out Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourEndTime">Check-out Time</label>
                     <input id="dayTourEndTime" type="time" {...register("dayTourEndTime")} />
                   </div>
                   <div className="bookingRulesFormField">
@@ -404,13 +450,20 @@ export default function BookingRuleForm({ existingRule, rooms }) {
               {allowNightTour && (
                 <div className="bookingRulesFormRow">
                   <div className="bookingRulesFormField">
-                    <label htmlFor="nightTourStartTime">Check-in Date &amp; Time</label>
+                    <label>Check-in Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourStartTime">Check-in Time</label>
                     <input id="nightTourStartTime" type="time" min="13:00" max="23:59" {...register("nightTourStartTime")} />
-                    <p className="bookingRulesHint">Petsa: {Array.from(selectedDates)[0]}</p>
                     {errors.nightTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.nightTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
-                    <label htmlFor="nightTourEndTime">Check-out Date &amp; Time</label>
+                    <label>Check-out Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourEndTime">Check-out Time</label>
                     <input id="nightTourEndTime" type="time" {...register("nightTourEndTime")} />
                   </div>
                   <div className="bookingRulesFormField">
@@ -433,11 +486,19 @@ export default function BookingRuleForm({ existingRule, rooms }) {
               </p>
               <div className="bookingRulesFormRow">
                 <div className="bookingRulesFormField">
-                  <label htmlFor="checkInTimeMulti">Check-in Date &amp; Time</label>
+                  <label>Check-in Date</label>
+                  <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort()[0])}</p>
+                </div>
+                <div className="bookingRulesFormField">
+                  <label htmlFor="checkInTimeMulti">Check-in Time</label>
                   <input id="checkInTimeMulti" type="time" {...register("checkInTime")} />
                 </div>
                 <div className="bookingRulesFormField">
-                  <label htmlFor="checkOutTimeMulti">Check-out Date &amp; Time</label>
+                  <label>Check-out Date</label>
+                  <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort().slice(-1)[0])}</p>
+                </div>
+                <div className="bookingRulesFormField">
+                  <label htmlFor="checkOutTimeMulti">Check-out Time</label>
                   <input id="checkOutTimeMulti" type="time" {...register("checkOutTime")} />
                 </div>
                 <div className="bookingRulesFormField">

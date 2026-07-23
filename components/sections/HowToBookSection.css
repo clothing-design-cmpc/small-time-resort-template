@@ -1,0 +1,275 @@
+/*
+ * FILE: components/sections/HowToBookSection.css
+ * Styles for the "How to Book" homepage section — 3-step guide plus an
+ * interactive availability calendar. Mirrors BookedDatesSection's mini
+ * calendar visual language but with its own class names, so the two
+ * components stay fully decoupled (Rule 3).
+ */
+
+.howToBookSection {
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.howToBookContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.howToBookHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  text-align: center;
+}
+
+.howToBookEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.howToBookTitle {
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  color: var(--color-text-primary);
+}
+
+.howToBookSubtitle {
+  max-width: 48ch;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* ─── Steps ──────────────────────────────────────────────────────────── */
+.howToBookSteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-lg);
+  width: 100%;
+  padding: var(--space-lg);
+}
+
+.howToBookStep {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.howToBookStepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background-color: var(--color-accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.howToBookStepTitle {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.howToBookStepBody {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Calendar ───────────────────────────────────────────────────────── */
+.howToBookCalendar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 380px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  padding: var(--space-lg);
+}
+
+.howToBookCalendarHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.howToBookCalendarLabel {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+.howToBookCalendarNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.howToBookCalendarNav:hover,
+.howToBookCalendarNav:focus-visible {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}
+
+.howToBookCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+.howToBookCalendarWeekdayLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.howToBookCalendarBlank {
+  /* Empty placeholder — keeps day cells in the correct column */
+}
+
+/* Base day cell is a real <button> — every cell is a tap target, even
+   disabled ones, so the grid never reflows between open/closed days. */
+.howToBookCalendarDay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  cursor: default;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+/* Open (bookable) day — the only clickable state, styled to invite the tap */
+.howToBookCalendarDayOpen {
+  color: var(--color-accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.howToBookCalendarDayOpen:hover,
+.howToBookCalendarDayOpen:focus-visible {
+  background-color: rgba(63, 125, 82, 0.14);
+}
+
+.howToBookCalendarDayBooked {
+  background-color: rgba(192, 68, 42, 0.12);
+  color: #c0442a;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+.howToBookCalendarDayPast {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.howToBookCalendarDayToday {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  font-weight: 700;
+}
+
+/* ─── Legend ─────────────────────────────────────────────────────────── */
+.howToBookCalendarLegend {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  width: 100%;
+}
+
+.howToBookCalendarLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.03em;
+}
+
+.howToBookCalendarLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.howToBookCalendarLegendDotOpen {
+  background-color: var(--color-accent);
+}
+
+.howToBookCalendarLegendDotBooked {
+  background-color: #c0442a;
+}
+
+.howToBookCalendarLegendDotToday {
+  background-color: var(--color-border-hover);
+}
+
+/* ─── Loading / error states ─────────────────────────────────────────── */
+.howToBookCalendarSkeleton {
+  width: 100%;
+  max-width: 380px;
+  height: 340px;
+  border-radius: 16px;
+}
+
+.howToBookErrorState {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.howToBookErrorMessage {
+  font-size: 0.9rem;
+  color: var(--color-error);
+}
+
+@media (max-width: 480px) {
+  .howToBookSteps {
+    grid-template-columns: 1fr;
+  }
+}

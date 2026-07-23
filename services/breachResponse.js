@@ -28,10 +28,22 @@
  *    NEVER runs pg_dump inside the live request, it just presses the
  *    same "Run workflow" button the Backups page already exposes).
  * 5. Email the super-admin via EmailJS (best-effort, never blocks).
- * 6. Gatekeeper 1/2 ONLY: auto-rotate the vault passphrase
- *    (services/vaultAuth.js's rotateVaultPassphrase()) and email the
- *    new plaintext passphrase to VAULT_OWNER_EMAIL. Never done for
- *    Gatekeeper 3 — see that step's own comment below for why.
+ * 6. ALL 3 gatekeepers: auto-rotate the vault passphrase
+ *    (services/vaultAuth.js's rotateVaultPassphrase()), email the new
+ *    plaintext passphrase to VAULT_OWNER_EMAIL, and additionally save
+ *    a plaintext .txt copy of it to Google Drive (services/googleDrive.js)
+ *    as a second, durable channel alongside the email.
+ *
+ *    Per owner's explicit instruction (2026-07), Gatekeeper 3 now gets
+ *    the exact same full response as 1 and 2 — including the IP block
+ *    and the passphrase rotation — even though it fires AFTER a
+ *    correct password. Previously this was deliberately skipped for
+ *    Gatekeeper 3 because a genuine super-admin traveling or using a
+ *    new device would otherwise get auto-blocked out of their own
+ *    recovery page. That risk still exists — if this ever locks out a
+ *    real admin, the fix is the same as any other IP block: unban from
+ *    the vault's "View Blocked Ips" list, or delete the BlockedIp row
+ *    directly.
  *
  * WHY EVERY STEP IS ITS OWN TRY/CATCH:
  * A failure in step 4 (say, GitHub Actions is briefly down) must never
@@ -52,6 +64,7 @@ import { sendBreachAlertEmail, sendVaultPassphraseRotationEmail } from "@/servic
 import { triggerWorkflowDispatch } from "@/services/github";
 import { rotateVaultPassphrase } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
+import { uploadToDrive } from "@/services/googleDrive";
 
 const GATEKEEPER_LABELS = {
   1: "Gatekeeper 1 — Login brute force",
@@ -72,18 +85,15 @@ const BREACH_MESSAGE =
 export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }) {
   const reason = `${GATEKEEPER_LABELS[gatekeeper] ?? `Gatekeeper ${gatekeeper}`} tripped: ${details}`;
 
-  // Step 1 — block the IP immediately. Gatekeepers 1 and 2 trip BEFORE
-  // authentication succeeds, so blocking is always safe there. Gatekeeper
-  // 3 trips AFTER a successful login with a correct password — the IP
-  // that just tripped it may well be the real super-admin travelling or
-  // using a new device, and this project's only recovery path requires
-  // reaching the hidden recovery page from that same session. Auto-blocking
-  // here would risk permanently locking the real admin out of their own
-  // recovery flow, so Gatekeeper 3 deliberately skips the IP block and
-  // relies on lockdown + the alert email/banner instead — a super-admin
-  // can always manually block the IP afterward once they've confirmed it
-  // really was an intrusion, not just their own new laptop.
-  if (ipAddress && gatekeeper !== 3) {
+  // Step 1 — block the IP immediately, for all 3 gatekeepers. Gatekeeper
+  // 3 trips AFTER a successful login with a correct password, so this
+  // does carry a real risk of auto-blocking the genuine super-admin if
+  // they're travelling or on a new device — that trade-off was made
+  // explicitly by the owner in favor of the stronger default. If this
+  // ever locks out a real admin, unban the IP from the vault's "View
+  // Blocked Ips" list (or delete the BlockedIp row directly) — the
+  // vault login itself is never gated by this check (see proxy.js).
+  if (ipAddress) {
     await blockIp(ipAddress, reason, gatekeeper);
   }
 
@@ -132,31 +142,54 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
   // Step 5 — alert the super-admin. Best-effort, never blocks.
   const emailSent = await sendBreachAlertEmail({ gatekeeper, ipAddress, details });
 
-  // Step 6 — rotate the vault passphrase, Gatekeeper 1/2 only. These two
-  // trip BEFORE authentication succeeds (brute force, SQL injection) —
-  // a genuine attack signal, so the old passphrase is invalidated on the
-  // spot and a fresh one is emailed to VAULT_OWNER_EMAIL immediately.
-  // Gatekeeper 3 fires AFTER a correct password was already entered and
-  // may just be the real super-admin on a new device/location — rotating
-  // the vault passphrase there could lock out the actual admin before
-  // they've had a chance to see the alert email, so it's skipped, same
-  // reasoning as the IP-block skip above.
+  // Step 6 — rotate the vault passphrase, for all 3 gatekeepers (see the
+  // file header comment for why Gatekeeper 3 is no longer excluded).
+  // The old passphrase is invalidated on the spot and the fresh one is
+  // sent through two independent channels: an EmailJS email to
+  // VAULT_OWNER_EMAIL, and a plaintext .txt file uploaded to the same
+  // Google Drive folder the offsite backups use — so the owner still
+  // has a durable copy even if the email is missed, delayed, or lands
+  // in spam.
   let vaultPassphraseRotated = false;
-  if (gatekeeper === 1 || gatekeeper === 2) {
+  try {
+    const newPassphrase = await rotateVaultPassphrase();
+    vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
+      newPassphrase,
+      reason,
+    });
+
+    // Second channel — best-effort, never blocks. A failure here must
+    // never undo the rotation or stop the email above from having
+    // already been attempted.
+    let driveFileSaved = false;
     try {
-      const newPassphrase = await rotateVaultPassphrase();
-      vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
-        newPassphrase,
-        reason,
-      });
-      await logSecurityEvent({
-        eventType: "vault_passphrase_rotated",
-        actor: "vault",
-        details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL.`,
-      });
+      const rotatedAtReadable =
+        new Date().toLocaleString("en-US", {
+          dateStyle: "long",
+          timeStyle: "short",
+          timeZone: "Asia/Manila",
+        }) + " PHT";
+      const txtContents =
+        `Villa Azure Resort — System Vault Passphrase Rotation\n\n` +
+        `Reason: ${reason}\n` +
+        `Rotated At: ${rotatedAtReadable}\n\n` +
+        `New Passphrase: ${newPassphrase}\n\n` +
+        `This file was generated automatically after a security gatekeeper breach.\n` +
+        `Store it securely and delete it once the passphrase has been recorded elsewhere.\n`;
+      const fileName = `vault-passphrase-rotation-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+      await uploadToDrive(fileName, Buffer.from(txtContents, "utf-8"), "text/plain");
+      driveFileSaved = true;
     } catch (error) {
-      console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
+      console.error("[breachResponse] Failed to save passphrase txt file to Google Drive:", error.message);
     }
+
+    await logSecurityEvent({
+      eventType: "vault_passphrase_rotated",
+      actor: "vault",
+      details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${driveFileSaved ? " and saved to Google Drive" : " (Google Drive save failed)"}.`,
+    });
+  } catch (error) {
+    console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
   }
 
   // Record what actually succeeded so the recovery page can show an

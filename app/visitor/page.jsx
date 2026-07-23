@@ -5,7 +5,8 @@
  * PURPOSE:
  * Homepage that renders all visitor sections in sequence:
  * Hero → About → Featured Rooms → Amenities → Mini Store →
- * Testimonials → Activities → Gallery Preview → Booked Dates → CTA
+ * Testimonials → Activities → Gallery Preview → How to Book →
+ * Booked Dates → CTA
  *
  * DATA FLOW:
  * 1. Visitor hits "/visitor"
@@ -25,6 +26,7 @@ import MiniStoreSection from "@/components/sections/MiniStoreSection";
 import TestimonialsSection from "@/components/sections/TestimonialsSection";
 import ActivitiesHighlightSection from "@/components/sections/ActivitiesHighlightSection";
 import GalleryPreviewSection from "@/components/sections/GalleryPreviewSection";
+import HowToBookSection from "@/components/sections/HowToBookSection";
 import BookedDatesSection from "@/components/sections/BookedDatesSection";
 import CTASection from "@/components/sections/CTASection";
 
@@ -49,6 +51,7 @@ export default function VisitorHomePage() {
       <TestimonialsSection />
       <ActivitiesHighlightSection />
       <GalleryPreviewSection />
+      <HowToBookSection />
       <BookedDatesSection />
       <CTASection />
     </main>

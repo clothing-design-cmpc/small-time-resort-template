@@ -44,21 +44,48 @@ async function getMaintenanceStatus() {
   try {
     const settings = await prisma.systemSettings.findUnique({
       where: { id: "singleton" },
-      select: { maintenanceMode: true, maintenanceMessage: true, breachLockdown: true, postWipeLockdown: true },
+      select: {
+        maintenanceMode: true,
+        maintenanceMessage: true,
+        breachLockdown: true,
+        postWipeLockdown: true,
+        breachActiveEventId: true,
+      },
     });
+
+    // Which gatekeeper caused the active lockdown, if any — read from the
+    // linked BreachEvent row so BreachLockdownScreen can show
+    // gatekeeper-specific content (Gatekeeper 2 gets its own message).
+    let activeGatekeeper = null;
+    if (settings?.breachActiveEventId) {
+      const breachEvent = await prisma.breachEvent.findUnique({
+        where: { id: settings.breachActiveEventId },
+        select: { gatekeeper: true },
+      });
+      activeGatekeeper = breachEvent?.gatekeeper ?? null;
+    }
+
     return {
       maintenanceMode: settings?.maintenanceMode ?? false,
       maintenanceMessage: settings?.maintenanceMessage ?? "",
       breachLockdown: settings?.breachLockdown ?? false,
       postWipeLockdown: settings?.postWipeLockdown ?? false,
+      activeGatekeeper,
     };
   } catch {
-    return { maintenanceMode: false, maintenanceMessage: "", breachLockdown: false, postWipeLockdown: false };
+    return {
+      maintenanceMode: false,
+      maintenanceMessage: "",
+      breachLockdown: false,
+      postWipeLockdown: false,
+      activeGatekeeper: null,
+    };
   }
 }
 
 export default async function VisitorLayout({ children }) {
-  const { maintenanceMode, maintenanceMessage, breachLockdown, postWipeLockdown } = await getMaintenanceStatus();
+  const { maintenanceMode, maintenanceMessage, breachLockdown, postWipeLockdown, activeGatekeeper } =
+    await getMaintenanceStatus();
 
   // A completed database wipe (Task 2) is the most severe case of all —
   // proxy.js already redirects every visitor request to /maintenance
@@ -73,7 +100,7 @@ export default async function VisitorLayout({ children }) {
   // side renders at all (no Header, no Footer, no page content), not
   // even a banner over an otherwise-working site.
   if (breachLockdown) {
-    return <BreachLockdownScreen message={maintenanceMessage} />;
+    return <BreachLockdownScreen message={maintenanceMessage} gatekeeper={activeGatekeeper} />;
   }
 
   return (

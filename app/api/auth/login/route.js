@@ -47,9 +47,9 @@ const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // require HTTPS once actually deployed to production.
 const isProduction = process.env.NODE_ENV === "production";
 
-// Rule 32.1 priority-endpoint limit: 5 attempts per IP every 15 minutes —
+// Rule 32.1 priority-endpoint limit: 3 attempts per IP every 15 minutes —
 // this is the single most important brute-force guard on the whole app.
-const LOGIN_ATTEMPT_MAX = 5;
+const LOGIN_ATTEMPT_MAX = 3;
 const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request) {

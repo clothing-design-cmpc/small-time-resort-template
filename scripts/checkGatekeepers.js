@@ -120,15 +120,15 @@ function sleep(ms) {
 
 /**
  * testGatekeeper1
- * Hammers the login endpoint with 6 wrong-password attempts from the
- * fake test IP (the limit is 5 per 15 minutes) and checks every step
+ * Hammers the login endpoint with 4 wrong-password attempts from the
+ * fake test IP (the limit is 3 per 15 minutes) and checks every step
  * of the resulting breach response actually happened.
  */
 async function testGatekeeper1() {
   console.log("\n--- Gatekeeper 1: Login Brute Force ---");
 
   let lastStatus = null;
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
     const response = await fetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-forwarded-for": TEST_IP_GATEKEEPER_1 },
@@ -136,7 +136,7 @@ async function testGatekeeper1() {
     });
     lastStatus = response.status;
   }
-  record("6th login attempt returns 429 (rate limit tripped)", lastStatus === 429);
+  record("4th login attempt returns 429 (rate limit tripped)", lastStatus === 429);
 
   // Give the fire-and-forget breach response a moment to finish writing.
   await sleep(1500);

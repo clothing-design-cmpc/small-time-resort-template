@@ -8,7 +8,7 @@
  * THE 3 GATEKEEPERS (each already instrumented elsewhere in this app —
  * this file just reacts to them, it doesn't detect anything itself):
  *   Gatekeeper 1 — login brute force: services/rateLimit.js trips on
- *                  the login route (5 failed attempts / 15 min)
+ *                  the login route (3 failed attempts / 15 min)
  *   Gatekeeper 2 — SQL injection attempt: services/sqlInjectionGuard.js
  *                  flags a request body on login or booking submission
  *   Gatekeeper 3 — anomalous admin login: services/securityLog.js's

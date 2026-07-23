@@ -42,9 +42,9 @@ BASE_URL=http://localhost:3000 TEST_IP_GATEKEEPER_1=203.0.113.55 npm run check:g
 ```
 
 What it does, in order:
-1. Sends 6 wrong-password login attempts from a fake test IP
+1. Sends 4 wrong-password login attempts from a fake test IP
    (`203.0.113.11`, reserved for documentation/testing — RFC 5737) and
-   confirms the 6th returns `429`.
+   confirms the 4th returns `429`.
 2. Confirms a `BlockedIp` row and a `BreachEvent` row (`gatekeeper: 1`)
    were created, and that `SystemSettings.breachLockdown` flipped on.
 3. Confirms the same test IP now gets `403` on a completely unrelated
@@ -87,7 +87,7 @@ the lockdown screen — things the automated script can't see.
    `proxy.js` runtime change (Edge → Node.js) didn't break basic
    routing — the highest-risk change in this feature, so check it first.
 3. **Trip Gatekeeper 1 by hand.** Go to `/superAdmin/login`, enter a
-   wrong password 6 times. The 6th should return 429. Check
+   wrong password 4 times. The 4th should return 429. Check
    `blocked_ips` and `breach_events` via `npx prisma studio`, and
    confirm the visitor homepage now shows the full lockdown screen
    (`components/shared/BreachLockdownScreen.jsx`), not just a banner.

@@ -91,7 +91,7 @@ export async function runGatekeeperDryRun({ baseUrl, testIp1, testIp2 }) {
   try {
     // --- Gatekeeper 1: login brute force ---
     let lastStatus = null;
-    for (let attempt = 1; attempt <= 6; attempt += 1) {
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
       const response = await fetch(`${baseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-forwarded-for": ip1 },
@@ -99,7 +99,7 @@ export async function runGatekeeperDryRun({ baseUrl, testIp1, testIp2 }) {
       });
       lastStatus = response.status;
     }
-    check("Gatekeeper 1 — 6th login attempt returns 429 (rate limit tripped)", lastStatus === 429);
+    check("Gatekeeper 1 — 4th login attempt returns 429 (rate limit tripped)", lastStatus === 429);
 
     // Give the fire-and-forget breach response a moment to finish writing.
     await sleep(1500);

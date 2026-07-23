@@ -1,0 +1,88 @@
+# FILE: .github/workflows/env-check.yml
+# PURPOSE:
+# Runs scripts/runEnvCheck.js on GitHub's own cloud runners — same
+# separate-infrastructure reasoning as database-backup.yml (Rule 40.1):
+# this never runs inside the live app or a guest's request.
+#
+# Schedule: 18:00 UTC = 2:00 AM Philippine Time (UTC+8) every day —
+# same window as the nightly database backup, so both housekeeping
+# jobs run back-to-back in the lowest-traffic hours.
+#
+# The script itself decides whether to email — it only sends an alert
+# when something is actually missing or failing (see that file's
+# header). A clean run produces no email and no visible output beyond
+# the Actions log.
+
+name: Nightly Environment Check
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  envcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm ci only installs the @prisma/client package — it does NOT
+      # generate the actual client code, same requirement as the backup
+      # workflow. Only needs DIRECT_URL (session pooler) — see
+      # prisma.config.mjs, which is what the CLI reads for generate.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Run environment check
+        run: npm run envcheck
+        env:
+          # --- Database ---
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          # --- Supabase ---
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # --- Cloudflare R2 ---
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL }}
+          # --- Google Drive ---
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          # --- EmailJS ---
+          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_GENERAL_TEMPLATE_ID: ${{ secrets.EMAILJS_GENERAL_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          # --- GitHub Actions pipeline ---
+          GITHUB_ACTIONS_TOKEN: ${{ secrets.GITHUB_ACTIONS_TOKEN }}
+          GITHUB_REPO_OWNER: ${{ secrets.GITHUB_REPO_OWNER }}
+          GITHUB_REPO_NAME: ${{ secrets.GITHUB_REPO_NAME }}
+          # --- Upstash rate limiting ---
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          # --- MaxMind GeoIP ---
+          MAXMIND_DB_PATH: ${{ secrets.MAXMIND_DB_PATH }}
+          # --- Vault & Gatekeeper security ---
+          VAULT_SETUP_KEY: ${{ secrets.VAULT_SETUP_KEY }}
+          VAULT_OWNER_EMAIL: ${{ secrets.VAULT_OWNER_EMAIL }}
+          VAULT_ALERT_WEBHOOK_URL: ${{ secrets.VAULT_ALERT_WEBHOOK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # --- Site configuration ---
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}

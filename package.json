@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "backup": "node scripts/runBackup.js",
+    "envcheck": "node scripts/runEnvCheck.js",
     "wipe-database": "node scripts/runDatabaseWipe.js",
     "purge-security-logs": "node scripts/purgeSecurityLogs.js",
     "check:gatekeepers": "node scripts/checkGatekeepers.js",

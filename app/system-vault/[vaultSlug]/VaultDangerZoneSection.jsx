@@ -42,10 +42,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "@/components/superAdmin/WipeDatabaseSection.css";
 import "./VaultDangerZoneSection.css";
-import "./RotateVaultUrlSection.css";
 import VaultCodeConfirmModal from "./VaultCodeConfirmModal";
 import VaultActivityLogSection from "./VaultActivityLogSection";
-import RotateVaultUrlSection from "./RotateVaultUrlSection";
 
 async function parseJsonResponse(response) {
   try {
@@ -266,8 +264,6 @@ export default function VaultDangerZoneSection({ showToast }) {
           Wipe Database
         </button>
       )}
-
-      <RotateVaultUrlSection showToast={showToast} />
 
       <VaultActivityLogSection showToast={showToast} />
 

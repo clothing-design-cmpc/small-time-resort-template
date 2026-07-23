@@ -9,16 +9,20 @@
  *
  * PURPOSE:
  * Task 3 — "Environment Check" feature for the vault dashboard. Reports
- * whether every .env key the app depends on is actually set, plus two
- * cheap live checks (database connectivity, GeoIP file presence). Never
- * returns a secret's value — presence/absence only. See
+ * whether every .env key the app depends on is actually set, plus four
+ * live checks (database connectivity, GeoIP file presence, Google
+ * Drive OAuth token validity, and an actual EmailJS test send). Never
+ * returns a secret's value — presence/absence only. The EmailJS check
+ * sends one real email (uses part of the account's monthly quota) —
+ * acceptable because this whole endpoint only ever runs when the owner
+ * clicks "Run Environment Check," never automatically. See
  * services/envCheck.js for the full spec and reasoning.
  *
  * DATA FLOW:
  * 1. Owner clicks "Run Environment Check" on the recovery dashboard
  * 2. GET here -> requireVaultSession() -> checkEnvironment()
- * 3. Response renders as a per-group pass/fail list, with the two live
- *    checks (DB, GeoIP) called out separately
+ * 3. Response renders as a per-group pass/fail list, with all four live
+ *    checks (DB, GeoIP, Drive, EmailJS) called out separately
  */
 export const dynamic = "force-dynamic";
 

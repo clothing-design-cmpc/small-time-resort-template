@@ -56,8 +56,10 @@ export default function EnvCheckerSection({ showToast }) {
     <div className="recoveryStepCard">
       <h2>Environment Check</h2>
       <p>
-        Checks whether every .env key the app needs is actually set, and pings the database and GeoIP
-        file to confirm they&apos;re really working — never reveals the values themselves.
+        Checks whether every .env key the app needs is actually set, and pings the database, GeoIP
+        file, and Google Drive to confirm they&apos;re really working — never reveals the values
+        themselves. Also sends one real test email via EmailJS to confirm it can actually send,
+        not just that the keys are set.
       </p>
 
       <button type="button" className="recoveryUnbanButton" onClick={handleRunCheck} disabled={isChecking}>

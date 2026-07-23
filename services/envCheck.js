@@ -21,21 +21,32 @@
  * place already reserved for "is everything actually working"
  * questions.
  *
- * LIVE CHECKS (kept deliberately minimal):
- * Only two groups get an actual runtime check rather than a plain
- * presence check, because both are cheap, side-effect-free, and
- * directly answer "is it actually running" rather than just "is a
- * value present":
- *   - Database: SELECT 1 through the existing Prisma client
- *   - GeoIP:    confirms the .mmdb file at MAXMIND_DB_PATH exists on disk
- * Every other group (Supabase, R2, Google Drive, EmailJS, GitHub
- * Actions, Upstash, Vault/Security) is presence-only — a live network
- * call to each third party on every dashboard visit would be slow,
- * noisy in provider logs, and isn't needed to answer "did someone
- * forget to set this."
+ * LIVE CHECKS:
+ *   - Database:    SELECT 1 through the existing Prisma client
+ *   - GeoIP:       confirms the .mmdb file at MAXMIND_DB_PATH exists on disk
+ *   - Google Drive: drive.about.get() — confirms GOOGLE_OAUTH_REFRESH_TOKEN
+ *                   still exchanges for a working access token and the API
+ *                   is reachable. Read-only, never calls files.create — this
+ *                   is exactly the check that would have caught the
+ *                   invalid_grant failure in services/breachResponse.js
+ *                   Step 6b before a real breach silently ate it.
+ *   - EmailJS:     sends one real, clearly-labeled test email to
+ *                  VAULT_OWNER_EMAIL. Unlike the other checks this DOES
+ *                  have a side effect (uses one of EmailJS's limited
+ *                  monthly sends) — acceptable ONLY because this whole
+ *                  endpoint is already on-demand (owner clicks "Run
+ *                  Environment Check" in EnvCheckerSection.jsx, never
+ *                  runs on page load/mount), so it never fires without
+ *                  the owner explicitly asking for it.
+ * Every other group (Supabase, R2, GitHub Actions, Upstash, Vault/Security)
+ * stays presence-only — a live network call to each on every run isn't
+ * needed to answer "did someone forget to set this," and Supabase/R2
+ * failures already surface immediately through normal app usage.
  */
 import { prisma } from "@/services/prisma";
 import { existsSync } from "node:fs";
+import { getDriveClient } from "@/services/googleDrive";
+import { sendGeneralEmail } from "@/services/emailjs";
 
 /**
  * ENV_GROUPS
@@ -158,10 +169,10 @@ const ENV_GROUPS = [
 /**
  * checkEnvironment
  * Walks every group above, records presence for each key (never the
- * value), then runs the two cheap live checks. Never throws — a
- * failing live check is reported as a row in the result, not an
- * exception, since a broken DB connection is exactly the kind of
- * thing this endpoint exists to surface.
+ * value), then runs the four live checks (database, GeoIP, Google
+ * Drive, EmailJS). Never throws — a failing live check is reported as
+ * a row in the result, not an exception, since a broken connection is
+ * exactly the kind of thing this endpoint exists to surface.
  */
 export async function checkEnvironment() {
   const groups = ENV_GROUPS.map((group) => {
@@ -199,9 +210,75 @@ export async function checkEnvironment() {
       : { status: "failed", message: `No file found at ${maxmindPath}.` };
   }
 
+  // --- Live check 3: Google Drive OAuth token still valid ---
+  // drive.about.get() is the lightest authenticated call the Drive API
+  // offers — confirms the refresh token still exchanges for a working
+  // access token without listing or touching any files. This is the
+  // exact failure (invalid_grant) that was silently eating the vault
+  // passphrase backup in services/breachResponse.js Step 6b — surfacing
+  // it here means the owner can catch a dead token before the next real
+  // breach or scheduled rotation needs it.
+  let googleDriveLive = { status: "unknown", message: "Not checked." };
+  const driveRequiredVars = ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_REFRESH_TOKEN"];
+  const missingDriveVars = driveRequiredVars.filter((key) => !process.env[key]);
+  if (missingDriveVars.length > 0) {
+    googleDriveLive = { status: "failed", message: `Not configured — missing ${missingDriveVars.join(", ")}.` };
+  } else {
+    try {
+      const drive = getDriveClient();
+      await drive.about.get({ fields: "user" });
+      googleDriveLive = { status: "ok", message: "Refresh token is valid — Drive is reachable." };
+    } catch (error) {
+      // error.response.data.error carries the real Google API detail
+      // (e.g. "invalid_grant") — see services/googleDrive.js's own
+      // uploadToDrive() catch block for the same pattern.
+      const apiErrorDetail = error?.response?.data?.error;
+      const detailText = typeof apiErrorDetail === "string" ? apiErrorDetail : apiErrorDetail?.message;
+      googleDriveLive = {
+        status: "failed",
+        message: `Drive rejected the request${detailText ? ` (${detailText})` : ""} — the refresh token may need to be regenerated (scripts/getGoogleDriveRefreshToken.mjs).`,
+      };
+    }
+  }
+
+  // --- Live check 4: EmailJS can actually send ---
+  // Unlike the three checks above, this has a real side effect (sends
+  // one email, using one of EmailJS's limited monthly sends) — safe
+  // ONLY because checkEnvironment() is invoked exclusively on-demand
+  // (EnvCheckerSection.jsx's "Run Environment Check" button), never on
+  // page load, so it never fires without the owner explicitly asking.
+  let emailjsLive = { status: "unknown", message: "Not checked." };
+  const emailjsRequiredVars = ["EMAILJS_SERVICE_ID", "EMAILJS_GENERAL_TEMPLATE_ID", "EMAILJS_PUBLIC_KEY"];
+  const missingEmailjsVars = emailjsRequiredVars.filter((key) => !process.env[key]);
+  const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
+  if (missingEmailjsVars.length > 0) {
+    emailjsLive = { status: "failed", message: `Not configured — missing ${missingEmailjsVars.join(", ")}.` };
+  } else if (!vaultOwnerEmail) {
+    emailjsLive = { status: "failed", message: "VAULT_OWNER_EMAIL is not set — nowhere to send the test email." };
+  } else {
+    const checkedAtReadable = new Date().toLocaleString("en-US", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "Asia/Manila",
+    });
+    const sent = await sendGeneralEmail({
+      toEmail: vaultOwnerEmail,
+      subject: "Environment Check — Test Email",
+      eyebrow: "ENVIRONMENT CHECK",
+      heading: "EmailJS is working",
+      intro: `This test email was sent by clicking "Run Environment Check" on the vault dashboard at ${checkedAtReadable} PHT.`,
+      bodyMessage: "If you weren't expecting this, someone else with vault access just ran the check.",
+    });
+    emailjsLive = sent
+      ? { status: "ok", message: `Test email sent to ${vaultOwnerEmail}.` }
+      : { status: "failed", message: "EmailJS rejected the send — check server logs for the exact response." };
+  }
+
   const groupsWithLiveChecks = groups.map((group) => {
     if (group.id === "database") return { ...group, liveCheck: databaseLive };
     if (group.id === "geoip") return { ...group, liveCheck: geoipLive };
+    if (group.id === "googleDrive") return { ...group, liveCheck: googleDriveLive };
+    if (group.id === "emailjs") return { ...group, liveCheck: emailjsLive };
     return group;
   });
 

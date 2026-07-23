@@ -73,6 +73,16 @@ export default function VaultLoginClient() {
     const result = await response.json();
 
     if (!result.success) {
+      // Rate limit exceeded -> the API route has already blocked this IP
+      // (services/ipBlock.js). Reload the page instead of just showing
+      // the error: proxy.js's vault-slug guess guard checks isIpBlocked()
+      // on every request under /system-vault/ and immediately redirects
+      // an already-blocked IP to /access-denied before this page (or any
+      // slug check) even runs.
+      if (result.blocked) {
+        window.location.reload();
+        return;
+      }
       setAuthError(result.message || "Incorrect passphrase.");
       return;
     }

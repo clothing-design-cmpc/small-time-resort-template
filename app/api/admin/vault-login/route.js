@@ -40,6 +40,7 @@ import {
 } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
+import { blockIp } from "@/services/ipBlock";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -57,14 +58,29 @@ export async function POST(request) {
 
   const { allowed } = await checkRateLimit(`vault-login:${ip}`, VAULT_LOGIN_ATTEMPT_MAX, VAULT_LOGIN_ATTEMPT_WINDOW_MS);
   if (!allowed) {
+    const reason = `Exceeded ${VAULT_LOGIN_ATTEMPT_MAX} vault passphrase attempts within 15 minutes.`;
     await logSecurityEvent({
       eventType: "vault_login_failed",
       actor: VAULT_IDENTITY,
       request,
-      details: `Exceeded ${VAULT_LOGIN_ATTEMPT_MAX} vault passphrase attempts within 15 minutes.`,
+      details: reason,
     });
+
+    // Same direct blockIp() pattern proxy.js's own vault-slug guess guard
+    // uses (gatekeeper: null — this isn't one of the 3 numbered
+    // Gatekeepers, it's a standalone guard on the vault's first factor).
+    // Once blocked, the owner's very next request to /system-vault/* is
+    // caught by that same guard and bounced to /access-denied before the
+    // page even renders — the client below reloads to land on exactly
+    // that check.
+    if (ip !== "unknown") {
+      await blockIp(ip, reason, null).catch((error) =>
+        console.error("[vault-login] blockIp failed:", error.message)
+      );
+    }
+
     return NextResponse.json(
-      { success: false, data: null, message: "Too many attempts. Please try again in 15 minutes." },
+      { success: false, data: null, blocked: true, message: "Too many attempts. Please try again in 15 minutes." },
       { status: 429 }
     );
   }

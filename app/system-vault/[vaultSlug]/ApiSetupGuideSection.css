@@ -1,0 +1,89 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/ApiSetupGuideSection.css
+ * Layout for the API & Service Setup Guide's collapsible per-service
+ * cards. Reuses tokens already defined in Recovery.css / globals.css —
+ * no new colors introduced here.
+ */
+
+.apiSetupGuideList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+/*
+ * .apiSetupGuideCard
+ * One card per service — same bordered/layered-surface treatment as
+ * .envCheckerGroup, so the two sections read as a matched pair.
+ */
+.apiSetupGuideCard {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.apiSetupGuideCardHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-md);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: left;
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.apiSetupGuideCardHeader:hover,
+.apiSetupGuideCardHeader:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.apiSetupGuideChevron {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.apiSetupGuideCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-md);
+}
+
+.apiSetupGuideEnvVarList {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.apiSetupGuideEnvVarList li {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.apiSetupGuideSteps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}

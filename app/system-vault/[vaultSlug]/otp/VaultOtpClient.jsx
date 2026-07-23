@@ -234,6 +234,15 @@ export default function VaultOtpClient() {
     }
 
     if (!result.success) {
+      // Rate limit exceeded -> the API route has already blocked this IP
+      // (services/ipBlock.js). Reload instead of showing the error: the
+      // next request under /system-vault/ hits proxy.js's vault-slug
+      // guess guard, which checks isIpBlocked() first and redirects an
+      // already-blocked IP straight to /access-denied.
+      if (result.blocked) {
+        window.location.reload();
+        return;
+      }
       setSendStatus({ state: "error", message: "" });
       setAuthError(result.message || "Failed to send the code.");
       return;
@@ -273,6 +282,15 @@ export default function VaultOtpClient() {
     }
 
     if (!result.success) {
+      // Rate limit exceeded -> the API route has already blocked this IP
+      // (services/ipBlock.js). Reload instead of showing the error: the
+      // next request under /system-vault/ hits proxy.js's vault-slug
+      // guess guard, which checks isIpBlocked() first and redirects an
+      // already-blocked IP straight to /access-denied.
+      if (result.blocked) {
+        window.location.reload();
+        return;
+      }
       setAuthError(result.message || "Incorrect or expired code.");
       return;
     }

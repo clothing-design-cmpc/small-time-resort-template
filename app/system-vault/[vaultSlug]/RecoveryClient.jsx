@@ -78,6 +78,7 @@ import VaultCodeConfirmModal from "./VaultCodeConfirmModal";
 import VaultDangerZoneSection from "./VaultDangerZoneSection";
 import VaultIdleTimeoutGuard from "./VaultIdleTimeoutGuard";
 import VaultWipeGraceModal from "./VaultWipeGraceModal";
+import ApiSetupGuideSection from "./ApiSetupGuideSection";
 import EnvCheckerSection from "./EnvCheckerSection";
 import RecoveryCardSection from "./RecoveryCardSection";
 import VaultGatekeeperTesterSection from "./VaultGatekeeperTesterSection";
@@ -765,6 +766,11 @@ export default function RecoveryClient() {
           onCancel={() => setSelectedIpToUnban(null)}
         />
       )}
+
+      {/* --- API & Service Setup Guide (Task 3) — how to set each
+          service up, right above the checker that confirms whether it
+          actually was. --- */}
+      <ApiSetupGuideSection />
 
       {/* --- Environment Check (Task 3) --- */}
       <EnvCheckerSection showToast={showToast} />

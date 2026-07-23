@@ -30,6 +30,7 @@ import { requireVaultSession, reissueVaultSessionCookieValue, VAULT_IDENTITY } f
 import { generateAndSendVaultOtp, verifyVaultOtp } from "@/services/vaultOtp";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
+import { blockIp } from "@/services/ipBlock";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -75,8 +76,26 @@ export async function POST(request) {
   const ip = getIp(request);
   const { allowed } = await checkRateLimit(`vault-otp-send:${ip}`, OTP_SEND_MAX, OTP_SEND_WINDOW_MS);
   if (!allowed) {
+    const reason = `Exceeded ${OTP_SEND_MAX} vault OTP send requests within 15 minutes.`;
+    await logSecurityEvent({
+      eventType: "vault_otp_failed",
+      actor: VAULT_IDENTITY,
+      request,
+      details: reason,
+    });
+
+    // Same direct blockIp() pattern as vault-login's own rate-limit
+    // branch — the owner's very next request to /system-vault/* is
+    // caught by proxy.js's vault-slug guess guard and bounced to
+    // /access-denied before the page even renders.
+    if (ip !== "unknown") {
+      await blockIp(ip, reason, null).catch((error) =>
+        console.error("[vault-otp] blockIp failed (send):", error.message)
+      );
+    }
+
     return NextResponse.json(
-      { success: false, data: null, message: "Too many code requests. Please wait a few minutes." },
+      { success: false, data: null, blocked: true, message: "Too many code requests. Please wait a few minutes." },
       { status: 429 }
     );
   }
@@ -153,14 +172,26 @@ export async function PATCH(request) {
   const ip = getIp(request);
   const { allowed } = await checkRateLimit(`vault-otp-verify:${ip}`, OTP_VERIFY_MAX, OTP_VERIFY_WINDOW_MS);
   if (!allowed) {
+    const reason = `Exceeded ${OTP_VERIFY_MAX} vault OTP attempts within 15 minutes.`;
     await logSecurityEvent({
       eventType: "vault_otp_failed",
       actor: VAULT_IDENTITY,
       request,
-      details: `Exceeded ${OTP_VERIFY_MAX} vault OTP attempts within 15 minutes.`,
+      details: reason,
     });
+
+    // Same direct blockIp() pattern as vault-login's own rate-limit
+    // branch — the owner's very next request to /system-vault/* is
+    // caught by proxy.js's vault-slug guess guard and bounced to
+    // /access-denied before the page even renders.
+    if (ip !== "unknown") {
+      await blockIp(ip, reason, null).catch((error) =>
+        console.error("[vault-otp] blockIp failed (verify):", error.message)
+      );
+    }
+
     return NextResponse.json(
-      { success: false, data: null, message: "Too many attempts. Please try again in 15 minutes." },
+      { success: false, data: null, blocked: true, message: "Too many attempts. Please try again in 15 minutes." },
       { status: 429 }
     );
   }

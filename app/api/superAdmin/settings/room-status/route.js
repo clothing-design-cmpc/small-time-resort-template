@@ -24,7 +24,7 @@ export async function GET() {
       message: "Room statuses fetched successfully.",
     });
   } catch (error) {
-    console.error("[room-status] Failed to fetch:", error.message);
+    console.error("[room-status] Failed to fetch:", error);
     return NextResponse.json(
       { success: false, data: null, message: "We couldn't load room statuses. Please try again." },
       { status: 500 }

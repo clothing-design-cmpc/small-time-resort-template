@@ -43,6 +43,12 @@
   .footerContainer {
     grid-template-columns: 1fr 1fr;
   }
+
+  /* Booking Rules — "Uri ng Booking" single-date panel grid (Section 1).
+     Fixed 2-column layout once there's room for it side by side. */
+  .bookingRulesFormGrid3x2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ============================================================

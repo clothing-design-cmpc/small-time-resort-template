@@ -17,8 +17,14 @@
  *
  * WHAT HAPPENS ON A TRIP (in this exact order):
  * 1. Block the offending IP (services/ipBlock.js) — every future
- *    request from this IP gets a plain 403 from proxy.js, for
- *    every route, visitor and super-admin alike.
+ *    request from this IP gets a plain 403 from proxy.js, for every
+ *    route, visitor and super-admin alike. Applies to ALL 3 gatekeepers
+ *    (owner request — see that step's own comment for the accepted
+ *    trade-off on Gatekeeper 3). NOTE: proxy.js's actual enforcement of
+ *    this is currently gated behind GATEKEEPER_IP_BLOCK_ENABLED="true"
+ *    in .env.local (off by default as of July 2026) — the BlockedIp row
+ *    is always created here regardless, but it only actually blocks
+ *    traffic once that env flag is turned on.
  * 2. Create a BreachEvent row — the incident record the recovery page
  *    and the super-admin alert banner both read from.
  * 3. Flip SystemSettings.breachLockdown + maintenanceMode on, with the
@@ -30,20 +36,9 @@
  * 5. Email the super-admin via EmailJS (best-effort, never blocks).
  * 6. ALL 3 gatekeepers: auto-rotate the vault passphrase
  *    (services/vaultAuth.js's rotateVaultPassphrase()), email the new
- *    plaintext passphrase to VAULT_OWNER_EMAIL, and additionally save
- *    a plaintext .txt copy of it to Google Drive (services/googleDrive.js)
- *    as a second, durable channel alongside the email.
- *
- *    Per owner's explicit instruction (2026-07), Gatekeeper 3 now gets
- *    the exact same full response as 1 and 2 — including the IP block
- *    and the passphrase rotation — even though it fires AFTER a
- *    correct password. Previously this was deliberately skipped for
- *    Gatekeeper 3 because a genuine super-admin traveling or using a
- *    new device would otherwise get auto-blocked out of their own
- *    recovery page. That risk still exists — if this ever locks out a
- *    real admin, the fix is the same as any other IP block: unban from
- *    the vault's "View Blocked Ips" list, or delete the BlockedIp row
- *    directly.
+ *    plaintext passphrase to VAULT_OWNER_EMAIL, AND save a second
+ *    plaintext copy as a .txt file to Google Drive (services/
+ *    googleDrive.js) as a durable backup of that same email.
  *
  * WHY EVERY STEP IS ITS OWN TRY/CATCH:
  * A failure in step 4 (say, GitHub Actions is briefly down) must never
@@ -72,8 +67,14 @@ const GATEKEEPER_LABELS = {
   3: "Gatekeeper 3 — Anomalous admin login",
 };
 
+// Deliberately generic regardless of WHICH gatekeeper tripped (1, 2, or
+// 3) — never names the specific attack vector (e.g. "SQL injection")
+// on a page every visitor, including a would-be attacker, can see. A
+// gatekeeper-specific reason is still recorded on the BreachEvent row
+// itself and shown only to whoever holds the vault session on the
+// recovery page (RecoveryClient.jsx's "Active Incident" card).
 const BREACH_MESSAGE =
-  "This website has been breached and is currently under maintenance. Sorry for the inconvenience — please check back shortly.";
+  "We've temporarily paused the site while our team runs a routine security check. This won't take long — please check back shortly, and thank you for your patience.";
 
 /**
  * triggerGatekeeperBreach
@@ -85,14 +86,17 @@ const BREACH_MESSAGE =
 export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }) {
   const reason = `${GATEKEEPER_LABELS[gatekeeper] ?? `Gatekeeper ${gatekeeper}`} tripped: ${details}`;
 
-  // Step 1 — block the IP immediately, for all 3 gatekeepers. Gatekeeper
+  // Step 1 — block the IP immediately, for ALL 3 gatekeepers (owner
+  // request — overrides the previous Gatekeeper-3 carve-out). Gatekeeper
   // 3 trips AFTER a successful login with a correct password, so this
-  // does carry a real risk of auto-blocking the genuine super-admin if
-  // they're travelling or on a new device — that trade-off was made
-  // explicitly by the owner in favor of the stronger default. If this
-  // ever locks out a real admin, unban the IP from the vault's "View
-  // Blocked Ips" list (or delete the BlockedIp row directly) — the
-  // vault login itself is never gated by this check (see proxy.js).
+  // IP could be the real super-admin travelling or using a new device —
+  // that risk is accepted here on purpose. The vault recovery page is
+  // reachable via its own separate login chain (passphrase + OTP) and is
+  // never gated by BlockedIp/proxy.js's IP check the same way /superAdmin
+  // is, so a real admin blocked here can still reach recovery and the new
+  // /superAdmin/blocked-ips page (via another device/network) to unblock
+  // themselves afterward — see that page for why unbanning itself still
+  // requires the vault's own step-up code, not just a super-admin session.
   if (ipAddress) {
     await blockIp(ipAddress, reason, gatekeeper);
   }
@@ -142,15 +146,15 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
   // Step 5 — alert the super-admin. Best-effort, never blocks.
   const emailSent = await sendBreachAlertEmail({ gatekeeper, ipAddress, details });
 
-  // Step 6 — rotate the vault passphrase, for all 3 gatekeepers (see the
-  // file header comment for why Gatekeeper 3 is no longer excluded).
-  // The old passphrase is invalidated on the spot and the fresh one is
-  // sent through two independent channels: an EmailJS email to
-  // VAULT_OWNER_EMAIL, and a plaintext .txt file uploaded to the same
-  // Google Drive folder the offsite backups use — so the owner still
-  // has a durable copy even if the email is missed, delayed, or lands
-  // in spam.
+  // Step 6 — rotate the vault passphrase, for ALL 3 gatekeepers (owner
+  // request — overrides the previous Gatekeeper-3 carve-out). Same
+  // accepted trade-off as Step 1's IP block above: Gatekeeper 3 fires
+  // AFTER a correct password was entered and may just be the real
+  // super-admin on a new device/location, but the owner would rather
+  // rotate on every trip than risk missing a genuine one. The freshly
+  // emailed passphrase (below) is how the real admin recovers either way.
   let vaultPassphraseRotated = false;
+  let vaultPassphraseDriveBackup = null;
   try {
     const newPassphrase = await rotateVaultPassphrase();
     vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
@@ -158,10 +162,13 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
       reason,
     });
 
-    // Second channel — best-effort, never blocks. A failure here must
-    // never undo the rotation or stop the email above from having
-    // already been attempted.
-    let driveFileSaved = false;
+    // Step 6b — save the same plaintext passphrase to a .txt file and
+    // upload it to Google Drive (Rule 35.7) as a second, durable copy
+    // alongside the email — an inbox can be missed, deleted, or
+    // temporarily unreachable, and this gives the owner a place to look
+    // even if that specific email never arrives. Best-effort: a failed
+    // Drive upload must never undo the rotation that already happened,
+    // or block the rest of this response.
     try {
       const rotatedAtReadable =
         new Date().toLocaleString("en-US", {
@@ -169,24 +176,34 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
           timeStyle: "short",
           timeZone: "Asia/Manila",
         }) + " PHT";
-      const txtContents =
-        `Villa Azure Resort — System Vault Passphrase Rotation\n\n` +
+      const passphraseFileContents =
+        `VAULT PASSPHRASE ROTATION RECORD\n` +
         `Reason: ${reason}\n` +
-        `Rotated At: ${rotatedAtReadable}\n\n` +
+        `Gatekeeper: ${gatekeeper}\n` +
+        `Rotated At: ${rotatedAtReadable}\n` +
         `New Passphrase: ${newPassphrase}\n\n` +
-        `This file was generated automatically after a security gatekeeper breach.\n` +
-        `Store it securely and delete it once the passphrase has been recorded elsewhere.\n`;
-      const fileName = `vault-passphrase-rotation-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
-      await uploadToDrive(fileName, Buffer.from(txtContents, "utf-8"), "text/plain");
-      driveFileSaved = true;
+        `This file was generated automatically after a gatekeeper breach and\n` +
+        `saved to Google Drive as an offline backup of the passphrase already\n` +
+        `emailed to VAULT_OWNER_EMAIL. Keep this file private — anyone who\n` +
+        `reads it can sign in to the disaster-recovery vault.\n`;
+      const fileName = `vault-passphrase-rotated-${new Date().toISOString().replace(/[:.]/g, "-")}-gatekeeper${gatekeeper}.txt`;
+
+      const uploadResult = await uploadToDrive(
+        fileName,
+        Buffer.from(passphraseFileContents, "utf-8"),
+        "text/plain"
+      );
+      vaultPassphraseDriveBackup = uploadResult.viewLink;
     } catch (error) {
-      console.error("[breachResponse] Failed to save passphrase txt file to Google Drive:", error.message);
+      console.error("[breachResponse] Failed to save passphrase backup to Drive:", error.message);
     }
 
     await logSecurityEvent({
       eventType: "vault_passphrase_rotated",
       actor: "vault",
-      details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${driveFileSaved ? " and saved to Google Drive" : " (Google Drive save failed)"}.`,
+      details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${
+        vaultPassphraseDriveBackup ? " and backed up to Google Drive" : " (Drive backup failed — see server logs)"
+      }.`,
     });
   } catch (error) {
     console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
@@ -198,7 +215,7 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
     try {
       await prisma.breachEvent.update({
         where: { id: breachEvent.id },
-        data: { backupTriggered, emailSent, vaultPassphraseRotated },
+        data: { backupTriggered, emailSent, vaultPassphraseRotated, vaultPassphraseDriveUrl: vaultPassphraseDriveBackup },
       });
     } catch (error) {
       console.error("[breachResponse] Failed to update BreachEvent status flags:", error.message);

@@ -167,21 +167,18 @@
 }
 
 /*
- * .bookingRulesFormRow--grid2x3
- * Section 1's "Overnight (Customized)" panel (2+ dates selected): fixed
- * 2-column grid so Check-in Date/Time and Check-out Date/Time sit side
- * by side, with Hourly Charge on its own row spanning both columns —
- * 3 rows, 2 columns total, per admin request. Only used on this one
- * panel; every other Section 1 panel keeps the flex-wrap layout above.
+ * .bookingRulesFormGrid3x2
+ * Explicit 3-row x 2-column grid for the single-date "Uri ng Booking"
+ * panel: Check-in Date/Time, Check-out Date/Time, Hourly Charge (last
+ * cell left empty). Fixed 2-column grid rather than the flex-wrap row
+ * above, since this panel's field count and order are meant to stay
+ * exactly 3x2 regardless of viewport width, not reflow with content.
+ * Collapses to 1 column on narrow screens via mediaQueries.css.
  */
-.bookingRulesFormRow--grid2x3 {
+.bookingRulesFormGrid3x2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--space-md);
-}
-
-.bookingRulesFormRow--grid2x3 .bookingRulesFormField--fullRow {
-  grid-column: 1 / -1;
 }
 
 .bookingRulesFormError {

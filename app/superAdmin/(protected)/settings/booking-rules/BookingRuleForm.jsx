@@ -400,7 +400,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
               </div>
 
               {allowOvernightStay && !allowDayTour && !allowNightTour && (
-                <div className="bookingRulesFormRow">
+                <div className="bookingRulesFormGrid3x2">
                   <div className="bookingRulesFormField">
                     <label>Check-in Date</label>
                     <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
@@ -416,6 +416,19 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                   <div className="bookingRulesFormField">
                     <label htmlFor="checkOutTimeSingle">Check-out Time</label>
                     <input id="checkOutTimeSingle" type="time" {...register("checkOutTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="hourlyChargeAmountSingle">Hourly Charge (₱)</label>
+                    <input
+                      id="hourlyChargeAmountSingle"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      {...register("hourlyChargeAmount")}
+                    />
+                    {errors.hourlyChargeAmount && (
+                      <span role="alert" className="bookingRulesFormError">{errors.hourlyChargeAmount.message}</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -484,8 +497,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                 {selectedDates.size} na petsa ang napili — overnight lagi ang type kapag maraming petsa, may sariling
                 check-in/check-out at dagdag na hourly charge sa ibabaw ng normal na per-night rate.
               </p>
-              <div className="bookingRulesFormRow bookingRulesFormRow--grid2x3">
-                {/* Row 1 */}
+              <div className="bookingRulesFormRow">
                 <div className="bookingRulesFormField">
                   <label>Check-in Date</label>
                   <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort()[0])}</p>
@@ -494,7 +506,6 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                   <label htmlFor="checkInTimeMulti">Check-in Time</label>
                   <input id="checkInTimeMulti" type="time" {...register("checkInTime")} />
                 </div>
-                {/* Row 2 */}
                 <div className="bookingRulesFormField">
                   <label>Check-out Date</label>
                   <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort().slice(-1)[0])}</p>
@@ -503,8 +514,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                   <label htmlFor="checkOutTimeMulti">Check-out Time</label>
                   <input id="checkOutTimeMulti" type="time" {...register("checkOutTime")} />
                 </div>
-                {/* Row 3 — spans both columns */}
-                <div className="bookingRulesFormField bookingRulesFormField--fullRow">
+                <div className="bookingRulesFormField">
                   <label htmlFor="hourlyChargeAmount">Hourly Charge (₱)</label>
                   <input id="hourlyChargeAmount" type="number" step="0.01" min="0" {...register("hourlyChargeAmount")} />
                   <p className="bookingRulesHint">Dagdag na bayad kada oras, sa ibabaw ng normal na per-night rate.</p>

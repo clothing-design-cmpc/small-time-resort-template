@@ -63,6 +63,7 @@ const navGroups = [
     label: "Security",
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
+      { label: "Blocked IPs", href: "/superAdmin/blocked-ips" },
       { label: "Backups", href: "/superAdmin/backups" },
     ],
   },

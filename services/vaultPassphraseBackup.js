@@ -2,34 +2,28 @@
  * FILE: services/vaultPassphraseBackup.js
  * PURPOSE:
  * Single shared implementation of "save the freshly-rotated vault
- * passphrase to Google Drive as a .txt file" — previously this exact
- * block (build file content, upload, catch-and-log) was copy-pasted
- * in three places (services/breachResponse.js, the auto-rotate cron
- * route, and the manual system-vault-setup route), so a fix or
- * improvement made in one never reached the other two.
+ * passphrase to Google Drive as a .txt file" — used by every rotation
+ * path (breach response, 30-day auto-rotate cron, manual "Generate
+ * New Passphrase" button, and the terminal rotation script) so a fix
+ * made once reaches everywhere instead of being copy-pasted per site.
  *
- * WHY THIS FILE EXISTS (Task 4):
- * The owner observed passphrases rotating (email received) with no
- * matching file showing up in Google Drive. Every existing call site
- * already attempted the Drive upload, but a single transient failure
- * (an expired OAuth access token, a momentary network blip, Drive
- * rate-limiting) was caught, logged to the server console, and then
- * silently dropped — nothing ever tried again, and nothing surfaced
- * that failure anywhere the owner could see it. This helper fixes
- * that by:
- *   1. Retrying the upload once (a few seconds apart) before giving up,
- *      since most Drive failures are transient rather than permanent.
- *   2. Always returning a clear driveSaved boolean the caller can log,
- *      so a persistent failure is at least visible in SecurityLog
- *      (existing "Saved to Drive: <bool>" detail lines already surface
- *      this — they just needed the retry behind them to make the
- *      false case rarer).
+ * Retries the upload once (a few seconds apart) before giving up,
+ * since most Drive failures are transient (expired access token,
+ * momentary network blip, brief rate-limit) rather than permanent.
+ * Always returns a clear driveSaved boolean the caller can log.
+ *
+ * IMPORTS ARE RELATIVE ON PURPOSE — not "@/services/..." — so this
+ * file works both from Next.js API routes (where the "@/" alias is
+ * available) AND from plain `node` terminal scripts (which have no
+ * idea what "@/" means; jsconfig.json's path alias only resolves
+ * inside Next's own bundler). Same convention services/vaultAuth.js
+ * and services/securityLog.js already follow for this exact reason.
  *
  * Email and Drive remain independent — a Drive failure here must never
  * stop the plaintext email from having already been sent by the caller.
  */
-import { uploadToDrive } from "@/services/googleDrive";
-import { getVaultRecoveryUrl } from "@/services/vaultAuth";
+import { uploadToDrive } from "./googleDrive.js";
+import { getVaultRecoveryUrl } from "./vaultAuth.js";
 
 const RETRY_DELAY_MS = 3000;
 

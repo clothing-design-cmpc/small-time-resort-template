@@ -28,9 +28,9 @@
  * This file is server-side only — never import it in a "use client" file.
  */
 
-import { sendGeneralEmail } from "@/services/emailjs";
-import { getVaultRecoveryUrl } from "@/services/vaultAuth";
-import { sendVaultWebhookAlert } from "@/services/webhookAlert";
+import { sendGeneralEmail } from "./emailjs.js";
+import { getVaultRecoveryUrl } from "./vaultAuth.js";
+import { sendVaultWebhookAlert } from "./webhookAlert.js";
 
 /**
  * sendBreachAlertEmail

@@ -42,8 +42,10 @@
  * that would otherwise have started throwing — no behavior changed.
  */
 import { NextResponse } from "next/server";
-import { isIpBlocked } from "@/services/ipBlock";
+import { isIpBlocked, blockIp } from "@/services/ipBlock";
 import { isPostWipeLockdownActive } from "@/services/postWipeLockdown";
+import { computeVaultUrlSlug } from "@/services/vaultAuth";
+import { logSecurityEvent } from "@/services/securityLog";
 
 // The hidden database-recovery page (3-Gatekeeper breach response,
 // Task 3) is deliberately NOT under /superAdmin — it must never appear
@@ -221,6 +223,51 @@ export async function proxy(request, event) {
       );
     }
     return NextResponse.redirect(new URL("/access-denied", request.url));
+  }
+
+  // --- VAULT SLUG GUESS GUARD (Task 1) ---
+  // Independent of GATEKEEPER_IP_BLOCK_ENABLED (disabled above, per
+  // Roza) — this guards the hidden recovery URL itself, at the exact
+  // point an attacker would be probing it, and must never be silenced
+  // by the same flag that's off for an unrelated false-positive.
+  // Covers page.jsx, /login, and /otp in one place — all three share
+  // the HIDDEN_RECOVERY_PATH_PREFIX and were each separately calling
+  // computeVaultUrlSlug() and notFound() before; this runs first, in
+  // front of all three.
+  //
+  // Rate limit ceiling is 1 wrong attempt, not a tolerant multi-try
+  // window: computeVaultUrlSlug() only ever changes on a deliberate
+  // passphrase rotation, and the vault owner is emailed that new URL
+  // directly at rotation time — there's no legitimate "typo" case to
+  // tolerate the way there is for a password field. The first wrong
+  // guess is already an attacker (or a stale pre-rotation bookmark),
+  // so it gets the same permanent IP block a Gatekeeper trip would,
+  // and the same styled AccessDeniedScreen — never a hint that a slug
+  // check even happened.
+  if (requestIp && pathname.startsWith(HIDDEN_RECOVERY_PATH_PREFIX)) {
+    // Already blocked from an earlier wrong guess -> straight to
+    // access-denied, never re-run the slug check or re-block.
+    if (await isIpBlocked(requestIp)) {
+      return NextResponse.redirect(new URL("/access-denied", request.url));
+    }
+
+    const vaultSlugSegment = pathname.slice(HIDDEN_RECOVERY_PATH_PREFIX.length).split("/")[0];
+    const expectedVaultSlug = await computeVaultUrlSlug();
+
+    if (!expectedVaultSlug || vaultSlugSegment !== expectedVaultSlug) {
+      // gatekeeper: null — this isn't one of the 3 numbered Gatekeepers
+      // (services/breachResponse.js), it's a standalone guard on the
+      // recovery URL itself. "View Blocked IPs" already renders a null
+      // gatekeeper cleanly (just the reason, no "— Gatekeeper N" suffix).
+      await blockIp(requestIp, "Guessed the hidden vault recovery URL slug incorrectly.", null);
+      await logSecurityEvent({
+        eventType: "vault_slug_guess_blocked",
+        actor: null,
+        request,
+        details: `IP blocked after one wrong guess at the vault recovery URL slug.`,
+      });
+      return NextResponse.redirect(new URL("/access-denied", request.url));
+    }
   }
 
   // --- POST-WIPE LOCKDOWN CHECK (Task 2) ---

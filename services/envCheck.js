@@ -76,13 +76,26 @@ const ENV_GROUPS = [
     id: "googleDrive",
     label: "Google Drive (document backups + restore)",
     keys: [
-      { key: "GOOGLE_SERVICE_ACCOUNT_EMAIL", required: true },
-      { key: "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", required: true },
+      // services/googleDrive.js was migrated from a service account to
+      // OAuth2 user delegation (see that file's own header) — these 3
+      // are what uploadToDrive() actually authenticates with now, so
+      // they're the ones that must be required: true, or a missing
+      // credential here silently fails uploads (e.g. the vault
+      // passphrase backup in services/breachResponse.js Step 6b, which
+      // wraps the upload in its own try/catch and never surfaces the
+      // failure anywhere but the server console) instead of showing up
+      // here as a failing check.
+      { key: "GOOGLE_OAUTH_CLIENT_ID", required: true },
+      { key: "GOOGLE_OAUTH_CLIENT_SECRET", required: true },
+      { key: "GOOGLE_OAUTH_REFRESH_TOKEN", required: true },
       { key: "GOOGLE_DRIVE_FOLDER_ID", required: true },
-      { key: "GOOGLE_DRIVE_BACKUP_FOLDER_ID", required: true },
-      { key: "GOOGLE_OAUTH_CLIENT_ID", required: false },
-      { key: "GOOGLE_OAUTH_CLIENT_SECRET", required: false },
-      { key: "GOOGLE_OAUTH_REFRESH_TOKEN", required: false },
+      // No longer read anywhere in the codebase — GOOGLE_SERVICE_ACCOUNT_*
+      // belonged to the old auth method (googleDrive.js says they can be
+      // removed from secrets once OAuth is confirmed working), and
+      // GOOGLE_DRIVE_BACKUP_FOLDER_ID was never referenced by any file,
+      // only GOOGLE_DRIVE_FOLDER_ID above is actually used. Kept out of
+      // this list entirely rather than marked required: false, since an
+      // unused key being "set" or "missing" tells the owner nothing.
     ],
   },
   {

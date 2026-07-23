@@ -42,6 +42,7 @@ const STATUS_STYLES = {
   vault_otp_failed: { label: "Code Rejected", color: "#f59e0b" },
   vault_passphrase_set: { label: "Passphrase Set", color: "#3b82f6" },
   vault_passphrase_rotated: { label: "Passphrase Rotated", color: "#8b5cf6" },
+  vault_slug_guess_blocked: { label: "Vault Slug Blocked", color: "#dc2626" },
   // Walk-in Inquiries page (app/superAdmin/(protected)/walkin-inquiries)
   new: { label: "New", color: "#3b82f6" },
   contacted: { label: "Contacted", color: "#f59e0b" },

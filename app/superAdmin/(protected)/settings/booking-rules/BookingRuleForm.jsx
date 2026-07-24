@@ -612,15 +612,35 @@ export default function BookingRuleForm({ existingRule, rooms }) {
             </div>
           )}
 
-          {/* --- Rule 2: two or more dates selected --- */}
+          {/* --- Rule 2: two or more dates selected ---
+               Same "Uri ng Booking" + 3x2 grid design as the single-date
+               panel above (Rule 1) for visual/structural consistency —
+               only Overnight Stay applies once 2+ dates are picked (Day
+               Tour / Night Tour are single-day only), so those two radios
+               render disabled here instead of being hidden entirely. */}
           {selectedDates.size > 1 && (
             <div className="bookingRulesSubPanel">
-              <p className="bookingRulesSubPanelTitle">Overnight (Customized)</p>
+              <p className="bookingRulesSubPanelTitle">Uri ng Booking</p>
+              <div className="bookingRulesToggleRow">
+                <label className="bookingRulesToggle">
+                  <input type="radio" name="multiDateBookingType" checked readOnly disabled />
+                  Overnight Stay (tulugan, may room)
+                </label>
+                <label className="bookingRulesToggle bookingRulesToggle--disabled">
+                  <input type="radio" name="multiDateBookingType" disabled />
+                  Day Tour (araw lang, walang room)
+                </label>
+                <label className="bookingRulesToggle bookingRulesToggle--disabled">
+                  <input type="radio" name="multiDateBookingType" disabled />
+                  Night Tour (gabi lang, walang room)
+                </label>
+              </div>
               <p className="bookingRulesHint">
-                {selectedDates.size} na petsa ang napili — overnight lagi ang type kapag maraming petsa, may sariling
-                check-in/check-out at dagdag na hourly charge sa ibabaw ng normal na per-night rate.
+                {selectedDates.size} na petsa ({selectedDates.size} gabi) ang napili — overnight lagi ang type kapag
+                maraming petsa ang pinili; ang Day Tour at Night Tour ay para sa iisang araw lang.
               </p>
-              <div className="bookingRulesFormRow">
+
+              <div className="bookingRulesFormGrid3x2">
                 <div className="bookingRulesFormField">
                   <label>Check-in Date</label>
                   <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort()[0])}</p>
@@ -630,8 +650,27 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                   <input id="checkInTimeMulti" type="time" {...register("checkInTime")} />
                 </div>
                 <div className="bookingRulesFormField">
+                  <label htmlFor="multiStayHours">Total Hours of Stay</label>
+                  <select
+                    id="multiStayHours"
+                    value={hoursBetween(checkInTimeSingle, checkOutTimeSingle) ?? ""}
+                    onChange={(event) => {
+                      const hours = Number(event.target.value);
+                      setValue("checkOutTime", addHoursToTime(checkInTimeSingle, hours), { shouldValidate: true });
+                    }}
+                  >
+                    <option value="" disabled>Select hours…</option>
+                    {Array.from({ length: 24 }, (_, index) => index + 1).map((hours) => (
+                      <option key={hours} value={hours}>{hours} hour{hours > 1 ? "s" : ""}</option>
+                    ))}
+                  </select>
+                  <p className="bookingRulesHint">Awtomatikong kina-calculate ang Check-out Time sa ibaba base dito.</p>
+                </div>
+                <div className="bookingRulesFormField">
                   <label>Check-out Date</label>
-                  <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort().slice(-1)[0])}</p>
+                  <p className="bookingRulesStaticDate">
+                    {formatDisplayDate(addOneDay(Array.from(selectedDates).sort().slice(-1)[0]))}
+                  </p>
                 </div>
                 <div className="bookingRulesFormField">
                   <label htmlFor="checkOutTimeMulti">Check-out Time</label>

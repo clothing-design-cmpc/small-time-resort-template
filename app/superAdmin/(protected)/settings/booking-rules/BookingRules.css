@@ -238,6 +238,17 @@
   min-height: 44px;
 }
 
+/*
+ * .bookingRulesToggle--disabled
+ * Dims a radio/checkbox label that is locked out (e.g. Day Tour / Night
+ * Tour when 2+ rule dates are selected — only Overnight Stay applies to
+ * a date range). Communicates "unavailable" without hiding the option.
+ */
+.bookingRulesToggle--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .bookingRulesFormActions {
   display: flex;
   flex-direction: row;

@@ -64,6 +64,42 @@ function formatDisplayDate(dateKey) {
   });
 }
 
+/**
+ * addHoursToTime
+ * Given a "HH:mm" start time and a whole number of hours, returns the
+ * resulting "HH:mm" end time. Wraps past midnight (e.g. 22:00 + 5h ->
+ * 03:00) since Overnight Stay and Night Tour both legitimately cross
+ * into the next calendar day — the check-out DATE is already handled
+ * separately (addOneDay for Overnight, same-day for the two Tour
+ * types), so this only ever needs to compute the clock time itself.
+ */
+function addHoursToTime(startTime, hours) {
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const totalMinutes = (startHour * 60 + startMinute + hours * 60) % (24 * 60);
+  const endHour = Math.floor(totalMinutes / 60);
+  const endMinute = totalMinutes % 60;
+  return `${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+}
+
+/**
+ * hoursBetween
+ * Rounds the whole-hour difference between a "HH:mm" start and end
+ * time, wrapping past midnight the same way addHoursToTime does. Used
+ * to pre-select the matching option in the "Total Hours of Stay"
+ * dropdown when editing a rule whose start/end times already imply a
+ * whole-hour duration — if the two times don't fall on a whole hour,
+ * this returns null and the dropdown simply shows its placeholder
+ * instead of guessing wrong.
+ */
+function hoursBetween(startTime, endTime) {
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+  const startTotal = startHour * 60 + startMinute;
+  const endTotal = endHour * 60 + endMinute;
+  const diffMinutes = ((endTotal - startTotal + 24 * 60) % (24 * 60)) || 24 * 60;
+  return diffMinutes % 60 === 0 ? diffMinutes / 60 : null;
+}
+
 /* z.coerce.number() on every numeric field is what actually makes this
    form work — native number inputs hand React Hook Form a string, and
    without coercion that string gets PUT straight to Prisma's Int
@@ -238,6 +274,15 @@ export default function BookingRuleForm({ existingRule, rooms }) {
   const allowOvernightStay = watch("allowOvernightStay");
   const allowDayTour = watch("allowDayTour");
   const allowNightTour = watch("allowNightTour");
+  // Read by the "Total Hours of Stay" dropdowns below — each dropdown
+  // shows the currently implied duration (start -> end) and, on
+  // change, recomputes the matching end time field.
+  const checkInTimeSingle = watch("checkInTime");
+  const checkOutTimeSingle = watch("checkOutTime");
+  const dayTourStartTimeValue = watch("dayTourStartTime");
+  const dayTourEndTimeValue = watch("dayTourEndTime");
+  const nightTourStartTimeValue = watch("nightTourStartTime");
+  const nightTourEndTimeValue = watch("nightTourEndTime");
 
   // Local-only toggles (not saved, not part of the settings form) that
   // let the admin see the conditional discounts in action instead of
@@ -437,6 +482,23 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                     <input id="checkInTimeSingle" type="time" {...register("checkInTime")} />
                   </div>
                   <div className="bookingRulesFormField">
+                    <label htmlFor="overnightStayHours">Total Hours of Stay</label>
+                    <select
+                      id="overnightStayHours"
+                      value={hoursBetween(checkInTimeSingle, checkOutTimeSingle) ?? ""}
+                      onChange={(event) => {
+                        const hours = Number(event.target.value);
+                        setValue("checkOutTime", addHoursToTime(checkInTimeSingle, hours), { shouldValidate: true });
+                      }}
+                    >
+                      <option value="" disabled>Select hours…</option>
+                      {Array.from({ length: 24 }, (_, index) => index + 1).map((hours) => (
+                        <option key={hours} value={hours}>{hours} hour{hours > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                    <p className="bookingRulesHint">Awtomatikong kina-calculate ang Check-out Time sa ibaba base dito.</p>
+                  </div>
+                  <div className="bookingRulesFormField">
                     <label>Check-out Date</label>
                     <p className="bookingRulesStaticDate">{formatDisplayDate(addOneDay(Array.from(selectedDates)[0]))}</p>
                   </div>
@@ -472,6 +534,23 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                     {errors.dayTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.dayTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
+                    <label htmlFor="dayTourHours">Total Hours of Stay</label>
+                    <select
+                      id="dayTourHours"
+                      value={hoursBetween(dayTourStartTimeValue, dayTourEndTimeValue) ?? ""}
+                      onChange={(event) => {
+                        const hours = Number(event.target.value);
+                        setValue("dayTourEndTime", addHoursToTime(dayTourStartTimeValue, hours), { shouldValidate: true });
+                      }}
+                    >
+                      <option value="" disabled>Select hours…</option>
+                      {Array.from({ length: 12 }, (_, index) => index + 1).map((hours) => (
+                        <option key={hours} value={hours}>{hours} hour{hours > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                    <p className="bookingRulesHint">Awtomatikong kina-calculate ang Check-out Time sa ibaba base dito.</p>
+                  </div>
+                  <div className="bookingRulesFormField">
                     <label>Check-out Date</label>
                     <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates)[0])}</p>
                   </div>
@@ -497,6 +576,23 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                     <label htmlFor="nightTourStartTime">Check-in Time</label>
                     <input id="nightTourStartTime" type="time" min="13:00" max="23:59" {...register("nightTourStartTime")} />
                     {errors.nightTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.nightTourStartTime.message}</span>}
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="nightTourHours">Total Hours of Stay</label>
+                    <select
+                      id="nightTourHours"
+                      value={hoursBetween(nightTourStartTimeValue, nightTourEndTimeValue) ?? ""}
+                      onChange={(event) => {
+                        const hours = Number(event.target.value);
+                        setValue("nightTourEndTime", addHoursToTime(nightTourStartTimeValue, hours), { shouldValidate: true });
+                      }}
+                    >
+                      <option value="" disabled>Select hours…</option>
+                      {Array.from({ length: 12 }, (_, index) => index + 1).map((hours) => (
+                        <option key={hours} value={hours}>{hours} hour{hours > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                    <p className="bookingRulesHint">Awtomatikong kina-calculate ang Check-out Time sa ibaba base dito.</p>
                   </div>
                   <div className="bookingRulesFormField">
                     <label>Check-out Date</label>

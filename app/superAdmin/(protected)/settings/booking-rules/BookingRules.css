@@ -216,11 +216,17 @@
   font-size: 0.9rem;
 }
 
+/*
+ * .bookingRulesToggleRow
+ * Single column — Overnight Stay, Day Tour, and Night Tour stack
+ * vertically instead of wrapping side by side, so all three labels
+ * (which run long in Filipino + English) are always fully readable
+ * without wrapping mid-sentence.
+ */
 .bookingRulesToggleRow {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-md);
 }
 
 .bookingRulesToggle {

@@ -17,7 +17,7 @@
  */
 import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
-import { parseDeviceInfo } from "@/services/deviceInfo";
+import { parseDeviceInfo } from "@/services/deviceFingerprint";
 import { getGeolocationFromIP } from "@/services/geoip";
 import crypto from "crypto";
 

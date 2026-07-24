@@ -1,2 +1,0 @@
-node scripts/hashVaultPassphrase.js "totoong-secret-passphrase-mo-dito"
-node scripts/checkVaultSlug.mjs

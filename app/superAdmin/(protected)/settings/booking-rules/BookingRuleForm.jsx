@@ -731,7 +731,12 @@ export default function BookingRuleForm({ existingRule, rooms }) {
             <input type="checkbox" {...register("seasonalPricingEnabled")} />
             I-enable ang seasonal pricing
           </label>
-          <p className="bookingRulesHint">Kapag naka-off ito, hindi gagamitin ang mga seasonal price sa baba — regular rate lagi ang gagamitin ng bawat room.</p>
+          <p className="bookingRulesHint">
+            Kapag naka-on ito, gagamitin ng system ang mga per-room seasonal price na naka-set sa
+            &quot;Seasonal Pricing&quot; list sa Booking Rules page (hal. ibang rate ang isang room tuwing
+            Peak Season). Kapag naka-off, regular rate lagi ang gagamitin ng bawat room, kahit may
+            naka-configure na seasonal price para dito.
+          </p>
 
           <SeasonDefinitionsPanel showToast={showToast} />
         </div>

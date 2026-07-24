@@ -17,9 +17,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
+import { getActiveBookingRule } from "@/services/bookingRules";
 
 export async function GET(request) {
   try {
+    // Self-heal BEFORE listing: getActiveBookingRule() already handles
+    // "no row is marked active yet" (legacy data migrated in before the
+    // is_active column existed, or an admin deleted the active row) by
+    // activating the oldest existing rule set — previously this only ran
+    // lazily the first time a guest triggered a price calculation, so an
+    // admin opening this page right after the multi-row migration saw
+    // every existing rule set listed as "Inactive" even though nothing
+    // was actually broken. Running it here means existing data shows as
+    // active immediately, without waiting on a booking to trigger it.
+    await getActiveBookingRule();
+
     const bookingRules = await prisma.bookingRule.findMany({
       orderBy: { updatedAt: "desc" },
     });

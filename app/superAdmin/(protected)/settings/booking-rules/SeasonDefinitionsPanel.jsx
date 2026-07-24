@@ -11,10 +11,14 @@
  * yung mga peak/off season" by actually surfacing this info here
  * instead of a bare enable/disable checkbox with no context.
  *
- * These are recurring month/day ranges (no year), separate from the
- * per-room SeasonalPrice override list managed lower on the Booking
- * Rules list page — this panel answers "what season is it generally,
- * resort-wide," not "what should THIS room charge on THESE dates."
+ * IMPORTANT — these dates are informational only. They are a general
+ * PH-wide reference for the admin's own planning and are NOT read by
+ * services/bookingPricing.js. The toggle above controls a DIFFERENT
+ * table: the per-room SeasonalPrice override list managed on the
+ * Booking Rules list page (SeasonalPricingSection.jsx) — that's what
+ * actually changes a room's nightly rate. Do not reintroduce a claim
+ * that this panel drives pricing; that was the source of admin
+ * confusion this fix addresses.
  *
  * DATA FLOW:
  * 1. useSeasonDefinitions() fetches all rows (server seeds PH
@@ -207,8 +211,10 @@ export default function SeasonDefinitionsPanel({ showToast }) {
       </div>
       <p className="bookingRulesHint">
         Resort-wide reference dates (not tied to one room) for when it&apos;s generally Peak vs. Off-Season in
-        the Philippines. Used by this rule set&apos;s toggle above and shown in the admin top bar. Edit or
-        delete any of these to match your resort&apos;s actual patterns.
+        the Philippines — for your own planning only, shown in the admin top bar. This does <strong>not</strong>{" "}
+        change any room&apos;s price. To actually charge a different rate during a season, add a per-room
+        entry under &quot;Seasonal Pricing&quot; on the Booking Rules list page, then make sure the toggle
+        above is turned on.
       </p>
 
       {isLoading && <p className="bookingRulesHint">Loading seasons…</p>}

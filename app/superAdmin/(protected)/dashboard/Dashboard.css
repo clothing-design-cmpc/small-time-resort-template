@@ -212,3 +212,123 @@
   color: var(--color-text-primary);
   border: 1px solid var(--color-border);
 }
+
+/* ============================================================
+ * MARKETING INSIGHTS SECTION (Dashboard — Recent Bookings, Top
+ * Performing Rooms, Repeat Guest Rate)
+ * ============================================================ */
+
+.marketingInsightsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.marketingInsightsTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .marketingInsightsGrid
+ * Repeat Guest Rate + Top Performing Rooms side by side on desktop,
+ * reflowing to a single column on smaller screens (Rule 23.2).
+ */
+.marketingInsightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+
+.marketingInsightsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.marketingInsightsPanel--fullWidth {
+  width: 100%;
+}
+
+.marketingInsightsStatValue {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-accent);
+}
+
+.marketingInsightsStatSkeleton {
+  width: 6rem;
+  height: 2.5rem;
+  border-radius: 6px;
+}
+
+.marketingInsightsListSkeleton {
+  width: 100%;
+  height: 6rem;
+  border-radius: 6px;
+}
+
+.marketingInsightsRoomList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.marketingInsightsRoomRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.marketingInsightsRoomLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .marketingInsightsRoomBarTrack / --Fill
+ * Simple CSS-only horizontal bar, scaled relative to the top room's
+ * revenue this month — no charting dependency needed for this scope.
+ */
+.marketingInsightsRoomBarTrack {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background-color: var(--color-surface-hover);
+  overflow: hidden;
+}
+
+.marketingInsightsRoomBarFill {
+  height: 100%;
+  border-radius: 4px;
+  background-color: var(--color-accent);
+  transition: width var(--transition-base, 0.25s ease);
+}
+
+.marketingInsightsRoomRevenue {
+  align-self: flex-end;
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.analyticsPanelTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.analyticsEmptyMessage {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}

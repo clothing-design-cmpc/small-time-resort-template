@@ -11,11 +11,15 @@
  * 1. Rendered inside app/superAdmin/layout.jsx after Sidebar + AdminHeader
  * 2. KPI numbers are live — DashboardStatsClient fetches
  *    GET /api/admin/dashboard-stats via useDashboardStats() on mount
- * 3. No interaction beyond viewing — this page is read-only
+ * 3. Marketing Insights (Recent Bookings, Top Performing Rooms, Repeat
+ *    Guest Rate) — MarketingInsightsClient fetches
+ *    GET /api/admin/marketing-insights via useMarketingInsights() on mount
+ * 4. No interaction beyond viewing — this page is read-only
  */
 import "./Dashboard.css";
 import DashboardStatsClient from "./DashboardStatsClient";
 import MaintenanceToggleClient from "./MaintenanceToggleClient";
+import MarketingInsightsClient from "./MarketingInsightsClient";
 
 export default function DashboardPage() {
   return (
@@ -30,6 +34,9 @@ export default function DashboardPage() {
 
       {/* Task 4 breach response — site-wide maintenance banner toggle */}
       <MaintenanceToggleClient />
+
+      {/* Marketing Insights — Recent Bookings, Top Performing Rooms, Repeat Guest Rate */}
+      <MarketingInsightsClient />
     </section>
   );
 }

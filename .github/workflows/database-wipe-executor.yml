@@ -2,19 +2,31 @@
 # PURPOSE:
 # Runs scripts/runDatabaseWipe.js on GitHub's own cloud runners — same
 # decoupled-from-live-traffic guarantee as database-backup.yml
-# (Rule 40.1). Checks every 15 minutes for a DatabaseWipeRequest that
-# is both due (scheduledAt has passed) and confirmed (finalConfirmedAt
-# is set, meaning a super-admin explicitly clicked "Continue" on the
-# blocking 2-hour warning modal). Exits immediately, doing nothing, if
-# no request currently matches both conditions — the safety gate itself
+# (Rule 40.1). Checks for a DatabaseWipeRequest that is both due
+# (scheduledAt has passed) and confirmed (finalConfirmedAt is set,
+# meaning a super-admin explicitly clicked "Continue" on the blocking
+# 2-hour warning modal). Exits immediately, doing nothing, if no
+# request currently matches both conditions — the safety gate itself
 # lives in scripts/runDatabaseWipe.js, not here.
 #
-# Also runs on-demand via workflow_dispatch for manual testing/ops.
+# workflow_dispatch ONLY — no schedule. The app itself is the real
+# trigger: app/api/superAdmin/wipe/route.js's GET handler is polled
+# every 30 seconds by every authenticated super-admin page, and the
+# instant a request goes due+confirmed it calls triggerWorkflowDispatch
+# ("database-wipe-executor.yml") directly via the GitHub API — same
+# pattern pre-wipe-backup.yml and manual-database-backup.yml already
+# use. A 15-minute `schedule:` cron used to sit here as a fallback, but
+# at ~55s/run that's ~2,640 GitHub Actions minutes/month spent checking
+# a condition that's false well over 99% of the time — most of a
+# private repo's whole free-tier monthly quota, burned on a workflow
+# with nothing to do. If the app-side dispatch above ever fails (e.g. a
+# GitHub API hiccup), the same GET handler simply retries on the very
+# next 30-second poll from any open super-admin page — no cron needed
+# to catch that case. Also still runnable by hand from the Actions tab
+# for manual testing/ops.
 name: Database Wipe Executor
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch: {}
 
 jobs:

@@ -39,10 +39,11 @@ const isProduction = process.env.NODE_ENV === "production";
 const OTP_SEND_MAX = 3;
 const OTP_SEND_WINDOW_MS = 15 * 60 * 1000;
 
-// Verifies: same ceiling as vault-login's passphrase attempts (Rule
-// 32.1's priority-endpoint spirit) — this is the second half of the
-// same disaster-recovery gate.
-const OTP_VERIFY_MAX = 5;
+// Zero-tolerance: any single wrong/expired code is treated exactly like
+// exceeding the window (see the immediate breach trigger below) — kept
+// at 1 rather than removed so the fallback branch still reads correctly
+// for concurrent/racing requests hitting the same IP.
+const OTP_VERIFY_MAX = 1;
 const OTP_VERIFY_WINDOW_MS = 15 * 60 * 1000;
 
 const otpVerifyRequestSchema = z.object({
@@ -226,16 +227,32 @@ export async function PATCH(request) {
   }
 
   if (!verified) {
+    const failReason = reason ?? "Incorrect or expired code.";
     await logSecurityEvent({
       eventType: "vault_otp_failed",
       actor: VAULT_IDENTITY,
       request,
       // reason is internal detail for the log only — the response
       // below stays generic, mirroring vault-login's posture.
-      details: reason ?? "Incorrect or expired code.",
+      details: failReason,
     });
+
+    // GATEKEEPER 1 TRIPPED — zero tolerance, same posture as
+    // vault-login's passphrase check: a single wrong or expired code is
+    // treated exactly like exceeding the rate limit above (full breach
+    // response: block IP, rotate + email + Drive-back-up a fresh
+    // passphrase). The owner's very next request under /system-vault/*
+    // is caught by proxy.js's vault-slug guess guard and bounced to
+    // /access-denied — the client below reloads on blocked: true to
+    // land on exactly that check.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({ gatekeeper: 1, ipAddress: ip, details: `Vault OTP: ${failReason}` }).catch((error) =>
+        console.error("[vault-otp] Gatekeeper 1 breach response failed (verify):", error.message)
+      );
+    }
+
     return NextResponse.json(
-      { success: false, data: null, message: "Incorrect or expired code." },
+      { success: false, data: null, blocked: true, message: "Incorrect or expired code." },
       { status: 401 }
     );
   }

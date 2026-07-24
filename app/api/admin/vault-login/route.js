@@ -44,9 +44,11 @@ import { triggerGatekeeperBreach } from "@/services/breachResponse";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// Same priority-endpoint ceiling as the main login route (Rule 32.1) —
-// this passphrase gates disaster recovery, not a lower-stakes action.
-const VAULT_LOGIN_ATTEMPT_MAX = 5;
+// Zero-tolerance: any single wrong guess is treated exactly like
+// exceeding the window (see the immediate breach trigger below) — this
+// value is kept at 1 rather than removed so the fallback branch still
+// reads correctly for concurrent/racing requests hitting the same IP.
+const VAULT_LOGIN_ATTEMPT_MAX = 1;
 const VAULT_LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 const vaultLoginRequestSchema = z.object({
@@ -103,14 +105,29 @@ export async function POST(request) {
   const isCorrectPassphrase = await verifyVaultPassphrase(payload.passphrase);
 
   if (!isCorrectPassphrase) {
+    const reason = "Incorrect vault passphrase — zero-tolerance gate, any wrong guess trips Gatekeeper 1 immediately.";
     await logSecurityEvent({
       eventType: "vault_login_failed",
       actor: VAULT_IDENTITY,
       request,
-      details: "Incorrect vault passphrase.",
+      details: reason,
     });
+
+    // GATEKEEPER 1 TRIPPED — zero tolerance: this is disaster recovery's
+    // own front door, so a single wrong guess is treated exactly like
+    // exceeding the rate limit above (full breach response: block IP,
+    // rotate + email + Drive-back-up a fresh passphrase). The owner's
+    // very next request under /system-vault/* is caught by proxy.js's
+    // vault-slug guess guard and bounced to /access-denied — the client
+    // below reloads on blocked: true to land on exactly that check.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({ gatekeeper: 1, ipAddress: ip, details: reason }).catch((error) =>
+        console.error("[vault-login] Gatekeeper 1 breach response failed:", error.message)
+      );
+    }
+
     return NextResponse.json(
-      { success: false, data: null, message: "Incorrect passphrase." },
+      { success: false, data: null, blocked: true, message: "Incorrect passphrase." },
       { status: 401 }
     );
   }

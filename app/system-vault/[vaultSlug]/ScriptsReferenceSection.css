@@ -1,0 +1,85 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/ScriptsReferenceSection.css
+ * Layout for the static Scripts Reference card. Reuses tokens already
+ * defined in Recovery.css / globals.css — no new colors introduced.
+ */
+
+.scriptsReferenceGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.scriptsReferenceGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/*
+ * .scriptsReferenceGroupLabel
+ * Eyebrow-style header above each group (Diagnostics, Recovery,
+ * Database, One-time setup) — same visual weight as other eyebrow
+ * labels across the vault dashboard.
+ */
+.scriptsReferenceGroupLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.scriptsReferenceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * .scriptsReferenceItem
+ * One script per card — command, purpose, and when-to-run stacked
+ * vertically with a defined border edge, per the card spacing
+ * standard (never flush against its neighbors).
+ */
+.scriptsReferenceItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+}
+
+.scriptsReferenceCommand {
+  display: inline-block;
+  width: fit-content;
+  font-size: 0.85rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
+  color: var(--color-text-primary);
+}
+
+.scriptsReferencePurpose {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.scriptsReferenceWhen {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.scriptsReferenceWhenLabel {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}

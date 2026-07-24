@@ -1,0 +1,85 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/SystemHealthCheckSection.css
+ * Layout for the System Health Check card's result groups. Reuses
+ * tokens already defined in Recovery.css / globals.css — same
+ * structure as EnvCheckerSection.css, no new colors introduced here.
+ */
+
+.systemHealthResults {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+/*
+ * .systemHealthGroup
+ * One card per check (Connectivity, Core Tables, Double-Booking).
+ * Border + subtle background give each group a defined edge, per the
+ * card spacing standard — never flush against its neighbors.
+ */
+.systemHealthGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+}
+
+.systemHealthGroupHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-weight: 600;
+}
+
+.systemHealthItemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.systemHealthItemList li {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+/*
+ * .systemHealthConflictList
+ * One row per double-booking conflict found — room name as a small
+ * eyebrow-style label, then the two overlapping guest/date pairs.
+ */
+.systemHealthConflictList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.systemHealthConflictList li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: 6px;
+}
+
+.systemHealthConflictRoom {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}

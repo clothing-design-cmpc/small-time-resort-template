@@ -711,6 +711,13 @@ model SystemSettings {
   resortEmail   String? @map("resort_email")
   resortAddress String? @map("resort_address")
 
+  // --- Location Map Pin (visitor Footer) ---
+  // Placeholder default (Metro Manila) so the map always has something
+  // to render before the admin sets the resort's real coordinates from
+  // Super-Admin > Policies & Content > Contact Info.
+  resortLatitude  Float? @default(14.5995) @map("resort_latitude")
+  resortLongitude Float? @default(120.9842) @map("resort_longitude")
+
   // --- Homepage Customization (Page 9) ---
   heroEyebrow       String? @map("hero_eyebrow")
   heroTitle         String? @map("hero_title")

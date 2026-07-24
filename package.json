@@ -9,6 +9,7 @@
     "lint": "eslint",
     "backup": "node scripts/runBackup.js",
     "envcheck": "node scripts/runEnvCheck.js",
+    "check:health": "node scripts/checkSystemHealth.js",
     "wipe-database": "node scripts/runDatabaseWipe.js",
     "purge-security-logs": "node scripts/purgeSecurityLogs.js",
     "check:gatekeepers": "node scripts/checkGatekeepers.js",
@@ -25,6 +26,7 @@
     "@upstash/redis": "^1.38.0",
     "axios": "^1.18.1",
     "googleapis": "^144.0.0",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.469.0",
     "maxmind": "^4.3.19",
     "next": "16.2.10",
@@ -32,6 +34,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.81.0",
+    "react-leaflet": "^5.0.0",
     "sharp": "^0.33.5",
     "zod": "^4.4.3"
   },

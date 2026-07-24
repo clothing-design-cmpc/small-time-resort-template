@@ -141,6 +141,7 @@
 
 .policiesFormField input[type="text"],
 .policiesFormField input[type="email"],
+.policiesFormField input[type="number"],
 .policiesFormField textarea {
   width: 100%;
   min-height: 44px;
@@ -154,6 +155,30 @@
 
 .policiesFormField textarea {
   resize: vertical;
+}
+
+/*
+ * .policiesFormFieldRow
+ * Side-by-side layout for the map latitude/longitude fields — wraps
+ * to a single column on narrow screens via minmax auto-fit, never a
+ * fixed two-column grid that would overflow on mobile.
+ */
+.policiesFormFieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+/*
+ * .policiesMapHint
+ * Small helper text under the coordinate fields explaining how to
+ * find them — muted so it doesn't compete with the actual labels.
+ */
+.policiesMapHint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .policiesTextEditor {

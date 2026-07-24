@@ -1,0 +1,50 @@
+/*
+ * FILE: components/shared/ResortLocationMap.css
+ * Sizing and framing for the pin map in the footer's Contact column.
+ * Uses aspect-ratio (per the image/media standard) instead of a fixed
+ * pixel height, and the same border/radius treatment as the rest of
+ * the footer's contact card elements.
+ */
+
+.resortLocationMapWrapper {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
+.resortLocationMapContainer {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  /* Leaflet's own z-index scale for its internal panes runs low
+     (200s–700s) and is self-contained; it never needs to compete with
+     this app's own --z-* tokens (Rule 33.2) since the map never
+     overlaps a modal, drawer, or toast. */
+  z-index: 0;
+}
+
+/*
+ * .resortLocationMapSkeleton
+ * Shown while the Leaflet chunk is loading on the client, and as a
+ * graceful fallback if coordinates are somehow missing — same pulse
+ * animation pattern used by every other skeleton in this app.
+ */
+.resortLocationMapSkeleton {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base, rgba(255, 255, 255, 0.06)) 25%,
+    var(--color-skeleton-shine, rgba(255, 255, 255, 0.12)) 50%,
+    var(--color-skeleton-base, rgba(255, 255, 255, 0.06)) 75%
+  );
+  background-size: 200% 100%;
+  animation: resortLocationMapPulse 1.5s infinite;
+}
+
+@keyframes resortLocationMapPulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

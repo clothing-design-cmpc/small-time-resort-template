@@ -70,6 +70,9 @@ export async function PUT(request) {
         resortPhone: body.resortPhone ?? null,
         resortEmail: body.resortEmail ?? null,
         resortAddress: body.resortAddress ?? null,
+        resortLatitude: body.resortLatitude === "" || body.resortLatitude == null ? null : Number(body.resortLatitude),
+        resortLongitude:
+          body.resortLongitude === "" || body.resortLongitude == null ? null : Number(body.resortLongitude),
         updatedBy: body.updatedBy || null,
       },
       create: {
@@ -93,6 +96,9 @@ export async function PUT(request) {
         resortPhone: body.resortPhone ?? null,
         resortEmail: body.resortEmail ?? null,
         resortAddress: body.resortAddress ?? null,
+        resortLatitude: body.resortLatitude === "" || body.resortLatitude == null ? null : Number(body.resortLatitude),
+        resortLongitude:
+          body.resortLongitude === "" || body.resortLongitude == null ? null : Number(body.resortLongitude),
         updatedBy: body.updatedBy || null,
       },
     });
@@ -119,6 +125,8 @@ export async function PUT(request) {
       resortPhone: "Contact Info (phone)",
       resortEmail: "Contact Info (email)",
       resortAddress: "Contact Info (address)",
+      resortLatitude: "Contact Info (map latitude)",
+      resortLongitude: "Contact Info (map longitude)",
     };
     const changedFields = Object.keys(POLICY_FIELD_LABELS).filter(
       (field) => previousSettings?.[field] !== updatedSettings[field]

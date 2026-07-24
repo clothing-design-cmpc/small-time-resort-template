@@ -56,6 +56,8 @@ const EMPTY_FORM = {
   resortPhone: "",
   resortEmail: "",
   resortAddress: "",
+  resortLatitude: "",
+  resortLongitude: "",
 };
 
 export default function PoliciesClient() {
@@ -91,6 +93,8 @@ export default function PoliciesClient() {
       resortPhone: policies.resortPhone ?? "",
       resortEmail: policies.resortEmail ?? "",
       resortAddress: policies.resortAddress ?? "",
+      resortLatitude: policies.resortLatitude ?? "",
+      resortLongitude: policies.resortLongitude ?? "",
     });
   }, [policies]);
 
@@ -111,6 +115,8 @@ export default function PoliciesClient() {
         refundPartialWindowDays:
           formValues.refundPartialWindowDays === "" ? null : Number(formValues.refundPartialWindowDays),
         refundPartialPercent: formValues.refundPartialPercent === "" ? null : Number(formValues.refundPartialPercent),
+        resortLatitude: formValues.resortLatitude === "" ? null : Number(formValues.resortLatitude),
+        resortLongitude: formValues.resortLongitude === "" ? null : Number(formValues.resortLongitude),
       });
       showToast("✓ Policies saved successfully.", "success");
     } catch (submitError) {
@@ -245,6 +251,34 @@ export default function PoliciesClient() {
               onChange={(event) => handleFieldChange("resortAddress", event.target.value)}
             />
           </div>
+          <div className="policiesFormFieldRow">
+            <div className="policiesFormField">
+              <label htmlFor="resortLatitude">Map Latitude</label>
+              <input
+                id="resortLatitude"
+                type="number"
+                step="0.000001"
+                placeholder="e.g. 14.5995"
+                value={formValues.resortLatitude}
+                onChange={(event) => handleFieldChange("resortLatitude", event.target.value)}
+              />
+            </div>
+            <div className="policiesFormField">
+              <label htmlFor="resortLongitude">Map Longitude</label>
+              <input
+                id="resortLongitude"
+                type="number"
+                step="0.000001"
+                placeholder="e.g. 120.9842"
+                value={formValues.resortLongitude}
+                onChange={(event) => handleFieldChange("resortLongitude", event.target.value)}
+              />
+            </div>
+          </div>
+          <p className="policiesMapHint">
+            Pin location shown on the visitor site&apos;s Contact footer. Get exact coordinates by
+            right-clicking the spot on Google Maps and copying the numbers shown at the top.
+          </p>
         </div>
       ) : (
         <div className="policiesTabPanel">

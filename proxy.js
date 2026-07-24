@@ -111,6 +111,10 @@ const VAULT_STANDALONE_API_PATHS = [
   // feed of the vault's own SecurityLog rows, authenticated via
   // vaultSession only — same reasoning as vault-wipe above.
   "/api/admin/vault-activity-log",
+  // System Health Check (SystemHealthCheckSection.jsx): read-only DB
+  // connectivity + core-table + double-booking check, authenticated
+  // via vaultSession only — same reasoning as env-check above.
+  "/api/admin/system-health",
   // Environment Check (EnvCheckerSection.jsx, Task 3): read-only report
   // of which .env keys are set (never their values), authenticated via
   // vaultSession only — same reasoning as vault-wipe above.

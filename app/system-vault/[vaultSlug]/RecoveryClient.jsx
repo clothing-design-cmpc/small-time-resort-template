@@ -82,6 +82,8 @@ import ApiSetupGuideSection from "./ApiSetupGuideSection";
 import EnvCheckerSection from "./EnvCheckerSection";
 import RecoveryCardSection from "./RecoveryCardSection";
 import VaultGatekeeperTesterSection from "./VaultGatekeeperTesterSection";
+import SystemHealthCheckSection from "./SystemHealthCheckSection";
+import ScriptsReferenceSection from "./ScriptsReferenceSection";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -774,6 +776,16 @@ export default function RecoveryClient() {
 
       {/* --- Environment Check (Task 3) --- */}
       <EnvCheckerSection showToast={showToast} />
+
+      {/* --- System Health Check — DB connectivity, core tables, and
+          double-booking conflict detection. Right after Environment
+          Check since both are on-demand, read-only diagnostics. --- */}
+      <SystemHealthCheckSection showToast={showToast} />
+
+      {/* --- Scripts Reference — static list of every /scripts entry,
+          what it does, and when to run it, so a developer never has
+          to open each file just to remember. --- */}
+      <ScriptsReferenceSection />
 
       {/* --- Printable Recovery Card (Task 4) --- */}
       <RecoveryCardSection />

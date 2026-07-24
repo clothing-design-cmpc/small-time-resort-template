@@ -35,12 +35,16 @@
  *    dates at once); when only Tour types are enabled, tapping a day
  *    simply replaces whatever was previously selected
  * 4. "Continue" first checks GET /api/booking-rules to confirm there is
- *    an active booking rule set. If none is available, a toast explains
- *    that and the visitor stays on this page. If one exists, the
- *    visitor is sent to /visitor/booking with the earliest selected date
- *    as check-in and the latest as check-out (same date twice if only
- *    one day was picked, which is now the only possibility when
- *    Overnight Stay isn't enabled)
+ *    an active booking rule set AND that the selected date range's
+ *    night count actually fits that rule's minNightsRequired/
+ *    maxNightsAllowed (Overnight Stay) — or, for single-date Tour
+ *    selections, that at least one Tour type is enabled. If nothing in
+ *    the database matches the selection, a toast explains that and the
+ *    visitor stays on this page. If a match exists, the visitor is sent
+ *    to /visitor/booking with the earliest selected date as check-in
+ *    and the latest as check-out (same date twice if only one day was
+ *    picked, which is now the only possibility when Overnight Stay
+ *    isn't enabled)
  */
 "use client";
 
@@ -173,29 +177,56 @@ export default function HowToBookSection() {
     );
   }
 
-  // Before sending the visitor into the reservation flow, confirm an
-  // active booking rule actually exists — the booking form has nothing
-  // to validate against otherwise.
+  // Before sending the visitor into the reservation flow, confirm the
+  // ACTUAL selected date range is bookable — not just that some rule
+  // exists, but that its allowed booking type covers this selection
+  // (Overnight Stay: night count within minNightsRequired/
+  // maxNightsAllowed; Tour: at least one Tour type enabled).
   async function handleContinue() {
     if (selectedDates.length === 0) return;
     setIsCheckingRule(true);
     try {
       const response = await axios.get("/api/booking-rules");
-      if (!response.data?.success || !response.data?.data) {
-        showToast("No existing booking rule found. Please try again later.", "error");
+      const rule = response.data?.data;
+      if (!response.data?.success || !rule) {
+        showToast("✕ No existing booking rule found. Please try again later.", "error");
         return;
       }
 
       const sortedDates = [...selectedDates].sort();
       const checkInKey = sortedDates[0];
       const checkOutKey = sortedDates[sortedDates.length - 1];
+      const nightsSelected = sortedDates.length - 1;
+
+      if (allowOvernightStay) {
+        // Multi-date range — the night count must fall inside this
+        // rule's configured min/max for an Overnight stay.
+        const minNights = rule.minNightsRequired ?? 1;
+        const maxNights = rule.maxNightsAllowed ?? Infinity;
+
+        if (!rule.allowOvernightStay) {
+          showToast("✕ Overnight stays aren't available right now. Please try again later.", "error");
+          return;
+        }
+        if (nightsSelected < minNights || nightsSelected > maxNights) {
+          const rangeLabel = minNights === maxNights ? `${minNights}` : `${minNights}–${maxNights}`;
+          showToast(`✕ No package covers ${nightsSelected} night(s). Available range is ${rangeLabel} night(s) — please adjust your dates.`, "error");
+          return;
+        }
+      } else {
+        // Single-date selection — at least one Tour type must be enabled.
+        if (!rule.allowDayTour && !rule.allowNightTour) {
+          showToast("✕ No tour booking is available right now. Please try again later.", "error");
+          return;
+        }
+      }
 
       const params = new URLSearchParams({ checkin: checkInKey });
       if (checkOutKey !== checkInKey) params.set("checkout", checkOutKey);
 
       router.push(`/visitor/booking?${params.toString()}`);
     } catch {
-      showToast("No existing booking rule found. Please try again later.", "error");
+      showToast("✕ No existing booking rule found. Please try again later.", "error");
     } finally {
       setIsCheckingRule(false);
     }

@@ -199,17 +199,30 @@ async function main() {
     console.error("[backup] Google Drive upload failed:", error.message);
   }
 
+  // A backup only counts as fully successful if BOTH destinations
+  // received it. One destination failing still means one of the two
+  // redundant copies doesn't exist — that must never show as a green
+  // "success" run in GitHub Actions or a green badge on the Backups
+  // page, or a real (if partial) failure goes unnoticed until the day
+  // someone actually needs the missing copy.
   const bothFailed = !r2Result && !driveResult;
+  const bothSucceeded = Boolean(r2Result) && Boolean(driveResult);
   const combinedError = [r2Error && `R2: ${r2Error}`, driveError && `Drive: ${driveError}`]
     .filter(Boolean)
     .join(" | ");
+
+  // "failed"  — neither destination got the backup (worst case)
+  // "partial" — only one of the two destinations got it (still a
+  //             problem — the redundancy this rule exists for is gone)
+  // "success" — both destinations got it
+  const finalStatus = bothFailed ? "failed" : bothSucceeded ? "success" : "partial";
 
   await withRetry(
     () =>
       prisma.backupLog.update({
         where: { id: logRow.id },
         data: {
-          status: bothFailed ? "failed" : "success",
+          status: finalStatus,
           fileSizeBytes: compressed.length,
           checksumSha256,
           r2Key: r2Result?.key ?? null,
@@ -223,8 +236,17 @@ async function main() {
     { label: "backupLog.update (final)" }
   );
 
-  console.log(bothFailed ? "[backup] FAILED — both destinations errored." : "[backup] Done.");
-  if (bothFailed) process.exitCode = 1;
+  if (finalStatus === "success") {
+    console.log("[backup] Done.");
+  } else if (finalStatus === "partial") {
+    console.error(`[backup] PARTIAL — only one destination succeeded. ${combinedError}`);
+  } else {
+    console.error("[backup] FAILED — both destinations errored.");
+  }
+
+  // Any outcome other than both destinations succeeding must fail the
+  // GitHub Actions run (red X) — not just the worst case.
+  if (finalStatus !== "success") process.exitCode = 1;
 }
 
 main()

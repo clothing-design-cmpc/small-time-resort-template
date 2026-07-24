@@ -57,6 +57,10 @@ const STATUS_STYLES = {
   // Backup Logs page (app/superAdmin/(protected)/backups)
   success: { label: "Success", color: "#10b981" },
   running: { label: "Running", color: "#3b82f6" },
+  // Only one of R2/Google Drive succeeded — redundancy is broken even
+  // though a copy exists somewhere, so this is deliberately its own
+  // color rather than reusing "success"'s green.
+  partial: { label: "Partial", color: "#f59e0b" },
   // Backup Logs page — Source column (trigger_source on BackupLog)
   nightly: { label: "Nightly", color: "#71717a" },
   manual: { label: "Manual", color: "#3b82f6" },

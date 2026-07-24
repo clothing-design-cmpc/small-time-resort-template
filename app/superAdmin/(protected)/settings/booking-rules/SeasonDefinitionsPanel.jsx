@@ -98,8 +98,24 @@ function SeasonDefinitionForm({ existingSeason, onSubmit, onCancel }) {
     },
   });
 
+  // Fired on Enter inside any field so the field-level submit still works
+  // now that this is a <div> instead of a <form>. Blocks the key event
+  // from bubbling up into BookingRuleForm.jsx's outer <form>, which would
+  // otherwise submit the whole page instead of just this season entry.
+  function handleEnterKeySubmit(event) {
+    if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
+      event.preventDefault();
+      event.stopPropagation();
+      handleSubmit(onSubmit)();
+    }
+  }
+
+  // Rendered inside BookingRuleForm.jsx's own <form> (Section 5), so this
+  // must never be a <form> itself — nested <form> elements are invalid
+  // HTML and break hydration. handleSubmit is invoked directly from the
+  // Save button's onClick (and via Enter above) instead of a form onSubmit.
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="bookingRulesForm seasonDefinitionForm">
+    <div className="bookingRulesForm seasonDefinitionForm" onKeyDown={handleEnterKeySubmit}>
       <div className="bookingRulesFormRow">
         <div className="bookingRulesFormField">
           <label htmlFor="seasonDefType">Type <span aria-hidden="true">*</span></label>
@@ -153,11 +169,16 @@ function SeasonDefinitionForm({ existingSeason, onSubmit, onCancel }) {
         <button type="button" className="bookingRulesButton bookingRulesButton--neutral" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="bookingRulesButton bookingRulesButton--primary" disabled={isSubmitting}>
+        <button
+          type="button"
+          className="bookingRulesButton bookingRulesButton--primary"
+          disabled={isSubmitting}
+          onClick={handleSubmit(onSubmit)}
+        >
           {isSubmitting ? "Saving…" : "Save"}
         </button>
       </div>
-    </form>
+    </div>
   );
 }
 

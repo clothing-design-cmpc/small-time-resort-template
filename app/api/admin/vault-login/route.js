@@ -102,7 +102,7 @@ export async function POST(request) {
     );
   }
 
-  const isCorrectPassphrase = await verifyVaultPassphrase(payload.passphrase);
+  const isCorrectPassphrase = await verifyVaultPassphrase(payload.passphrase.trim());
 
   if (!isCorrectPassphrase) {
     const reason = "Incorrect vault passphrase — zero-tolerance gate, any wrong guess trips Gatekeeper 1 immediately.";

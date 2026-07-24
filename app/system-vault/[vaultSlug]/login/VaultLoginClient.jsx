@@ -30,7 +30,16 @@ import { z } from "zod";
 import VaultIdleTimeoutNotice from "./VaultIdleTimeoutNotice";
 
 const vaultLoginSchema = z.object({
-  passphrase: z.string().min(1, "Enter the vault passphrase."),
+  // Pasting from the rotation email ("NEW PASSPHRASE: <value>") can drag
+  // in a leading/trailing space — trim before the min-length check so a
+  // correctly-copied passphrase never fails purely because of that, and
+  // so the server-side hash comparison (which also trims — see
+  // app/api/admin/vault-login/route.js) is comparing the same value the
+  // owner actually intended to type.
+  passphrase: z.preprocess(
+    (val) => (typeof val === "string" ? val.trim() : val),
+    z.string().min(1, "Enter the vault passphrase.")
+  ),
 });
 
 export default function VaultLoginClient() {

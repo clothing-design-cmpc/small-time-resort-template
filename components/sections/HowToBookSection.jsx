@@ -7,22 +7,40 @@
  * calendar on the homepage (it replaces the old "Ready to Book" date
  * carousel, which was removed). Shows a short 3-step guide plus an
  * interactive calendar (same visual language BookedDatesSection's mini
- * calendar used) that lets a visitor tap multiple open dates to build a
- * stay range, then continue into the booking form with those dates
+ * calendar used) that lets a visitor tap open dates to build a
+ * selection, then continue into the booking form with those dates
  * pre-filled.
+ *
+ * Selection mode depends on what the CURRENTLY ACTIVE booking rule
+ * actually allows (fetched from GET /api/booking-rules, same source
+ * BookingFormClient.jsx uses to build its bookingType pills):
+ *   - allowOvernightStay === true  -> multi-date RANGE selection (a
+ *     stay needs a check-in and check-out night)
+ *   - allowOvernightStay === false (only Day Tour and/or Night Tour
+ *     enabled) -> SINGLE-date selection only. Tour bookings are a
+ *     same-day, no-room visit — there is no such thing as a "check-out"
+ *     date for them, and no rule exists to price a multi-date Tour
+ *     selection, so letting a visitor tap two dates here previously
+ *     produced a nonsensical "2 dates selected" state with nothing on
+ *     the backend able to make sense of the second date.
  *
  * DATA FLOW:
  * 1. Rendered inside app/visitor/page.jsx, right before BookedDatesSection
  * 2. On mount, fetches GET /api/bookings/dates (same endpoint
- *    BookedDatesSection uses) to know which dates are already reserved
+ *    BookedDatesSection uses) to know which dates are already reserved,
+ *    AND GET /api/booking-rules to know whether Overnight Stay is
+ *    currently enabled (controls single vs. range selection above)
  * 3. Tapping an open (not booked, not past) day toggles it in/out of the
- *    visitor's selection — multiple dates can be selected at once
+ *    visitor's selection when overnight stays are enabled (multiple
+ *    dates at once); when only Tour types are enabled, tapping a day
+ *    simply replaces whatever was previously selected
  * 4. "Continue" first checks GET /api/booking-rules to confirm there is
  *    an active booking rule set. If none is available, a toast explains
  *    that and the visitor stays on this page. If one exists, the
  *    visitor is sent to /visitor/booking with the earliest selected date
  *    as check-in and the latest as check-out (same date twice if only
- *    one day was picked)
+ *    one day was picked, which is now the only possibility when
+ *    Overnight Stay isn't enabled)
  */
 "use client";
 
@@ -62,6 +80,12 @@ export default function HowToBookSection() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [selectedDates, setSelectedDates] = useState([]);
   const [isCheckingRule, setIsCheckingRule] = useState(false);
+  // Whether the currently active booking rule allows Overnight Stay.
+  // Defaults to true (the old, permissive behavior) until the fetch
+  // below resolves, then flips to false the moment we learn only
+  // Tour-type bookings are enabled — see the file header for why that
+  // matters for date selection.
+  const [allowOvernightStay, setAllowOvernightStay] = useState(true);
 
   // Fetch which dates are already reserved — same source of truth as
   // BookedDatesSection, kept as its own independent fetch so this
@@ -94,6 +118,31 @@ export default function HowToBookSection() {
     };
   }, []);
 
+  // Learn whether Overnight Stay is currently enabled on the active
+  // rule — this decides single-date vs. multi-date range selection
+  // below. A failed fetch or a missing rule intentionally falls back
+  // to single-date-only (the safer default — see file header): if we
+  // don't actually know an overnight rule exists, we shouldn't let a
+  // visitor build a range the backend has nothing to price.
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchActiveRule() {
+      try {
+        const response = await axios.get("/api/booking-rules");
+        if (isCancelled) return;
+        setAllowOvernightStay(Boolean(response.data?.data?.allowOvernightStay));
+      } catch {
+        if (!isCancelled) setAllowOvernightStay(false);
+      }
+    }
+
+    fetchActiveRule();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
   const bookedSet = useMemo(() => new Set(bookedDates), [bookedDates]);
   const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
 
@@ -105,11 +154,20 @@ export default function HowToBookSection() {
   const leadBlanks = firstDay.getDay();
   const calLabel = MONTH_YEAR_FMT.format(calBase);
 
-  // Toggles an open date in/out of the visitor's selection — replaces
-  // the old single-click "jump straight to booking" behavior so guests
-  // can build a multi-date stay range before continuing.
+  // Toggles an open date in/out of the visitor's selection when
+  // Overnight Stay is enabled (guests can build a multi-date stay
+  // range). When only Tour-type bookings are enabled, a Tour is a
+  // single same-day visit — every click simply replaces whatever was
+  // selected before, so the visitor can never end up with 2+ dates
+  // selected for a booking type that has no way to use a second date.
   function handleDayClick(cellKey, isPast, isBooked) {
     if (isPast || isBooked) return;
+
+    if (!allowOvernightStay) {
+      setSelectedDates((current) => (current.length === 1 && current[0] === cellKey ? [] : [cellKey]));
+      return;
+    }
+
     setSelectedDates((current) =>
       current.includes(cellKey) ? current.filter((key) => key !== cellKey) : [...current, cellKey].sort()
     );
@@ -159,7 +217,11 @@ export default function HowToBookSection() {
               <span className="howToBookStepNumber">{step.number}</span>
               <div>
                 <p className="howToBookStepTitle">{step.title}</p>
-                <p className="howToBookStepBody">{step.body}</p>
+                <p className="howToBookStepBody">
+                  {step.number === 1 && !allowOvernightStay
+                    ? "Tap an open day on the calendar below — Tour bookings are single-day."
+                    : step.body}
+                </p>
               </div>
             </div>
           ))}

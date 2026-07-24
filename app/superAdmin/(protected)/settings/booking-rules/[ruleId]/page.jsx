@@ -34,6 +34,7 @@ export default async function EditBookingRulePage({ params }) {
   // Server -> Client Component boundary — convert to plain numbers.
   const serializedRule = {
     ...rule,
+    hourlyChargeAmount: Number(rule.hourlyChargeAmount),
     dayTourPricePerGuest: Number(rule.dayTourPricePerGuest),
     nightTourPricePerGuest: Number(rule.nightTourPricePerGuest),
   };

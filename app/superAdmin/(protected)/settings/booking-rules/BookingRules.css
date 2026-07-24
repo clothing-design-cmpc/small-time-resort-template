@@ -408,6 +408,28 @@
   white-space: nowrap;
 }
 
+/*
+ * .bookingRulesStatusToggle
+ * Button-reset wrapper around the StatusBadge so the badge itself is
+ * the click target for toggling a rule set Active/Inactive. Scales
+ * slightly on hover/focus so it reads as interactive without changing
+ * the badge's own look.
+ */
+.bookingRulesStatusToggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--transition-fast, 0.15s ease);
+}
+
+.bookingRulesStatusToggle:hover,
+.bookingRulesStatusToggle:focus-visible {
+  transform: scale(1.05);
+}
+
 .bookingRulesRowActionButton {
   display: inline-flex;
   align-items: center;

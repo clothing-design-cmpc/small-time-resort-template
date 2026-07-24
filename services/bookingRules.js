@@ -7,21 +7,13 @@
  * services/roomStatus.js, so all three always agree on which rule set
  * governs a given type of booking.
  *
- * IMPORTANT — "active" is scoped PER BOOKING TYPE, not resort-wide:
- * Overnight, Day Tour, and Night Tour each have their own independent
- * "active" slot. A rule set is only eligible to be the active one for a
- * type if its matching allow* flag (allowOvernightStay / allowDayTour /
- * allowNightTour) is true. This means a "Day Tour" rule set being active
- * never displaces whichever rule set is active for Overnight — they can,
- * and normally will, be different rows active at the same time. The
- * enforcement side of this lives in the /activate API route: activating
- * a rule only deactivates OTHER rules that share at least one of the
- * same allow* flags, never rules for an unrelated booking type.
- *
- * (Earlier version of this file treated "active" as a single resort-wide
- * slot shared by all booking types — that meant activating a Day Tour
- * rule set silently left Overnight/Night Tour with no active rule at
- * all if their own rule sets weren't also active on that same row.)
+ * IMPORTANT — "active" is a simple per-row toggle now, not enforced
+ * exclusivity: any number of rule sets can be Active at the same time,
+ * including more than one that allows the same booking type. When more
+ * than one Active rule set allows a given type, the most recently
+ * updated one wins (see the orderBy below) — so toggling a rule set to
+ * Active always makes it the effective one for guests immediately,
+ * without needing to deactivate anything else first.
  */
 import { prisma } from "@/services/prisma";
 
@@ -46,8 +38,12 @@ const ALLOW_FIELD_BY_TYPE = {
 export async function getActiveBookingRule(bookingType = "overnight") {
   const allowField = ALLOW_FIELD_BY_TYPE[bookingType] ?? "allowOvernightStay";
 
+  // Several rule sets can be Active for the same type at once — the
+  // most recently updated (most recently toggled Active) one is the
+  // effective one for guests.
   const activeRule = await prisma.bookingRule.findFirst({
     where: { isActive: true, [allowField]: true },
+    orderBy: { updatedAt: "desc" },
   });
   if (activeRule) return activeRule;
 
@@ -77,10 +73,10 @@ export async function getActiveBookingRule(bookingType = "overnight") {
  * selfHealActiveRulesForExistingTypes
  * Admin "Booking Rules & Configuration" list page only. For each of the
  * three booking types, if the admin has already configured at least one
- * rule set that allows it but none of those is marked active, activates
- * the oldest eligible one — so existing/legacy data (rows migrated in
- * before per-type activation existed) shows as Active immediately on
- * page load instead of waiting for a guest to trigger it.
+ * rule set that allows it but none of those is currently Active,
+ * activates the oldest eligible one — so a type is never left with zero
+ * effective rule sets (e.g. every eligible row was manually toggled to
+ * Inactive) instead of waiting for a guest to trigger it.
  *
  * Deliberately does NOT bootstrap-create a rule set for a type the admin
  * has never configured at all (unlike getActiveBookingRule() above) —

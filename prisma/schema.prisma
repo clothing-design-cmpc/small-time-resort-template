@@ -437,7 +437,7 @@ model SqlImportLog {
 model BookingRule {
   id     String  @id @default(cuid())
   name   String  @unique @default("Default Rules") // e.g. "Default Rules", "Holiday Season Rules"
-  isActive Boolean @default(false) @map("is_active") // exactly one row should be true at a time — enforced in the activate API route, not the DB
+  isActive Boolean @default(true) @map("is_active") // simple per-row toggle — no exclusivity enforced; multiple rule sets can be active at once
 
   // --- Room Status Auto-Cleaning Window (Section 6, Booking Rules list
   // page) --- Per-rule-set on purpose, not a single resort-wide value:

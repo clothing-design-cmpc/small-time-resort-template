@@ -60,13 +60,14 @@ export function useBookingRulesList() {
   );
 
   /**
-   * activateBookingRule
-   * Marks the given rule set as the resort-wide active one and
-   * refreshes the list so every row's status badge updates together.
+   * toggleBookingRuleActive
+   * Flips the given rule set's Active/Inactive state to nextIsActive
+   * and refreshes the list. Only this row is touched — no other rule
+   * set is deactivated as a side effect.
    */
-  const activateBookingRule = useCallback(
-    async (ruleId) => {
-      const response = await axios.post(`${BOOKING_RULES_ENDPOINT}/${ruleId}/activate`);
+  const toggleBookingRuleActive = useCallback(
+    async (ruleId, nextIsActive) => {
+      const response = await axios.post(`${BOOKING_RULES_ENDPOINT}/${ruleId}/activate`, { isActive: nextIsActive });
       await fetchBookingRules();
       return response.data;
     },
@@ -79,6 +80,6 @@ export function useBookingRulesList() {
     error,
     refetchBookingRules: fetchBookingRules,
     deleteBookingRule,
-    activateBookingRule,
+    toggleBookingRuleActive,
   };
 }

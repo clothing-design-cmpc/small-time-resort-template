@@ -12,8 +12,10 @@
  * DATA FLOW:
  * 1. useBookingRulesList() fetches every rule set on mount
  * 2. Clicking a row navigates to that rule set's edit page
- * 3. "Activate" calls activateBookingRule() directly (not destructive,
- *    no confirmation needed) then shows a toast
+ * 3. Clicking a row's Status badge calls toggleBookingRuleActive()
+ *    directly (not destructive, no confirmation needed) then shows a
+ *    toast — every rule set is independent, toggling one never
+ *    affects any other row
  * 4. "Delete" opens ConfirmationModal; confirming calls
  *    deleteBookingRule() then shows a success/error toast — the API
  *    itself blocks deleting the active rule or the last one remaining
@@ -34,7 +36,7 @@ import RoomStatusSection from "./RoomStatusSection";
 
 export default function BookingRulesListClient({ rooms }) {
   const router = useRouter();
-  const { bookingRules, isLoading, error, deleteBookingRule, activateBookingRule } = useBookingRulesList();
+  const { bookingRules, isLoading, error, deleteBookingRule, toggleBookingRuleActive } = useBookingRulesList();
   const { toasts, showToast, dismissToast } = useToast();
 
   // Tracks which rule set is pending deletion so ConfirmationModal knows
@@ -53,13 +55,14 @@ export default function BookingRulesListClient({ rooms }) {
     }
   }
 
-  async function handleActivate(rule, event) {
+  async function handleToggleActive(rule, event) {
     event.stopPropagation();
+    const nextIsActive = !rule.isActive;
     try {
-      await activateBookingRule(rule.id);
-      showToast(`✓ "${rule.name}" is now the active rule set.`, "success");
-    } catch (activateError) {
-      const message = activateError?.response?.data?.message || "Failed to activate this rule set.";
+      await toggleBookingRuleActive(rule.id, nextIsActive);
+      showToast(`✓ "${rule.name}" is now ${nextIsActive ? "Active" : "Inactive"}.`, "success");
+    } catch (toggleError) {
+      const message = toggleError?.response?.data?.message || "Failed to update this rule set's status.";
       showToast(`✕ ${message}`, "error");
     }
   }
@@ -92,7 +95,14 @@ export default function BookingRulesListClient({ rooms }) {
     name: rule.name,
     status: (
       <div className="bookingRulesStatusCell">
-        <StatusBadge status={rule.isActive ? "active" : "inactive"} />
+        <button
+          type="button"
+          className="bookingRulesStatusToggle"
+          onClick={(event) => handleToggleActive(rule, event)}
+          title={rule.isActive ? "Click to set Inactive" : "Click to set Active"}
+        >
+          <StatusBadge status={rule.isActive ? "active" : "inactive"} />
+        </button>
         {rule.isActive && (
           <span className="bookingRulesActiveForLabel">Active for: {describeActiveTypes(rule) || "—"}</span>
         )}
@@ -101,15 +111,6 @@ export default function BookingRulesListClient({ rooms }) {
     updated: new Date(rule.updatedAt).toLocaleDateString(),
     actions: (
       <div className="bookingRulesRowActions">
-        {!rule.isActive && (
-          <button
-            type="button"
-            className="bookingRulesRowActionButton"
-            onClick={(event) => handleActivate(rule, event)}
-          >
-            Activate
-          </button>
-        )}
         <Link
           href={`/superAdmin/settings/booking-rules/${rule.id}`}
           className="bookingRulesRowActionButton"
@@ -147,9 +148,9 @@ export default function BookingRulesListClient({ rooms }) {
       </div>
 
       <p className="bookingRulesSectionSubtitle">
-        Create as many rule sets as you need (e.g. &quot;Regular Season&quot;, &quot;Holiday Rules&quot;). Overnight, Day
-        Tour, and Night Tour each have their own independent <strong>Active</strong> rule set — activating one
-        type&apos;s rule set never turns off the active rule set for a different type.
+        Create as many rule sets as you need (e.g. &quot;Regular Season&quot;, &quot;Holiday Rules&quot;). Every rule set
+        starts <strong>Active</strong> — click a rule set&apos;s Status badge to toggle it Active/Inactive any
+        time. Toggling one rule set never affects any other.
       </p>
 
       <DataTable

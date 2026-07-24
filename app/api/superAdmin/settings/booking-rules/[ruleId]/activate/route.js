@@ -3,10 +3,13 @@
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * POST -> marks this BookingRule as the one resort-wide active rule
- *         set. Exactly one rule set can be active at a time, so this
- *         deactivates every other rule set in the same transaction —
- *         never left as a UI-only assumption.
+ * POST -> marks this BookingRule as active FOR WHICHEVER BOOKING TYPES
+ *         IT ALLOWS (Overnight / Day Tour / Night Tour each have their
+ *         own independent active slot — see services/bookingRules.js).
+ *         Deactivates only the OTHER rule sets that compete for one of
+ *         those same types, in the same transaction — a Day-Tour-only
+ *         rule set being activated never touches whichever rule set is
+ *         currently active for Overnight or Night Tour.
  */
 export const dynamic = "force-dynamic";
 
@@ -24,10 +27,30 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, data: null, message: "Booking rule set not found." }, { status: 404 });
     }
 
-    // Single transaction so there is never a moment with zero or two
-    // active rule sets, even under concurrent requests.
+    // Which booking types this rule set actually allows — only rule sets
+    // competing for one of THESE types get deactivated below.
+    const overlappingTypeFields = ["allowOvernightStay", "allowDayTour", "allowNightTour"].filter(
+      (field) => rule[field]
+    );
+
+    const conflictingActiveRules = overlappingTypeFields.length
+      ? await prisma.bookingRule.findMany({
+          where: {
+            id: { not: ruleId },
+            isActive: true,
+            OR: overlappingTypeFields.map((field) => ({ [field]: true })),
+          },
+          select: { id: true },
+        })
+      : [];
+
+    // Single transaction so there is never a moment with zero active
+    // rule sets for a given type, even under concurrent requests.
     const [, activatedRule] = await prisma.$transaction([
-      prisma.bookingRule.updateMany({ where: { isActive: true }, data: { isActive: false } }),
+      prisma.bookingRule.updateMany({
+        where: { id: { in: conflictingActiveRules.map((conflictingRule) => conflictingRule.id) } },
+        data: { isActive: false },
+      }),
       prisma.bookingRule.update({ where: { id: ruleId }, data: { isActive: true } }),
     ]);
 

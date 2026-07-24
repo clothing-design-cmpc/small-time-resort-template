@@ -78,7 +78,7 @@ function getCheckInOutMoments(booking, activeRule) {
 export async function getAllRoomStatuses(now = new Date()) {
   const [rooms, activeRule, manualBlackouts, confirmedBookings] = await Promise.all([
     prisma.room.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
-    getActiveBookingRule(),
+    getActiveBookingRule("overnight"), // room turnover/cleaning only applies to overnight stays
     prisma.blackoutDate.findMany({ where: { reason: { in: MANUAL_REASONS } } }),
     prisma.booking.findMany({ where: { status: "confirmed" } }),
   ]);

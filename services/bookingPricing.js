@@ -86,7 +86,13 @@ export async function validateAndQuoteBooking({
   numberOfGuests,
   client = prisma,
 }) {
-  const rules = await getActiveBookingRule();
+  // Resolve the rule set active for THIS booking type specifically —
+  // Overnight, Day Tour, and Night Tour each have their own independent
+  // active rule set (see services/bookingRules.js). This is the actual
+  // fix for "set na si Day Tour, tapos gustong mag-Night Tour ng
+  // visitor pero walang active rule doon" — each type now always
+  // resolves its own rule regardless of which other types are active.
+  const rules = await getActiveBookingRule(bookingType);
 
   // --- Booking type must be enabled by the admin ---
   if (bookingType === "overnight" && !rules.allowOvernightStay) {

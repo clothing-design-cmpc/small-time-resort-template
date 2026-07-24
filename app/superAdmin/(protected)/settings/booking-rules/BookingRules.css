@@ -376,6 +376,27 @@
   gap: var(--space-sm);
 }
 
+/*
+ * .bookingRulesStatusCell / .bookingRulesActiveForLabel
+ * Wraps the Active/Inactive StatusBadge plus a small caption naming
+ * which booking type(s) this row is active for — since Overnight, Day
+ * Tour, and Night Tour each have their own independent active slot, a
+ * bare "Active" badge alone doesn't say which type(s) it covers.
+ */
+.bookingRulesStatusCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.bookingRulesActiveForLabel {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .bookingRulesRowActionButton {
   display: inline-flex;
   align-items: center;

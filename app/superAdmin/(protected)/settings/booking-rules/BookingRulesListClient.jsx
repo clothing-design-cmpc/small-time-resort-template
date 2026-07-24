@@ -64,6 +64,22 @@ export default function BookingRulesListClient({ rooms }) {
     }
   }
 
+  /**
+   * describeActiveTypes
+   * Each booking type (Overnight / Day Tour / Night Tour) has its own
+   * independent active slot now — a plain "Active" badge alone doesn't
+   * tell the admin WHICH type(s) this row is serving, which is exactly
+   * what caused the "bakit may Inactive pa" confusion. Lists only the
+   * types this row actually allows AND is currently active for.
+   */
+  function describeActiveTypes(rule) {
+    const labels = [];
+    if (rule.isActive && rule.allowOvernightStay) labels.push("Overnight");
+    if (rule.isActive && rule.allowDayTour) labels.push("Day Tour");
+    if (rule.isActive && rule.allowNightTour) labels.push("Night Tour");
+    return labels.join(" + ");
+  }
+
   const columns = [
     { key: "name", label: "Rule Set Name" },
     { key: "status", label: "Status", align: "center" },
@@ -74,7 +90,14 @@ export default function BookingRulesListClient({ rooms }) {
   const rows = bookingRules.map((rule) => ({
     id: rule.id,
     name: rule.name,
-    status: <StatusBadge status={rule.isActive ? "active" : "inactive"} />,
+    status: (
+      <div className="bookingRulesStatusCell">
+        <StatusBadge status={rule.isActive ? "active" : "inactive"} />
+        {rule.isActive && (
+          <span className="bookingRulesActiveForLabel">Active for: {describeActiveTypes(rule) || "—"}</span>
+        )}
+      </div>
+    ),
     updated: new Date(rule.updatedAt).toLocaleDateString(),
     actions: (
       <div className="bookingRulesRowActions">
@@ -124,8 +147,9 @@ export default function BookingRulesListClient({ rooms }) {
       </div>
 
       <p className="bookingRulesSectionSubtitle">
-        Create as many rule sets as you need (e.g. &quot;Regular Season&quot;, &quot;Holiday Rules&quot;) — only the one marked
-        <strong> Active</strong> below is what guests and the pricing engine actually use.
+        Create as many rule sets as you need (e.g. &quot;Regular Season&quot;, &quot;Holiday Rules&quot;). Overnight, Day
+        Tour, and Night Tour each have their own independent <strong>Active</strong> rule set — activating one
+        type&apos;s rule set never turns off the active rule set for a different type.
       </p>
 
       <DataTable

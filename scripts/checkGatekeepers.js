@@ -30,10 +30,13 @@
  * SAFETY: every request in this script uses a fake, reserved
  * "documentation and testing" IP range (RFC 5737 TEST-NET-3,
  * 203.0.113.0/24) via the x-forwarded-for header, so this script can
- * never accidentally block the machine actually running it. The
- * cleanup step at the end always runs (in a `finally` block) and
- * removes every row this script created plus resets breachLockdown —
- * so a failed run never leaves the target site actually locked down.
+ * never accidentally block the machine actually running it. Cleanup
+ * was intentionally removed (owner request) — the BlockedIp and
+ * BreachEvent rows this creates are LEFT IN THE DATABASE after the
+ * run so they're visible on the Unban IP list. Since GK1/GK2 no
+ * longer touch SystemSettings.breachLockdown (services/
+ * breachResponse.js), there's nothing else to reset either. This test
+ * data is expected to be wiped at the real pre-deployment hard reset.
  *
  * USAGE:
  *   BASE_URL=http://localhost:3000 node scripts/checkGatekeepers.js
@@ -203,32 +206,6 @@ async function testGatekeeper2() {
 }
 
 /**
- * cleanup
- * Removes every row this script created and resets the site out of
- * lockdown. Runs unconditionally in main()'s finally block — a
- * failed/crashed run must never leave the target site actually locked
- * down for real visitors.
- */
-async function cleanup() {
-  console.log("\n--- Cleanup ---");
-  await prisma.blockedIp.deleteMany({
-    where: { ipAddress: { in: [TEST_IP_GATEKEEPER_1, TEST_IP_GATEKEEPER_2] } },
-  });
-  await prisma.breachEvent.deleteMany({
-    where: { ipAddress: { in: [TEST_IP_GATEKEEPER_1, TEST_IP_GATEKEEPER_2] } },
-  });
-  await prisma.systemSettings
-    .update({
-      where: { id: "singleton" },
-      data: { breachLockdown: false, maintenanceMode: false, breachActiveEventId: null },
-    })
-    .catch(() => {
-      // No singleton row yet is fine — nothing to reset in that case.
-    });
-  console.log("Removed test BlockedIp/BreachEvent rows and reset breachLockdown to off.");
-}
-
-/**
  * checkServerIsReachable
  * Fails fast with a clear, actionable message instead of letting a
  * connection failure surface deep inside testGatekeeper1() as a bare
@@ -269,7 +246,6 @@ async function main() {
     await testGatekeeper1();
     await testGatekeeper2();
   } finally {
-    await cleanup();
     await prisma.$disconnect();
   }
 

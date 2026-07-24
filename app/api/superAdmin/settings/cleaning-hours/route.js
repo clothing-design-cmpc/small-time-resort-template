@@ -4,10 +4,13 @@
  *       session gate.
  *
  * PURPOSE:
- * GET -> returns SystemSettings.cleaningHours (the resort-wide number
- *        of hours a room stays "Checked-Out — Cleaning" after a
- *        guest's checkout before auto-flipping to "Available").
- * PUT -> updates it. Read by services/roomStatus.js on every
+ * GET -> returns the currently ACTIVE BookingRule's cleaningHours (the
+ *        per-rule-set number of hours a room stays "Checked-Out —
+ *        Cleaning" after a guest's checkout before auto-flipping to
+ *        "Available" — see the field's own schema comment on
+ *        BookingRule for why this is per-rule-set, not resort-wide).
+ * PUT -> updates it on that same active rule. Read by
+ *        services/roomStatus.js (via getActiveBookingRule()) on every
  *        room-status computation.
  */
 export const dynamic = "force-dynamic";
@@ -15,16 +18,19 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
+import { getActiveBookingRule } from "@/services/bookingRules";
 
 export async function GET() {
   try {
-    const settings = await prisma.systemSettings.upsert({
-      where: { id: "singleton" },
-      update: {},
-      create: { id: "singleton" },
-      select: { cleaningHours: true },
+    // cleaningHours lives on BookingRule (per active rule set), not on
+    // SystemSettings — this mirrors exactly what services/roomStatus.js
+    // reads when computing each room's current status.
+    const activeRule = await getActiveBookingRule();
+    return NextResponse.json({
+      success: true,
+      data: { cleaningHours: activeRule.cleaningHours },
+      message: "Cleaning hours fetched successfully.",
     });
-    return NextResponse.json({ success: true, data: settings, message: "Cleaning hours fetched successfully." });
   } catch (error) {
     console.error("[cleaning-hours] Failed to fetch:", error.message);
     return NextResponse.json(
@@ -51,15 +57,19 @@ export async function PUT(request) {
       );
     }
 
-    const settings = await prisma.systemSettings.update({
-      where: { id: "singleton" },
+    // Save onto the currently active BookingRule — never SystemSettings —
+    // so the value actually affects services/roomStatus.js's computation,
+    // which always reads cleaningHours off getActiveBookingRule().
+    const activeRule = await getActiveBookingRule();
+    const updatedRule = await prisma.bookingRule.update({
+      where: { id: activeRule.id },
       data: { cleaningHours },
       select: { cleaningHours: true },
     });
 
     return NextResponse.json({
       success: true,
-      data: settings,
+      data: updatedRule,
       message: `Cleaning hours updated to ${cleaningHours}.`,
     });
   } catch (error) {

@@ -15,26 +15,43 @@
  *                  own anomaly detector flags impossible travel or a
  *                  brand-new device on a successful super-admin sign-in
  *
+ * GATEKEEPER 1 & 2 vs GATEKEEPER 3 — DIFFERENT RESPONSES:
+ * GK1 (login brute force) and GK2 (SQL injection attempt) trip BEFORE
+ * a valid login — the offending IP is very likely an actual attacker,
+ * so the response stays scoped to that one IP: block it, record the
+ * incident, alert the owner. Everyone else keeps using the site
+ * normally — no site-wide lockdown, no vault passphrase rotation.
+ * GK3 (anomalous admin login) trips AFTER a correct password was
+ * entered — it could be a stolen session, so the response is the full
+ * "assume the worst" treatment: IP block + site-wide lockdown +
+ * off-cycle backup + vault passphrase rotation, on top of the IP
+ * block and alert email GK1/GK2 already get.
+ *
  * WHAT HAPPENS ON A TRIP (in this exact order):
  * 1. Block the offending IP (services/ipBlock.js) — every future
  *    request from this IP gets a plain 403 from proxy.js, for every
- *    route, visitor and super-admin alike. Applies to ALL 3 gatekeepers
- *    (owner request — see that step's own comment for the accepted
- *    trade-off on Gatekeeper 3). NOTE: proxy.js's actual enforcement of
- *    this is currently gated behind GATEKEEPER_IP_BLOCK_ENABLED="true"
- *    in .env.local (off by default as of July 2026) — the BlockedIp row
- *    is always created here regardless, but it only actually blocks
- *    traffic once that env flag is turned on.
+ *    route, visitor and super-admin alike. Applies to ALL 3 gatekeepers.
+ *    NOTE: proxy.js's actual enforcement of this is currently gated
+ *    behind GATEKEEPER_IP_BLOCK_ENABLED="true" in .env.local (off by
+ *    default as of July 2026) — the BlockedIp row is always created
+ *    here regardless, but it only actually blocks traffic once that
+ *    env flag is turned on.
  * 2. Create a BreachEvent row — the incident record the recovery page
- *    and the super-admin alert banner both read from.
- * 3. Flip SystemSettings.breachLockdown + maintenanceMode on, with the
- *    breach-specific message — every visitor now sees the full-page
- *    takeover screen instead of the working site.
- * 4. Dispatch database-backup.yml on GitHub Actions (Rule 40.1 — this
- *    NEVER runs pg_dump inside the live request, it just presses the
- *    same "Run workflow" button the Backups page already exposes).
+ *    and the super-admin alert banner both read from. Applies to ALL
+ *    3 gatekeepers.
+ * 3. GATEKEEPER 3 ONLY — flip SystemSettings.breachLockdown +
+ *    maintenanceMode on, with an explicit breach message — every
+ *    visitor now sees the full-page takeover screen instead of the
+ *    working site. GK1/GK2 skip this step entirely; the site stays up
+ *    for everyone except the blocked IP.
+ * 4. GATEKEEPER 3 ONLY — dispatch database-backup.yml on GitHub
+ *    Actions (Rule 40.1 — this NEVER runs pg_dump inside the live
+ *    request, it just presses the same "Run workflow" button the
+ *    Backups page already exposes).
  * 5. Email the super-admin via EmailJS (best-effort, never blocks).
- * 6. ALL 3 gatekeepers: auto-rotate the vault passphrase
+ *    Applies to ALL 3 gatekeepers — the owner should hear about every
+ *    trip, not just the full-lockdown ones.
+ * 6. GATEKEEPER 3 ONLY — auto-rotate the vault passphrase
  *    (services/vaultAuth.js's rotateVaultPassphrase()), email the new
  *    plaintext passphrase to VAULT_OWNER_EMAIL, AND save a second
  *    plaintext copy as a .txt file to Google Drive (services/
@@ -67,14 +84,13 @@ const GATEKEEPER_LABELS = {
   3: "Gatekeeper 3 — Anomalous admin login",
 };
 
-// Deliberately generic regardless of WHICH gatekeeper tripped (1, 2, or
-// 3) — never names the specific attack vector (e.g. "SQL injection")
-// on a page every visitor, including a would-be attacker, can see. A
-// gatekeeper-specific reason is still recorded on the BreachEvent row
-// itself and shown only to whoever holds the vault session on the
-// recovery page (RecoveryClient.jsx's "Active Incident" card).
+// Shown only on the GK3 full-lockdown takeover screen (owner request —
+// explicit rather than the previous vague "routine security check"
+// wording). Still never names the specific attack vector — that stays
+// on the BreachEvent row, visible only on the vault recovery page's
+// "Active Incident" card.
 const BREACH_MESSAGE =
-  "We've temporarily paused the site while our team runs a routine security check. This won't take long — please check back shortly, and thank you for your patience.";
+  "Website security has been breached. Access is temporarily locked down while our team investigates. Please check back shortly.";
 
 /**
  * triggerGatekeeperBreach
@@ -86,8 +102,14 @@ const BREACH_MESSAGE =
 export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }) {
   const reason = `${GATEKEEPER_LABELS[gatekeeper] ?? `Gatekeeper ${gatekeeper}`} tripped: ${details}`;
 
-  // Step 1 — block the IP immediately, for ALL 3 gatekeepers (owner
-  // request — overrides the previous Gatekeeper-3 carve-out). Gatekeeper
+  // GK3 gets the full "assume the worst" treatment (site-wide lockdown +
+  // backup + vault rotation) because it trips AFTER a correct password —
+  // possible stolen session. GK1/GK2 trip BEFORE any valid login, so the
+  // offending IP is very likely just an attacker — response stays
+  // scoped to that IP instead of taking the whole site down.
+  const isFullLockdown = gatekeeper === 3;
+
+  // Step 1 — block the IP immediately, for ALL 3 gatekeepers. Gatekeeper
   // 3 trips AFTER a successful login with a correct password, so this
   // IP could be the real super-admin travelling or using a new device —
   // that risk is accepted here on purpose. The vault recovery page is
@@ -111,90 +133,97 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
     console.error("[breachResponse] Failed to create BreachEvent row:", error.message);
   }
 
-  // Step 3 — flip site-wide lockdown on.
-  try {
-    await prisma.systemSettings.upsert({
-      where: { id: "singleton" },
-      update: {
-        breachLockdown: true,
-        maintenanceMode: true,
-        maintenanceMessage: BREACH_MESSAGE,
-        breachActiveEventId: breachEvent?.id ?? null,
-      },
-      create: {
-        id: "singleton",
-        breachLockdown: true,
-        maintenanceMode: true,
-        maintenanceMessage: BREACH_MESSAGE,
-        breachActiveEventId: breachEvent?.id ?? null,
-      },
-    });
-  } catch (error) {
-    console.error("[breachResponse] Failed to enable breach lockdown:", error.message);
+  // Step 3 — GK3 ONLY: flip site-wide lockdown on. GK1/GK2 skip this —
+  // the site stays up for everyone except the now-blocked IP.
+  if (isFullLockdown) {
+    try {
+      await prisma.systemSettings.upsert({
+        where: { id: "singleton" },
+        update: {
+          breachLockdown: true,
+          maintenanceMode: true,
+          maintenanceMessage: BREACH_MESSAGE,
+          breachActiveEventId: breachEvent?.id ?? null,
+        },
+        create: {
+          id: "singleton",
+          breachLockdown: true,
+          maintenanceMode: true,
+          maintenanceMessage: BREACH_MESSAGE,
+          breachActiveEventId: breachEvent?.id ?? null,
+        },
+      });
+    } catch (error) {
+      console.error("[breachResponse] Failed to enable breach lockdown:", error.message);
+    }
   }
 
-  // Step 4 — trigger an immediate off-cycle backup, same workflow the
-  // Backups page's nightly schedule already uses.
+  // Step 4 — GK3 ONLY: trigger an immediate off-cycle backup, same
+  // workflow the Backups page's nightly schedule already uses.
   let backupTriggered = false;
-  try {
-    await triggerWorkflowDispatch("database-backup.yml");
-    backupTriggered = true;
-  } catch (error) {
-    console.error("[breachResponse] Failed to dispatch backup workflow:", error.message);
+  if (isFullLockdown) {
+    try {
+      await triggerWorkflowDispatch("database-backup.yml");
+      backupTriggered = true;
+    } catch (error) {
+      console.error("[breachResponse] Failed to dispatch backup workflow:", error.message);
+    }
   }
 
   // Step 5 — alert the super-admin. Best-effort, never blocks.
   const emailSent = await sendBreachAlertEmail({ gatekeeper, ipAddress, details });
 
-  // Step 6 — rotate the vault passphrase, for ALL 3 gatekeepers (owner
-  // request — overrides the previous Gatekeeper-3 carve-out). Same
-  // accepted trade-off as Step 1's IP block above: Gatekeeper 3 fires
-  // AFTER a correct password was entered and may just be the real
-  // super-admin on a new device/location, but the owner would rather
-  // rotate on every trip than risk missing a genuine one. The freshly
-  // emailed passphrase (below) is how the real admin recovers either way.
+  // Step 6 — GK3 ONLY: rotate the vault passphrase. GK1/GK2 skip this —
+  // an IP-scoped block doesn't need the whole vault re-keyed. Gatekeeper
+  // 3 fires AFTER a correct password was entered and may just be the
+  // real super-admin on a new device/location, but the owner would
+  // rather rotate on every GK3 trip than risk missing a genuine one.
+  // The freshly emailed passphrase (below) is how the real admin
+  // recovers either way.
   let vaultPassphraseRotated = false;
   let vaultPassphraseDriveBackup = null;
-  try {
-    const newPassphrase = await rotateVaultPassphrase();
-    vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
-      newPassphrase,
-      reason,
-    });
+  if (isFullLockdown) {
+    try {
+      const newPassphrase = await rotateVaultPassphrase();
+      vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
+        newPassphrase,
+        reason,
+      });
 
-    // Step 6b — save the same plaintext passphrase to a .txt file and
-    // upload it to Google Drive (Rule 35.7) as a second, durable copy
-    // alongside the email — an inbox can be missed, deleted, or
-    // temporarily unreachable, and this gives the owner a place to look
-    // even if that specific email never arrives. Best-effort: a failed
-    // Drive upload must never undo the rotation that already happened,
-    // or block the rest of this response.
-    //
-    // Uses the shared services/vaultPassphraseBackup.js helper (Task 4)
-    // instead of a one-off inline upload — that helper retries once
-    // before giving up, since a single transient Drive failure (expired
-    // token, brief network blip) was previously enough to silently skip
-    // the backup with no second attempt. Same file/format every other
-    // rotation path (auto-rotate cron, manual setup) already uses, so
-    // all three read as one consistent family in the Drive folder.
-    const { driveSaved, driveViewLink } = await saveVaultPassphraseToDrive({
-      newPassphrase,
-      generatedByLabel: `Gatekeeper ${gatekeeper} — ${reason}`,
-    });
-    vaultPassphraseDriveBackup = driveViewLink;
-    if (!driveSaved) {
-      console.error("[breachResponse] Failed to save passphrase backup to Drive after retry.");
+      // Step 6b — save the same plaintext passphrase to a .txt file and
+      // upload it to Google Drive (Rule 35.7) as a second, durable copy
+      // alongside the email — an inbox can be missed, deleted, or
+      // temporarily unreachable, and this gives the owner a place to look
+      // even if that specific email never arrives. Best-effort: a failed
+      // Drive upload must never undo the rotation that already happened,
+      // or block the rest of this response.
+      //
+      // Uses the shared services/vaultPassphraseBackup.js helper (Task 4)
+      // instead of a one-off inline upload — that helper retries once
+      // before giving up, since a single transient Drive failure (expired
+      // token, brief network blip) was previously enough to silently skip
+      // the backup with no second attempt. Same file/format every other
+      // rotation path (auto-rotate cron, manual setup) already uses, so
+      // all three read as one consistent family in the Drive folder.
+      const { driveSaved, driveViewLink } = await saveVaultPassphraseToDrive({
+        newPassphrase,
+        generatedByLabel: `Gatekeeper ${gatekeeper} — ${reason}`,
+      });
+      vaultPassphraseDriveBackup = driveViewLink;
+      if (!driveSaved) {
+        console.error("[breachResponse] Failed to save passphrase backup to Drive after retry.");
+      }
+
+      await logSecurityEvent({
+        eventType: "vault_passphrase_rotated",
+        actor: "vault",
+        details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${
+          vaultPassphraseDriveBackup ? " and backed up to Google Drive" : " (Drive backup failed — see server logs)"
+        }.`,
+      });
+    } catch (error) {
+      console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
     }
-
-    await logSecurityEvent({
-      eventType: "vault_passphrase_rotated",
-      actor: "vault",
-      details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${
-        vaultPassphraseDriveBackup ? " and backed up to Google Drive" : " (Drive backup failed — see server logs)"
-      }.`,
-    });
-  } catch (error) {
-    console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
   }
 
   // Record what actually succeeded so the recovery page can show an

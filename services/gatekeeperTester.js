@@ -113,11 +113,15 @@ export async function runGatekeeperDryRun({ baseUrl, testIp1, testIp2 }) {
     });
     check("Gatekeeper 1 — BreachEvent row created (gatekeeper: 1)", Boolean(breachRow1));
 
+    // GK1 is IP-scoped only (see services/breachResponse.js) — it must
+    // NOT flip site-wide lockdown. Only GK3 (anomalous admin login)
+    // does that. This check confirms the site stays up for everyone
+    // else after a GK1 trip.
     const lockdownSettings = await prisma.systemSettings.findUnique({
       where: { id: "singleton" },
       select: { breachLockdown: true },
     });
-    check("Gatekeeper 1 — SystemSettings.breachLockdown flipped on", lockdownSettings?.breachLockdown === true);
+    check("Gatekeeper 1 — SystemSettings.breachLockdown stays off (IP-scoped only)", lockdownSettings?.breachLockdown !== true);
 
     // The real proof: does proxy.js actually reject this IP now, on a
     // completely unrelated route?

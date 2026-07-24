@@ -38,6 +38,10 @@ const STATUS_STYLES = {
   vault_login_success: { label: "Vault Unlocked", color: "#10b981" },
   vault_login_failed: { label: "Vault Login Failed", color: "#f59e0b" },
   vault_otp_sent: { label: "Code Sent", color: "#3b82f6" },
+  // AI Sales Insight severity (Dashboard widget, app/superAdmin/(protected)/dashboard)
+  normal: { label: "Normal", color: "#71717a" },
+  notable: { label: "Notable", color: "#f59e0b" },
+  urgent: { label: "Urgent", color: "#dc2626" },
   vault_otp_verified: { label: "Code Verified", color: "#10b981" },
   vault_otp_failed: { label: "Code Rejected", color: "#f59e0b" },
   vault_passphrase_set: { label: "Passphrase Set", color: "#3b82f6" },

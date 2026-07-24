@@ -20,6 +20,7 @@ import "./Dashboard.css";
 import DashboardStatsClient from "./DashboardStatsClient";
 import MaintenanceToggleClient from "./MaintenanceToggleClient";
 import MarketingInsightsClient from "./MarketingInsightsClient";
+import AiInsightWidgetClient from "./AiInsightWidgetClient";
 
 export default function DashboardPage() {
   return (
@@ -31,6 +32,9 @@ export default function DashboardPage() {
 
       {/* KPI stat card grid — 4 columns desktop, reflows down on smaller screens */}
       <DashboardStatsClient />
+
+      {/* AI Sales Insight — daily automatic (6:00 AM) + manual "Regenerate now" */}
+      <AiInsightWidgetClient />
 
       {/* Task 4 breach response — site-wide maintenance banner toggle */}
       <MaintenanceToggleClient />

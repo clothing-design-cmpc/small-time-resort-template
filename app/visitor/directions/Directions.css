@@ -1,0 +1,212 @@
+/*
+ * FILE: app/visitor/directions/Directions.css
+ * PURPOSE: Styles for the "How to Get There" page and gated widget.
+ * Layout follows Rule 23's <section> > <div layout> > content pattern;
+ * responsive breakpoints live in mediaQueries.css, not here.
+ */
+
+.directionsPage {
+  width: 100%;
+}
+
+.directionsHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-2xl) var(--space-lg);
+  text-align: center;
+}
+
+.directionsEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.directionsTitle {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.directionsSubtitle {
+  max-width: 60ch;
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+}
+
+.directionsContainer {
+  width: 100%;
+  max-width: var(--max-width-narrow);
+  margin: var(--space-xl) auto 0;
+}
+
+/*
+ * .directionsWidget
+ * The card that holds the whole location + reference code + gated
+ * results flow — elevated surface consistent with other cards on the
+ * site (border + subtle background, never flat).
+ */
+.directionsWidget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.directionsField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.directionsLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.directionsHint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.directionsLocationToggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.directionsLocationOption {
+  padding: 0.6rem 1rem;
+  min-height: 44px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.directionsLocationOption:hover,
+.directionsLocationOption:focus-visible {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.directionsLocationOptionActive {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-active);
+}
+
+.directionsInput {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.85rem;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.directionsReferenceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.directionsReferenceRow .directionsInput {
+  flex: 1 1 220px;
+}
+
+.directionsVerifyButton,
+.directionsGetButton {
+  min-height: 44px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.directionsVerifyButton:hover,
+.directionsVerifyButton:focus-visible,
+.directionsGetButton:hover,
+.directionsGetButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+.directionsVerifyButton:disabled,
+.directionsGetButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.directionsGatedSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.directionsWelcome {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.directionsResult {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.directionsResultSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+.directionsStepsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.directionsStep {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.directionsStepDistance {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}

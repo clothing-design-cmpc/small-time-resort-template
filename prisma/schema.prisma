@@ -175,6 +175,14 @@ model Booking {
   depositAmount  Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
   notes          String?
   status         String   @default("confirmed") // confirmed | cancelled
+
+  // --- Invoice-Gated Directions (villa-azure-ai-insight-and-directions-plan.txt, Part 2) ---
+  // Unique code printed on the generated invoice. Format "VAR-YYYYMMDD-XXXXX"
+  // (see services/referenceCode.js) — deliberately not sequential so it can't
+  // be guessed. Must be supplied (+ verified confirmed/not-cancelled) before
+  // the "How to Get There" widget will reveal turn-by-turn directions.
+  referenceCode  String   @unique @map("reference_code")
+
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])
@@ -184,6 +192,7 @@ model Booking {
   @@index([roomId])
   @@index([status])
   @@index([checkInDate, checkOutDate])
+  @@index([referenceCode])
   @@map("bookings")
 }
 
@@ -854,6 +863,36 @@ model PageViewDaily {
 
   @@unique([date, path, referrerHost, deviceType, countryCode])
   @@map("page_views_daily")
+}
+
+// ============================================================
+// MODEL: AiInsightLog  (AI Sales Insight widget — Dashboard,
+// villa-azure-ai-insight-and-directions-plan.txt Part 1)
+// ============================================================
+// One row per generation run — either the daily 6:00 AM cron
+// (app/api/cron/ai-insight/route.js) or an owner's manual "Regenerate
+// now" click. Stores the sales summary that was fed to Gemini
+// alongside its structured response, so the Dashboard widget can
+// always render the most recent row without recomputing anything.
+model AiInsightLog {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  generatedAt     DateTime @default(now()) @map("generated_at")
+  // What was fed to Gemini as of this run — kept for transparency /
+  // debugging ("why did it say that"), never shown as the headline itself.
+  salesSummary    String   @map("sales_summary") @db.Text
+  weatherSummary  String?  @map("weather_summary") @db.Text
+  observation     String   @db.Text
+  likelyCause     String   @map("likely_cause") @db.Text
+  suggestedAction String   @map("suggested_action") @db.Text
+  severity        String   @default("normal") // normal | notable | urgent
+  // "insufficient_data" | "ok" | "error" — lets the widget show a plain
+  // "not enough data yet" state instead of a fabricated-sounding insight.
+  status          String   @default("ok")
+  triggerSource   String   @default("cron") @map("trigger_source") // cron | manual
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([generatedAt])
+  @@map("ai_insight_logs")
 }
 
 // ============================================================

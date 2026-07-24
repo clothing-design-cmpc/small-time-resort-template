@@ -249,3 +249,59 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
+
+/*
+ * .bookingConfirmReferenceBox
+ * Highlights the reference code — this is the credential the guest
+ * needs later for the invoice and the gated Directions widget, so it
+ * must stand out from the rest of the receipt-style summary.
+ */
+.bookingConfirmReferenceBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-accent);
+  border-radius: 10px;
+}
+
+.bookingConfirmReferenceLabel {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.bookingConfirmReferenceCode {
+  font-family: monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  letter-spacing: 0.05em;
+}
+
+.bookingConfirmReferenceHint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.bookingConfirmInvoiceLink {
+  align-self: flex-start;
+  margin-top: var(--space-xs);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.bookingConfirmInvoiceLink:hover,
+.bookingConfirmInvoiceLink:focus-visible {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}

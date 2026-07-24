@@ -174,13 +174,30 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
   /* ─── Confirmation panel — replaces the form entirely on success ─────── */
   if (confirmedBooking) {
-    const { quote: confirmedQuote } = confirmedBooking;
+    const { quote: confirmedQuote, booking: confirmedBookingRecord } = confirmedBooking;
     return (
       <div className="bookingConfirmPanel">
         <span className="bookingConfirmBadge">✓ Booking Confirmed</span>
         <p className="bookingConfirmMessage">
           Thank you! We've reserved your dates and sent a confirmation to your email.
         </p>
+        {confirmedBookingRecord?.referenceCode && (
+          <div className="bookingConfirmReferenceBox">
+            <span className="bookingConfirmReferenceLabel">Your Reference Code</span>
+            <span className="bookingConfirmReferenceCode">{confirmedBookingRecord.referenceCode}</span>
+            <p className="bookingConfirmReferenceHint">
+              Keep this code — you&apos;ll need it to unlock turn-by-turn directions to the resort.
+            </p>
+            <a
+              className="bookingConfirmInvoiceLink"
+              href={`/api/bookings/${confirmedBookingRecord.id}/invoice`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download Invoice (PDF)
+            </a>
+          </div>
+        )}
         <dl className="bookingConfirmSummary">
           {confirmedQuote.room && (
             <>

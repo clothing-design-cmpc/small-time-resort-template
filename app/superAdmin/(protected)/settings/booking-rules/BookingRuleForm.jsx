@@ -33,18 +33,32 @@ import SeasonDefinitionsPanel from "./SeasonDefinitionsPanel";
 import "./BookingRules.css";
 
 /**
+ * addDaysToDate
+ * Given a "YYYY-MM-DD" key, returns the date key `days` calendar days
+ * later. Used both for the single-date Overnight panel (days = 1) and
+ * for the multi-date panel, where the check-out date now depends on
+ * how many full days the total hours-of-stay actually carries past
+ * check-in (see computeMultiNightCheckout below).
+ */
+function addDaysToDate(dateKey, days) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const shifted = new Date(year, month - 1, day + days);
+  const y = shifted.getFullYear();
+  const m = String(shifted.getMonth() + 1).padStart(2, "0");
+  const d = String(shifted.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
  * addOneDay
  * Given a "YYYY-MM-DD" key, returns the next calendar day's key. Used
  * for the Overnight (single date) booking type, where the stay's
- * check-out date is the day after the selected rule date.
+ * check-out date is the day after the selected rule date. Kept as its
+ * own named function (the days = 1 case of addDaysToDate) since it
+ * reads clearer at that single-date call site.
  */
 function addOneDay(dateKey) {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  const nextDay = new Date(year, month - 1, day + 1);
-  const y = nextDay.getFullYear();
-  const m = String(nextDay.getMonth() + 1).padStart(2, "0");
-  const d = String(nextDay.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return addDaysToDate(dateKey, 1);
 }
 
 /**
@@ -98,6 +112,69 @@ function hoursBetween(startTime, endTime) {
   const endTotal = endHour * 60 + endMinute;
   const diffMinutes = ((endTotal - startTotal + 24 * 60) % (24 * 60)) || 24 * 60;
   return diffMinutes % 60 === 0 ? diffMinutes / 60 : null;
+}
+
+/**
+ * computeMultiNightCheckout
+ * Section 1, Rule 2 (2+ dates selected): computes the correct
+ * check-out TIME and DATE for a multi-night stay.
+ *
+ * Formula:
+ *   ttlHourStay   = hoursOfStayPerNight * numberOfNights   (total hours purchased across every night)
+ *   totalMinutes  = check-in time (converted to 24-hour minutes) + ttlHourStay
+ *   checkOutTime  = totalMinutes reduced onto a 24-hour clock ("HH:mm")
+ *   checkOutDate  = firstSelectedDate + however many full days totalMinutes carries past check-in
+ *
+ * This replaces the previous logic, which only ever added a SINGLE
+ * night's hours to check-in time and always set the check-out date to
+ * "last selected date + 1" regardless of how many nights were picked —
+ * correct only when hoursOfStayPerNight happens to divide evenly into
+ * a full day per night. For any other value (e.g. 21 hours/night
+ * across 2 nights) the guest's actual check-out time and date were
+ * both wrong, since the second night's hours were never carried in.
+ */
+function computeMultiNightCheckout(checkInTime, hoursOfStayPerNight, numberOfNights, firstDateKey) {
+  const [inHour, inMinute] = checkInTime.split(":").map(Number);
+  const inTotalMinutes = inHour * 60 + inMinute;
+
+  const ttlHourStay = hoursOfStayPerNight * numberOfNights;
+  const totalMinutes = inTotalMinutes + ttlHourStay * 60;
+
+  const daysCarried = Math.floor(totalMinutes / (24 * 60));
+  const wrappedMinutes = totalMinutes % (24 * 60);
+  const outHour = Math.floor(wrappedMinutes / 60);
+  const outMinute = wrappedMinutes % 60;
+
+  return {
+    checkOutTime: `${String(outHour).padStart(2, "0")}:${String(outMinute).padStart(2, "0")}`,
+    checkOutDateKey: addDaysToDate(firstDateKey, daysCarried),
+  };
+}
+
+/**
+ * hoursOfStayPerNightFromCheckout
+ * Reverses a stored multi-night check-out time back into the original
+ * "hours of stay per night" (1-24) that produced it, so the "Total
+ * Hours of Stay" dropdown can correctly pre-select itself when editing
+ * an existing multi-date rule. Several hoursPerNight values can wrap
+ * to the same clock time once multiplied by the number of nights and
+ * reduced onto a 24-hour clock, so this checks every 1-24 candidate
+ * against computeMultiNightCheckout's own math and returns the one
+ * that actually reproduces the stored time — never guesses, so legacy
+ * data saved before this formula existed just shows the placeholder
+ * instead of a wrong pre-selected value.
+ */
+function hoursOfStayPerNightFromCheckout(checkInTime, checkOutTime, numberOfNights) {
+  // Search from 24 down to 1: several hoursPerNight values can alias to the
+  // same wrapped clock time (e.g. 9h and 21h/night both land on the same
+  // clock minute across 2 nights, just on different calendar days), and a
+  // real nightly stay is almost always close to a full day (18-24h), so the
+  // largest match is the far more likely original value.
+  for (let hoursPerNight = 24; hoursPerNight >= 1; hoursPerNight -= 1) {
+    const candidate = computeMultiNightCheckout(checkInTime, hoursPerNight, numberOfNights, "2000-01-01");
+    if (candidate.checkOutTime === checkOutTime) return hoursPerNight;
+  }
+  return null;
 }
 
 /* z.coerce.number() on every numeric field is what actually makes this
@@ -618,73 +695,99 @@ export default function BookingRuleForm({ existingRule, rooms }) {
                only Overnight Stay applies once 2+ dates are picked (Day
                Tour / Night Tour are single-day only), so those two radios
                render disabled here instead of being hidden entirely. */}
-          {selectedDates.size > 1 && (
-            <div className="bookingRulesSubPanel">
-              <p className="bookingRulesSubPanelTitle">Uri ng Booking</p>
-              <div className="bookingRulesToggleRow">
-                <label className="bookingRulesToggle">
-                  <input type="radio" name="multiDateBookingType" checked readOnly disabled />
-                  Overnight Stay (tulugan, may room)
-                </label>
-                <label className="bookingRulesToggle bookingRulesToggle--disabled">
-                  <input type="radio" name="multiDateBookingType" disabled />
-                  Day Tour (araw lang, walang room)
-                </label>
-                <label className="bookingRulesToggle bookingRulesToggle--disabled">
-                  <input type="radio" name="multiDateBookingType" disabled />
-                  Night Tour (gabi lang, walang room)
-                </label>
-              </div>
-              <p className="bookingRulesHint">
-                {selectedDates.size} na petsa ({selectedDates.size} gabi) ang napili — overnight lagi ang type kapag
-                maraming petsa ang pinili; ang Day Tour at Night Tour ay para sa iisang araw lang.
-              </p>
+          {selectedDates.size > 1 && (() => {
+            // Section 1, Rule 2 data flow: the number of selected dates IS
+            // the number of nights (per the hint text below), and the
+            // check-out time/date are derived from the multi-night formula
+            // above rather than reused as-is from the single-night panel.
+            const numberOfNights = selectedDates.size;
+            const firstDateKey = Array.from(selectedDates).sort()[0];
+            const hoursOfStayPerNightMulti = hoursOfStayPerNightFromCheckout(
+              checkInTimeSingle,
+              checkOutTimeSingle,
+              numberOfNights
+            );
+            const multiNightCheckout = hoursOfStayPerNightMulti
+              ? computeMultiNightCheckout(checkInTimeSingle, hoursOfStayPerNightMulti, numberOfNights, firstDateKey)
+              : null;
 
-              <div className="bookingRulesFormGrid3x2">
-                <div className="bookingRulesFormField">
-                  <label>Check-in Date</label>
-                  <p className="bookingRulesStaticDate">{formatDisplayDate(Array.from(selectedDates).sort()[0])}</p>
+            return (
+              <div className="bookingRulesSubPanel">
+                <p className="bookingRulesSubPanelTitle">Uri ng Booking</p>
+                <div className="bookingRulesToggleRow">
+                  <label className="bookingRulesToggle">
+                    <input type="radio" name="multiDateBookingType" checked readOnly disabled />
+                    Overnight Stay (tulugan, may room)
+                  </label>
+                  <label className="bookingRulesToggle bookingRulesToggle--disabled">
+                    <input type="radio" name="multiDateBookingType" disabled />
+                    Day Tour (araw lang, walang room)
+                  </label>
+                  <label className="bookingRulesToggle bookingRulesToggle--disabled">
+                    <input type="radio" name="multiDateBookingType" disabled />
+                    Night Tour (gabi lang, walang room)
+                  </label>
                 </div>
-                <div className="bookingRulesFormField">
-                  <label htmlFor="checkInTimeMulti">Check-in Time</label>
-                  <input id="checkInTimeMulti" type="time" {...register("checkInTime")} />
-                </div>
-                <div className="bookingRulesFormField">
-                  <label htmlFor="multiStayHours">Total Hours of Stay</label>
-                  <select
-                    id="multiStayHours"
-                    value={hoursBetween(checkInTimeSingle, checkOutTimeSingle) ?? ""}
-                    onChange={(event) => {
-                      const hours = Number(event.target.value);
-                      setValue("checkOutTime", addHoursToTime(checkInTimeSingle, hours), { shouldValidate: true });
-                    }}
-                  >
-                    <option value="" disabled>Select hours…</option>
-                    {Array.from({ length: 24 }, (_, index) => index + 1).map((hours) => (
-                      <option key={hours} value={hours}>{hours} hour{hours > 1 ? "s" : ""}</option>
-                    ))}
-                  </select>
-                  <p className="bookingRulesHint">Awtomatikong kina-calculate ang Check-out Time sa ibaba base dito.</p>
-                </div>
-                <div className="bookingRulesFormField">
-                  <label>Check-out Date</label>
-                  <p className="bookingRulesStaticDate">
-                    {formatDisplayDate(addOneDay(Array.from(selectedDates).sort().slice(-1)[0]))}
-                  </p>
-                </div>
-                <div className="bookingRulesFormField">
-                  <label htmlFor="checkOutTimeMulti">Check-out Time</label>
-                  <input id="checkOutTimeMulti" type="time" {...register("checkOutTime")} />
-                </div>
-                <div className="bookingRulesFormField">
-                  <label htmlFor="hourlyChargeAmount">Hourly Charge (₱)</label>
-                  <input id="hourlyChargeAmount" type="number" step="0.01" min="0" {...register("hourlyChargeAmount")} />
-                  <p className="bookingRulesHint">Dagdag na bayad kada oras, sa ibabaw ng normal na per-night rate.</p>
-                  {errors.hourlyChargeAmount && <span role="alert" className="bookingRulesFormError">{errors.hourlyChargeAmount.message}</span>}
+                <p className="bookingRulesHint">
+                  {selectedDates.size} na petsa ({selectedDates.size} gabi) ang napili — overnight lagi ang type kapag
+                  maraming petsa ang pinili; ang Day Tour at Night Tour ay para sa iisang araw lang.
+                </p>
+
+                <div className="bookingRulesFormGrid3x2">
+                  <div className="bookingRulesFormField">
+                    <label>Check-in Date</label>
+                    <p className="bookingRulesStaticDate">{formatDisplayDate(firstDateKey)}</p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="checkInTimeMulti">Check-in Time</label>
+                    <input id="checkInTimeMulti" type="time" {...register("checkInTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="multiStayHours">Total Hours of Stay (kada gabi)</label>
+                    <select
+                      id="multiStayHours"
+                      value={hoursOfStayPerNightMulti ?? ""}
+                      onChange={(event) => {
+                        const hoursPerNight = Number(event.target.value);
+                        const { checkOutTime } = computeMultiNightCheckout(
+                          checkInTimeSingle,
+                          hoursPerNight,
+                          numberOfNights,
+                          firstDateKey
+                        );
+                        setValue("checkOutTime", checkOutTime, { shouldValidate: true });
+                      }}
+                    >
+                      <option value="" disabled>Select hours…</option>
+                      {Array.from({ length: 24 }, (_, index) => index + 1).map((hours) => (
+                        <option key={hours} value={hours}>{hours} hour{hours > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                    <p className="bookingRulesHint">
+                      Awtomatikong kina-calculate ang Check-out Date &amp; Time sa ibaba base sa oras kada gabi ×
+                      {" "}{numberOfNights} gabi.
+                    </p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label>Check-out Date</label>
+                    <p className="bookingRulesStaticDate">
+                      {multiNightCheckout ? formatDisplayDate(multiNightCheckout.checkOutDateKey) : "—"}
+                    </p>
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="checkOutTimeMulti">Check-out Time</label>
+                    <input id="checkOutTimeMulti" type="time" {...register("checkOutTime")} />
+                  </div>
+                  <div className="bookingRulesFormField">
+                    <label htmlFor="hourlyChargeAmount">Hourly Charge (₱)</label>
+                    <input id="hourlyChargeAmount" type="number" step="0.01" min="0" {...register("hourlyChargeAmount")} />
+                    <p className="bookingRulesHint">Dagdag na bayad kada oras, sa ibabaw ng normal na per-night rate.</p>
+                    {errors.hourlyChargeAmount && <span role="alert" className="bookingRulesFormError">{errors.hourlyChargeAmount.message}</span>}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* --- Section 2: Cancellation Policy --- */}

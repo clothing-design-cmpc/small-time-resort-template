@@ -13,7 +13,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import "./Header.css";
 
@@ -41,9 +41,31 @@ const navLinks = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useRef(null);
+
+  // Keeps --header-height in sync with the header's actual rendered
+  // height. Previously .visitorContent used a hardcoded 68px guess,
+  // which didn't match the real height and left a gap (or a hidden
+  // strip) between the fixed header and the page content below it.
+  // ResizeObserver re-measures automatically if the header's height
+  // ever changes (e.g. font loading, viewport width changes).
+  useEffect(() => {
+    const headerElement = headerRef.current;
+    if (!headerElement) return;
+
+    function updateHeaderHeightVariable() {
+      document.documentElement.style.setProperty("--header-height", `${headerElement.offsetHeight}px`);
+    }
+
+    updateHeaderHeightVariable();
+
+    const resizeObserver = new ResizeObserver(updateHeaderHeightVariable);
+    resizeObserver.observe(headerElement);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   return (
-    <header className="siteHeader">
+    <header ref={headerRef} className="siteHeader">
       <div className="headerContainer">
         {/* Logo */}
         <Link href="/visitor" className="headerLogo">

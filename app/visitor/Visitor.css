@@ -13,10 +13,13 @@
 /*
  * .visitorContent
  * Wraps all page content below the sticky header.
- * padding-top offsets the fixed header height (68px) so no content
- * is hidden behind it. flex-grow:1 pushes the footer to the bottom.
+ * padding-top offsets the header's real rendered height via
+ * --header-height (set by Header.jsx on mount/resize) so no content
+ * is hidden behind it and no extra gap is left below it either.
+ * The 68px fallback only applies before JS has measured on first
+ * paint. flex-grow:1 pushes the footer to the bottom.
  */
 .visitorContent {
   flex-grow: 1;
-  padding-top: 68px;
+  padding-top: var(--header-height, 68px);
 }

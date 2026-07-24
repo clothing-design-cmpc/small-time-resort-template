@@ -792,9 +792,6 @@ DEBUG POINTS:
   Backup Now" button and the "Import SQL" feature to dispatch workflows.)
 - GITHUB_WORKFLOW_REF (app runtime, optional - defaults to "static".
   The branch database-backup.yml/database-restore.yml should run from.)
-- RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY
-  (reseller license check. Values are issued per client deployment by
-  the owner's separate License Manager project, not yet built.)
 - MAXMIND_DB_PATH (path to a downloaded GeoLite2-City.mmdb file, e.g.
   "./data/GeoLite2-City.mmdb" — free with a MaxMind account at
   maxmind.com. Powers services/geoip.js for Security Log geolocation.
@@ -883,52 +880,3 @@ DEBUG POINTS:
   otherwise: no crash, no email, no log row — VaultPassphrase.expiresAt
   just sits in the past indefinitely until someone checks manually or
   clicks "Generate New Passphrase" themselves.
-
-=== PROCESS: Reseller License Check (owner-only feature, not client-facing) ===
-Step 1 : Every request to a matched route hits middleware.js first
-Step 2 : middleware.js calls checkLicense(hostname) from services/licenseGuard.js
-Step 3 : licenseGuard.js sends { license_key: RESORT_LICENSE_KEY, domain: hostname }
-         to a Postgres RPC function (validate_license) hosted on a SEPARATE
-         Supabase project ("License Manager") that only the owner controls —
-         not this project's own Supabase
-Step 4 : The RPC checks if the key exists, is "active", and if the domain
-         matches what's on record for that key. Returns { valid, reason }
-Step 5 : Result is cached in-memory for 6 hours to avoid hitting the
-         license server on every page load
-Step 6 : If invalid -> redirect to /license-invalid (plain, non-technical
-         notice). If the license server is unreachable/erroring -> fails
-         OPEN (site stays up) so a temporary outage never locks out a
-         paying client; the failure is still console.error'd for review
-Step 7 : If a client resells the template on an unauthorized domain, the
-         RPC call reports the mismatched domain, giving the owner
-         visibility via the (not yet built) License Manager dashboard
-
-MULTI-POINT ENFORCEMENT (defense in depth, added after middleware-only
-version): the same checkLicense() is also called directly, via the
-requireLicensedRequest(request) helper, inside:
-  - app/api/bookings/route.js  (POST — booking creation)
-  - app/api/auth/login/route.js (POST — super-admin login)
-This means removing the license block from middleware.js alone is no
-longer enough to disable enforcement — a developer would have to also
-find and remove it from each of these route handlers independently,
-since both revenue-generating actions (taking a booking, signing in)
-check it themselves. All three call sites share the same in-memory
-cache in services/licenseGuard.js, so this does NOT triple the number
-of validation calls to the license server.
-
-STATUS: This project (Villa Azure Resort / the sold template) now makes
-the validation call. The License Manager itself — where license keys are
-actually generated, stored, and reviewed — is a separate React (Vite) +
-Supabase project to be built next. Until that project exists, leave
-RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY blank —
-licenseGuard.js fails OPEN (site stays fully usable) whenever those vars
-are unset, so this master/dev copy is never locked out. The check only
-becomes "live" (able to actually block) once a real key + the License
-Manager's RPC both exist and RESORT_LICENSE_KEY is filled in.
-
-DEBUG POINTS:
-- Site redirects to /license-invalid unexpectedly -> check
-  RESORT_LICENSE_KEY / LICENSE_SERVER_URL / LICENSE_SERVER_ANON_KEY are
-  set correctly in .env.local for this deployment's domain
-- Check console for "[licenseGuard]" logs — distinguishes a real
-  "invalid" verdict from a network/server error (which fails open)

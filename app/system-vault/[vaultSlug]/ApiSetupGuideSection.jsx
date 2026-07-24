@@ -9,7 +9,7 @@
  * Static, in-app reference for every external service this project
  * depends on (Supabase, Cloudflare R2, Google Drive, GitHub Actions,
  * MaxMind GeoIP2, Upstash Redis, EmailJS, Gemini + Google Maps Platform,
- * the license server, and the seed admin account) — one collapsible card per service with the
+ * and the seed admin account) — one collapsible card per service with the
  * exact step-by-step sign-up/configuration instructions and which
  * .env keys each step fills in. Content mirrors the project's own
  * external-services setup guide so a new developer never has to go
@@ -159,18 +159,8 @@ const SETUP_GUIDE_SECTIONS = [
     ],
   },
   {
-    id: "license",
-    label: "7. License Server — internal, owner-managed",
-    envVars: ["RESORT_LICENSE_KEY", "LICENSE_SERVER_URL", "LICENSE_SERVER_ANON_KEY"],
-    steps: [
-      "LICENSE_SERVER_URL and LICENSE_SERVER_ANON_KEY point to clothing-design-cmpc's own separate Supabase project — not something you create yourself.",
-      "RESORT_LICENSE_KEY is the specific key issued to this deployment/client.",
-      "Get all three values directly from clothing-design-cmpc if you're the one licensing this template — not a self-serve signup like the services above.",
-    ],
-  },
-  {
     id: "aiInsightAndDirections",
-    label: "8. Gemini + Google Maps Platform — AI Sales Insight & Directions",
+    label: "7. Gemini + Google Maps Platform — AI Sales Insight & Directions",
     envVars: ["GEMINI_API_KEY", "GEMINI_MODEL", "GOOGLE_MAPS_API_KEY", "GOOGLE_WEATHER_API_KEY"],
     steps: [
       "Gemini: go to aistudio.google.com, sign in, click \"Get API key\" in the left sidebar, then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required. Copy the key into GEMINI_API_KEY.",
@@ -184,7 +174,7 @@ const SETUP_GUIDE_SECTIONS = [
   },
   {
     id: "seedAdmin",
-    label: "9. Seed Admin Account — local config, no signup",
+    label: "8. Seed Admin Account — local config, no signup",
     envVars: ["SEED_ADMIN_EMAIL", "SEED_ADMIN_PASSWORD"],
     steps: [
       "Pick any email/password — these become the first super-admin login credentials.",

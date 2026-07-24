@@ -8,8 +8,8 @@
  * PURPOSE:
  * Static, in-app reference for every external service this project
  * depends on (Supabase, Cloudflare R2, Google Drive, GitHub Actions,
- * MaxMind GeoIP2, Upstash Redis, EmailJS, the license server, and the
- * seed admin account) — one collapsible card per service with the
+ * MaxMind GeoIP2, Upstash Redis, EmailJS, Gemini + Google Maps Platform,
+ * the license server, and the seed admin account) — one collapsible card per service with the
  * exact step-by-step sign-up/configuration instructions and which
  * .env keys each step fills in. Content mirrors the project's own
  * external-services setup guide so a new developer never has to go
@@ -169,8 +169,22 @@ const SETUP_GUIDE_SECTIONS = [
     ],
   },
   {
+    id: "aiInsightAndDirections",
+    label: "8. Gemini + Google Maps Platform — AI Sales Insight & Directions",
+    envVars: ["GEMINI_API_KEY", "GEMINI_MODEL", "GOOGLE_MAPS_API_KEY", "GOOGLE_WEATHER_API_KEY"],
+    steps: [
+      "Gemini: go to aistudio.google.com, sign in, click \"Get API key\" in the left sidebar, then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required. Copy the key into GEMINI_API_KEY.",
+      "Keys created in AI Studio from 2026 onward are auto-restricted (\"Auth keys\") — if the key shows an \"Unrestricted\" tag on the API Keys page, click \"Restrict to Gemini API\" (Google rejects unrestricted keys starting June 19, 2026).",
+      "GEMINI_MODEL is optional — leave unset to default to gemini-flash-latest, or set it to pin a specific model.",
+      "Google Maps + Weather: go to console.cloud.google.com, use the same project (or a new one). APIs & Services → Library — enable Geocoding API, Routes API, and Weather API.",
+      "APIs & Services → Credentials → Create Credentials → API Key. This requires billing enabled on the Cloud project, but all three APIs have a free monthly call allowance — you won't be charged unless you exceed it.",
+      "Restrict the key to just those three APIs (API restrictions, not \"Don't restrict key\").",
+      "One key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY — set them to the same string, or generate two separate restricted keys if you'd rather track their usage independently.",
+    ],
+  },
+  {
     id: "seedAdmin",
-    label: "8. Seed Admin Account — local config, no signup",
+    label: "9. Seed Admin Account — local config, no signup",
     envVars: ["SEED_ADMIN_EMAIL", "SEED_ADMIN_PASSWORD"],
     steps: [
       "Pick any email/password — these become the first super-admin login credentials.",

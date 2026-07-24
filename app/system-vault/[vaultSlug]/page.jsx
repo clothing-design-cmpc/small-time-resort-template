@@ -1,90 +1,66 @@
 /**
- * FILE: app/system-vault/[vaultSlug]/page.jsx
- * ROLE: Standalone — NOT protected by proxy.js's super_admin gate, NOT
- *       part of the app/superAdmin route group, and NOT linked from
- *       the Sidebar or anywhere else in the app. Gated entirely by its
- *       own login chain plus the [vaultSlug] check below.
+ * FILE: app/system-vault/[vaultSlug]/login/page.jsx
+ * ROLE: Standalone — NOT protected by proxy.js's super_admin gate. This
+ *       page is reachable by anyone who knows the hidden URL; the
+ *       vault's own login chain (passphrase, then email OTP) is the
+ *       only thing gating what comes after it. Also validates
+ *       [vaultSlug] itself — see below.
  *
  * PURPOSE:
- * The disaster-recovery page for the 3-Gatekeeper breach response
- * (Task 3). Deliberately kept outside app/superAdmin so it can never
- * show up in a route listing alongside the normal admin pages.
+ * The vault's own first-factor login screen. No super_admin "session"
+ * cookie is required to reach this page or submit this form — the
+ * vault passphrase (VAULT_PASSPHRASE_HASH / SystemSettings.
+ * vaultPassphraseHash, services/vaultAuth.js) is checked entirely on
+ * its own here.
  *
  * [vaultSlug] IS NOT A FREE-FORM PARAMETER:
- * This folder is a dynamic route segment, but only ONE value of
- * vaultSlug ever resolves to anything — whatever
- * computeVaultUrlSlug() (services/vaultAuth.js) currently computes
- * from the live passphrase hash. Any other value — a guess, an old
- * cached link from before the last passphrase rotation, a stray bot
- * crawling numeric-looking paths — hits notFound() and gets a plain
- * 404, identical to a route that was never built. This check runs
- * before the vaultSession cookie is even looked at, so a wrong slug
- * never gets far enough to reveal that a login system sits behind it.
- *
- * OWN LOGIN, FULLY SEPARATE FROM /superAdmin/login:
- * This page requires ONLY its own "vaultSession" cookie
- * (services/vaultAuth.js), obtained by completing the vault's own
- * login chain (passphrase, then email OTP) at this same slug's
- * /login and /otp sub-routes. Nothing here is checked against the
- * regular admin "session" cookie, Supabase Auth, or admin_profiles —
- * deliberately, so this recovery path doesn't depend on the same auth
- * stack a breach could plausibly be compromising.
+ * Same check as the parent recovery page — only the ONE current value
+ * computeVaultUrlSlug() computes ever resolves here. A wrong slug gets
+ * a plain 404 (notFound()), never a redirect, so even the LOGIN
+ * screen's existence is never confirmed to someone guessing paths.
  *
  * DATA FLOW:
  * 1. params.vaultSlug doesn't match computeVaultUrlSlug() -> notFound()
- * 2. No vaultSession cookie at all (missing/expired/malformed) ->
- *    redirect to this slug's /login (factor 1: passphrase)
- * 3. vaultSession present but otpVerified: false -> redirect to this
- *    slug's /otp (factor 2: emailed code, services/vaultOtp.js)
- * 4. vaultSession present AND otpVerified: true -> render
- *    RecoveryClient, which drives the actual recovery workflow
+ * 2. Server Component renders the shell + hands off to VaultLoginClient
+ * 3. VaultLoginClient POSTs { passphrase } to /api/admin/vault-login
+ * 4. On success that route sets the "vaultSession" cookie and this
+ *    page redirects to this same slug's /otp step
+ *
+ * Wrapped in .superAdminRoot (SuperAdmin.css) so the admin font system
+ * (--font-admin-heading on the h1, --font-admin-mono on the eyebrow),
+ * the tightened admin spacing scale, and the design-token set that
+ * scope defines actually apply — without this wrapper the CSS import
+ * above has no effect and the page silently falls back to the visitor
+ * site's serif heading font and looser marketing-page spacing.
  */
-import { cookies } from "next/headers";
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import "@/app/superAdmin/SuperAdmin.css";
-import "./Recovery.css";
-import { requireVaultSessionFromCookieStore, computeVaultUrlSlug } from "@/services/vaultAuth";
-import RecoveryClient from "./RecoveryClient";
+import "./VaultLogin.css";
+import { computeVaultUrlSlug } from "@/services/vaultAuth";
+import VaultLoginClient from "./VaultLoginClient";
 
 export const metadata = {
   title: "System Recovery",
-  // Same deliberately generic metadata as the login screen — never
-  // hint at what this gates to anyone who stumbles onto the URL.
+  // Same deliberately generic metadata as the recovery page itself —
+  // never hint at what this gates to anyone who stumbles onto the URL.
   description: "Restricted access.",
 };
 
-export default async function VaultRecoveryPage({ params }) {
+export default async function VaultLoginPage({ params }) {
   const { vaultSlug } = await params;
 
-  // Wrong (or stale, pre-rotation) slug -> 404, never a redirect that
-  // would confirm this route pattern exists at all.
   const expectedSlug = await computeVaultUrlSlug();
   if (!expectedSlug || vaultSlug !== expectedSlug) {
     notFound();
   }
 
-  const cookieStore = await cookies();
-  const vaultSession = requireVaultSessionFromCookieStore(cookieStore);
-
-  // No session, or it expired/malformed — back to the first factor.
-  if (!vaultSession) {
-    redirect(`/system-vault/${vaultSlug}/login`);
-  }
-
-  // Passphrase accepted but the emailed code hasn't been verified yet.
-  if (!vaultSession.otpVerified) {
-    redirect(`/system-vault/${vaultSlug}/otp`);
-  }
-
-  // Wrapped in .superAdminRoot (SuperAdmin.css) exactly like the
-  // login and OTP screens already are — every var(--color-*) /
-  // var(--shadow-*) token this page and its modals use (card
-  // backgrounds, borders, the step-up modal's solid dialog
-  // background) is scoped to that class. Without it, those variables
-  // resolve to nothing and every themed surface renders transparent.
   return (
     <div className="superAdminRoot">
-      <RecoveryClient />
+      <section className="vaultLoginSection">
+        <div className="vaultLoginCard">
+          <VaultLoginClient />
+        </div>
+      </section>
     </div>
   );
 }

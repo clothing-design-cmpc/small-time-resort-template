@@ -107,6 +107,16 @@ export const ENV_GROUPS = [
     ],
   },
   {
+    id: "aiInsightAndDirections",
+    label: "AI Sales Insight & Directions (Gemini + Google Maps Platform)",
+    keys: [
+      { key: "GEMINI_API_KEY", required: true },
+      { key: "GEMINI_MODEL", required: false },
+      { key: "GOOGLE_MAPS_API_KEY", required: true },
+      { key: "GOOGLE_WEATHER_API_KEY", required: true },
+    ],
+  },
+  {
     id: "siteConfig",
     label: "Site configuration",
     keys: [
@@ -140,6 +150,8 @@ export const ENV_FIX_INSTRUCTIONS = {
     "Download GeoLite2-City.mmdb from maxmind.com (free account) and place it at the path set in MAXMIND_DB_PATH (default: services/geoip/GeoLite2-City.mmdb).",
   vaultSecurity:
     "Check VAULT_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs",
+  aiInsightAndDirections:
+    "Gemini: aistudio.google.com → Get API key → Create API key, into GEMINI_API_KEY. Google Maps/Weather: console.cloud.google.com → APIs & Services → Library, enable Geocoding API + Routes API + Weather API on one project, then Credentials → Create API Key (restrict it to those three APIs) — same key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY.",
   siteConfig:
     "Set NEXT_PUBLIC_SITE_URL to this site's live production URL in .env.local and GitHub repo secrets.",
 };

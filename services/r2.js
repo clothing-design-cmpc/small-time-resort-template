@@ -6,7 +6,8 @@
  * files. Server/script-side only — never import in a "use client" file
  * or expose these credentials to the browser.
  */
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
  * assertR2Configured
@@ -95,4 +96,28 @@ export async function deleteFromR2(key) {
       Key: key,
     })  
   );
+}
+
+/**
+ * getR2SignedDownloadUrl
+ * Generates a short-lived, signed GET URL for a private object — used
+ * for anything that must NEVER be reachable via the permanent public
+ * CDN URL (NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL/<key>), e.g. the vault
+ * passphrase backups in services/vaultPassphraseBackup.js. The object
+ * itself is uploaded the same way as any other R2 file (uploadToR2) —
+ * this function doesn't change how it's stored, only how it's fetched:
+ * the returned URL embeds a signature that expires, instead of a
+ * stable public path anyone who guesses/finds the key could hit.
+ *
+ * @param {string} key - object path in the bucket, e.g. "secrets/vault-passphrase-2026-07-25T12-00-00-000Z.txt"
+ * @param {number} expiresInSeconds - how long the signed URL stays valid (default: 24h)
+ * @returns {Promise<string>} a signed, time-limited download URL
+ */
+export async function getR2SignedDownloadUrl(key, expiresInSeconds = 24 * 60 * 60) {
+  assertR2Configured();
+  const command = new GetObjectCommand({
+    Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+    Key: key,
+  });
+  return getSignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
 }

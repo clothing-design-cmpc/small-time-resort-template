@@ -34,7 +34,15 @@ import { lookupGeoLocation, haversineDistanceKm } from "./geoip.js";
 // successful session start — flagging every failed attempt as
 // "impossible travel" would just be noise (failed logins from many
 // locations are expected, e.g. credential-stuffing attempts).
-const ANOMALY_ELIGIBLE_EVENT_TYPES = new Set(["login_success"]);
+//
+// vault_otp_verified is included alongside login_success — it's the
+// vault's own equivalent of a completed, fully-authenticated sign-in
+// (passphrase + OTP both correct). vault_login_success (passphrase
+// alone, 1st factor only) is deliberately excluded — flagging anomalies
+// before the second factor even runs would fire on every legitimate
+// first attempt from a new device, since nothing has actually proven
+// identity yet at that point.
+const ANOMALY_ELIGIBLE_EVENT_TYPES = new Set(["login_success", "vault_otp_verified"]);
 
 // A login is only flagged as impossible travel if the implied speed
 // exceeds commercial air travel by a wide margin — this avoids false

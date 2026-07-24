@@ -324,7 +324,7 @@ model BreachEvent {
   backupTriggered Boolean  @default(false) @map("backup_triggered") // true once database-backup.yml was dispatched
   emailSent      Boolean   @default(false) @map("email_sent")
   vaultPassphraseRotated Boolean @default(false) @map("vault_passphrase_rotated") // true once a fresh vault passphrase was generated + emailed — now runs for all 3 gatekeepers, see services/breachResponse.js
-  vaultPassphraseDriveUrl String? @map("vault_passphrase_drive_url") // Google Drive view link for the rotated passphrase's .txt backup, if the upload succeeded
+  vaultPassphraseR2Url String? @map("vault_passphrase_r2_url") // Cloudflare R2 presigned (time-limited) download link for the rotated passphrase's .txt backup, if the upload succeeded — previously a permanent Google Drive view link; see services/vaultPassphraseBackup.js
   resolved       Boolean   @default(false) // true once a super-admin ends the lockdown from the recovery page
   resolvedBy     String?   @map("resolved_by")
   resolvedAt     DateTime? @map("resolved_at")

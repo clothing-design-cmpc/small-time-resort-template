@@ -15,12 +15,23 @@
  * 1. POST — the vault OTP screen (VaultOtpClient.jsx) calls this once
  *    on mount. Requires a vaultSession cookie with otpVerified: false.
  *    Generates + emails a fresh code via services/vaultOtp.js.
- * 2. PATCH — the owner submits { code } from their inbox. On match,
- *    the cookie is re-issued with otpVerified: true
- *    (services/vaultAuth.js's reissueVaultSessionCookieValue) and the
- *    recovery page's server-side check now passes.
+ * 2. PATCH — the owner submits { code } from their inbox.
+ *    scanForSqlInjection() checks the code field first (GATEKEEPER 2 —
+ *    same detection-only pattern as vault-login and the main login
+ *    route). On a correct code: the cookie is re-issued with
+ *    otpVerified: true (services/vaultAuth.js's
+ *    reissueVaultSessionCookieValue) and the recovery page's
+ *    server-side check now passes. The returned SecurityLog row is
+ *    then checked for isAnomalous (GATEKEEPER 3 — impossible travel or
+ *    a brand-new device relative to prior vault unlocks); this is the
+ *    step that fires GK3, not vault-login, since passphrase-only isn't
+ *    a completed authentication yet — see services/securityLog.js's
+ *    ANOMALY_ELIGIBLE_EVENT_TYPES.
  * 3. Both log to SecurityLog (vault_otp_sent / vault_otp_verified /
- *    vault_otp_failed) with actor: VAULT_IDENTITY, same as vault-login.
+ *    vault_otp_failed / sql_injection_attempt) with actor:
+ *    VAULT_IDENTITY, same as vault-login. GATEKEEPER 1 (rate limit +
+ *    zero-tolerance wrong code) already covered every branch below
+ *    before this change.
  */
 export const dynamic = "force-dynamic";
 
@@ -31,6 +42,7 @@ import { generateAndSendVaultOtp, verifyVaultOtp } from "@/services/vaultOtp";
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
+import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -209,6 +221,34 @@ export async function PATCH(request) {
     );
   }
 
+  // Defense-in-depth detection layer (Prisma already makes real SQL
+  // injection structurally impossible here — this just logs the
+  // attempt). Same pattern as vault-login and the main login route.
+  const sqliHit = scanForSqlInjection(payload);
+  if (sqliHit) {
+    const detectionReason = `Suspicious pattern detected in field "${sqliHit}" on vault OTP verification.`;
+    await logSecurityEvent({
+      eventType: "sql_injection_attempt",
+      actor: VAULT_IDENTITY,
+      request,
+      details: detectionReason,
+    });
+
+    // GATEKEEPER 2 TRIPPED — an actual attack pattern reached the
+    // vault's second factor. Stronger signal than the rate limiter
+    // (Gatekeeper 1) since the payload itself looked malicious.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({ gatekeeper: 2, ipAddress: ip, details: detectionReason }).catch((error) =>
+        console.error("[vault-otp] Gatekeeper 2 breach response failed:", error.message)
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, data: null, message: "Incorrect or expired code." },
+      { status: 400 }
+    );
+  }
+
   let verified, reason;
   try {
     ({ verified, reason } = await verifyVaultOtp(payload.code));
@@ -257,12 +297,37 @@ export async function PATCH(request) {
     );
   }
 
-  await logSecurityEvent({
+  const securityLogRow = await logSecurityEvent({
     eventType: "vault_otp_verified",
     actor: VAULT_IDENTITY,
     request,
     details: "Vault OTP verified — recovery dashboard unlocked.",
   });
+
+  // GATEKEEPER 3 TRIPPED — a genuinely correct passphrase AND OTP, but
+  // the built-in anomaly detector (services/securityLog.js) flagged
+  // this as impossible travel or a brand-new device relative to the
+  // vault's own prior unlocks. This is the most serious of the three
+  // signals: it means someone already has both correct factors. Fire
+  // the full breach response even though everything checked out —
+  // this is exactly the "assume the worst, rotate the passphrase"
+  // scenario the vault exists to protect against.
+  //
+  // NOTE: actor is the shared VAULT_IDENTITY constant, not a per-person
+  // email — every legitimate vault user is compared against the same
+  // device/location history. A team with multiple people sharing
+  // vault access from genuinely different locations/devices will see
+  // more false positives here than the main per-admin login route
+  // does; that's an accepted tradeoff for a disaster-recovery gate
+  // where over-reacting (an unnecessary passphrase rotation + email)
+  // is far cheaper than under-reacting.
+  if (securityLogRow?.isAnomalous && ip !== "unknown") {
+    await triggerGatekeeperBreach({
+      gatekeeper: 3,
+      ipAddress: ip,
+      details: securityLogRow.anomalyReason || "Anomalous vault unlock detected.",
+    }).catch((error) => console.error("[vault-otp] Gatekeeper 3 breach response failed:", error.message));
+  }
 
   const response = NextResponse.json({
     success: true,

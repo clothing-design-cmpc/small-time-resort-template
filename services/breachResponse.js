@@ -76,7 +76,7 @@ import { sendBreachAlertEmail, sendVaultPassphraseRotationEmail } from "@/servic
 import { triggerWorkflowDispatch } from "@/services/github";
 import { rotateVaultPassphrase } from "@/services/vaultAuth";
 import { logSecurityEvent } from "@/services/securityLog";
-import { saveVaultPassphraseToDrive } from "@/services/vaultPassphraseBackup";
+import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
 
 const GATEKEEPER_LABELS = {
   1: "Gatekeeper 1 — Login brute force",
@@ -181,7 +181,7 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
   // The freshly emailed passphrase (below) is how the real admin
   // recovers either way.
   let vaultPassphraseRotated = false;
-  let vaultPassphraseDriveBackup = null;
+  let vaultPassphraseR2Backup = null;
   if (isFullLockdown) {
     try {
       const newPassphrase = await rotateVaultPassphrase();
@@ -191,34 +191,37 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
       });
 
       // Step 6b — save the same plaintext passphrase to a .txt file and
-      // upload it to Google Drive (Rule 35.7) as a second, durable copy
-      // alongside the email — an inbox can be missed, deleted, or
-      // temporarily unreachable, and this gives the owner a place to look
-      // even if that specific email never arrives. Best-effort: a failed
-      // Drive upload must never undo the rotation that already happened,
-      // or block the rest of this response.
+      // upload it to Cloudflare R2 (private `secrets/` key, never the
+      // public CDN URL — see services/vaultPassphraseBackup.js's header)
+      // as a second, durable copy alongside the email — an inbox can be
+      // missed, deleted, or temporarily unreachable, and this gives the
+      // owner a place to look even if that specific email never
+      // arrives. Best-effort: a failed R2 upload must never undo the
+      // rotation that already happened, or block the rest of this
+      // response.
       //
       // Uses the shared services/vaultPassphraseBackup.js helper (Task 4)
       // instead of a one-off inline upload — that helper retries once
-      // before giving up, since a single transient Drive failure (expired
-      // token, brief network blip) was previously enough to silently skip
+      // before giving up, since a single transient R2 failure (network
+      // blip, brief rate limit) was previously enough to silently skip
       // the backup with no second attempt. Same file/format every other
       // rotation path (auto-rotate cron, manual setup) already uses, so
-      // all three read as one consistent family in the Drive folder.
-      const { driveSaved, driveViewLink } = await saveVaultPassphraseToDrive({
+      // all three read as one consistent family in the bucket's
+      // secrets/ folder.
+      const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
         newPassphrase,
         generatedByLabel: `Gatekeeper ${gatekeeper} — ${reason}`,
       });
-      vaultPassphraseDriveBackup = driveViewLink;
-      if (!driveSaved) {
-        console.error("[breachResponse] Failed to save passphrase backup to Drive after retry.");
+      vaultPassphraseR2Backup = r2SignedUrl;
+      if (!r2Saved) {
+        console.error("[breachResponse] Failed to save passphrase backup to R2 after retry.");
       }
 
       await logSecurityEvent({
         eventType: "vault_passphrase_rotated",
         actor: "vault",
         details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${
-          vaultPassphraseDriveBackup ? " and backed up to Google Drive" : " (Drive backup failed — see server logs)"
+          vaultPassphraseR2Backup ? " and backed up to Cloudflare R2" : " (R2 backup failed — see server logs)"
         }.`,
       });
     } catch (error) {
@@ -232,7 +235,7 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
     try {
       await prisma.breachEvent.update({
         where: { id: breachEvent.id },
-        data: { backupTriggered, emailSent, vaultPassphraseRotated, vaultPassphraseDriveUrl: vaultPassphraseDriveBackup },
+        data: { backupTriggered, emailSent, vaultPassphraseRotated, vaultPassphraseR2Url: vaultPassphraseR2Backup },
       });
     } catch (error) {
       console.error("[breachResponse] Failed to update BreachEvent status flags:", error.message);

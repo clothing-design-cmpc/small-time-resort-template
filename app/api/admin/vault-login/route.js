@@ -17,14 +17,22 @@
  * 2. Rate limit: 5 attempts / 15 min per IP, same ceiling as the main
  *    login route — this endpoint gates disaster recovery, brute force
  *    here is just as serious as brute forcing the main password
- * 3. verifyVaultPassphrase() does a constant-time compare against
+ *    (GATEKEEPER 1 — see the rate-limit and wrong-passphrase branches below)
+ * 3. scanForSqlInjection() checks the passphrase field before it's ever
+ *    compared — same defense-in-depth VISIBILITY layer the main login
+ *    route uses (GATEKEEPER 2). Prisma/bcrypt already make real
+ *    injection structurally impossible here; this is purely detection.
+ * 4. verifyVaultPassphrase() does a constant-time compare against
  *    Vault.passphraseHash (DB), falling back to
  *    VAULT_PASSPHRASE_HASH (.env.local) if no DB value has ever been
  *    set yet — see services/vaultAuth.js for why the DB is the source
  *    of truth once auto-rotation (services/breachResponse.js) runs
- * 4. On match: set "vaultSession" cookie (uid: VAULT_IDENTITY), log
+ * 5. On match: set "vaultSession" cookie (uid: VAULT_IDENTITY), log
  *    vault_login_success, return success. On mismatch: log
- *    vault_login_failed, return the same generic 401 either way
+ *    vault_login_failed, return the same generic 401 either way.
+ *    (GATEKEEPER 3 — anomalous-login detection — deliberately does NOT
+ *    run here; passphrase-only is just the 1st factor. It runs on the
+ *    OTP verification step instead — see app/api/admin/vault-otp/route.js)
  *
  * DELETE clears the "vaultSession" cookie only — lets whoever is on
  * the recovery page explicitly "lock" the vault again.
@@ -41,6 +49,7 @@ import {
 import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
+import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -98,6 +107,35 @@ export async function POST(request) {
   } catch {
     return NextResponse.json(
       { success: false, data: null, message: "Enter the vault passphrase." },
+      { status: 400 }
+    );
+  }
+
+  // Defense-in-depth detection layer (Prisma/bcrypt already make real
+  // SQL injection structurally impossible here — this just logs the
+  // attempt). Same pattern as app/api/auth/login/route.js.
+  const sqliHit = scanForSqlInjection(payload);
+  if (sqliHit) {
+    const reason = `Suspicious pattern detected in field "${sqliHit}" on vault login.`;
+    await logSecurityEvent({
+      eventType: "sql_injection_attempt",
+      actor: VAULT_IDENTITY,
+      request,
+      details: reason,
+    });
+
+    // GATEKEEPER 2 TRIPPED — an actual attack pattern reached the
+    // vault's own front door. This is a stronger signal than the rate
+    // limiter (Gatekeeper 1) since it means the payload itself, not
+    // just the volume, looked malicious.
+    if (ip !== "unknown") {
+      await triggerGatekeeperBreach({ gatekeeper: 2, ipAddress: ip, details: reason }).catch((error) =>
+        console.error("[vault-login] Gatekeeper 2 breach response failed:", error.message)
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, data: null, message: "Incorrect passphrase." },
       { status: 400 }
     );
   }

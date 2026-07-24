@@ -67,7 +67,7 @@ export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
   // Only ever populated immediately after a successful generate — never
   // fetched, never persisted across a page reload.
   const [revealedPassphrase, setRevealedPassphrase] = useState(null);
-  const [deliveryStatus, setDeliveryStatus] = useState(null); // { emailSent, driveSaved, driveViewLink }
+  const [deliveryStatus, setDeliveryStatus] = useState(null); // { emailSent, r2Saved, r2SignedUrl }
   // Tracks the pending auto-hide timeout so a second generate (or an
   // unmount) can clear the previous one instead of stacking timers.
   const autoHideTimerRef = useRef(null);
@@ -92,8 +92,8 @@ export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
     setRevealedPassphrase(data.passphrase);
     setDeliveryStatus({
       emailSent: data.emailSent,
-      driveSaved: data.driveSaved,
-      driveViewLink: data.driveViewLink,
+      r2Saved: data.r2Saved,
+      r2SignedUrl: data.r2SignedUrl,
     });
     setIsConfigured(true);
     setPassphraseSource("database");
@@ -107,10 +107,10 @@ export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
       setDeliveryStatus(null);
     }, REVEAL_AUTO_HIDE_MS);
 
-    if (data.emailSent && data.driveSaved) {
+    if (data.emailSent && data.r2Saved) {
       showToast(toastMessage, "success");
     } else {
-      showToast("⚠ Passphrase generated — check below, email or Drive save may have failed.", "warning");
+      showToast("⚠ Passphrase generated — check below, email or R2 save may have failed.", "warning");
     }
   }
 
@@ -259,18 +259,18 @@ export default function VaultPassphraseSetupClient({ vaultSetupKey = null }) {
                     ? "✓ Emailed to the vault owner's inbox."
                     : "✕ Email failed to send — use \"Copy to clipboard\" above instead."}
                 </li>
-                <li className={deliveryStatus.driveSaved ? "vaultPassphraseSetupDelivery--ok" : "vaultPassphraseSetupDelivery--fail"}>
-                  {deliveryStatus.driveSaved ? (
+                <li className={deliveryStatus.r2Saved ? "vaultPassphraseSetupDelivery--ok" : "vaultPassphraseSetupDelivery--fail"}>
+                  {deliveryStatus.r2Saved ? (
                     <>
-                      ✓ Saved to Google Drive as a .txt file.{" "}
-                      {deliveryStatus.driveViewLink && (
-                        <a href={deliveryStatus.driveViewLink} target="_blank" rel="noopener noreferrer">
-                          Open file
+                      ✓ Saved to Cloudflare R2 as a .txt file.{" "}
+                      {deliveryStatus.r2SignedUrl && (
+                        <a href={deliveryStatus.r2SignedUrl} target="_blank" rel="noopener noreferrer">
+                          Open file (link expires in 24h)
                         </a>
                       )}
                     </>
                   ) : (
-                    "✕ Drive save failed — use \"Copy to clipboard\" above instead."
+                    "✕ R2 save failed — use \"Copy to clipboard\" above instead."
                   )}
                 </li>
               </ul>

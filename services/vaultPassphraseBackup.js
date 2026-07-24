@@ -2,30 +2,54 @@
  * FILE: services/vaultPassphraseBackup.js
  * PURPOSE:
  * Single shared implementation of "save the freshly-rotated vault
- * passphrase to Google Drive as a .txt file" — used by every rotation
- * path (breach response, 30-day auto-rotate cron, manual "Generate
- * New Passphrase" button, and the terminal rotation script) so a fix
- * made once reaches everywhere instead of being copy-pasted per site.
+ * passphrase as a .txt backup" — used by every rotation path (breach
+ * response, 30-day auto-rotate cron, manual "Generate New Passphrase"
+ * button, and the terminal rotation script) so a fix made once reaches
+ * everywhere instead of being copy-pasted per site.
+ *
+ * DESTINATION: Cloudflare R2 (previously Google Drive — switched over
+ * because the Drive OAuth refresh-token setup was too much friction to
+ * keep alive; see docs/google-drive-oauth-setup.md for the retired
+ * flow). The .txt file CONTENTS are byte-for-byte the same format the
+ * Drive version used (buildPassphraseFileContents below is unchanged).
+ *
+ * PRIVACY — READ BEFORE CHANGING:
+ * This uploads to a `secrets/` key and deliberately never returns or
+ * logs the permanent public CDN URL (NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL/<key>)
+ * that services/r2.js's uploadToR2() normally hands back — every other
+ * R2 upload in this app (room photos, gallery, etc.) is meant to be
+ * public, but a plaintext vault passphrase is not. Retrieval instead
+ * goes through getR2SignedDownloadUrl() (services/r2.js), a presigned
+ * GET URL that expires (default 24h) instead of a stable public path
+ * anyone who finds/guesses the key could hit indefinitely. If this
+ * file is ever changed to call uploadToR2()'s returned url directly,
+ * that is a regression — don't do it.
  *
  * Retries the upload once (a few seconds apart) before giving up,
- * since most Drive failures are transient (expired access token,
- * momentary network blip, brief rate-limit) rather than permanent.
- * Always returns a clear driveSaved boolean the caller can log.
+ * since most R2 failures are transient (network blip, brief rate
+ * limit) rather than permanent. Always returns a clear r2Saved boolean
+ * the caller can log.
  *
- * IMPORTS ARE RELATIVE ON PURPOSE — not "@/services/..." — so this
+ * IMPORTS ARE RELATIVE ON PURPOSE — not "@/services/...\" — so this
  * file works both from Next.js API routes (where the "@/" alias is
  * available) AND from plain `node` terminal scripts (which have no
  * idea what "@/" means; jsconfig.json's path alias only resolves
  * inside Next's own bundler). Same convention services/vaultAuth.js
  * and services/securityLog.js already follow for this exact reason.
  *
- * Email and Drive remain independent — a Drive failure here must never
- * stop the plaintext email from having already been sent by the caller.
+ * Email and R2 remain independent — an R2 failure here must never stop
+ * the plaintext email from having already been sent by the caller.
  */
-import { uploadToDrive } from "./googleDrive.js";
+import { uploadToR2, getR2SignedDownloadUrl } from "./r2.js";
 import { getVaultRecoveryUrl } from "./vaultAuth.js";
 
 const RETRY_DELAY_MS = 3000;
+
+// Signed URL lifetime for the returned link — long enough for the
+// owner to open it same-day from the rotation email/terminal output,
+// short enough that a copy sitting in an old email/log eventually
+// stops working on its own instead of staying valid forever.
+const SIGNED_URL_EXPIRY_SECONDS = 24 * 60 * 60; // 24 hours
 
 function buildPassphraseFileContents({ newPassphrase, generatedByLabel, generatedAt, vaultRecoveryUrl }) {
   return (
@@ -44,18 +68,20 @@ function sleep(ms) {
 }
 
 /**
- * saveVaultPassphraseToDrive
- * Builds the standard passphrase backup .txt and uploads it to the
- * configured Google Drive folder, retrying once on failure before
+ * saveVaultPassphraseToR2
+ * Builds the standard passphrase backup .txt (same format the Drive
+ * version used) and uploads it to a private `secrets/` key in the
+ * configured Cloudflare R2 bucket, retrying once on failure before
  * giving up. Never throws — a permanent failure returns
- * { driveSaved: false, driveViewLink: null } so the caller can log it
- * and continue (rotation + email must never be undone by this step).
+ * { r2Saved: false, r2Key: null, r2SignedUrl: null } so the caller can
+ * log it and continue (rotation + email must never be undone by this
+ * step).
  *
  * @param {string} newPassphrase   - plaintext passphrase, same value emailed to the owner
  * @param {string} generatedByLabel - e.g. "Gatekeeper 1 — Login brute force: ..." or "Automatic 30-day rotation"
- * @returns {Promise<{ driveSaved: boolean, driveViewLink: string|null }>}
+ * @returns {Promise<{ r2Saved: boolean, r2Key: string|null, r2SignedUrl: string|null }>}
  */
-export async function saveVaultPassphraseToDrive({ newPassphrase, generatedByLabel }) {
+export async function saveVaultPassphraseToR2({ newPassphrase, generatedByLabel }) {
   const generatedAt = new Date().toISOString();
   const vaultRecoveryUrl = await getVaultRecoveryUrl();
   const fileContents = buildPassphraseFileContents({
@@ -64,17 +90,25 @@ export async function saveVaultPassphraseToDrive({ newPassphrase, generatedByLab
     generatedAt,
     vaultRecoveryUrl,
   });
-  const fileName = `vault-passphrase-${generatedAt.replace(/[:.]/g, "-")}.txt`;
+  // secrets/ prefix keeps this isolated from every public-facing image
+  // folder (products/, rooms/, gallery/, etc.) — see Rule 35.8's
+  // storage folder naming convention.
+  const key = `secrets/vault-passphrase-${generatedAt.replace(/[:.]/g, "-")}.txt`;
   const buffer = Buffer.from(fileContents, "utf-8");
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const result = await uploadToDrive(fileName, buffer, "text/plain");
-      return { driveSaved: true, driveViewLink: result.viewLink };
+      // uploadToR2()'s own return value (a permanent public CDN URL)
+      // is intentionally discarded here — see the file header's
+      // PRIVACY note. Only the key is kept, and only ever exposed
+      // again through a presigned, expiring URL below.
+      await uploadToR2(key, buffer, "text/plain");
+      const r2SignedUrl = await getR2SignedDownloadUrl(key, SIGNED_URL_EXPIRY_SECONDS);
+      return { r2Saved: true, r2Key: key, r2SignedUrl };
     } catch (error) {
       const isFinalAttempt = attempt === 2;
       console.error(
-        `[vaultPassphraseBackup] Drive upload attempt ${attempt}/2 failed:`,
+        `[vaultPassphraseBackup] R2 upload attempt ${attempt}/2 failed:`,
         error.message,
         isFinalAttempt ? "— giving up, email copy is the only record." : "— retrying once more."
       );
@@ -82,5 +116,5 @@ export async function saveVaultPassphraseToDrive({ newPassphrase, generatedByLab
     }
   }
 
-  return { driveSaved: false, driveViewLink: null };
+  return { r2Saved: false, r2Key: null, r2SignedUrl: null };
 }

@@ -43,7 +43,7 @@ import { NextResponse } from "next/server";
 import { logSecurityEvent } from "@/services/securityLog";
 import { autoRotateVaultPassphraseIfExpired, VAULT_IDENTITY } from "@/services/vaultAuth";
 import { sendVaultPassphraseRotationEmail } from "@/services/emailAlert";
-import { saveVaultPassphraseToDrive } from "@/services/vaultPassphraseBackup";
+import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
 
 export async function GET(request) {
   // Cron auth: Vercel Cron sends this exact header shape. Any other
@@ -74,12 +74,13 @@ export async function GET(request) {
     // type, never duplicated per trigger).
     const emailSent = await sendVaultPassphraseRotationEmail({ newPassphrase, reason });
 
-    // Save a .txt copy to Google Drive as a second, durable place to
-    // find it later — also best-effort, independent of the email above.
-    // Uses the shared helper (Task 4) which retries once on failure
-    // before giving up, so a single transient Drive error no longer
-    // silently skips the backup the way the old one-shot upload did.
-    const { driveSaved, driveViewLink } = await saveVaultPassphraseToDrive({
+    // Save a .txt copy to Cloudflare R2 (private secrets/ key, never
+    // the public CDN URL) as a second, durable place to find it later —
+    // also best-effort, independent of the email above. Uses the
+    // shared helper (Task 4) which retries once on failure before
+    // giving up, so a single transient R2 error no longer silently
+    // skips the backup the way the old one-shot upload did.
+    const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
       newPassphrase,
       generatedByLabel: "Automatic 30-day rotation",
     });
@@ -93,12 +94,12 @@ export async function GET(request) {
       eventType: "vault_passphrase_rotated",
       actor: VAULT_IDENTITY,
       request,
-      details: `${reason}. Email sent: ${emailSent}. Saved to Drive: ${driveSaved}.`,
+      details: `${reason}. Email sent: ${emailSent}. Saved to R2: ${r2Saved}.`,
     });
 
     return NextResponse.json({
       success: true,
-      data: { rotated: true, emailSent, driveSaved, driveViewLink },
+      data: { rotated: true, emailSent, r2Saved, r2SignedUrl },
       message: "Vault passphrase auto-rotated after 30 days.",
     });
   } catch (error) {

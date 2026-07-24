@@ -20,8 +20,9 @@
  *      rotates the hidden recovery URL slug, since the two are tied
  *      together; see that file's header for why)
  *   2. Emails the new plaintext passphrase to VAULT_OWNER_EMAIL
- *   3. Saves a matching .txt backup to Google Drive (retries once on
- *      failure — services/vaultPassphraseBackup.js)
+ *   3. Saves a matching .txt backup to Cloudflare R2 (private
+ *      secrets/ key + presigned link, retries once on failure —
+ *      services/vaultPassphraseBackup.js)
  *   4. Logs a "vault_passphrase_set" SecurityLog row so this shows up
  *      in the Security Logs page same as any other rotation
  *
@@ -29,17 +30,18 @@
  *   npm run rotate-vault-passphrase
  *   npm run rotate-vault-passphrase -- "Suspected leak, rotating early"
  *   (the optional argument is just a human-readable reason for the
- *   audit log / Drive file — omit it and a generic default is used)
+ *   audit log / R2 file — omit it and a generic default is used)
  *
- * Reads DIRECT_URL, VAULT_OWNER_EMAIL, EmailJS vars, and the Google
- * Drive OAuth vars the same way every other standalone script does —
- * from .env.local via scripts/loadEnv.mjs (or the real environment, if
- * you're running this somewhere those are already set as real env vars).
+ * Reads DIRECT_URL, VAULT_OWNER_EMAIL, EmailJS vars, and the
+ * CLOUDFLARE_R2_* vars the same way every other standalone script
+ * does — from .env.local via scripts/loadEnv.mjs (or the real
+ * environment, if you're running this somewhere those are already set
+ * as real env vars).
  */
 import "./loadEnv.mjs";
 import { rotateVaultPassphrase } from "../services/vaultAuth.js";
 import { sendVaultPassphraseRotationEmail } from "../services/emailAlert.js";
-import { saveVaultPassphraseToDrive } from "../services/vaultPassphraseBackup.js";
+import { saveVaultPassphraseToR2 } from "../services/vaultPassphraseBackup.js";
 import { logSecurityEvent } from "../services/securityLog.js";
 import { prisma } from "../services/prisma.js";
 
@@ -52,8 +54,8 @@ async function main() {
   console.log("[rotateVaultPassphrase] Emailing the new passphrase…");
   const emailSent = await sendVaultPassphraseRotationEmail({ newPassphrase, reason });
 
-  console.log("[rotateVaultPassphrase] Saving a backup copy to Google Drive…");
-  const { driveSaved, driveViewLink } = await saveVaultPassphraseToDrive({
+  console.log("[rotateVaultPassphrase] Saving a backup copy to Cloudflare R2…");
+  const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
     newPassphrase,
     generatedByLabel: reason,
   });
@@ -61,16 +63,16 @@ async function main() {
   await logSecurityEvent({
     eventType: "vault_passphrase_set",
     actor: "vault",
-    details: `${reason}. Email sent: ${emailSent}. Saved to Drive: ${driveSaved}.`,
+    details: `${reason}. Email sent: ${emailSent}. Saved to R2: ${r2Saved}.`,
   });
 
   console.log("\n[rotateVaultPassphrase] Done.");
   console.log(`  Email sent to VAULT_OWNER_EMAIL: ${emailSent ? "yes" : "no — check server logs above"}`);
-  console.log(`  Saved to Google Drive: ${driveSaved ? "yes" : "no — check server logs above"}`);
-  if (driveViewLink) console.log(`  Drive file: ${driveViewLink}`);
+  console.log(`  Saved to Cloudflare R2: ${r2Saved ? "yes" : "no — check server logs above"}`);
+  if (r2SignedUrl) console.log(`  R2 signed link (expires in 24h): ${r2SignedUrl}`);
   console.log(
     "\nThe new passphrase itself is NEVER printed to this terminal or logged anywhere —" +
-      " check the VAULT_OWNER_EMAIL inbox (or the Drive backup above) to read it."
+      " check the VAULT_OWNER_EMAIL inbox (or the R2 backup link above, before it expires) to read it."
   );
 }
 

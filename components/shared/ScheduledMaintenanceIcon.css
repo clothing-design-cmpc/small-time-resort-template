@@ -1,0 +1,73 @@
+/*
+ * .scheduledMaintenanceIconWrapper
+ * Anchors the floating button and its popover together so the popover
+ * can be positioned relative to the button with plain CSS, no JS
+ * position calculation needed.
+ */
+.scheduledMaintenanceIconWrapper {
+  position: fixed;
+  left: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: var(--z-sticky);
+}
+
+/*
+ * .scheduledMaintenanceIconButton
+ * Floating circular icon fixed to the bottom-left corner — mirrors
+ * WalkInChatWidget's bottom-right button so the two floating icons
+ * read as a consistent pair, each with its own corner.
+ */
+.scheduledMaintenanceIconButton {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: var(--shadow-card-hover);
+  transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  will-change: transform;
+}
+
+.scheduledMaintenanceIconButton:hover,
+.scheduledMaintenanceIconButton:focus-visible,
+.scheduledMaintenanceIconButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  transform: scale(1.05);
+}
+
+/*
+ * .scheduledMaintenancePopover
+ * Small speech-bubble style panel anchored above the icon. Uses
+ * --z-modal so it always sits above ordinary page content, consistent
+ * with the z-index scale (Rule 33.2) even though it isn't a full modal.
+ */
+.scheduledMaintenancePopover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-sm));
+  width: 260px;
+  max-width: calc(100vw - var(--space-2xl));
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-md);
+  z-index: var(--z-modal);
+}
+
+.scheduledMaintenancePopover p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}

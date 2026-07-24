@@ -21,7 +21,7 @@ import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
 import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
-import ScheduledMaintenanceNotice from "@/components/shared/ScheduledMaintenanceNotice";
+import ScheduledMaintenanceIcon from "@/components/shared/ScheduledMaintenanceIcon";
 import WalkInChatWidget from "@/components/shared/WalkInChatWidget";
 
 // Forces this layout to always re-run getMaintenanceStatus() on every
@@ -120,7 +120,6 @@ export default async function VisitorLayout({ children }) {
       <ScrollToTopOnLoad />
       {maintenanceMode && <MaintenanceBanner message={maintenanceMessage} />}
       <Header />
-      <ScheduledMaintenanceNotice />
       {/* pt-[header height] so page content is never hidden behind the sticky header */}
       <div className="visitorContent">
         {children}
@@ -128,6 +127,8 @@ export default async function VisitorLayout({ children }) {
       <Footer />
       {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
       <WalkInChatWidget />
+      {/* Floating scheduled-maintenance heads-up icon — bottom-left, paired with WalkInChatWidget's bottom-right */}
+      <ScheduledMaintenanceIcon />
     </div>
   );
 }

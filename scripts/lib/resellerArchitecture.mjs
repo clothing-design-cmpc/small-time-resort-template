@@ -26,7 +26,7 @@ export const RESELLER_ARCHITECTURE_NOTES = {
     "One GitHub account/org. Mark the master repo as a Template Repository (Settings → Template repository). Per client: \"Use this template\" → new private repo named resort-{clientslug} — no shared history, no \"forked from\" link.",
   supabase:
     "One Supabase account, but a separate Project per client — never one shared/multi-tenant project (this template's admin/vault design is single-owner per deployment). Free tier covers 2 projects; a Pro org plan (~$25/mo) is needed beyond that. Each project has its own DATABASE_URL, DIRECT_URL, and API keys.",
-  r2: "One Cloudflare account, but a separate bucket per client, with an API token scoped to only that bucket (R2 supports per-bucket-scoped tokens) — a leaked client token still can't reach another client's bucket.",
+  r2: "One Cloudflare account, but a separate bucket per client, with an API token scoped to only that bucket (R2 supports per-bucket-scoped tokens) — a leaked client token still can't reach another client's bucket. Billing note: the 10 GB / 1M-write / 10M-read free tier is shared across the whole account, not per bucket, so it's split between every client's bucket combined.",
   emailjs:
     "One EmailJS account, but a separate Email Service (and Service ID / Template ID) per client — the client's own inbox can be connected as the sending address while it stays under your account.",
   githubActions:
@@ -86,6 +86,7 @@ export const RESELLER_PROVIDERS = [
       "Manage R2 API Tokens → Create API Token → scope it to only this bucket, Object Read & Write.",
       "Copy the Account ID, Access Key ID, and Secret Access Key into this client's .env.local.",
       "Connect a public/custom domain for the bucket, then copy that URL into NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL.",
+      "Billing: the 10 GB storage / 1M write / 10M read free tier is account-wide, shared across every client bucket combined — it's not reset per client, so watch cumulative usage as you add more clients (Cloudflare Dashboard → Billing).",
     ],
     pattern: "{clientslug}-assets",
   },

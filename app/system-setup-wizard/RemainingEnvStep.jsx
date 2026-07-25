@@ -66,6 +66,8 @@ const REMAINING_ENV_HELP = {
     links: [{ label: "Cloudflare Dashboard", url: "https://dash.cloudflare.com" }],
     steps: [
       "Sign in, then enable R2 Object Storage (needs a payment method on file, but the free tier covers a project this size).",
+      "Free tier: 10 GB storage + 1 million Class A (write/list) + 10 million Class B (read) operations per month, and egress (serving files to site visitors) is always free, at any volume. Past the free tier: $0.015/GB-month storage, $4.50 per million Class A ops, $0.36 per million Class B ops. A single resort site rarely gets close to these numbers.",
+      "This free tier is shared across every bucket in the account, not per-bucket — if you later host multiple clients from one Cloudflare account (see \"Reselling this to multiple clients?\" below), all of their buckets draw from the same 10 GB / 1M / 10M pool. Cloudflare Dashboard → Billing shows current usage against these limits any time.",
       "Create a bucket (e.g. villa-azure-resort), default region.",
       "Copy the Account ID from the R2 Overview page into CLOUDFLARE_R2_ACCOUNT_ID.",
       "Manage R2 API Tokens → Create API Token (Object Read & Write, scoped to your bucket). Copy the Access Key ID and Secret Access Key immediately — the secret is shown only once.",

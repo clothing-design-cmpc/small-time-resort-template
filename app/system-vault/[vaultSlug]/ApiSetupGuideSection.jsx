@@ -101,6 +101,7 @@ const SETUP_GUIDE_SECTIONS = [
     ],
     steps: [
       "Go to dash.cloudflare.com, enable R2 Object Storage (needs a payment method on file, but the free tier covers a project this size).",
+      "Free tier: 10 GB storage + 1 million Class A (write/list) + 10 million Class B (read) operations per month, account-wide — not per bucket. Egress (serving files to visitors) is always free at any volume. Past the free tier: $0.015/GB-month storage, $4.50 per million Class A ops, $0.36 per million Class B ops.",
       "Create a bucket (e.g. villa-azure-resort), default region.",
       "Copy the Account ID from the R2 Overview page into CLOUDFLARE_R2_ACCOUNT_ID.",
       "Manage R2 API Tokens → Create API Token (Object Read & Write, scoped to your bucket). Copy the Access Key ID and Secret Access Key immediately — the secret is shown only once.",

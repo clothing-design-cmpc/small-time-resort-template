@@ -18,9 +18,10 @@
  * with a "reveal" box and a clipboard button.
  *
  * USAGE:
- *   node scripts/generateEnvSecret.mjs                 -> prints both
- *   node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY  -> prints one
- *   node scripts/generateEnvSecret.mjs CRON_SECRET       -> prints one
+ *   node scripts/generateEnvSecret.mjs                  -> prints all
+ *   node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY   -> prints one
+ *   node scripts/generateEnvSecret.mjs CRON_SECRET        -> prints one
+ *   node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY   -> prints one
  *
  * VAULT_SETUP_KEY reminder: this is the env-only disaster-recovery
  * master key (see services/adminSession.js's isValidVaultSetupKey())
@@ -33,10 +34,21 @@
  * regenerate this, update BOTH .env.local and your Vercel project's
  * env vars at the same time — a mismatch makes the cron job fail
  * silently with a 401.
+ *
+ * WIZARD_SETUP_KEY reminder: gates Step 1 of the first-run setup
+ * wizard (app/system-setup-wizard) — a deliberately SEPARATE secret
+ * from VAULT_SETUP_KEY, since the wizard (bootstrapping a brand-new
+ * clone: env vars, DB, super-admin, vault) and the vault break-glass
+ * recovery flow are different trust boundaries and must never share
+ * a key. Like the others, set it once in .env.local before your first
+ * deploy and never persist it anywhere else. Once setup completes
+ * (an isOwner AdminProfile + a VaultPassphrase both exist), the
+ * wizard locks itself regardless of whether this key is still set —
+ * see app/system-setup-wizard's own docblock.
  */
 import { randomBytes } from "node:crypto";
 
-const VALID_NAMES = ["VAULT_SETUP_KEY", "CRON_SECRET"];
+const VALID_NAMES = ["VAULT_SETUP_KEY", "CRON_SECRET", "WIZARD_SETUP_KEY"];
 
 /**
  * generateSecretValue

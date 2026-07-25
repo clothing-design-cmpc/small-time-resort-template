@@ -85,6 +85,13 @@ export default function SetupKeyForm() {
         the wizard shows anything else.
       </p>
 
+      <p className="setupWizardBody">
+        Already ran <code>npm run scaffold-env</code> and generated{" "}
+        <code>WIZARD_SETUP_KEY</code> while following the setup guide? Skip
+        straight to the field below and paste that value in — no need to
+        redo the steps.
+      </p>
+
       <div className="setupWizardInstructions">
         <span className="setupWizardInstructionsLabel">Don&apos;t have a setup key yet?</span>
         <p className="setupWizardBody">

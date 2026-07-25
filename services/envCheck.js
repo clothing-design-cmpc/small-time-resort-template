@@ -52,6 +52,38 @@ import { sendGeneralEmail } from "@/services/emailjs";
 import { ENV_GROUPS } from "@/scripts/lib/envGroups.mjs";
 
 /**
+ * checkEnvGroupsPresence
+ * Presence-only report for a subset of envGroups.mjs groups — same
+ * { id, label, items, status } shape as checkEnvironment()'s groups,
+ * but with no live checks (database ping, GeoIP file, EmailJS send)
+ * and no live-check side effects. Synchronous, never awaited by
+ * callers, since it never touches the network — used by the setup
+ * wizard's database-status and remaining-env-status routes, which must
+ * never trigger a real EmailJS send just from loading a wizard step.
+ *
+ * @param {string[]} groupIds - which envGroups.mjs group ids to include
+ * @returns {{ groups: Array }}
+ */
+export function checkEnvGroupsPresence(groupIds) {
+  const groups = ENV_GROUPS.filter((group) => groupIds.includes(group.id)).map((group) => {
+    const items = group.keys.map(({ key, required }) => ({
+      key,
+      required,
+      present: Boolean(process.env[key] && process.env[key].length > 0),
+    }));
+    const missingRequired = items.filter((item) => item.required && !item.present);
+    return {
+      id: group.id,
+      label: group.label,
+      items,
+      status: missingRequired.length > 0 ? "missing" : "ok",
+    };
+  });
+
+  return { groups };
+}
+
+/**
  * checkEnvironment
  * Walks every group above, records presence for each key (never the
  * value), then runs the four live checks (database, GeoIP, Google

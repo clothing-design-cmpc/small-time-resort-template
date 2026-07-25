@@ -29,14 +29,16 @@
  * 2. Response drives the ✓/✕ badge per key, grouped by envGroups.mjs
  *    group id
  * 3. "Continue" is always available (these are external services, not
- *    build-blocking database steps) — hands off to Step 6, which is
- *    built incrementally, same placeholder pattern DatabaseSetupStep.jsx
- *    and AdminSetupStep.jsx used before their next step existed
+ *    build-blocking database steps) — hands off to <ScriptsHealthStep />
+ *    (Step 6 — scripts & health checks), same hand-off pattern
+ *    SetupKeyForm.jsx -> DatabaseSetupStep.jsx -> AdminSetupStep.jsx
+ *    already uses
  */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { ENV_FIX_INSTRUCTIONS } from "@/scripts/lib/envGroups.mjs";
+import ScriptsHealthStep from "./ScriptsHealthStep";
 
 export default function RemainingEnvStep() {
   const [status, setStatus] = useState(null);
@@ -101,16 +103,7 @@ export default function RemainingEnvStep() {
   }
 
   if (continued) {
-    return (
-      <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 5 of 10 — complete</span>
-        <h1 className="setupWizardTitle">Remaining services on file</h1>
-        <p className="setupWizardBody">
-          The next step (scripts &amp; health checks) is being built
-          incrementally — this session stays active for 30 minutes.
-        </p>
-      </div>
-    );
+    return <ScriptsHealthStep />;
   }
 
   return (

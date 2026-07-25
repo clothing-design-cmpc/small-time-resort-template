@@ -333,6 +333,18 @@
 }
 
 /*
+ * .setupWizardStatusBadge--failed
+ * Distinct from --missing (neutral "not set yet") — this is a check
+ * that actively ran and came back bad (Step 6's env/health checks,
+ * database connectivity, double-booking conflicts).
+ */
+.setupWizardStatusBadge--failed {
+  color: var(--color-error);
+  background-color: rgba(214, 69, 69, 0.1);
+  border: 1px solid rgba(214, 69, 69, 0.28);
+}
+
+/*
  * .setupWizardSubStepCard
  * One card per sequential sub-step (3a-3d). Locked state dims the
  * card and hides the actionable content until the previous sub-step

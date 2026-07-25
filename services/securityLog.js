@@ -142,7 +142,10 @@ async function detectAnomalies(actor, deviceFingerprint, geo) {
  * @param {object} input
  * @param {string} input.eventType - "login_success" | "login_failed" |
  *   "admin_login_denied" | "rate_limit_hit" | "admin_action" |
- *   "sql_injection_attempt" | "system_retention_purge"
+ *   "sql_injection_attempt" | "system_retention_purge" |
+ *   "setup_key_verified" | "setup_admin_created" |
+ *   "setup_env_check_run" | "setup_health_check_run" |
+ *   "setup_passphrase_generated" | "setup_completed"
  * @param {string|null} input.actor - email or admin name tied to the event
  * @param {Request|null} input.request - incoming Request, for IP/user-agent
  * @param {string|null} input.details - human-readable one-line summary

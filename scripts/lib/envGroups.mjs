@@ -124,9 +124,9 @@ export const ENV_GROUPS = [
  */
 export const ENV_FIX_INSTRUCTIONS = {
   database:
-    "Supabase Dashboard → Settings → Database → Connection Pooling. Copy the Transaction Pooler URL into DATABASE_URL and the Session Pooler URL into DIRECT_URL (.env.local and GitHub repo secrets).",
+    "Supabase Dashboard → click the green Connect button on the project page → Connection Method → Transaction pooler → copy the URI into DATABASE_URL, then switch to Session pooler → copy the URI into DIRECT_URL (.env.local and GitHub repo secrets).",
   supabase:
-    "Supabase Dashboard → Settings → API. Copy the Project URL, anon public key, and service_role key into NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.",
+    "Supabase Dashboard → Settings → API Keys → click the Legacy anon, service_role API keys tab (not the default Publishable and secret API keys tab). Copy the Project URL into NEXT_PUBLIC_SUPABASE_URL, the anon key into NEXT_PUBLIC_SUPABASE_ANON_KEY, and the service_role key into SUPABASE_SERVICE_ROLE_KEY.",
   r2: "Cloudflare Dashboard → R2 → Manage API Tokens. Regenerate/copy the Account ID, Access Key ID, Secret Access Key, and bucket name into the matching CLOUDFLARE_R2_* variables.",
   emailjs:
     "EmailJS Dashboard → Account → API Keys. Confirm EMAILJS_SERVICE_ID, EMAILJS_GENERAL_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, and EMAILJS_PRIVATE_KEY (Strict Mode) match the dashboard.",

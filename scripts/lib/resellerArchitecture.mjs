@@ -73,8 +73,8 @@ export const RESELLER_PROVIDERS = [
     steps: [
       "Dashboard → New Project (never reuse an existing project across clients — this template is single-owner per deployment).",
       "Name it with the pattern below, pick the region closest to the client, set a strong DB password and save it.",
-      "Settings → Database → Connection Pooling → copy the Transaction Pooler URL into DATABASE_URL and the Session Pooler URL into DIRECT_URL.",
-      "Settings → API → copy the Project URL, anon key, and service_role key.",
+      "Click the green Connect button on the project page → Connection Method → Transaction pooler → copy the URI into DATABASE_URL, then switch to Session pooler → copy the URI into DIRECT_URL.",
+      "Settings → API Keys → copy the Project URL into NEXT_PUBLIC_SUPABASE_URL. Switch to the Legacy anon, service_role API keys tab, then copy the anon key into NEXT_PUBLIC_SUPABASE_ANON_KEY and the service_role key into SUPABASE_SERVICE_ROLE_KEY.",
     ],
     pattern: "{clientslug}-resort",
   },

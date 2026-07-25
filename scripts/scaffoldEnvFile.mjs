@@ -46,4 +46,4 @@ console.log(
     "Opening the setup guide in your browser...\n"
 );
 
-openSetupGuide(console.error);
+await openSetupGuide(console.error);

@@ -65,6 +65,12 @@ export function writeEnvFile() {
  * throws — a failure here (e.g. headless CI) is a convenience miss,
  * never a reason to fail the calling script.
  *
+ * Returns a Promise that resolves once the launch attempt has
+ * finished (success or failure) — callers MUST await this before
+ * exiting. exec() is asynchronous; calling process.exit() right after
+ * firing it (without awaiting) kills the child process before it ever
+ * launches the browser, which is exactly the bug this fixes.
+ *
  * @param {(message: string) => void} onError - called with a fallback
  *   message if the browser could not be launched (e.g. console.error).
  */
@@ -77,13 +83,17 @@ export function openSetupGuide(onError = () => {}) {
         ? `open "${GUIDE_PATH}"`
         : `xdg-open "${GUIDE_PATH}"`;
 
-  try {
-    exec(openCommand, (error) => {
-      if (error) {
-        onError(`Could not auto-open the setup guide — open it manually: ${GUIDE_PATH}`);
-      }
-    });
-  } catch {
-    onError(`Could not auto-open the setup guide — open it manually: ${GUIDE_PATH}`);
-  }
+  return new Promise((resolve) => {
+    try {
+      exec(openCommand, (error) => {
+        if (error) {
+          onError(`Could not auto-open the setup guide — open it manually: ${GUIDE_PATH}`);
+        }
+        resolve();
+      });
+    } catch {
+      onError(`Could not auto-open the setup guide — open it manually: ${GUIDE_PATH}`);
+      resolve();
+    }
+  });
 }

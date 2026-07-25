@@ -21,15 +21,21 @@
  * A non-zero exit code here would make `npm install` itself report
  * failure, which would be far worse than a missed browser popup.
  *
+ * ASYNC/AWAIT IS REQUIRED HERE:
+ * openSetupGuide() launches the browser via the async exec() —
+ * calling process.exit() right after firing it (without awaiting)
+ * kills the child process before it ever launches the browser. This
+ * script MUST await openSetupGuide() before its final process.exit(0).
+ *
  * USAGE: never run directly — invoked by `npm install` via package.json.
  */
 import { existsSync } from "node:fs";
 import { ENV_TARGET_PATH, writeEnvFile, openSetupGuide } from "./lib/envScaffold.mjs";
 
-try {
+async function main() {
   // Already configured (or already scaffolded) — nothing to do, stay silent.
   if (existsSync(ENV_TARGET_PATH)) {
-    process.exit(0);
+    return;
   }
 
   const totalKeys = writeEnvFile();
@@ -38,11 +44,15 @@ try {
       "(This runs once, automatically, after a fresh install. Fill in the values, then follow the guide.)\n"
   );
 
-  // Swallow browser-launch failures (e.g. headless CI) — never affect the install's exit code.
-  openSetupGuide(() => {});
-} catch (error) {
-  // Any unexpected error here is a missed convenience, not an install failure.
-  console.error("[postinstallSetup] Skipped env scaffold/guide:", error.message);
+  // Await the launch attempt — swallow failures (e.g. headless CI), never affect the install's exit code.
+  await openSetupGuide(() => {});
 }
 
-process.exit(0);
+main()
+  .catch((error) => {
+    // Any unexpected error here is a missed convenience, not an install failure.
+    console.error("[postinstallSetup] Skipped env scaffold/guide:", error.message);
+  })
+  .finally(() => {
+    process.exit(0);
+  });

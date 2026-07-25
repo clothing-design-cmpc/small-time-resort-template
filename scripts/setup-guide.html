@@ -539,8 +539,8 @@ const STEP_DATA = [
         <li>Click <b>Create new project</b> and wait for provisioning to finish (usually 1–2 minutes).</li>
         <li>On the project page, click the green <b>Connect</b> button (top of the page). In the panel that opens, under <b>Connection Method</b> select <b>Transaction pooler</b>, keep Type as <b>URI</b>, then copy that connection string into <code>DATABASE_URL</code>.</li>
         <li>Still in the same panel, switch <b>Connection Method</b> to <b>Session pooler</b> (use <b>Direct connection</b> instead only if your network supports IPv6), copy that connection string into <code>DIRECT_URL</code>.</li>
-        <li>Go to <b>Settings → API Keys</b>. The <b>Project URL</b> is shown at the top — copy it into <code>NEXT_PUBLIC_SUPABASE_URL</code>.</li>
-        <li>Click the <b>Legacy anon, service_role API keys</b> tab (not the default "Publishable and secret API keys" tab — this codebase expects the legacy key format). Copy the <b>anon</b> key into <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and the <b>service_role</b> key into <code>SUPABASE_SERVICE_ROLE_KEY</code>.</li>
+        <li>Back on the project overview page, click the small <b>Copy</b> dropdown next to the project URL (top-left, under the project name), select <b>Project URL</b>, and paste it into <code>NEXT_PUBLIC_SUPABASE_URL</code>.</li>
+        <li>Go to <b>Settings → API Keys</b> and click the <b>Legacy anon, service_role API keys</b> tab (not the default "Publishable and secret API keys" tab — this codebase expects the legacy key format). Copy the <b>anon</b> key into <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and the <b>service_role</b> key into <code>SUPABASE_SERVICE_ROLE_KEY</code>.</li>
         <li>Paste all five values into <code>.env.local</code>.</li>
         <li>Back in your terminal, run <code>npx prisma db push</code> then <code>npx prisma generate</code> to sync the schema to your new project.</li>
       </ol>`,

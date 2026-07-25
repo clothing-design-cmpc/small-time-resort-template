@@ -532,8 +532,11 @@ const STEP_DATA = [
     title: "Create a Supabase project",
     body: `Go to <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">supabase.com/dashboard</a> and follow these steps:
       <ol>
-        <li>Click <b>New Project</b>, pick or create an organization, name the project, set a strong database password (save it somewhere safe — you'll need it once), pick the region closest to you, then click <b>Create new project</b>.</li>
-        <li>Wait for provisioning to finish (usually 1–2 minutes).</li>
+        <li>Click <b>New Project</b>, pick or create an organization, then type a <b>Project name</b>.</li>
+        <li>Under <b>Database password</b>, click <b>Generate a password</b> — don't type your own. Click <b>Copy</b>, then paste it into a Notepad file and save it somewhere safe. You'll need it once, and Supabase won't show it to you again.</li>
+        <li>Under <b>Region</b>, pick the one closest to you or your users.</li>
+        <li>Leave <b>Security</b> options (Enable Data API, Automatically expose new tables) on their defaults.</li>
+        <li>Click <b>Create new project</b> and wait for provisioning to finish (usually 1–2 minutes).</li>
         <li>Go to <b>Settings → Database → Connection Pooling</b>. Copy the <b>Transaction Pooler</b> connection string into <code>DATABASE_URL</code>, and the <b>Session Pooler</b> connection string into <code>DIRECT_URL</code>.</li>
         <li>Go to <b>Settings → API</b>. Copy the <b>Project URL</b>, <b>anon / public key</b>, and <b>service_role key</b>.</li>
         <li>Paste all five values into <code>.env.local</code>.</li>

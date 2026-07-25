@@ -19,7 +19,8 @@
     "purge-security-logs": "node scripts/purgeSecurityLogs.js",
     "check:gatekeepers": "node scripts/checkGatekeepers.js",
     "generate-recovery-card": "node scripts/generateRecoveryCard.mjs",
-    "rotate-vault-passphrase": "node scripts/rotateVaultPassphrase.mjs"
+    "rotate-vault-passphrase": "node scripts/rotateVaultPassphrase.mjs",
+    "backfill:rule-date-count": "node scripts/backfillBookingRuleDateCount.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",

@@ -177,3 +177,39 @@ export async function checkEnvironment() {
 
   return { groups: groupsWithLiveChecks, overallStatus, checkedAt: new Date().toISOString() };
 }
+
+/**
+ * checkEnvGroupsPresence
+ * Presence-only check (no live network/connectivity checks, no side
+ * effects) scoped to a specific subset of ENV_GROUPS by id.
+ *
+ * WHY THIS EXISTS SEPARATELY FROM checkEnvironment():
+ * checkEnvironment() runs ALL four live checks every time it's called,
+ * including one that sends a real test email through EmailJS. The
+ * setup wizard's early steps (e.g. the database-connection checklist)
+ * only need a yes/no on a couple of specific keys — calling the full
+ * checkEnvironment() there would risk firing that EmailJS send during
+ * database setup, long before EmailJS is even meant to be configured.
+ * This function never touches the network — it only reads
+ * process.env — so it's safe to call as often as the wizard wants.
+ *
+ * @param {string[]} groupIds - which ENV_GROUPS[].id values to include
+ */
+export function checkEnvGroupsPresence(groupIds) {
+  const groups = ENV_GROUPS.filter((group) => groupIds.includes(group.id)).map((group) => {
+    const items = group.keys.map(({ key, required }) => ({
+      key,
+      required,
+      present: Boolean(process.env[key] && process.env[key].length > 0),
+    }));
+    const missingRequired = items.filter((item) => item.required && !item.present);
+    return {
+      id: group.id,
+      label: group.label,
+      items,
+      status: missingRequired.length > 0 ? "missing" : "ok",
+    };
+  });
+
+  return { groups, overallStatus: groups.every((g) => g.status === "ok") ? "ok" : "attention_needed" };
+}

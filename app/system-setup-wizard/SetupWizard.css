@@ -122,3 +122,240 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/*
+ * .setupWizardButtonSecondary
+ * Lower-emphasis action (e.g. "Check again") that never competes
+ * visually with the primary accent button.
+ */
+.setupWizardButtonSecondary {
+  align-self: flex-start;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  touch-action: manipulation;
+  min-height: 44px;
+}
+
+.setupWizardButtonSecondary:hover,
+.setupWizardButtonSecondary:focus-visible {
+  border-color: var(--color-border-hover);
+  background-color: var(--color-surface-hover);
+}
+
+/*
+ * .setupWizardStepGroup
+ * Stacks Step 2's env checklist card and Step 3's sub-step cards with
+ * generous vertical breathing room between each (Rule 23.10).
+ */
+.setupWizardStepGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/*
+ * .setupWizardInstructions
+ * Collapsible "how do I get this" block — a step-by-step numbered
+ * list nested one level below the field it explains.
+ */
+.setupWizardInstructions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.setupWizardInstructionsLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.setupWizardInstructionsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+
+.setupWizardHelpToggle {
+  align-self: flex-start;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+}
+
+.setupWizardHelpToggle:hover,
+.setupWizardHelpToggle:focus-visible {
+  color: var(--color-accent-hover);
+}
+
+/*
+ * .setupWizardCodeBlock
+ * Standalone command display — distinct from the inline `code` used
+ * for short values in body text (.setupWizardBody code above).
+ */
+.setupWizardCodeBlock {
+  display: block;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.setupWizardCommandRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.setupWizardCommandRow .setupWizardCodeBlock {
+  flex: 1 1 auto;
+}
+
+.setupWizardCopyButton {
+  flex: 0 0 auto;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  touch-action: manipulation;
+  min-height: 44px;
+}
+
+.setupWizardCopyButton:hover,
+.setupWizardCopyButton:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.setupWizardExpectedOutput {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .setupWizardEnvList / .setupWizardEnvItem
+ * One row per required env var — status badge, key name, and its
+ * collapsible instructions.
+ */
+.setupWizardEnvList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.setupWizardEnvItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.setupWizardEnvItemHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .setupWizardStatusBadge
+ * Presence/verification indicator — reused for env var checklist rows
+ * and sub-step verification results.
+ */
+.setupWizardStatusBadge {
+  padding: 0.2em 0.6em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.setupWizardStatusBadge--ok {
+  color: var(--color-success);
+  background-color: rgba(47, 158, 91, 0.12);
+  border: 1px solid rgba(47, 158, 91, 0.28);
+}
+
+.setupWizardStatusBadge--missing {
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+/*
+ * .setupWizardSubStepCard
+ * One card per sequential sub-step (3a-3d). Locked state dims the
+ * card and hides the actionable content until the previous sub-step
+ * is confirmed done — never removes the card entirely, so the full
+ * sequence stays visible as a roadmap.
+ */
+.setupWizardSubStepCard--locked {
+  opacity: 0.55;
+}
+
+.setupWizardSubStepTitle {
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.setupWizardLockedNotice {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.setupWizardVerifyRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.setupWizardCheckboxLabel {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.setupWizardCheckboxLabel input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}

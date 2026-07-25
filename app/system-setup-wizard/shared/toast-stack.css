@@ -1,0 +1,46 @@
+/*
+ * .wizardToastStack
+ * Fixed top-center of the viewport (Rule 22.6) — never dead-center
+ * like a modal backdrop, so a toast never sits over the content it's
+ * reporting on. pointerEvents is none on the wrapper so toasts never
+ * block clicks underneath them — each individual toast re-enables
+ * pointer events so it can still be dismissed early by clicking it.
+ */
+.wizardToastStack {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.wizardToastItem {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-xl);
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.wizardToastItem--success {
+  border-color: var(--color-success);
+}
+
+.wizardToastItem--error {
+  border-color: var(--color-error);
+}
+
+.wizardToastItem--warning {
+  border-color: var(--color-warning);
+}

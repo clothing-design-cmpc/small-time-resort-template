@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import DatabaseSetupStep from "./DatabaseSetupStep";
 
 const setupKeySchema = z.object({
   setupKey: z.string().min(1, "Enter the setup key."),
@@ -72,17 +73,7 @@ export default function SetupKeyForm() {
   }
 
   if (isVerified) {
-    return (
-      <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 1 of 10 — complete</span>
-        <h1 className="setupWizardTitle">Setup key verified</h1>
-        <p className="setupWizardBody">
-          The rest of the wizard (database setup, super-admin creation,
-          environment checklist, and vault setup) is being built
-          incrementally — this session stays active for 30 minutes.
-        </p>
-      </div>
-    );
+    return <DatabaseSetupStep />;
   }
 
   return (

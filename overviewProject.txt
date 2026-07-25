@@ -843,6 +843,54 @@ DEBUG POINTS:
   — both of those still work fine with CRON_SECRET unset; only the
   calendar-driven 30-day path depends on it.)
 
+=== PROCESS: First-Run Setup Wizard — Steps 1-3 (Database Setup) ===
+Step 1 : Owner visits /system-setup-wizard, enters WIZARD_SETUP_KEY into
+         SetupKeyForm.jsx -> POST /api/system-setup-wizard/verify-key ->
+         isValidWizardSetupKey() constant-time compare -> sets HttpOnly
+         "wizardSetupSession" cookie (30 min) on success
+Step 2 : SetupKeyForm renders DatabaseSetupStep.jsx, which GETs
+         /api/system-setup-wizard/database-status on mount
+Step 3 : database-status/route.js checks (in order): isSetupWizardLocked()
+         (AUTO-LOCK), hasWizardSession() (services/wizardSession.js),
+         then checkEnvGroupsPresence(["database"]) (services/envCheck.js)
+         for DATABASE_URL/DIRECT_URL presence only — never the values
+Step 4 : If env vars present, runs 3 best-effort raw Postgres queries:
+         to_regclass('public.admin_profiles') (proves db push ran),
+         pg_class.relrowsecurity on the 5 resort tables (proves
+         enableRls.js ran), pg_constraint 'no_overlapping_bookings'
+         (proves addBookingExclusionConstraint.js ran)
+Step 5 : DatabaseSetupStep.jsx renders Step 2 (env checklist with
+         collapsible "how do I get this" help) + 4 sequential sub-step
+         cards (3a db push, 3b generate, 3c enableRls, 3d exclusion
+         constraint), each locked until the previous one is done
+Step 6 : 3a/3c/3d completion comes from the real DB query above (a
+         "Check again" button re-fetches). 3b (`prisma generate`) has no
+         DB-visible effect, so it's a manual checkbox persisted to
+         sessionStorage under "wizardStep3bGenerateConfirmed"
+Step 7 : Once the exclusion constraint is detected, the whole step
+         renders a completion card; Step 4 (Create Super-Admin) is not
+         yet built
+
+DEBUG POINTS:
+- Database Setup step never unlocks 3a even with correct env vars ->
+  check the actual response of GET /api/system-setup-wizard/database-status
+  in the Network tab; envReady must be true, which requires BOTH
+  DATABASE_URL and DIRECT_URL present (checkEnvGroupsPresence)
+- 3c ("Enable Row Level Security") never shows Verified even after
+  running node prisma/enableRls.js -> checkRlsEnabled() requires ALL 5
+  tables (rooms, amenities, store_products, admin_profiles, bookings)
+  to have relrowsecurity = true; a partial run (script errored halfway)
+  will show "Not detected yet" until re-run
+- 3b's checkbox resets after closing the browser tab -> expected,
+  sessionStorage is tab-scoped and matches the wizard session's 30-min
+  cookie lifetime by design, not a bug
+- database-status route returns 401 -> wizardSetupSession cookie
+  expired or was never set; re-enter the WIZARD_SETUP_KEY on Step 1
+- IMPORTANT: this route must never call services/envCheck.js's
+  checkEnvironment() (only checkEnvGroupsPresence()) — the former's
+  EmailJS live check sends a real test email as a side effect, which
+  must never fire this early in setup
+
 === PROCESS: Vault Setup Page Access (survives a full DB wipe) ===
 Step 1 : Owner visits /system-vault-setup, optionally with a "?key=" query string
 Step 2 : app/system-vault-setup/page.jsx checks the key first — isValidVaultSetupKey()

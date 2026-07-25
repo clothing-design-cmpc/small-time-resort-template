@@ -28,15 +28,16 @@
  *      already checks that env var's presence; this step is only
  *      about the physical file itself).
  *
- * Step 8 (Generate Vault Passphrase) isn't built yet — Continue here
- * is the same placeholder hand-off pattern every prior step used
- * before its next step existed.
+ * Step 8 (Generate Vault Passphrase) is built as its own component —
+ * the Continue button here hands off to <VaultPassphraseStep />, same
+ * hand-off pattern every prior step uses.
  */
 "use client";
 
 import { useState } from "react";
 import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
+import VaultPassphraseStep from "./VaultPassphraseStep";
 
 const EXTERNAL_STEPS = [
   {
@@ -69,16 +70,7 @@ export default function ExternalSetupStep() {
   }
 
   if (continued) {
-    return (
-      <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 7 of 10 — complete</span>
-        <h1 className="setupWizardTitle">External setup on file</h1>
-        <p className="setupWizardBody">
-          The next step (generate vault passphrase) is being built
-          incrementally — this session stays active for 30 minutes.
-        </p>
-      </div>
-    );
+    return <VaultPassphraseStep />;
   }
 
   return (

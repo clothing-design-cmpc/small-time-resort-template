@@ -87,10 +87,20 @@ export default function SetupKeyForm() {
 
       <div className="setupWizardInstructions">
         <span className="setupWizardInstructionsLabel">Don&apos;t have a setup key yet?</span>
+        <p className="setupWizardBody">
+          Requires Node.js 18.18 or newer (Node 24 LTS recommended) — Prisma
+          7 won&apos;t run on an older version.
+        </p>
         <ol className="setupWizardInstructionsList">
           <li>
             Open a terminal in the project folder — Git Bash, PowerShell, or
             Terminal.
+          </li>
+          <li>
+            Install dependencies (needed before any other command here
+            will work — this is also what makes{" "}
+            <code>npm run dev</code> itself runnable):
+            <code className="setupWizardCodeBlock">npm install</code>
           </li>
           <li>
             Create your <code>.env.local</code> file, pre-filled with every

@@ -52,15 +52,17 @@
 }
 
 /*
- * .bookingFormRuleMatch
- * Small hint line under the Booking Type pills showing which specific
+ * .bookingFormRuleMatchLarge
+ * Prominent line under the Booking Type area showing which specific
  * multi-date rule set (e.g. "4Ds-3Ns") matched the guest's selected
- * nights, once dates are picked.
+ * nights, once dates are picked — sized to stand out rather than read
+ * as a small disclaimer.
  */
-.bookingFormRuleMatch {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-  margin-top: 0.15rem;
+.bookingFormRuleMatchLarge {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-top: var(--space-sm);
 }
 
 /* Minimum 1rem font-size prevents iOS auto-zoom on focus (Rule 29.6) */
@@ -129,6 +131,26 @@
   background-color: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-on-accent);
+}
+
+/*
+ * .bookingTypeLocked
+ * Plain, non-interactive label shown instead of the pill row when 2+
+ * dates were already selected on the home calendar — it can only ever
+ * be an Overnight stay at that point, so there's nothing to choose.
+ * Styled to match .bookingTypePillActive so it reads as "this is the
+ * selected type" rather than a disabled control.
+ */
+.bookingTypeLocked {
+  display: inline-block;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  width: fit-content;
 }
 
 /*

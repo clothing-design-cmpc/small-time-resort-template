@@ -72,6 +72,18 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   const [submitError, setSubmitError] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
+  // The home calendar (HowToBookSection) only ever sends ?checkout= when
+  // 2+ dates were selected there (see app/visitor/booking/page.jsx) — a
+  // single selected date arrives as ?checkin= alone. Per the intended
+  // flow: 1 date selected -> the guest still gets to choose Overnight /
+  // Day Tour / Night Tour here, since a single date could be any of the
+  // three; 2+ dates selected -> it can only ever be an Overnight stay,
+  // so the guest isn't shown a choice at all. Captured once on mount
+  // (not re-derived from the watched fields below) so it reflects only
+  // what was actually selected on the home calendar, not any later edit
+  // the guest makes to the date fields on this page.
+  const [isLockedToOvernight] = useState(() => Boolean(initialCheckOutDate));
+
   const {
     register,
     handleSubmit,
@@ -262,29 +274,35 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     <form className="bookingForm" onSubmit={handleSubmit(onSubmit)} noValidate>
       <p className="bookingFormLegend">* Required fields</p>
 
-      {/* Booking type pills */}
+      {/* Booking type pills — hidden in favor of a plain locked label
+          when the guest already picked 2+ dates on the home calendar,
+          since that can only ever be an Overnight stay. */}
       <div className="bookingFormField">
         <label className="bookingFormLabel">Booking Type <span aria-hidden="true">*</span></label>
-        <Controller
-          control={control}
-          name="bookingType"
-          render={({ field }) => (
-            <div className="bookingTypePills">
-              {enabledTypes.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  className={`bookingTypePill${field.value === type.value ? " bookingTypePillActive" : ""}`}
-                  onClick={() => field.onChange(type.value)}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
-          )}
-        />
+        {isLockedToOvernight ? (
+          <div className="bookingTypeLocked">Overnight Stay</div>
+        ) : (
+          <Controller
+            control={control}
+            name="bookingType"
+            render={({ field }) => (
+              <div className="bookingTypePills">
+                {enabledTypes.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    className={`bookingTypePill${field.value === type.value ? " bookingTypePillActive" : ""}`}
+                    onClick={() => field.onChange(type.value)}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          />
+        )}
         {bookingType === "overnight" && nightsSelected && bookingRules?.matchedRuleName && (
-          <p className="bookingFormRuleMatch">
+          <p className="bookingFormRuleMatchLarge">
             Package: {bookingRules.matchedRuleName}
             {bookingRules.matchedRuleNights === nightsSelected ? "" : " (default rate — no exact match for this night count)"}
           </p>

@@ -83,9 +83,9 @@ export const RESELLER_PROVIDERS = [
     name: "Cloudflare R2",
     steps: [
       "R2 → Create bucket, named with the pattern below.",
-      "Manage R2 API Tokens → Create API Token → scope it to only this bucket, Object Read & Write.",
+      "Account Details (on the R2 Overview page) → API Tokens → Manage → Create Account API token → Object Read & Write → under \"Specify bucket(s)\" choose \"Apply to specific buckets only\" and pick only this client's bucket.",
       "Copy the Account ID, Access Key ID, and Secret Access Key into this client's .env.local.",
-      "Connect a public/custom domain for the bucket, then copy that URL into NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL.",
+      "Bucket → Settings → Public Development URL card → Enable (or connect a Custom Domain instead), then copy that URL into NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL.",
       "Billing: the 10 GB storage / 1M write / 10M read free tier is account-wide, shared across every client bucket combined — it's not reset per client, so watch cumulative usage as you add more clients (Cloudflare Dashboard → Billing).",
     ],
     pattern: "{clientslug}-assets",

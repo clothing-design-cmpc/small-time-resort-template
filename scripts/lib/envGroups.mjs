@@ -97,6 +97,7 @@ export const ENV_GROUPS = [
     label: "Vault & Gatekeeper security",
     keys: [
       { key: "VAULT_SETUP_KEY", required: true },
+      { key: "WIZARD_SETUP_KEY", required: true },
       { key: "VAULT_OWNER_EMAIL", required: true },
       { key: "VAULT_ALERT_WEBHOOK_URL", required: false },
       { key: "GATEKEEPER_VAULT_PASSPHRASE_HASH", required: false },
@@ -149,7 +150,7 @@ export const ENV_FIX_INSTRUCTIONS = {
   geoip:
     "Download GeoLite2-City.mmdb from maxmind.com (free account) and place it at the path set in MAXMIND_DB_PATH (default: services/geoip/GeoLite2-City.mmdb).",
   vaultSecurity:
-    "Check VAULT_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs",
+    "Check VAULT_SETUP_KEY, WIZARD_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY (or CRON_SECRET / WIZARD_SETUP_KEY)",
   aiInsightAndDirections:
     "Gemini: aistudio.google.com → Get API key → Create API key, into GEMINI_API_KEY. Google Maps/Weather: console.cloud.google.com → APIs & Services → Library, enable Geocoding API + Routes API + Weather API on one project, then Credentials → Create API Key (restrict it to those three APIs) — same key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY.",
   siteConfig:

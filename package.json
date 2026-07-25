@@ -9,6 +9,7 @@
     "lint": "eslint",
     "backup": "node scripts/runBackup.js",
     "envcheck": "node scripts/runEnvCheck.js",
+    "scaffold-env": "node scripts/scaffoldEnvFile.mjs",
     "check:health": "node scripts/checkSystemHealth.js",
     "check:wizard-status": "node scripts/checkSetupWizardStatus.js",
     "wipe-database": "node scripts/runDatabaseWipe.js",

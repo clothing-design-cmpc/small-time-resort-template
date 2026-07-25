@@ -537,8 +537,9 @@ const STEP_DATA = [
         <li>Under <b>Region</b>, pick the one closest to you or your users.</li>
         <li>Leave <b>Security</b> options (Enable Data API, Automatically expose new tables) on their defaults.</li>
         <li>Click <b>Create new project</b> and wait for provisioning to finish (usually 1–2 minutes).</li>
-        <li>Go to <b>Settings → Database → Connection Pooling</b>. Copy the <b>Transaction Pooler</b> connection string into <code>DATABASE_URL</code>, and the <b>Session Pooler</b> connection string into <code>DIRECT_URL</code>.</li>
-        <li>Go to <b>Settings → API</b>. Copy the <b>Project URL</b>, <b>anon / public key</b>, and <b>service_role key</b>.</li>
+        <li>On the project page, click the green <b>Connect</b> button (top of the page). In the panel that opens, under <b>Connection Method</b> select <b>Transaction pooler</b>, keep Type as <b>URI</b>, then copy that connection string into <code>DATABASE_URL</code>.</li>
+        <li>Still in the same panel, switch <b>Connection Method</b> to <b>Session pooler</b> (use <b>Direct connection</b> instead only if your network supports IPv6), copy that connection string into <code>DIRECT_URL</code>.</li>
+        <li>Go to <b>Settings → API</b>. Copy the <b>Project URL</b> into <code>NEXT_PUBLIC_SUPABASE_URL</code>, the <b>anon / public key</b> into <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and the <b>service_role key</b> into <code>SUPABASE_SERVICE_ROLE_KEY</code>.</li>
         <li>Paste all five values into <code>.env.local</code>.</li>
         <li>Back in your terminal, run <code>npx prisma db push</code> then <code>npx prisma generate</code> to sync the schema to your new project.</li>
       </ol>`,
@@ -568,8 +569,8 @@ const STEP_DATA = [
         steps: [
           "Dashboard → New Project (never reuse an existing project across clients — this template is single-owner per deployment).",
           "Name it with the pattern below, pick the region closest to the client, set a strong DB password and save it.",
-          "Settings → Database → Connection Pooling → copy the Transaction Pooler URL into DATABASE_URL and the Session Pooler URL into DIRECT_URL.",
-          "Settings → API → copy the Project URL, anon key, and service_role key.",
+          "Click the green Connect button on the project page → Connection Method → Transaction pooler → copy the URI into DATABASE_URL, then switch to Session pooler → copy the URI into DIRECT_URL.",
+          "Settings → API → copy the Project URL into NEXT_PUBLIC_SUPABASE_URL, the anon key into NEXT_PUBLIC_SUPABASE_ANON_KEY, and the service_role key into SUPABASE_SERVICE_ROLE_KEY.",
         ],
         pattern: "{clientslug}-resort",
       },

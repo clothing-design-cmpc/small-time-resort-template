@@ -67,6 +67,7 @@ export default function AdminSetupStep() {
   const [loadError, setLoadError] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirmError, setConfirmError] = useState(null);
   const [openHelpKey, setOpenHelpKey] = useState(null);
 
   // Restore this tab's confirmation from sessionStorage — matches the
@@ -106,43 +107,54 @@ export default function AdminSetupStep() {
   }, [fetchStatus]);
 
   /**
-   * Fires the one-time confirm-admin call the moment ownerExists
+   * runConfirmAdmin
+   * Calls confirm-admin exactly once per invocation. Shared by the
+   * auto-fire effect below AND the manual "Continue" / "Retry" button
+   * rendered once ownerExists is true — without this manual path, a
+   * single failed attempt (network hiccup, transient 500) left the
+   * wizard stuck on Step 4 forever: ownerExists stays true, so the
+   * effect's dependency never changes and never re-fires, and
+   * "Check again" only re-polls admin-status, which was already true.
+   */
+  const runConfirmAdmin = useCallback(async () => {
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      const response = await fetch("/api/system-setup-wizard/confirm-admin", { method: "POST" });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        const message = result.message ?? "Couldn't confirm the admin account.";
+        setConfirmError(message);
+        showToast("✕ " + message, "error");
+        return;
+      }
+
+      window.sessionStorage.setItem(ADMIN_CONFIRMED_STORAGE_KEY, "true");
+      setConfirmed(true);
+      showToast("✓ Super-admin account confirmed.", "success");
+    } catch {
+      const message = "We couldn't reach the server. Please try again.";
+      setConfirmError(message);
+      showToast("✕ " + message, "error");
+    } finally {
+      setIsConfirming(false);
+    }
+  }, [showToast]);
+
+  /**
+   * Fires the one-time confirm-admin call the moment ownerExists first
    * flips true, so the setup_admin_created security event is logged
-   * exactly once per deployment, not once per poll.
+   * automatically for the common case. If this attempt fails, the
+   * manual "Continue" button below (rendered whenever ownerExists is
+   * true and not yet confirmed) calls runConfirmAdmin again — this
+   * effect only ever auto-fires the very first time.
    */
   useEffect(() => {
     if (!status?.ownerExists || confirmed || isConfirming) return;
-
-    let cancelled = false;
-
-    async function confirmAdmin() {
-      setIsConfirming(true);
-      try {
-        const response = await fetch("/api/system-setup-wizard/confirm-admin", { method: "POST" });
-        const result = await response.json();
-
-        if (cancelled) return;
-
-        if (!response.ok || !result.success) {
-          showToast("✕ " + (result.message ?? "Couldn't confirm the admin account."), "error");
-          return;
-        }
-
-        window.sessionStorage.setItem(ADMIN_CONFIRMED_STORAGE_KEY, "true");
-        setConfirmed(true);
-        showToast("✓ Super-admin account confirmed.", "success");
-      } catch {
-        if (!cancelled) showToast("✕ We couldn't reach the server. Please try again.", "error");
-      } finally {
-        if (!cancelled) setIsConfirming(false);
-      }
-    }
-
-    confirmAdmin();
-    return () => {
-      cancelled = true;
-    };
-  }, [status?.ownerExists, confirmed, isConfirming, showToast]);
+    runConfirmAdmin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.ownerExists]);
 
   async function handleCopy(command) {
     try {
@@ -288,7 +300,18 @@ export default function AdminSetupStep() {
               >
                 Check again
               </button>
+              {status.ownerExists && (
+                <button
+                  type="button"
+                  className="setupWizardButton"
+                  onClick={runConfirmAdmin}
+                  disabled={isConfirming}
+                >
+                  {isConfirming ? "Confirming…" : "Continue"}
+                </button>
+              )}
             </div>
+            {confirmError && <p className="setupWizardError">{confirmError}</p>}
           </>
         )}
       </div>

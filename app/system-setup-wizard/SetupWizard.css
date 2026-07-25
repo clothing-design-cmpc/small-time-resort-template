@@ -222,6 +222,31 @@ a.setupWizardButtonSecondary {
   white-space: pre-line;
 }
 
+/*
+ * .setupWizardInstructionsLinks / .setupWizardLink
+ * Row of external dashboard/signup links shown above the numbered
+ * step list inside an expanded "How do I get these?" panel.
+ */
+.setupWizardInstructionsLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.setupWizardLink {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
+}
+
+.setupWizardLink:hover,
+.setupWizardLink:focus-visible {
+  color: var(--color-accent-hover);
+}
+
 .setupWizardHelpToggle {
   align-self: flex-start;
   padding: 0;

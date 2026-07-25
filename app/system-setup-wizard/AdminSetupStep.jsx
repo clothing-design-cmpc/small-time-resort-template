@@ -23,15 +23,19 @@
  * 2. First time ownerExists is true and this tab hasn't confirmed yet
  *    -> POST /api/system-setup-wizard/confirm-admin, then mark
  *    confirmed in sessionStorage
- * 3. Once confirmed, this step renders as complete (Step 5 — remaining
- *    env var checklist — is built incrementally, same placeholder
- *    pattern as DatabaseSetupStep.jsx uses today)
+ * 3. Once confirmed, hands off to <RemainingEnvStep /> (Step 5 —
+ *    remaining environment variables), same hand-off pattern
+ *    SetupKeyForm.jsx -> DatabaseSetupStep.jsx -> AdminSetupStep.jsx
+ *    already uses. This component's own ToastStack stays mounted
+ *    alongside it so the one-time "Super-admin account confirmed"
+ *    toast isn't unmounted before its auto-dismiss.
  */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
+import RemainingEnvStep from "./RemainingEnvStep";
 
 const ADMIN_CONFIRMED_STORAGE_KEY = "wizardStep4AdminConfirmed";
 
@@ -156,16 +160,10 @@ export default function AdminSetupStep() {
 
   if (confirmed) {
     return (
-      <div className="setupWizardCard" role="status">
+      <>
         <ToastStack toasts={toasts} onDismiss={dismissToast} />
-        <span className="setupWizardEyebrow">Step 4 of 10 — complete</span>
-        <h1 className="setupWizardTitle">Super-admin account created</h1>
-        <p className="setupWizardBody">
-          Your owner account is ready. The next step (remaining environment
-          variables) is being built incrementally — this session stays
-          active for 30 minutes.
-        </p>
-      </div>
+        <RemainingEnvStep />
+      </>
     );
   }
 

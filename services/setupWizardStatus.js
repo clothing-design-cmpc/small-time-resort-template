@@ -27,6 +27,19 @@
  * the very top of the handler, BEFORE doing any other work — this is
  * what actually keeps the wizard closed after first use, not just
  * hiding a nav link to it.
+ *
+ * MUST SURVIVE A PRE-`db push` DATABASE (Step 3 gap fix):
+ * This is called at the very top of EVERY wizard route, including
+ * verify-key (Step 1) and database-status (Step 2/3) — which are
+ * exactly the routes hit on a brand-new clone, before `npx prisma db
+ * push` has ever run. At that point admin_profiles and
+ * vault_passphrases don't exist yet, so a plain query against them
+ * throws (Prisma P2021 "table does not exist"), not returns null/0.
+ * Unlike database-status/route.js's own checkDbPushDone() (which
+ * already wraps its query for this same reason), this function used
+ * to run unguarded — so the very first request of a fresh setup would
+ * 500 instead of reaching Step 1. A missing table only ever means
+ * setup hasn't run yet, so it's treated as "not locked", not an error.
  */
 import { prisma } from "@/services/prisma";
 
@@ -35,18 +48,30 @@ import { prisma } from "@/services/prisma";
  * Returns true once BOTH an owner AdminProfile and a set
  * VaultPassphrase exist — meaning first-run setup already ran to
  * completion and the wizard must refuse to serve any further request.
+ * Returns false (never locked) if the underlying tables don't exist
+ * yet — a fresh, not-yet-`db push`-ed database is the expected state
+ * for early wizard steps, not a failure.
  */
 export async function isSetupWizardLocked() {
-  const [ownerAdminCount, vaultPassphrase] = await Promise.all([
-    prisma.adminProfile.count({ where: { isOwner: true } }),
-    prisma.vaultPassphrase.findUnique({
-      where: { id: "vault_passphrase" },
-      select: { passphraseHash: true },
-    }),
-  ]);
+  try {
+    const [ownerAdminCount, vaultPassphrase] = await Promise.all([
+      prisma.adminProfile.count({ where: { isOwner: true } }),
+      prisma.vaultPassphrase.findUnique({
+        where: { id: "vault_passphrase" },
+        select: { passphraseHash: true },
+      }),
+    ]);
 
-  const hasOwnerAdmin = ownerAdminCount > 0;
-  const hasVaultPassphrase = Boolean(vaultPassphrase?.passphraseHash);
+    const hasOwnerAdmin = ownerAdminCount > 0;
+    const hasVaultPassphrase = Boolean(vaultPassphrase?.passphraseHash);
 
-  return hasOwnerAdmin && hasVaultPassphrase;
+    return hasOwnerAdmin && hasVaultPassphrase;
+  } catch (error) {
+    // Database unreachable, or admin_profiles/vault_passphrases don't
+    // exist yet (pre-`db push`) — setup clearly hasn't completed, so
+    // treat this the same as "not locked" rather than crashing every
+    // early wizard route.
+    console.error("[setupWizardStatus] Lock check failed — treating as not locked:", error.message);
+    return false;
+  }
 }

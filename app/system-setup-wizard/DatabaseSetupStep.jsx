@@ -5,7 +5,9 @@
  * PURPOSE:
  * Renders once SetupKeyForm confirms the WIZARD_SETUP_KEY (Step 1).
  * Covers:
- *   Step 2 — connection env var checklist (DATABASE_URL, DIRECT_URL)
+ *   Step 2 — connection + core env var checklist (DATABASE_URL,
+ *            DIRECT_URL, plus the supabase group: NEXT_PUBLIC_SUPABASE_URL,
+ *            NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
  *   Step 3 — 4 sequential, locked sub-steps: db push -> generate ->
  *            enableRls.js -> addBookingExclusionConstraint.js
  * Every sub-step that leaves a trace in the database (3a, 3c, 3d) is
@@ -51,6 +53,28 @@ const DATABASE_ENV_HELP = {
       "Same Settings → Database page, switch Connection Pooling Mode to\n           \"Session\" (or use the \"Direct connection\" string if shown).",
       "Copy that connection string (ends in port 5432).",
       "Paste it as DIRECT_URL= in .env.local — this is what schema commands\n           (db push, enableRls.js, the exclusion constraint script) need,\n           since they require a stable session the transaction pooler\n           doesn't reliably provide.",
+    ],
+  },
+  NEXT_PUBLIC_SUPABASE_URL: {
+    label: "Project URL",
+    steps: [
+      "Supabase Dashboard → Settings → API.",
+      "Copy the Project URL shown there.",
+      "Paste it as NEXT_PUBLIC_SUPABASE_URL= in .env.local.",
+    ],
+  },
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: {
+    label: "Anon / public key",
+    steps: [
+      "Same Settings → API page — copy the \"anon\" / \"public\" key.",
+      "Paste it as NEXT_PUBLIC_SUPABASE_ANON_KEY= in .env.local — safe to\n           expose to the browser, protected by Row Level Security.",
+    ],
+  },
+  SUPABASE_SERVICE_ROLE_KEY: {
+    label: "Service role key",
+    steps: [
+      "Same Settings → API page — copy the \"service_role\" key.",
+      "Paste it as SUPABASE_SERVICE_ROLE_KEY= in .env.local — NEVER prefix\n           this with NEXT_PUBLIC_, never commit it, never expose it to the\n           client. It bypasses Row Level Security entirely.",
     ],
   },
 };
@@ -210,50 +234,55 @@ export default function DatabaseSetupStep() {
     <div className="setupWizardStepGroup">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      {/* ===== Step 2 — Connection env vars ===== */}
+      {/* ===== Step 2 — Connection + Core env vars ===== */}
       <div className="setupWizardCard">
         <span className="setupWizardEyebrow">Step 2 of 10</span>
-        <h1 className="setupWizardTitle">Database connection</h1>
+        <h1 className="setupWizardTitle">Database connection &amp; Supabase core</h1>
         <p className="setupWizardBody">
-          Set these two keys in <code>.env.local</code> from your Supabase
+          Set these keys in <code>.env.local</code> from your Supabase
           project, then restart <code>npm run dev</code>.
         </p>
 
-        <ul className="setupWizardEnvList">
-          {status.envStatus.groups[0]?.items.map((item) => (
-            <li key={item.key} className="setupWizardEnvItem">
-              <div className="setupWizardEnvItemHeader">
-                <span
-                  className={`setupWizardStatusBadge ${
-                    item.present ? "setupWizardStatusBadge--ok" : "setupWizardStatusBadge--missing"
-                  }`}
-                >
-                  {item.present ? "✓ Set" : "✕ Missing"}
-                </span>
-                <code>{item.key}</code>
-              </div>
-              <button
-                type="button"
-                className="setupWizardHelpToggle"
-                onClick={() => setOpenHelpKey(openHelpKey === item.key ? null : item.key)}
-              >
-                {openHelpKey === item.key ? "Hide" : "How do I get this?"}
-              </button>
-              {openHelpKey === item.key && (
-                <div className="setupWizardInstructions">
-                  <span className="setupWizardInstructionsLabel">
-                    {DATABASE_ENV_HELP[item.key]?.label}
-                  </span>
-                  <ol className="setupWizardInstructionsList">
-                    {DATABASE_ENV_HELP[item.key]?.steps.map((stepText, index) => (
-                      <li key={index}>{stepText}</li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        {status.envStatus.groups.map((group) => (
+          <div key={group.id} className="setupWizardEnvGroup">
+            <span className="setupWizardEnvGroupLabel">{group.label}</span>
+            <ul className="setupWizardEnvList">
+              {group.items.map((item) => (
+                <li key={item.key} className="setupWizardEnvItem">
+                  <div className="setupWizardEnvItemHeader">
+                    <span
+                      className={`setupWizardStatusBadge ${
+                        item.present ? "setupWizardStatusBadge--ok" : "setupWizardStatusBadge--missing"
+                      }`}
+                    >
+                      {item.present ? "✓ Set" : "✕ Missing"}
+                    </span>
+                    <code>{item.key}</code>
+                  </div>
+                  <button
+                    type="button"
+                    className="setupWizardHelpToggle"
+                    onClick={() => setOpenHelpKey(openHelpKey === item.key ? null : item.key)}
+                  >
+                    {openHelpKey === item.key ? "Hide" : "How do I get this?"}
+                  </button>
+                  {openHelpKey === item.key && (
+                    <div className="setupWizardInstructions">
+                      <span className="setupWizardInstructionsLabel">
+                        {DATABASE_ENV_HELP[item.key]?.label}
+                      </span>
+                      <ol className="setupWizardInstructionsList">
+                        {DATABASE_ENV_HELP[item.key]?.steps.map((stepText, index) => (
+                          <li key={index}>{stepText}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
 
         <button type="button" className="setupWizardButtonSecondary" onClick={handleCheckAgain}>
           Check again

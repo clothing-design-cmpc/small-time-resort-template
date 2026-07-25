@@ -263,6 +263,24 @@
 }
 
 /*
+ * .setupWizardEnvGroup / .setupWizardEnvGroupLabel
+ * Groups a set of env var rows under one envGroups.mjs group name —
+ * used wherever a checklist spans more than one group (Step 2's
+ * database + supabase split, Step 5's 9 remaining groups).
+ */
+.setupWizardEnvGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.setupWizardEnvGroupLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/*
  * .setupWizardEnvList / .setupWizardEnvItem
  * One row per required env var — status badge, key name, and its
  * collapsible instructions.

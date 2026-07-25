@@ -9,6 +9,10 @@
  * sub-step of the wizard's Database Setup screen, instead of trusting
  * a manual checkbox for anything that CAN be verified directly:
  *   - envReady            : DATABASE_URL + DIRECT_URL both present
+ *                            (gates 3a-3d only — see envStatus below
+ *                            for the separate "supabase" group, which
+ *                            is display-only here and never blocks DB
+ *                            setup)
  *   - dbPushDone          : does the admin_profiles table exist yet?
  *                           (proves `npx prisma db push` ran)
  *   - rlsEnabled          : do all 5 resort tables have RLS turned on?
@@ -20,6 +24,12 @@
  * only rebuilds the local Prisma Client — so that one sub-step stays a
  * manual "I ran this" confirmation on the client, not reported here.
  *
+ * envStatus also includes the "supabase" group (NEXT_PUBLIC_SUPABASE_URL,
+ * NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY) so Step 2's
+ * "Connection + Core" checklist can show both — this is the "Core"
+ * half; Step 5 (RemainingEnvStep.jsx) covers the other 9 envGroups.mjs
+ * groups, for all 11 total.
+ *
  * Every query is wrapped so a missing table/connection never throws
  * past this route — at Step 3a, before `db push` has run, the DB may
  * not even be reachable yet, and that itself is a valid, expected
@@ -28,7 +38,8 @@
  * DATA FLOW:
  * 1. isSetupWizardLocked() -> setup already done -> reject
  * 2. hasWizardSession() -> Step 1 not passed this session -> reject
- * 3. checkEnvGroupsPresence(["database"]) -> presence-only, no live check
+ * 3. checkEnvGroupsPresence(["database", "supabase"]) -> presence-only,
+ *    no live check
  * 4. Best-effort raw queries against Postgres system catalogs for the
  *    three DB-verifiable sub-steps
  */
@@ -116,8 +127,16 @@ export async function GET(request) {
   }
 
   try {
-    const envStatus = checkEnvGroupsPresence(["database"]);
-    const envReady = envStatus.overallStatus === "ok";
+    // Both groups are returned for the Step 2 "Connection + Core"
+    // checklist display, but only the "database" group's presence
+    // gates the DB-derived checks below — DATABASE_URL/DIRECT_URL are
+    // what the driver adapter actually needs to connect. The
+    // "supabase" group (Auth + client keys) is unrelated to whether
+    // `prisma db push` etc. can run, so it must never block 3a-3d just
+    // because, say, SUPABASE_SERVICE_ROLE_KEY hasn't been set yet.
+    const envStatus = checkEnvGroupsPresence(["database", "supabase"]);
+    const databaseGroup = envStatus.groups.find((group) => group.id === "database");
+    const envReady = databaseGroup?.status === "ok";
 
     // Only attempt the DB-derived checks once the connection env vars
     // are actually present — otherwise the driver adapter has nothing

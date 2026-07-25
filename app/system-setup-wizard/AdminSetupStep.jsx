@@ -39,6 +39,26 @@ import RemainingEnvStep from "./RemainingEnvStep";
 
 const ADMIN_CONFIRMED_STORAGE_KEY = "wizardStep4AdminConfirmed";
 
+// Per-key "How do I get this?" instructions — same pattern Step 2
+// (DATABASE_ENV_HELP) already uses, so Step 4 doesn't feel like the
+// odd one out with no guidance.
+const ADMIN_ENV_HELP = {
+  SEED_ADMIN_EMAIL: {
+    label: "Owner login email",
+    steps: [
+      "Pick any email address — it doesn't need to be a real inbox. This becomes your super-admin login at /superAdmin/login.",
+      "Paste it as SEED_ADMIN_EMAIL= in .env.local.",
+    ],
+  },
+  SEED_ADMIN_PASSWORD: {
+    label: "Owner login password",
+    steps: [
+      "Pick a strong password — you'll type this in alongside the email above to log in.",
+      "Paste it as SEED_ADMIN_PASSWORD= in .env.local. Both values are read by npx prisma db seed below, which creates the account.",
+    ],
+  },
+};
+
 export default function AdminSetupStep() {
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -47,6 +67,7 @@ export default function AdminSetupStep() {
   const [loadError, setLoadError] = useState(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [openHelpKey, setOpenHelpKey] = useState(null);
 
   // Restore this tab's confirmation from sessionStorage — matches the
   // wizard session cookie's own 30-minute scope, same as 3b.
@@ -200,6 +221,25 @@ export default function AdminSetupStep() {
                 <code>{item.key}</code>
                 <span className="setupWizardBody">— {item.label}</span>
               </div>
+              <button
+                type="button"
+                className="setupWizardHelpToggle"
+                onClick={() => setOpenHelpKey(openHelpKey === item.key ? null : item.key)}
+              >
+                {openHelpKey === item.key ? "Hide" : "How do I get this?"}
+              </button>
+              {openHelpKey === item.key && (
+                <div className="setupWizardInstructions">
+                  <span className="setupWizardInstructionsLabel">
+                    {ADMIN_ENV_HELP[item.key]?.label}
+                  </span>
+                  <ol className="setupWizardInstructionsList">
+                    {ADMIN_ENV_HELP[item.key]?.steps.map((stepText, index) => (
+                      <li key={index}>{stepText}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </li>
           ))}
         </ul>

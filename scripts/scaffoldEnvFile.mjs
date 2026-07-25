@@ -1,7 +1,9 @@
 /**
  * FILE: scripts/scaffoldEnvFile.mjs
- * ROLE: Terminal-only — first thing a developer runs on a fresh clone,
- *       before the setup wizard's env checklist even means anything.
+ * ROLE: Terminal-only — manual entry point for scaffolding .env.local.
+ *       Also auto-triggered silently by scripts/postinstallSetup.mjs
+ *       on a fresh `npm install` — see that file for the safe/silent
+ *       variant used there.
  *
  * PURPOSE:
  * .env* is gitignored (see .gitignore) and this repo ships no
@@ -22,50 +24,26 @@
  * first — that's a deliberate, visible action, not something this
  * script should ever do on your behalf.
  *
- * USAGE: node scripts/scaffoldEnvFile.mjs
+ * USAGE: node scripts/scaffoldEnvFile.mjs  (or: npm run scaffold-env)
  */
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { ENV_GROUPS } from "./lib/envGroups.mjs";
+import { ENV_TARGET_PATH, writeEnvFile, openSetupGuide } from "./lib/envScaffold.mjs";
 
-const TARGET_PATH = ".env.local";
-
-if (existsSync(TARGET_PATH)) {
+if (existsSync(ENV_TARGET_PATH)) {
   console.error(
-    `\n${TARGET_PATH} already exists — refusing to overwrite it.\n` +
+    `\n${ENV_TARGET_PATH} already exists — refusing to overwrite it.\n` +
       "If you really want a fresh scaffold, rename or delete the existing file first, then re-run this script.\n"
   );
   process.exit(1);
 }
 
-/**
- * buildEnvFileContent
- * Renders ENV_GROUPS into a commented, grouped .env.local body — one
- * section header per group (its label), one blank `KEY=` line per
- * variable, and a "(optional)" marker on keys where required: false.
- */
-function buildEnvFileContent() {
-  const header =
-    "# Scaffolded by scripts/scaffoldEnvFile.mjs — fill in each value below.\n" +
-    "# Every key here comes from scripts/lib/envGroups.mjs (the same list\n" +
-    "# the setup wizard's env checklist and `npm run envcheck` both read).\n" +
-    "# Lines marked (optional) are safe to leave blank for now.\n";
+const totalKeys = writeEnvFile();
 
-  const groupBlocks = ENV_GROUPS.map((group) => {
-    const groupHeader = `\n# --- ${group.label} ---`;
-    const keyLines = group.keys.map((entry) => {
-      const suffix = entry.required ? "" : " # (optional)";
-      return `${entry.key}=${suffix}`;
-    });
-    return [groupHeader, ...keyLines].join("\n");
-  });
-
-  return `${header}${groupBlocks.join("\n")}\n`;
-}
-
-writeFileSync(TARGET_PATH, buildEnvFileContent(), "utf-8");
-
-const totalKeys = ENV_GROUPS.reduce((sum, group) => sum + group.keys.length, 0);
 console.log(
-  `\n${TARGET_PATH} created with ${totalKeys} keys across ${ENV_GROUPS.length} groups.\n` +
-    "Open it and fill in each value — see the setup wizard's env checklist step for where to get each one.\n"
+  `\n${ENV_TARGET_PATH} created with ${totalKeys} keys across ${ENV_GROUPS.length} groups.\n` +
+    "Open it and fill in each value — see the setup wizard's env checklist step for where to get each one.\n" +
+    "Opening the setup guide in your browser...\n"
 );
+
+openSetupGuide(console.error);

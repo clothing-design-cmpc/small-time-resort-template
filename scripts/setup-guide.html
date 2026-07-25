@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>First-Run Setup Guide — Villa Azure Resort</title>
+<style>
+/*
+ * FILE: scripts/setup-guide.html
+ * PURPOSE: Standalone, offline checklist auto-opened by scaffoldEnvFile.mjs
+ * right after .env.local is created. Walks a fresh clone through env
+ * setup → db push → dev server → /system-setup-wizard. Progress is saved
+ * to localStorage (this is a real file opened in the dev's own browser,
+ * not a claude.ai artifact, so localStorage is safe to use here).
+ */
+
+:root {
+  --color-bg:            #0a0a0c;
+  --color-surface:       rgba(255,255,255,0.035);
+  --color-surface-hover: rgba(255,255,255,0.06);
+  --color-border:        rgba(255,255,255,0.08);
+  --color-border-hover:  rgba(255,255,255,0.16);
+  --color-text-primary:  #f2f2f0;
+  --color-text-secondary:rgba(255,255,255,0.58);
+  --color-text-muted:    rgba(255,255,255,0.35);
+  --color-accent:        #22c55e;
+  --color-accent-hover:  #16a34a;
+  --color-accent-dim:    rgba(34,197,94,0.14);
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", "SFMono-Regular", Consolas, monospace;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.25s ease;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: local("Space Grotesk");
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(34,197,94,0.07), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(34,197,94,0.04), transparent 40%);
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg) 6rem;
+}
+
+/* ---------- Header ---------- */
+header {
+  padding-bottom: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  background: var(--color-accent-dim);
+  border: 1px solid rgba(34,197,94,0.25);
+  padding: 0.3rem 0.7rem;
+  border-radius: 100px;
+  margin-bottom: var(--space-md);
+}
+
+.eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+}
+
+h1 {
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-sm);
+  font-weight: 600;
+}
+
+.subtitle {
+  color: var(--color-text-secondary);
+  font-size: 0.98rem;
+  max-width: 56ch;
+  margin: 0;
+}
+
+/* ---------- Progress ---------- */
+.progressBar {
+  margin-top: var(--space-lg);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 6px;
+  border-radius: 100px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-accent-hover), var(--color-accent));
+  border-radius: 100px;
+  transition: width var(--transition-base);
+}
+
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-top: 0.4rem;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Steps ---------- */
+.step {
+  position: relative;
+  padding: var(--space-lg) var(--space-lg) var(--space-lg) 3.2rem;
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  transition: background-color var(--transition-base), border-color var(--transition-base);
+}
+
+.step:hover { border-color: var(--color-border-hover); }
+
+.step.isDone {
+  border-color: rgba(34,197,94,0.3);
+  background: rgba(34,197,94,0.045);
+}
+
+.stepCheckbox {
+  position: absolute;
+  top: 1.55rem;
+  left: 1.1rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--color-border-hover);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.stepCheckbox:hover,
+.stepCheckbox:focus-visible { border-color: var(--color-accent); }
+
+.stepCheckbox svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.step.isDone .stepCheckbox {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.step.isDone .stepCheckbox svg { opacity: 1; }
+
+.stepHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+
+.stepNumber {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.06em;
+}
+
+.stepTitle {
+  font-size: 1.02rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.step.isDone .stepTitle {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.25);
+}
+
+.stepBody {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 var(--space-md);
+  max-width: 60ch;
+}
+
+.stepBody code {
+  font-family: var(--font-mono);
+  background: rgba(255,255,255,0.06);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: var(--color-text-primary);
+}
+
+/* ---------- Code blocks ---------- */
+.codeBlock {
+  position: relative;
+  background: #050506;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.85rem 3rem 0.85rem 1rem;
+  margin-bottom: 0.6rem;
+  overflow-x: auto;
+}
+
+.codeBlock:last-of-type { margin-bottom: 0; }
+
+.codeBlock pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  color: #d4f7de;
+  white-space: pre;
+}
+
+.copyButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 32px;
+  height: 32px;
+  min-width: 44px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.copyButton:hover,
+.copyButton:focus-visible {
+  background: var(--color-accent-dim);
+  border-color: rgba(34,197,94,0.35);
+  color: var(--color-accent);
+}
+
+.copyButton svg { width: 15px; height: 15px; }
+
+.copyButton.isCopied {
+  color: var(--color-accent);
+  border-color: rgba(34,197,94,0.35);
+}
+
+/* ---------- Callouts ---------- */
+.callout {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--color-border);
+  border-left: 2px solid var(--color-accent);
+  border-radius: 6px;
+  padding: 0.7rem 0.9rem;
+  margin-top: 0.6rem;
+}
+
+.callout strong { color: var(--color-text-primary); }
+
+/* ---------- Reset ---------- */
+.resetRow {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-2xl);
+}
+
+.resetButton {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 100px;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+  min-height: 44px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.resetButton:hover,
+.resetButton:focus-visible {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-hover);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  main { padding: var(--space-xl) var(--space-md) 4rem; }
+  .step { padding-left: 2.9rem; }
+  .stepCheckbox { left: 0.9rem; }
+}
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <span class="eyebrow"><span class="dot"></span>Villa Azure Resort — Local Dev</span>
+    <h1>First-Run Setup Guide</h1>
+    <p class="subtitle">
+      This runs entirely offline in your browser — nothing here is sent anywhere.
+      Check off each step as you go; progress is saved automatically on this machine.
+    </p>
+    <div class="progressBar">
+      <div class="progressTrack"><div class="progressFill" id="progressFill"></div></div>
+      <div class="progressLabel">
+        <span id="progressText">0 of 11 done</span>
+        <span id="progressPercent">0%</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="stepsContainer"></div>
+
+  <div class="resetRow">
+    <button class="resetButton" id="resetButton" type="button">Reset checklist progress</button>
+  </div>
+
+</main>
+
+<script>
+/**
+ * STEP_DATA
+ * Ordered list of setup steps. Each `commands` array becomes its own
+ * copyable code block. `note` renders as a callout when present.
+ */
+const STEP_DATA = [
+  {
+    title: "Clone the repo",
+    body: "Already done if you're reading this file locally.",
+    commands: [
+      "git clone -b static https://github.com/clothing-design-cmpc/small-time-resort-template.git\ncd small-time-resort-template"
+    ],
+  },
+  {
+    title: "Install dependencies",
+    body: null,
+    commands: ["npm install"],
+  },
+  {
+    title: "Scaffold .env.local",
+    body: "Already done — this file writing out is what opened this guide.",
+    commands: ["npm run scaffold-env"],
+  },
+  {
+    title: "Generate local secrets",
+    body: "No external account needed for these three. Paste each output into <code>.env.local</code>.",
+    commands: [
+      "node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY",
+      "node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY",
+      "node scripts/generateEnvSecret.mjs CRON_SECRET",
+    ],
+  },
+  {
+    title: "Create a Supabase project",
+    body: "Settings → Database → Connection Pooling for <code>DATABASE_URL</code> / <code>DIRECT_URL</code>. Settings → API for the Supabase keys. Paste all five into <code>.env.local</code>.",
+    commands: [],
+  },
+  {
+    title: "Fill in remaining services (optional for a first pass)",
+    body: "Cloudflare R2, EmailJS, GitHub Actions, Upstash Redis, MaxMind GeoIP, Gemini / Google Maps. You can leave these blank to just see the wizard flow — the wizard's own env-checklist step will flag what's still missing.",
+    commands: [],
+  },
+  {
+    title: "Sync the database schema",
+    body: null,
+    commands: ["npx prisma db push", "npx prisma generate"],
+  },
+  {
+    title: "Confirm the wizard is unlocked",
+    body: "Should print <strong>reachable (Step 1 form)</strong>.",
+    commands: ["npm run check:wizard-status"],
+  },
+  {
+    title: "Start the dev server",
+    body: null,
+    commands: ["npm run dev"],
+  },
+  {
+    title: "Open the wizard",
+    body: "Enter your <code>WIZARD_SETUP_KEY</code> at Step 1, then continue through the rest of the flow.",
+    commands: ["http://localhost:3000/system-setup-wizard"],
+  },
+  {
+    title: "Verify AUTO-LOCK after finishing",
+    body: "Revisiting the wizard URL should now 404, and the status check should flip.",
+    commands: ["npm run check:wizard-status"],
+    note: "To test the whole flow again from scratch: <code>npm run wipe-database</code> resets it back to Step 1.",
+  },
+];
+
+const STORAGE_KEY = "setupGuideProgress";
+
+/** loadProgress — reads the saved checkbox state from localStorage, defaulting to all-unchecked. */
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** saveProgress — persists the current checkbox state so it survives closing/reopening this file. */
+function saveProgress(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Private browsing / storage disabled — checklist still works, just won't persist.
+  }
+}
+
+const checkIconSvg = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="#050506" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const copyIconSvg = '<svg viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 12.5H4C3.44772 12.5 3 12.0523 3 11.5V4C3 3.44772 3.44772 3 4 3H11.5C12.0523 3 12.5 3.44772 12.5 4V4.5" stroke="currentColor" stroke-width="1.5"/></svg>';
+const copiedIconSvg = '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.2 11.5L13 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+let progressState = loadProgress();
+
+/** renderSteps — builds the DOM for every step in STEP_DATA, wiring up checkbox toggling and copy buttons. */
+function renderSteps() {
+  const container = document.getElementById("stepsContainer");
+  container.innerHTML = "";
+
+  STEP_DATA.forEach((step, index) => {
+    const isDone = Boolean(progressState[index]);
+
+    const stepEl = document.createElement("section");
+    stepEl.className = "step" + (isDone ? " isDone" : "");
+    stepEl.setAttribute("aria-labelledby", `stepTitle-${index}`);
+
+    const commandsHtml = step.commands.map((cmd, cmdIndex) => `
+      <div class="codeBlock">
+        <pre id="cmd-${index}-${cmdIndex}">${cmd.replace(/</g, "&lt;")}</pre>
+        <button class="copyButton" type="button" data-copy-target="cmd-${index}-${cmdIndex}" aria-label="Copy command" title="Copy">
+          ${copyIconSvg}
+        </button>
+      </div>
+    `).join("");
+
+    const noteHtml = step.note
+      ? `<div class="callout">${step.note}</div>`
+      : "";
+
+    stepEl.innerHTML = `
+      <button class="stepCheckbox" type="button" data-step-index="${index}" aria-pressed="${isDone}" aria-label="Mark step ${index + 1} as done">
+        ${checkIconSvg}
+      </button>
+      <div class="stepHead">
+        <span class="stepNumber">STEP ${String(index + 1).padStart(2, "0")}</span>
+      </div>
+      <h2 class="stepTitle" id="stepTitle-${index}">${step.title}</h2>
+      ${step.body ? `<p class="stepBody">${step.body}</p>` : ""}
+      ${commandsHtml}
+      ${noteHtml}
+    `;
+
+    container.appendChild(stepEl);
+  });
+
+  wireUpInteractions();
+  updateProgressBar();
+}
+
+/** wireUpInteractions — attaches click handlers for checkboxes and copy buttons after each render. */
+function wireUpInteractions() {
+  document.querySelectorAll(".stepCheckbox").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = btn.getAttribute("data-step-index");
+      progressState[idx] = !progressState[idx];
+      saveProgress(progressState);
+      renderSteps();
+    });
+  });
+
+  document.querySelectorAll(".copyButton").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const targetId = btn.getAttribute("data-copy-target");
+      const text = document.getElementById(targetId).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.innerHTML = copiedIconSvg;
+        btn.classList.add("isCopied");
+        setTimeout(() => {
+          btn.innerHTML = copyIconSvg;
+          btn.classList.remove("isCopied");
+        }, 1400);
+      } catch {
+        // Clipboard API unavailable — user can still select and copy manually.
+      }
+    });
+  });
+}
+
+/** updateProgressBar — recalculates the fill width and label text from current progressState. */
+function updateProgressBar() {
+  const total = STEP_DATA.length;
+  const done = Object.values(progressState).filter(Boolean).length;
+  const percent = Math.round((done / total) * 100);
+
+  document.getElementById("progressFill").style.width = percent + "%";
+  document.getElementById("progressText").textContent = `${done} of ${total} done`;
+  document.getElementById("progressPercent").textContent = percent + "%";
+}
+
+document.getElementById("resetButton").addEventListener("click", () => {
+  progressState = {};
+  saveProgress(progressState);
+  renderSteps();
+});
+
+renderSteps();
+</script>
+</body>
+</html>

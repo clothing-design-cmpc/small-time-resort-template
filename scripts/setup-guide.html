@@ -241,6 +241,29 @@ h1 {
   color: var(--color-text-primary);
 }
 
+.stepBody a {
+  color: var(--color-accent);
+  text-decoration-color: rgba(34,197,94,0.4);
+}
+
+.stepBody a:hover,
+.stepBody a:focus-visible {
+  text-decoration-color: var(--color-accent);
+}
+
+.stepBody ol {
+  max-width: 60ch;
+  margin: var(--space-sm) 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stepBody ol li {
+  padding-left: 0.1rem;
+}
+
 /* ---------- Code blocks ---------- */
 .codeBlock {
   position: relative;
@@ -507,7 +530,15 @@ const STEP_DATA = [
   },
   {
     title: "Create a Supabase project",
-    body: "Settings → Database → Connection Pooling for <code>DATABASE_URL</code> / <code>DIRECT_URL</code>. Settings → API for the Supabase keys. Paste all five into <code>.env.local</code>.",
+    body: `Go to <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">supabase.com/dashboard</a> and follow these steps:
+      <ol>
+        <li>Click <b>New Project</b>, pick or create an organization, name the project, set a strong database password (save it somewhere safe — you'll need it once), pick the region closest to you, then click <b>Create new project</b>.</li>
+        <li>Wait for provisioning to finish (usually 1–2 minutes).</li>
+        <li>Go to <b>Settings → Database → Connection Pooling</b>. Copy the <b>Transaction Pooler</b> connection string into <code>DATABASE_URL</code>, and the <b>Session Pooler</b> connection string into <code>DIRECT_URL</code>.</li>
+        <li>Go to <b>Settings → API</b>. Copy the <b>Project URL</b>, <b>anon / public key</b>, and <b>service_role key</b>.</li>
+        <li>Paste all five values into <code>.env.local</code>.</li>
+        <li>Back in your terminal, run <code>npx prisma db push</code> then <code>npx prisma generate</code> to sync the schema to your new project.</li>
+      </ol>`,
     commands: [],
   },
   {
@@ -710,7 +741,7 @@ function renderSteps() {
         <span class="stepNumber">STEP ${String(index + 1).padStart(2, "0")}</span>
       </div>
       <h2 class="stepTitle" id="stepTitle-${index}">${step.title}</h2>
-      ${step.body ? `<p class="stepBody">${step.body}</p>` : ""}
+      ${step.body ? `<div class="stepBody">${step.body}</div>` : ""}
       ${commandsHtml}
       ${providersHtml}
       ${noteHtml}

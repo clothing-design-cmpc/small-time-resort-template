@@ -51,6 +51,11 @@ export default function SuperAdminLoginPage() {
   // limit, so the user sees a clean reload right as the account would
   // be rate-limited anyway, instead of continuing to retry into a wall.
 
+  // True only after the server confirms a one-time magic login link was
+  // emailed (owner-verified-IP leniency, 5 failed attempts exceeded) —
+  // swaps the error banner for a "check your email" message instead.
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -99,7 +104,24 @@ export default function SuperAdminLoginPage() {
     const result = await response.json();
 
     if (!result.success) {
+      // Owner-verified-IP leniency exceeded its 5-attempt limit — the
+      // server already emailed a one-time sign-in link instead of
+      // blocking this IP. Swap to a distinct message rather than the
+      // normal error banner, and stop here (no reload, no attempt count).
+      if (result.data?.magicLinkSent) {
+        setMagicLinkSent(true);
+        setValue("email", "");
+        setValue("password", "");
+        return;
+      }
+
       setAuthError(result.message || "Invalid email or password.");
+
+      // Wipe both fields after every failed attempt — the person retypes
+      // fresh each time rather than resubmitting a lingering wrong value,
+      // and it avoids leaving a mistyped password visible on-screen.
+      setValue("email", "");
+      setValue("password", "");
 
       const nextFailedAttempts = failedAttempts + 1;
       setFailedAttempts(nextFailedAttempts);
@@ -107,8 +129,8 @@ export default function SuperAdminLoginPage() {
       // 3rd consecutive failed attempt — refresh the page so the user
       // sees a clean form instead of continuing to submit into what is
       // about to become a rate-limited/blocked state (Gatekeeper 1 trips
-      // at the 4th attempt). Short delay so the error message is still
-      // readable for a moment before the reload happens.
+      // at the 4th attempt for a non-owner IP; the owner IP gets 5
+      // attempts plus the magic-link fallback above instead of a reload).
       if (nextFailedAttempts >= 3) {
         setTimeout(() => window.location.reload(), 1500);
       }
@@ -164,10 +186,20 @@ export default function SuperAdminLoginPage() {
           <IdleTimeoutNotice />
         </Suspense>
 
+        {/* Shown only after the server emails a one-time magic login link
+            (owner-verified-IP leniency, 5 failed attempts exceeded) —
+            takes priority over the normal error banner below. */}
+        {magicLinkSent && (
+          <p role="status" className="loginMagicLinkNotice">
+            Too many attempts. We've emailed a one-time sign-in link to the registered owner
+            address — check your inbox. The link expires in 10 minutes.
+          </p>
+        )}
+
         {/* Whole-form auth error — wrong credentials, not a super admin,
             or a network failure. Field-level Zod errors render separately
             below each input. */}
-        {authError && (
+        {!magicLinkSent && authError && (
           <p role="alert" className="loginAuthError">
             {authError}
           </p>

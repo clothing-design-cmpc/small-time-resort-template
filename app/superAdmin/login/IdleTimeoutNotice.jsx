@@ -19,6 +19,9 @@
  *      re-check found the session already gone (cookie expired, cleared
  *      by SessionCloseGuard's tab-close beacon, or an idle timeout that
  *      already fired in another tab)
+ *    - ?reason=magic-link-invalid — app/api/auth/magic-login/route.js,
+ *      after a one-time owner-verified-IP sign-in link was already used,
+ *      expired (10 minutes), or was simply invalid
  * 2. This component reads that query param and renders the matching notice
  * 3. Any other/missing reason value renders nothing
  */
@@ -29,6 +32,8 @@ import { useSearchParams } from "next/navigation";
 const REASON_MESSAGES = {
   "idle-timeout": "Your session expired due to inactivity. Please log in again.",
   "session-expired": "Your session has expired. Please log in again.",
+  "magic-link-invalid":
+    "That sign-in link has expired or was already used. Please sign in with your password, or wait for a new link after 5 failed attempts.",
 };
 
 export default function IdleTimeoutNotice() {

@@ -197,3 +197,79 @@ export async function sendVaultUrlRotationEmail(newVaultRecoveryUrl) {
       `Keep this email private — do not forward or share it outside the resort owner.`,
   });
 }
+/**
+ * sendOwnerMagicLoginEmail
+ * Sent only when a login attempt from SystemSettings.ownerVerifiedIp
+ * exceeds its 5-attempt limit (services/rateLimit.js, Gatekeeper 1's
+ * owner-IP leniency). The link itself is single-use and expires in
+ * ~10 minutes (services/magicLogin.js) — this is a passwordless
+ * recovery via a verified secondary channel (the owner's own inbox),
+ * never a bypass of password verification. Best-effort — never throws.
+ *
+ * @param {object} input
+ * @param {string} input.magicLoginUrl - absolute URL, single use
+ */
+export async function sendOwnerMagicLoginEmail({ magicLoginUrl }) {
+  const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
+  if (!vaultOwnerEmail) {
+    console.error("[emailAlert] VAULT_OWNER_EMAIL is not set — skipping magic-login email.");
+    return false;
+  }
+
+  return sendGeneralEmail({
+    toEmail: vaultOwnerEmail,
+    subject: "One-time sign-in link — too many login attempts",
+    eyebrow: "SUPER-ADMIN SIGN-IN HELP",
+    heading: "5 failed attempts from your verified device",
+    intro:
+      "We've paused further password attempts from your known IP address for safety. " +
+      "Use the one-time link below to sign in without re-entering your password.",
+    highlightLine1: `SIGN-IN LINK: ${magicLoginUrl}`,
+    highlightLine2: "This link expires in 10 minutes and can only be used once.",
+    bodyMessage:
+      "If you did not attempt to sign in, someone else may know part of your password — " +
+      "change it as soon as you're back in the dashboard.\n\n" +
+      "Keep this email private — do not forward or share it outside the resort owner.",
+  });
+}
+
+/**
+ * sendOwnerIpUpdatedEmail
+ * Sent every time SystemSettings.ownerVerifiedIp is auto-updated —
+ * i.e. after ANY successful super-admin login from an IP different
+ * from the one currently on file (see app/api/auth/login/route.js).
+ * This is the only safety net against a stolen-but-correct password
+ * silently claiming the trusted-IP leniency for itself. Best-effort —
+ * never throws, and never blocks the login response either way.
+ *
+ * @param {object} input
+ * @param {string} input.newIp - the IP that just became the trusted one
+ */
+export async function sendOwnerIpUpdatedEmail({ newIp }) {
+  const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
+  if (!vaultOwnerEmail) {
+    console.error("[emailAlert] VAULT_OWNER_EMAIL is not set — skipping IP-update email.");
+    return false;
+  }
+
+  const updatedAtReadable =
+    new Date().toLocaleString("en-US", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "Asia/Manila",
+    }) + " PHT";
+
+  return sendGeneralEmail({
+    toEmail: vaultOwnerEmail,
+    subject: "Your verified sign-in IP was updated",
+    eyebrow: "VERIFIED IP UPDATED",
+    heading: "New trusted IP recorded after a successful login",
+    intro: `A super-admin login succeeded from a new IP address at ${updatedAtReadable}.`,
+    highlightLine1: `NEW VERIFIED IP: ${newIp}`,
+    highlightLine2: "This IP now gets extra login attempts and faster recovery.",
+    bodyMessage:
+      "This is expected if you changed routers, switched ISPs, or are signing in from a new " +
+      "location. If this wasn't you, someone has your correct password — change it immediately " +
+      "from the dashboard's Account Security settings.",
+  });
+}

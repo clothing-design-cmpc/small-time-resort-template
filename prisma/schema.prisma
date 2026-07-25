@@ -336,6 +336,28 @@ model BreachEvent {
 }
 
 // ============================================================
+// MODEL: MagicLoginToken  (owner-IP recovery — see services/magicLogin.js)
+// ============================================================
+// One-time, short-lived login token issued only when a login attempt
+// from SystemSettings.ownerVerifiedIp exceeds its 5-attempt limit
+// (services/rateLimit.js). Never issued for any other IP — a non-owner
+// IP that exceeds its 3-attempt limit gets the normal Gatekeeper 1
+// breach response instead, not a token. tokenHash stores a SHA-256
+// hash of the raw token (mailed to VAULT_OWNER_EMAIL) — the raw value
+// itself is never persisted anywhere, same reasoning as a password hash.
+model MagicLoginToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  adminId   String    @map("admin_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("magic_login_tokens")
+}
+
+// ============================================================
 // MODEL: BackupLog  (Database Backup history — see scripts/runBackup.js)
 // ============================================================
 // One row per backup run, written by the standalone backup script
@@ -692,6 +714,22 @@ model SystemSettings {
   postWipeLockdown   Boolean   @default(false) @map("post_wipe_lockdown")
   postWipeLockdownAt DateTime? @map("post_wipe_lockdown_at")
   breachActiveEventId String? @map("breach_active_event_id") @db.Uuid
+
+  // --- Owner Verified IP (GK1 leniency + GK3 exemption) ---
+  // Auto-updated (never set manually) the instant any super-admin login
+  // succeeds with the correct password — see app/api/auth/login/route.js.
+  // Two effects, both read at the top of that same route:
+  //   1. Gatekeeper 1 (brute force): a login attempt from this IP gets
+  //      5 attempts instead of 3, and a one-time magic-login-link email
+  //      instead of a full breach response once exceeded.
+  //   2. Gatekeeper 3 (anomalous login): a NEW-DEVICE trip (different
+  //      browser/OS, same account) from this IP skips only the
+  //      IP-block step — the site-wide lockdown, backup, alert, and
+  //      passphrase rotation still all happen regardless. An
+  //      IMPOSSIBLE-TRAVEL trip is NEVER exempted here, no matter what
+  //      IP it came from — see services/breachResponse.js.
+  ownerVerifiedIp          String?   @map("owner_verified_ip")
+  ownerVerifiedIpUpdatedAt DateTime? @map("owner_verified_ip_updated_at")
 
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")

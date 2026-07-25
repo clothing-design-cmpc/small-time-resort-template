@@ -20,6 +20,20 @@
  * 5. On success, an HttpOnly/Secure/SameSite=strict "session" cookie is
  *    set containing the user id + role so proxy.js (edge runtime,
  *    no DB access) can authorize requests without a network call
+ *
+ * OWNER VERIFIED IP (SystemSettings.ownerVerifiedIp) — added on top of
+ * the flow above, see GK3-OWNER-IP-DESIGN.txt for the full reasoning:
+ * - A login attempt from this IP gets 5 attempts instead of 3 before
+ *   Gatekeeper 1 fires, and a one-time magic-login-link email instead
+ *   of a full breach response once that's exceeded (services/magicLogin.js).
+ * - The trusted IP auto-updates itself after any CLEAN (non-anomalous)
+ *   successful login from a different IP — never after an anomalous one,
+ *   so a stolen-but-correct password can never claim the leniency for
+ *   itself. Every auto-update fires an alert email as a safety net.
+ * - A Gatekeeper 3 trip only ever skips its IP-block step (never the
+ *   lockdown/backup/rotation) when the anomaly was a NEW DEVICE from
+ *   this exact IP — an IMPOSSIBLE TRAVEL trip is never exempted here,
+ *   regardless of IP.
  */
 export const dynamic = "force-dynamic";
 
@@ -32,6 +46,8 @@ import { checkRateLimit } from "@/services/rateLimit";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { isIpBlocked } from "@/services/ipBlock";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
+import { issueMagicLoginToken } from "@/services/magicLogin";
+import { sendOwnerMagicLoginEmail, sendOwnerIpUpdatedEmail } from "@/services/emailAlert";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -47,9 +63,12 @@ const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // require HTTPS once actually deployed to production.
 const isProduction = process.env.NODE_ENV === "production";
 
-// Rule 32.1 priority-endpoint limit: 3 attempts per IP every 15 minutes —
-// this is the single most important brute-force guard on the whole app.
-const LOGIN_ATTEMPT_MAX = 3;
+// Rule 32.1 priority-endpoint default: 3 attempts per IP every 15
+// minutes for any IP that isn't the verified owner IP. The owner IP
+// itself gets OWNER_LOGIN_ATTEMPT_MAX instead — see the isRequestFromOwnerIp
+// branch below.
+const DEFAULT_LOGIN_ATTEMPT_MAX = 3;
+const OWNER_LOGIN_ATTEMPT_MAX = 5;
 const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request) {
@@ -66,14 +85,73 @@ export async function POST(request) {
     );
   }
 
-  const { allowed } = await checkRateLimit(`login:${ip}`, LOGIN_ATTEMPT_MAX, LOGIN_ATTEMPT_WINDOW_MS);
+  // Load the currently-trusted owner IP once, up front — used both for
+  // the rate-limit tier below and for the Gatekeeper 3 exemption check
+  // further down. Captured BEFORE anything in this request could change
+  // it, so a successful login later in this same request can't make
+  // isRequestFromOwnerIp trivially true for itself.
+  let systemSettings = null;
+  try {
+    systemSettings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } });
+  } catch (error) {
+    console.error("[api/auth/login] Failed to load SystemSettings:", error.message);
+  }
+  const storedOwnerIp = systemSettings?.ownerVerifiedIp ?? null;
+  const isRequestFromOwnerIp = ip !== "unknown" && storedOwnerIp !== null && ip === storedOwnerIp;
+  const loginAttemptMax = isRequestFromOwnerIp ? OWNER_LOGIN_ATTEMPT_MAX : DEFAULT_LOGIN_ATTEMPT_MAX;
+
+  const { allowed } = await checkRateLimit(`login:${ip}`, loginAttemptMax, LOGIN_ATTEMPT_WINDOW_MS);
   if (!allowed) {
     await logSecurityEvent({
       eventType: "rate_limit_hit",
       actor: null,
       request,
-      details: `Exceeded ${LOGIN_ATTEMPT_MAX} login attempts within 15 minutes.`,
+      details: `Exceeded ${loginAttemptMax} login attempts within 15 minutes.`,
     });
+
+    // OWNER-IP LENIENCY: instead of the full Gatekeeper 1 breach response
+    // (which would block the owner's own IP), offer a one-time magic
+    // login link emailed to the registered owner address. Still requires
+    // the account to exist and be marked isOwner — if that lookup ever
+    // comes back empty, fall through to the normal GK1 response below
+    // rather than silently doing nothing.
+    if (isRequestFromOwnerIp) {
+      let ownerAdmin = null;
+      try {
+        ownerAdmin = await prisma.adminProfile.findFirst({ where: { isOwner: true } });
+      } catch (error) {
+        console.error("[api/auth/login] Failed to look up owner admin profile:", error.message);
+      }
+
+      if (ownerAdmin) {
+        try {
+          const rawToken = await issueMagicLoginToken(ownerAdmin.id);
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+          const magicLoginUrl = `${siteUrl}/api/auth/magic-login?token=${rawToken}`;
+
+          await sendOwnerMagicLoginEmail({ magicLoginUrl });
+
+          await logSecurityEvent({
+            eventType: "owner_magic_login_sent",
+            actor: ownerAdmin.fullName,
+            request,
+            details: `Sent a one-time sign-in link after ${loginAttemptMax} failed attempts from the verified owner IP.`,
+          });
+        } catch (error) {
+          console.error("[api/auth/login] Failed to issue/send magic login link:", error.message);
+        }
+
+        return NextResponse.json(
+          {
+            success: false,
+            data: { magicLinkSent: true },
+            message:
+              "Too many attempts. We've emailed a one-time sign-in link to the registered owner address — check your inbox.",
+          },
+          { status: 429 }
+        );
+      }
+    }
 
     // GATEKEEPER 1 TRIPPED — brute force on the login endpoint. Fire the
     // full breach response (block IP, lock down the site, trigger an
@@ -83,7 +161,7 @@ export async function POST(request) {
       await triggerGatekeeperBreach({
         gatekeeper: 1,
         ipAddress: ip,
-        details: `Exceeded ${LOGIN_ATTEMPT_MAX} login attempts within 15 minutes.`,
+        details: `Exceeded ${loginAttemptMax} login attempts within 15 minutes.`,
       }).catch((error) => console.error("[login] Gatekeeper 1 breach response failed:", error.message));
     }
 
@@ -235,18 +313,60 @@ export async function POST(request) {
     details: `${adminProfile.fullName} signed in.`,
   });
 
-  // GATEKEEPER 3 TRIPPED — a genuinely valid super-admin login, but the
-  // built-in anomaly detector (services/securityLog.js) flagged it as
-  // impossible travel or a brand-new device. This is the most serious
-  // of the three signals: it means someone already has the correct
-  // password. Fire the full breach response even though the password
-  // was correct — a compromised credential is exactly what this gate exists for.
+  // Distinguish WHICH anomaly sub-type fired, if any — new-device and
+  // impossible-travel get different treatment below (GK3-OWNER-IP-DESIGN.txt
+  // Section 5). isAnomalous can be true for either or both; impossible
+  // travel always wins when both are present.
+  const isImpossibleTravel = Boolean(securityLogRow?.anomalyReason?.startsWith("Impossible travel"));
+  const isNewDeviceOnly = Boolean(securityLogRow?.isNewDevice) && !isImpossibleTravel;
+
   if (securityLogRow?.isAnomalous && ip !== "unknown") {
+    // GATEKEEPER 3 TRIPPED — a genuinely valid super-admin login, but the
+    // built-in anomaly detector (services/securityLog.js) flagged it as
+    // impossible travel or a brand-new device. This is the most serious
+    // of the three signals: it means someone already has the correct
+    // password. Fire the full breach response even though the password
+    // was correct — a compromised credential is exactly what this gate
+    // exists for.
+    //
+    // skipIpBlock is ONLY set when this was a new-device-only anomaly
+    // AND the request came from the currently-trusted owner IP — every
+    // other response step (lockdown, backup, alert, rotation) still runs
+    // in full either way. Impossible travel never sets this, regardless
+    // of IP — see services/breachResponse.js's own comments.
+    const skipIpBlock = isRequestFromOwnerIp && isNewDeviceOnly;
+
     await triggerGatekeeperBreach({
       gatekeeper: 3,
       ipAddress: ip,
       details: securityLogRow.anomalyReason || `Anomalous login detected for ${email}.`,
+      skipIpBlock,
     }).catch((error) => console.error("[login] Gatekeeper 3 breach response failed:", error.message));
+  } else if (ip !== "unknown" && ip !== storedOwnerIp) {
+    // AUTO-UPDATE the trusted owner IP — only on a CLEAN (non-anomalous)
+    // successful login. Never on an anomalous one, even though the
+    // password was correct — a stolen-but-correct password must never be
+    // able to claim the owner-IP leniency for its own IP going forward.
+    try {
+      await prisma.systemSettings.upsert({
+        where: { id: "singleton" },
+        update: { ownerVerifiedIp: ip, ownerVerifiedIpUpdatedAt: new Date() },
+        create: { id: "singleton", ownerVerifiedIp: ip, ownerVerifiedIpUpdatedAt: new Date() },
+      });
+
+      await logSecurityEvent({
+        eventType: "owner_ip_auto_updated",
+        actor: email,
+        request,
+        details: `Verified IP updated to ${ip} after a clean successful login.`,
+      });
+
+      sendOwnerIpUpdatedEmail({ newIp: ip }).catch((error) =>
+        console.error("[login] Failed to send owner-IP-updated alert email:", error.message)
+      );
+    } catch (error) {
+      console.error("[api/auth/login] Failed to auto-update SystemSettings.ownerVerifiedIp:", error.message);
+    }
   }
 
   const response = NextResponse.json({

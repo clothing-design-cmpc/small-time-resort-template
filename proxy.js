@@ -150,6 +150,14 @@ const VAULT_STANDALONE_API_PATHS = [
   // (app/gatekeeper-vault/[gatekeeperSlug]); moved in here so there's
   // only one hidden URL and one passphrase to manage.
   "/api/admin/gatekeeper-tester",
+  // Gatekeeper 3 Tester (VaultGatekeeper3TesterSection.jsx): live-tests
+  // GK3 (anomalous admin login) using real QA admin credentials from
+  // .env.local, authenticated via vaultSession only — same reasoning
+  // as gatekeeper-tester above. Unlike GK1/GK2's dry run, this one
+  // actually flips site-wide lockdown and rotates the real vault
+  // passphrase — see services/gatekeeper3Tester.js for the full
+  // warning.
+  "/api/admin/gatekeeper3-tester",
 ];
 
 function isVaultStandaloneApiPath(pathname) {

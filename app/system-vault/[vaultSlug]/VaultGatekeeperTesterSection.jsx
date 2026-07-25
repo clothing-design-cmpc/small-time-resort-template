@@ -83,8 +83,8 @@ export default function VaultGatekeeperTesterSection({ showToast }) {
       <h2>Gatekeeper Tester</h2>
       <p>
         Dry-runs Gatekeeper 1 (login brute force) and Gatekeeper 2 (booking SQL injection) against this
-        deployment, right from the browser. Every test row is cleaned up automatically afterward — see{" "}
-        <code>services/gatekeeperTester.js</code> for exactly what runs.
+        deployment, right from the browser. Test rows are <strong>not</strong> cleaned up automatically — see{" "}
+        <code>services/gatekeeperTester.js</code> for exactly what runs and why they're left in place.
       </p>
 
       <p className="vaultGatekeeperTesterWarningBanner">
@@ -97,8 +97,8 @@ export default function VaultGatekeeperTesterSection({ showToast }) {
         <li>Leave Test IP 1 and Test IP 2 as the reserved defaults below, unless you specifically need to rehearse the response for a real IP.</li>
         <li>Click &quot;Run Dry Run&quot; and confirm the warning modal — this is your last chance to back out before it trips the site&apos;s real breach detectors.</li>
         <li>Wait for the checklist to finish. Every check should show <span className="vaultGatekeeperTesterPillPass">Pass</span> — a <span className="vaultGatekeeperTesterPillFail">Fail</span> means that part of the breach response isn&apos;t working and needs to be fixed before relying on it.</li>
-        <li>Cleanup runs automatically — the test IPs, breach events, and lockdown flag are all reverted when the run finishes, even if a check fails.</li>
-        <li>This dry run does not cover Gatekeeper 3 (anomalous admin login) — see the note and <code>docs/gatekeeper-testing.md</code> below for how to test that one manually.</li>
+        <li>Test rows are <strong>not</strong> cleaned up automatically — the test IPs stay blocked (visible on the Unban IP list above) until you manually unban them.</li>
+        <li>This dry run does not cover Gatekeeper 3 (anomalous admin login) — see the &quot;Gatekeeper 3 Live Test&quot; section below, which needs a real QA admin login instead of a fake one.</li>
       </ol>
 
       <div className="vaultGatekeeperTesterFieldRow">
@@ -165,15 +165,15 @@ export default function VaultGatekeeperTesterSection({ showToast }) {
       )}
 
       <p className="recoveryMutedText">
-        Gatekeeper 3 (anomalous admin login) isn&apos;t covered by this dry run — it needs a real prior
-        login history and a genuinely different device/location to trigger honestly. See{" "}
-        <code>docs/gatekeeper-testing.md</code> for the manual walkthrough.
+        Gatekeeper 3 (anomalous admin login) isn&apos;t covered by this dry run — see the &quot;Gatekeeper 3
+        Live Test&quot; section below. It needs a real QA admin login (not a fake one) and is not a harmless
+        dry run — read that section&apos;s warning before running it.
       </p>
 
       <ConfirmationModal
         isOpen={isModalOpen}
         title="Run Gatekeeper Dry Run?"
-        description={`This will send real login brute-force and SQL injection attempts to this deployment using ${testIp1} and ${testIp2}. The site will briefly enter breach lockdown as a result — everything is cleaned up automatically when the run finishes.`}
+        description={`This will send real login brute-force and SQL injection attempts to this deployment using ${testIp1} and ${testIp2}. Both IPs will actually get blocked — the site itself stays up for everyone else. Test rows are not cleaned up automatically; they'll stay visible on the Unban IP list until you remove them yourself.`}
         confirmLabel="Run Dry Run"
         onConfirm={handleRunDryRun}
         onCancel={() => setIsModalOpen(false)}

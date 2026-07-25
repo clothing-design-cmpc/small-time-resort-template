@@ -1,0 +1,37 @@
+/*
+ * FILE: app/system-vault/[vaultSlug]/VaultGatekeeper3TesterSection.css
+ * The card wrapper (.recoveryStepCard) comes from Recovery.css. This
+ * file reuses VaultGatekeeperTesterSection.css's field/pill/button
+ * classes 1:1 (imported alongside it, see the .jsx file) and adds only
+ * the danger banner below — styled in --color-error (red), not
+ * --color-warning (amber), since this test has real, lasting
+ * consequences unlike the GK1/GK2 dry run.
+ */
+
+.vaultGatekeeper3TesterDangerBanner {
+  padding: var(--space-md);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.vaultGatekeeper3TesterDangerBanner strong {
+  display: block;
+  margin-bottom: var(--space-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+}
+
+.vaultGatekeeper3TesterConfigWarning {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  color: var(--color-warning);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}

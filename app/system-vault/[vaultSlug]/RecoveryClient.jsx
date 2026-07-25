@@ -82,6 +82,7 @@ import ApiSetupGuideSection from "./ApiSetupGuideSection";
 import EnvCheckerSection from "./EnvCheckerSection";
 import RecoveryCardSection from "./RecoveryCardSection";
 import VaultGatekeeperTesterSection from "./VaultGatekeeperTesterSection";
+import VaultGatekeeper3TesterSection from "./VaultGatekeeper3TesterSection";
 import SystemHealthCheckSection from "./SystemHealthCheckSection";
 import ScriptsReferenceSection from "./ScriptsReferenceSection";
 
@@ -795,6 +796,13 @@ export default function RecoveryClient() {
           Recovery Channels sections above: one vault, one passphrase,
           not a second separate secret to manage. --- */}
       <VaultGatekeeperTesterSection showToast={showToast} />
+
+      {/* --- Gatekeeper 3 Live Test — separate from the GK1/GK2 dry run
+          above because it's not a dry run at all: it needs a real QA
+          admin login and, on success, actually locks the site down and
+          rotates the real vault passphrase. See that section's own
+          header comment for the full list of real side effects. --- */}
+      <VaultGatekeeper3TesterSection showToast={showToast} />
 
       {/* --- Danger Zone: schedule/cancel/truncate-now a database wipe --- */}
       <VaultDangerZoneSection showToast={showToast} />

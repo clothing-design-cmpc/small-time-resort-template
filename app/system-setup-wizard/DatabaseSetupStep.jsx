@@ -22,15 +22,16 @@
  * 3. 3b's manual confirmation persists in sessionStorage so a refresh
  *    mid-session doesn't lose it (this session already has a 30-minute
  *    cookie lifetime — sessionStorage matches that scope)
- * 4. Once exclusionConstraint is true, the whole step renders as
- *    complete (Step 4 — Create Super-Admin — is built incrementally,
- *    same placeholder pattern as SetupKeyForm.jsx uses today)
+ * 4. Once exclusionConstraint is true, this step hands off to
+ *    <AdminSetupStep /> (Step 4 — Create Super-Admin), same
+ *    hand-off pattern SetupKeyForm.jsx uses to reach this file
  */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
+import AdminSetupStep from "./AdminSetupStep";
 
 const GENERATE_CONFIRMED_STORAGE_KEY = "wizardStep3bGenerateConfirmed";
 
@@ -202,19 +203,7 @@ export default function DatabaseSetupStep() {
   };
 
   if (exclusionDone) {
-    return (
-      <div className="setupWizardCard" role="status">
-        <ToastStack toasts={toasts} onDismiss={dismissToast} />
-        <span className="setupWizardEyebrow">Steps 2–3 of 10 — complete</span>
-        <h1 className="setupWizardTitle">Database is set up</h1>
-        <p className="setupWizardBody">
-          Connection env vars are set, the schema is pushed, Row Level
-          Security is on, and the double-booking constraint is in place.
-          The next step (creating your super-admin account) is being
-          built incrementally — this session stays active for 30 minutes.
-        </p>
-      </div>
-    );
+    return <AdminSetupStep />;
   }
 
   return (

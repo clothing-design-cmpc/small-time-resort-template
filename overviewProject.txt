@@ -843,7 +843,7 @@ DEBUG POINTS:
   — both of those still work fine with CRON_SECRET unset; only the
   calendar-driven 30-day path depends on it.)
 
-=== PROCESS: First-Run Setup Wizard — Steps 1-3 (Database Setup) ===
+=== PROCESS: First-Run Setup Wizard — Steps 1-4 (Database Setup + Create Super-Admin) ===
 Step 1 : Owner visits /system-setup-wizard, enters WIZARD_SETUP_KEY into
          SetupKeyForm.jsx -> POST /api/system-setup-wizard/verify-key ->
          isValidWizardSetupKey() constant-time compare -> sets HttpOnly
@@ -867,9 +867,28 @@ Step 6 : 3a/3c/3d completion comes from the real DB query above (a
          "Check again" button re-fetches). 3b (`prisma generate`) has no
          DB-visible effect, so it's a manual checkbox persisted to
          sessionStorage under "wizardStep3bGenerateConfirmed"
-Step 7 : Once the exclusion constraint is detected, the whole step
-         renders a completion card; Step 4 (Create Super-Admin) is not
-         yet built
+Step 7 : Once the exclusion constraint is detected, DatabaseSetupStep.jsx
+         hands off to AdminSetupStep.jsx (Step 4 — Create Super-Admin)
+Step 8 : AdminSetupStep.jsx GETs /api/system-setup-wizard/admin-status
+         on mount -> admin-status/route.js checks isSetupWizardLocked(),
+         hasWizardSession(), then presence-only on SEED_ADMIN_EMAIL /
+         SEED_ADMIN_PASSWORD (direct process.env checks, NOT part of
+         envGroups.mjs — these are one-time bootstrap credentials, not
+         a standing service integration) and
+         AdminProfile.count({ isOwner: true }) -> ownerExists
+Step 9 : No custom "create admin" form — the page shows the two env
+         keys' presence and the `npx prisma db seed` command (copy
+         button) only; prisma/seed.js does the actual create/upsert,
+         reading SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD and setting
+         isOwner: true on the admin_profiles row
+Step 10: The moment ownerExists first reads true, AdminSetupStep.jsx
+         auto-fires POST /api/system-setup-wizard/confirm-admin exactly
+         once (guarded by sessionStorage "wizardStep4AdminConfirmed",
+         same pattern as 3b's checkbox) -> confirm-admin/route.js
+         re-verifies ownerExists server-side (never trusts the client),
+         then logs eventType: "setup_admin_created" via
+         logSecurityEvent() -> step renders as complete; Step 5
+         (remaining env var checklist) is not yet built
 
 DEBUG POINTS:
 - Database Setup step never unlocks 3a even with correct env vars ->
@@ -890,6 +909,18 @@ DEBUG POINTS:
   checkEnvironment() (only checkEnvGroupsPresence()) — the former's
   EmailJS live check sends a real test email as a side effect, which
   must never fire this early in setup
+- confirm-admin never fires / setup_admin_created never logged ->
+  AdminSetupStep.jsx only calls POST /confirm-admin from a useEffect
+  gated on status.ownerExists; if admin-status's GET response is
+  stuck on ownerExists: false despite `npx prisma db seed` having run,
+  the seed script likely failed silently (check its own console output
+  for "Skipped super-admin seed" — means SEED_ADMIN_EMAIL/PASSWORD
+  were still unset when it ran)
+- Step 4 confirmation re-fires on every browser tab -> expected;
+  wizardStep4AdminConfirmed is sessionStorage (tab-scoped), same
+  intentional scope as 3b's checkbox — confirm-admin/route.js itself
+  is idempotent (it only logs, never mutates AdminProfile), so a
+  duplicate call from a second tab is harmless, just an extra log row
 
 === PROCESS: Vault Setup Page Access (survives a full DB wipe) ===
 Step 1 : Owner visits /system-vault-setup, optionally with a "?key=" query string

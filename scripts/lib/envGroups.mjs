@@ -50,16 +50,6 @@ export const ENV_GROUPS = [
     ],
   },
   {
-    id: "googleDrive",
-    label: "Google Drive (document backups + restore)",
-    keys: [
-      { key: "GOOGLE_OAUTH_CLIENT_ID", required: true },
-      { key: "GOOGLE_OAUTH_CLIENT_SECRET", required: true },
-      { key: "GOOGLE_OAUTH_REFRESH_TOKEN", required: true },
-      { key: "GOOGLE_DRIVE_FOLDER_ID", required: true },
-    ],
-  },
-  {
     id: "emailjs",
     label: "EmailJS (OTP + alert emails)",
     keys: [
@@ -97,7 +87,6 @@ export const ENV_GROUPS = [
     label: "Vault & Gatekeeper security",
     keys: [
       { key: "VAULT_SETUP_KEY", required: true },
-      { key: "WIZARD_SETUP_KEY", required: true },
       { key: "VAULT_OWNER_EMAIL", required: true },
       { key: "VAULT_ALERT_WEBHOOK_URL", required: false },
       { key: "GATEKEEPER_VAULT_PASSPHRASE_HASH", required: false },
@@ -139,8 +128,6 @@ export const ENV_FIX_INSTRUCTIONS = {
   supabase:
     "Supabase Dashboard → Settings → API. Copy the Project URL, anon public key, and service_role key into NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.",
   r2: "Cloudflare Dashboard → R2 → Manage API Tokens. Regenerate/copy the Account ID, Access Key ID, Secret Access Key, and bucket name into the matching CLOUDFLARE_R2_* variables.",
-  googleDrive:
-    "Refresh token likely expired or was revoked. Run: node scripts/getGoogleDriveRefreshToken.mjs — then update GOOGLE_OAUTH_REFRESH_TOKEN in .env.local and GitHub repo secrets.",
   emailjs:
     "EmailJS Dashboard → Account → API Keys. Confirm EMAILJS_SERVICE_ID, EMAILJS_GENERAL_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, and EMAILJS_PRIVATE_KEY (Strict Mode) match the dashboard.",
   githubActions:
@@ -150,7 +137,7 @@ export const ENV_FIX_INSTRUCTIONS = {
   geoip:
     "Download GeoLite2-City.mmdb from maxmind.com (free account) and place it at the path set in MAXMIND_DB_PATH (default: services/geoip/GeoLite2-City.mmdb).",
   vaultSecurity:
-    "Check VAULT_SETUP_KEY, WIZARD_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY (or CRON_SECRET / WIZARD_SETUP_KEY)",
+    "Check VAULT_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs",
   aiInsightAndDirections:
     "Gemini: aistudio.google.com → Get API key → Create API key, into GEMINI_API_KEY. Google Maps/Weather: console.cloud.google.com → APIs & Services → Library, enable Geocoding API + Routes API + Weather API on one project, then Credentials → Create API Key (restrict it to those three APIs) — same key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY.",
   siteConfig:

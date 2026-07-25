@@ -2,9 +2,17 @@
  * FILE: scripts/runBackup.js
  * PURPOSE:
  * Nightly database backup — dumps the entire Postgres database with
- * `pg_dump`, uploads the compressed dump to BOTH Cloudflare R2 and
- * Google Drive independently, and records the result in the BackupLog
- * table so the super-admin Backups page has history.
+ * `pg_dump`, uploads the compressed dump to Cloudflare R2, and records
+ * the result in the BackupLog table so the super-admin Backups page
+ * has history.
+ *
+ * GOOGLE DRIVE DROPPED (July 2026) — Drive was previously a second,
+ * redundant upload destination alongside R2. It was retired for
+ * reliability reasons (see services/googleDrive.js's own header for
+ * the full reasoning, and services/vaultPassphraseBackup.js, which
+ * made the same switch earlier for the vault passphrase backup). R2
+ * is now the single backup destination — PITR (Rule 40.1) remains the
+ * primary recovery mechanism regardless.
  *
  * *** THIS SCRIPT IS DELIBERATELY NOT PART OF THE LIVE APP. ***
  * It never runs inside a Next.js API route or during a guest's request.
@@ -17,19 +25,18 @@
  * 1. Runs `pg_dump` against DIRECT_URL (session pooler — pg_dump needs
  *    prepared-statement support the transaction pooler doesn't give)
  * 2. Gzips the dump in memory, then computes its SHA-256 checksum
- *    (Task 6 — backup integrity check) — BEFORE either upload, so the
+ *    (Task 6 — backup integrity check) — BEFORE upload, so the
  *    stored checksum always reflects the actual uploaded bytes
- * 3. Uploads to R2 (services/r2.js) and Google Drive (services/googleDrive.js)
- *    — independently; one destination failing does not stop the other
- * 4. Writes one BackupLog row summarizing both results (plus the
+ * 3. Uploads to R2 (services/r2.js)
+ * 4. Writes one BackupLog row summarizing the result (plus the
  *    checksum) — reusing the row the trigger route already created
  *    (via BACKUP_LOG_ID) when dispatched from the Backups page, or
  *    creating a fresh one otherwise (nightly cron / manual "Run
  *    workflow" click)
  *
- * USAGE: npm run backup   (reads DIRECT_URL, R2, and Google Drive env
- * vars from the environment — GitHub Actions injects these from repo
- * secrets; locally, `.env.local` covers it if you want to test manually)
+ * USAGE: npm run backup   (reads DIRECT_URL and R2 env vars from the
+ * environment — GitHub Actions injects these from repo secrets;
+ * locally, `.env.local` covers it if you want to test manually)
  */
 import "./loadEnv.mjs";
 import { execFile } from "node:child_process";
@@ -46,7 +53,6 @@ import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { uploadToR2 } from "../services/r2.js";
-import { uploadToDrive } from "../services/googleDrive.js";
 import { withRetry } from "./lib/withRetry.js";
 import { logDbHost } from "./lib/logDbHost.js";
 
@@ -170,14 +176,12 @@ async function main() {
   const r2Key = `backups/${fileName}`;
 
   // Task 6 — Backup integrity check. Computed on the exact bytes that
-  // go to BOTH destinations below, BEFORE either upload — so it always
-  // reflects the actual file content, never something derived from a
-  // (possibly already-corrupted) copy at the destination.
+  // go to R2, BEFORE upload — so it always reflects the actual file
+  // content, never something derived from a (possibly already-
+  // corrupted) copy at the destination.
   const checksumSha256 = createHash("sha256").update(compressed).digest("hex");
   console.log(`[backup] SHA-256: ${checksumSha256}`);
 
-  // Upload to both destinations independently — one failing must not
-  // silently hide the other's result, so each is caught on its own.
   let r2Result = null;
   let r2Error = null;
   try {
@@ -189,33 +193,11 @@ async function main() {
     console.error("[backup] R2 upload failed:", error.message);
   }
 
-  let driveResult = null;
-  let driveError = null;
-  try {
-    driveResult = await uploadToDrive(fileName, compressed, "application/gzip");
-    console.log("[backup] Uploaded to Google Drive:", driveResult.viewLink);
-  } catch (error) {
-    driveError = error.message;
-    console.error("[backup] Google Drive upload failed:", error.message);
-  }
-
-  // A backup only counts as fully successful if BOTH destinations
-  // received it. One destination failing still means one of the two
-  // redundant copies doesn't exist — that must never show as a green
-  // "success" run in GitHub Actions or a green badge on the Backups
-  // page, or a real (if partial) failure goes unnoticed until the day
-  // someone actually needs the missing copy.
-  const bothFailed = !r2Result && !driveResult;
-  const bothSucceeded = Boolean(r2Result) && Boolean(driveResult);
-  const combinedError = [r2Error && `R2: ${r2Error}`, driveError && `Drive: ${driveError}`]
-    .filter(Boolean)
-    .join(" | ");
-
-  // "failed"  — neither destination got the backup (worst case)
-  // "partial" — only one of the two destinations got it (still a
-  //             problem — the redundancy this rule exists for is gone)
-  // "success" — both destinations got it
-  const finalStatus = bothFailed ? "failed" : bothSucceeded ? "success" : "partial";
+  // R2 is the only destination now (Google Drive dropped — see file
+  // header). A failed upload here means there is no offsite copy at
+  // all for this run, so it must never show as a green "success" in
+  // GitHub Actions or on the Backups page.
+  const finalStatus = r2Result ? "success" : "failed";
 
   await withRetry(
     () =>
@@ -227,9 +209,7 @@ async function main() {
           checksumSha256,
           r2Key: r2Result?.key ?? null,
           r2Url: r2Result?.url ?? null,
-          driveFileId: driveResult?.fileId ?? null,
-          driveViewLink: driveResult?.viewLink ?? null,
-          errorMessage: combinedError || null,
+          errorMessage: r2Error ? `R2: ${r2Error}` : null,
           completedAt: new Date(),
         },
       }),
@@ -238,14 +218,10 @@ async function main() {
 
   if (finalStatus === "success") {
     console.log("[backup] Done.");
-  } else if (finalStatus === "partial") {
-    console.error(`[backup] PARTIAL — only one destination succeeded. ${combinedError}`);
   } else {
-    console.error("[backup] FAILED — both destinations errored.");
+    console.error(`[backup] FAILED — R2 upload errored. ${r2Error}`);
   }
 
-  // Any outcome other than both destinations succeeding must fail the
-  // GitHub Actions run (red X) — not just the worst case.
   if (finalStatus !== "success") process.exitCode = 1;
 }
 

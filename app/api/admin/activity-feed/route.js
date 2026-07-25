@@ -123,7 +123,7 @@ export async function GET(request) {
         archiveNotice: archiveNotice
           ? {
               fileName: archiveNotice.fileName,
-              driveViewLink: archiveNotice.driveViewLink,
+              r2SignedUrl: archiveNotice.r2SignedUrl,
               recordCount: archiveNotice.recordCount,
             }
           : null,

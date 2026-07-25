@@ -54,8 +54,8 @@
  * 6. GATEKEEPER 3 ONLY — auto-rotate the vault passphrase
  *    (services/vaultAuth.js's rotateVaultPassphrase()), email the new
  *    plaintext passphrase to VAULT_OWNER_EMAIL, AND save a second
- *    plaintext copy as a .txt file to Google Drive (services/
- *    googleDrive.js) as a durable backup of that same email.
+ *    plaintext copy to Cloudflare R2 (services/vaultPassphraseBackup.js)
+ *    as a durable backup of that same email.
  *
  * WHY EVERY STEP IS ITS OWN TRY/CATCH:
  * A failure in step 4 (say, GitHub Actions is briefly down) must never
@@ -69,16 +69,6 @@
  * (or whether an unresolved BreachEvent already exists) before calling
  * this, so a repeat attacker doesn't re-trigger a fresh backup + email
  * on every single retry once they're already locked out.
- *
- * skipIpBlock (Gatekeeper 3 only, owner-verified-IP exemption):
- * When true, every other step still runs in full (site-wide lockdown,
- * off-cycle backup, alert email, vault passphrase rotation) — ONLY
- * Step 1's blockIp() call is skipped. Set by app/api/auth/login/route.js
- * only when ALL of these are true: gatekeeper === 3, the anomaly was a
- * NEW DEVICE (not impossible travel), and the request IP matches
- * SystemSettings.ownerVerifiedIp. An impossible-travel trip must NEVER
- * set this, regardless of IP — see that route's own comments. Ignored
- * entirely for Gatekeeper 1/2, which always block the IP.
  */
 import { prisma } from "@/services/prisma";
 import { blockIp } from "@/services/ipBlock";
@@ -109,12 +99,8 @@ const BREACH_MESSAGE =
  * @param {string|null} input.ipAddress
  * @param {string} input.details - human-readable one-liner for the incident record
  */
-export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details, skipIpBlock = false }) {
+export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }) {
   const reason = `${GATEKEEPER_LABELS[gatekeeper] ?? `Gatekeeper ${gatekeeper}`} tripped: ${details}`;
-
-  // skipIpBlock only ever makes sense for Gatekeeper 3 — GK1/GK2 always
-  // block, no exemption exists for them regardless of what's passed in.
-  const effectiveSkipIpBlock = gatekeeper === 3 && skipIpBlock;
 
   // GK3 gets the full "assume the worst" treatment (site-wide lockdown +
   // backup + vault rotation) because it trips AFTER a correct password —
@@ -133,26 +119,15 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details, 
   // /superAdmin/blocked-ips page (via another device/network) to unblock
   // themselves afterward — see that page for why unbanning itself still
   // requires the vault's own step-up code, not just a super-admin session.
-  if (ipAddress && !effectiveSkipIpBlock) {
+  if (ipAddress) {
     await blockIp(ipAddress, reason, gatekeeper);
-  } else if (ipAddress && effectiveSkipIpBlock) {
-    // Owner-verified-IP exemption on a new-device-only GK3 trip — every
-    // other response step below still runs; only this IP stays unblocked
-    // so the real owner can sign back in immediately with the freshly
-    // rotated passphrase instead of also needing a manual unban.
-    console.log(
-      `[breachResponse] IP block skipped for ${ipAddress} — matches SystemSettings.ownerVerifiedIp on a new-device-only trip.`
-    );
   }
 
   // Step 2 — create the incident record.
-  const incidentDetails = effectiveSkipIpBlock
-    ? `${details} (IP block skipped — request matched the verified owner IP; site-wide lockdown and passphrase rotation still applied)`
-    : details;
   let breachEvent = null;
   try {
     breachEvent = await prisma.breachEvent.create({
-      data: { gatekeeper, ipAddress, details: incidentDetails },
+      data: { gatekeeper, ipAddress, details },
     });
   } catch (error) {
     console.error("[breachResponse] Failed to create BreachEvent row:", error.message);

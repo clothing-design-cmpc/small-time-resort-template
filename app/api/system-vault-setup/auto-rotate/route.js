@@ -8,7 +8,7 @@
  * Runs on a schedule (see vercel.json's crons entry — daily) and checks
  * whether VaultPassphrase.expiresAt has passed (services/vaultAuth.js's
  * VAULT_PASSPHRASE_EXPIRY_DAYS, 30 days). If it has, generates a fresh
- * passphrase automatically — same generate/hash/email/Drive/audit-log
+ * passphrase automatically — same generate/hash/email/R2/audit-log
  * flow as the manual "Generate New Passphrase" button, just triggered
  * by the calendar instead of an owner's click. If the 30 days aren't up
  * yet, this is a no-op and returns rotated: false.
@@ -30,8 +30,8 @@
  *    rotated
  * 4. Not due -> respond { rotated: false }, nothing else happens
  * 5. Rotated -> email the plaintext (services/emailAlert.js), save a
- *    .txt copy to Google Drive (services/googleDrive.js), log a
- *    "vault_passphrase_rotated" SecurityLog row with actor "vault"
+ *    durable copy to Cloudflare R2 (services/vaultPassphraseBackup.js),
+ *    log a "vault_passphrase_rotated" SecurityLog row with actor "vault"
  *    (matches the existing breach-triggered auto-rotation's actor, so
  *    both automatic paths are attributed the same way — distinct from
  *    "vault_passphrase_set", which is only for a person clicking the

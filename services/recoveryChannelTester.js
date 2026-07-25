@@ -2,7 +2,7 @@
  * FILE: services/recoveryChannelTester.js
  * PURPOSE:
  * Runs a health check against each channel a real disaster recovery
- * relies on — GitHub Actions (backup/restore workflows), Google Drive
+ * relies on — GitHub Actions (backup/restore workflows), Cloudflare R2
  * (offsite passphrase/backup storage), EmailJS (passphrase-rotation
  * and OTP delivery), and the optional secondary alert webhook
  * (services/webhookAlert.js) — WITHOUT triggering a real passphrase
@@ -12,13 +12,17 @@
  * free, so that check DOES send one real, clearly-labeled test
  * message rather than just checking for config presence.
  *
+ * GOOGLE DRIVE DROPPED (July 2026) — Drive used to be one of these
+ * channels; retired for reliability reasons (see services/googleDrive.js's
+ * header). R2 replaces it below as the offsite storage channel.
+ *
  * WHY THIS EXISTS:
- * Today the only way to discover an expired GitHub token or a revoked
- * Drive refresh token is watching a real breach-response rotation or a
+ * Today the only way to discover an expired GitHub token or a broken
+ * R2 credential is watching a real breach-response rotation or a
  * scheduled backup fail — i.e. finding out during an actual emergency,
  * when there's no time left to fix it. Run this from Settings > Vault
  * Passphrase whenever (monthly, or after rotating any of these
- * credentials) to catch a dead token while there's still time to
+ * credentials) to catch a dead credential while there's still time to
  * replace it.
  *
  * WHAT EACH CHECK ACTUALLY DOES:
@@ -26,10 +30,9 @@
  *               valid and can see the repo. Never calls the
  *               workflow_dispatch endpoint services/github.js uses for
  *               a real backup/restore run.
- *   - Drive:    files.list with pageSize 1 against the same folder
- *               uploadToDrive() targets — confirms the OAuth refresh
- *               token still exchanges for a working access token and
- *               the folder is reachable. Never calls files.create.
+ *   - R2:       ListObjectsV2 with MaxKeys 1 against the configured
+ *               bucket — confirms the R2 credentials still authenticate
+ *               and the bucket is reachable. Never calls PutObject.
  *   - EmailJS:  presence-only check of the four required env vars.
  *               Never calls EmailJS's send endpoint — actually sending
  *               a test email would cost one of the plan's limited
@@ -40,7 +43,8 @@
  *
  * Server-side only — never import this in a "use client" file.
  */
-import { getDriveClient } from "@/services/googleDrive";
+import { ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { r2Client } from "@/services/r2";
 import { sendVaultWebhookAlert } from "@/services/webhookAlert";
 
 /**
@@ -99,39 +103,45 @@ async function testGitHubChannel() {
 }
 
 /**
- * testDriveChannel
- * Confirms GOOGLE_OAUTH_REFRESH_TOKEN still exchanges for a working
- * access token and the configured folder is reachable — via a
- * read-only files.list(pageSize: 1) call, never files.create.
+ * testR2Channel
+ * Confirms the Cloudflare R2 credentials still authenticate and the
+ * configured bucket is reachable — via a read-only
+ * ListObjectsV2(MaxKeys: 1) call, never PutObject.
  */
-async function testDriveChannel() {
-  const requiredVars = ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_REFRESH_TOKEN"];
+async function testR2Channel() {
+  const requiredVars = [
+    "CLOUDFLARE_R2_ACCOUNT_ID",
+    "CLOUDFLARE_R2_ACCESS_KEY_ID",
+    "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+    "CLOUDFLARE_R2_BUCKET_NAME",
+  ];
   const missing = requiredVars.filter((key) => !process.env[key]);
   if (missing.length > 0) {
     return {
-      channel: "drive",
-      label: "Google Drive",
+      channel: "r2",
+      label: "Cloudflare R2",
       passed: false,
       message: `Not configured — missing ${missing.join(", ")}.`,
     };
   }
 
   try {
-    const drive = getDriveClient();
-    await drive.files.list({ pageSize: 1, fields: "files(id)" });
+    await r2Client.send(
+      new ListObjectsV2Command({ Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME, MaxKeys: 1 })
+    );
 
     return {
-      channel: "drive",
-      label: "Google Drive",
+      channel: "r2",
+      label: "Cloudflare R2",
       passed: true,
-      message: "Refresh token is valid — Drive is reachable.",
+      message: "Credentials are valid — the bucket is reachable.",
     };
   } catch (error) {
     return {
-      channel: "drive",
-      label: "Google Drive",
+      channel: "r2",
+      label: "Cloudflare R2",
       passed: false,
-      message: `Drive rejected the request — the refresh token may have been revoked: ${error.message}`,
+      message: `R2 rejected the request — check the access key/secret: ${error.message}`,
     };
   }
 }
@@ -173,7 +183,7 @@ function testEmailJsChannel() {
  * real breach/rotation alert if someone is watching the channel.
  *
  * This channel is OPTIONAL: it's a secondary alert path on top of the
- * required GitHub/Drive/EmailJS channels, so a missing
+ * required GitHub/R2/EmailJS channels, so a missing
  * VAULT_ALERT_WEBHOOK_URL is reported as "skipped" (not "failed") and
  * is excluded from the pass/total counts in runRecoveryChannelTests —
  * an owner who never set up a webhook shouldn't see a permanent
@@ -218,19 +228,19 @@ async function testWebhookChannel() {
  * it's skipped (not configured), it's excluded from passedCount /
  * totalCount / allPassed entirely, so an owner who never set up the
  * secondary webhook still sees "All required channels are working"
- * once GitHub, Drive, and EmailJS pass — the skipped result still
+ * once GitHub, R2, and EmailJS pass — the skipped result still
  * shows in `results` for visibility, it just doesn't count against
  * the summary.
  */
 export async function runRecoveryChannelTests() {
-  const [github, drive, emailjs, webhook] = await Promise.all([
+  const [github, r2, emailjs, webhook] = await Promise.all([
     testGitHubChannel(),
-    testDriveChannel(),
+    testR2Channel(),
     Promise.resolve(testEmailJsChannel()),
     testWebhookChannel(),
   ]);
 
-  const results = [github, drive, emailjs, webhook];
+  const results = [github, r2, emailjs, webhook];
 
   // Required channels are counted normally; an optional channel only
   // counts toward the summary once it's actually configured (status

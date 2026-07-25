@@ -4,7 +4,7 @@
  * Nightly environment health check — walks every ENV_GROUPS entry
  * (scripts/lib/envGroups.mjs) for presence, then runs the same live
  * reachability checks the on-demand dashboard version does (Database,
- * GeoIP file, Google Drive). If anything is missing or failing, emails
+ * GeoIP file). If anything is missing or failing, emails
  * VAULT_OWNER_EMAIL with exactly what's broken AND how to fix it
  * (ENV_FIX_INSTRUCTIONS), plus a secondary webhook alert as a backup
  * channel. If everything checks out, it does nothing — no email, no
@@ -40,7 +40,6 @@ import { existsSync } from "node:fs";
 import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
-import { getDriveClient } from "../services/googleDrive.js";
 import { sendGeneralEmail } from "../services/emailjs.js";
 import { sendVaultWebhookAlert } from "../services/webhookAlert.js";
 import { ENV_GROUPS, ENV_FIX_INSTRUCTIONS } from "./lib/envGroups.mjs";
@@ -70,9 +69,10 @@ function checkPresence() {
 
 /**
  * runLiveChecks
- * Database + GeoIP file + Google Drive reachability — the same three
- * side-effect-free live checks services/envCheck.js runs, minus the
- * EmailJS test-send (see file header for why).
+ * Database + GeoIP file reachability — the same side-effect-free live
+ * checks services/envCheck.js runs, minus the EmailJS test-send (see
+ * file header for why). Google Drive dropped along with the
+ * googleDrive env group (see scripts/lib/envGroups.mjs).
  */
 async function runLiveChecks() {
   const failures = [];
@@ -86,22 +86,6 @@ async function runLiveChecks() {
   const maxmindPath = process.env.MAXMIND_DB_PATH;
   if (!maxmindPath || !existsSync(maxmindPath)) {
     failures.push({ id: "geoip", message: `GeoIP database file not found at "${maxmindPath ?? "(unset)"}".` });
-  }
-
-  const driveRequiredVars = ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_REFRESH_TOKEN"];
-  const missingDriveVars = driveRequiredVars.filter((key) => !process.env[key]);
-  if (missingDriveVars.length === 0) {
-    try {
-      const drive = getDriveClient();
-      await drive.about.get({ fields: "user" });
-    } catch (error) {
-      const apiErrorDetail = error?.response?.data?.error;
-      const detailText = typeof apiErrorDetail === "string" ? apiErrorDetail : apiErrorDetail?.message;
-      failures.push({
-        id: "googleDrive",
-        message: `Drive rejected the request${detailText ? ` (${detailText})` : ""}.`,
-      });
-    }
   }
 
   return failures;

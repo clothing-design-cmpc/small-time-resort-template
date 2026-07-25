@@ -137,7 +137,7 @@ export async function POST(request) {
     message:
       payload.backupOption === "with_backup"
         ? immediateBackupDispatched
-          ? "Wipe scheduled for 24 hours from now. A backup is being created now and will also appear in R2 and Google Drive shortly."
+          ? "Wipe scheduled for 24 hours from now. A backup is being created now and will also appear in R2 shortly."
           : "Wipe scheduled, but the immediate backup couldn't be triggered. A backup will still be attempted right before the wipe runs."
         : "Wipe scheduled for 24 hours from now. You can cancel it any time before then.",
   });

@@ -32,8 +32,8 @@
  *     truncating this mid-flow would strand the wipe itself
  *   - system_settings: holds postWipeLockdown/maintenanceMode — the
  *     ONLY thing that lets the vault lift the lockdown afterward
- *   - backup_logs: the R2/Google Drive links needed to actually
- *     restore data after a wipe
+ *   - backup_logs: the R2 link needed to actually restore data
+ *     after a wipe
  *   - security_logs: the breach investigation trail, in case this
  *     wipe was triggered because of one
  * Everything else — including admin_profiles — is truncated. After a
@@ -59,15 +59,15 @@
  * 1. Finds the due + confirmed DatabaseWipeRequest (there is only ever
  *    one active at a time — see initiateWipeRequest's own guard)
  * 2. If backupOption === "with_backup": runs the exact same pg_dump +
- *    dual-upload flow as scripts/runBackup.js, and only proceeds to
+ *    R2 upload flow as scripts/runBackup.js, and only proceeds to
  *    truncate if that backup actually succeeded — a failed backup
  *    aborts the wipe entirely rather than silently skipping it
  * 3. Queries pg_tables for every table in the public schema, subtracts
  *    TABLES_TO_PRESERVE, and TRUNCATEs the rest inside one transaction
  * 4. Writes the final status (completed/failed) back onto the request row
  *
- * USAGE: npm run wipe-database (reads DIRECT_URL, R2, and Google Drive
- * env vars the same way scripts/runBackup.js does)
+ * USAGE: npm run wipe-database (reads DIRECT_URL and R2 env vars the
+ * same way scripts/runBackup.js does)
  */
 import "./loadEnv.mjs";
 import { execFile } from "node:child_process";
@@ -77,7 +77,6 @@ import prismaPkg from "@prisma/client";
 const { PrismaClient } = prismaPkg;
 import { PrismaPg } from "@prisma/adapter-pg";
 import { uploadToR2 } from "../services/r2.js";
-import { uploadToDrive } from "../services/googleDrive.js";
 import { activatePostWipeLockdown } from "../services/postWipeLockdown.js";
 import { logSecurityEvent } from "../services/securityLog.js";
 import { withRetry } from "./lib/withRetry.js";
@@ -158,11 +157,11 @@ async function runPgDump() {
 /**
  * runPreWipeBackup
  * Identical flow to scripts/runBackup.js's main(), reused here so a
- * wipe scheduled "with_backup" gets the exact same dual-destination
- * (R2 + Google Drive) guarantee as the nightly backup. Returns the
- * created BackupLog id on success, or null if both destinations
- * failed — the caller treats null as a hard stop, never proceeding to
- * truncate without a real backup on record.
+ * wipe scheduled "with_backup" gets the exact same R2 backup guarantee
+ * as the nightly backup (Google Drive dropped — see runBackup.js's
+ * header). Returns the created BackupLog id on success, or null if the
+ * R2 upload failed — the caller treats null as a hard stop, never
+ * proceeding to truncate without a real backup on record.
  */
 async function runPreWipeBackup() {
   const logRow = await withRetry(() => prisma.backupLog.create({ data: { status: "running", triggerSource: "pre_wipe" } }), {
@@ -198,35 +197,23 @@ async function runPreWipeBackup() {
     console.error("[wipe] Pre-wipe R2 upload failed:", error.message);
   }
 
-  let driveResult = null;
-  let driveError = null;
-  try {
-    driveResult = await uploadToDrive(fileName, compressed, "application/gzip");
-  } catch (error) {
-    driveError = error.message;
-    console.error("[wipe] Pre-wipe Google Drive upload failed:", error.message);
-  }
-
-  const bothFailed = !r2Result && !driveResult;
-  const combinedError = [r2Error && `R2: ${r2Error}`, driveError && `Drive: ${driveError}`].filter(Boolean).join(" | ");
+  const failed = !r2Result;
 
   await withRetry(() =>
     prisma.backupLog.update({
       where: { id: logRow.id },
       data: {
-        status: bothFailed ? "failed" : "success",
+        status: failed ? "failed" : "success",
         fileSizeBytes: compressed.length,
         r2Key: r2Result?.key ?? null,
         r2Url: r2Result?.url ?? null,
-        driveFileId: driveResult?.fileId ?? null,
-        driveViewLink: driveResult?.viewLink ?? null,
-        errorMessage: combinedError || null,
+        errorMessage: r2Error ? `R2: ${r2Error}` : null,
         completedAt: new Date(),
       },
     })
   );
 
-  return bothFailed ? null : logRow.id;
+  return failed ? null : logRow.id;
 }
 
 async function main() {
@@ -251,15 +238,15 @@ async function main() {
   if (dueRequest.backupOption === "with_backup") {
     backupLogId = await runPreWipeBackup();
     if (!backupLogId) {
-      console.error("[wipe] Pre-wipe backup failed on both destinations — ABORTING the wipe. Nothing was truncated.");
+      console.error("[wipe] Pre-wipe backup failed on R2 — ABORTING the wipe. Nothing was truncated.");
       await prisma.databaseWipeRequest.update({
         where: { id: dueRequest.id },
-        data: { status: "failed", errorMessage: "Pre-wipe backup failed on both R2 and Google Drive — wipe aborted.", completedAt: new Date() },
+        data: { status: "failed", errorMessage: "Pre-wipe backup failed on R2 — wipe aborted.", completedAt: new Date() },
       });
       await logSecurityEvent({
         eventType: "admin_action",
         actor: "system",
-        details: "Database wipe ABORTED — pre-wipe backup failed on both R2 and Google Drive. Nothing was truncated.",
+        details: "Database wipe ABORTED — pre-wipe backup failed on R2. Nothing was truncated.",
       });
       process.exitCode = 1;
       return;

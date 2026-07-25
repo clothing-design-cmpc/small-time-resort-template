@@ -7,7 +7,7 @@
  * PURPOSE:
  * Generates a small, printable HTML "recovery card" — a physical
  * fallback (kept in a safe, wallet, etc.) for the case where BOTH the
- * vault owner's email AND Google Drive are unreachable at the same
+ * vault owner's email AND Cloudflare R2 are unreachable at the same
  * time, so neither of the normal ways to retrieve the current
  * passphrase and OTP is available.
  *
@@ -118,9 +118,9 @@ const html = `<!DOCTYPE html>
   <p class="urlPattern">${urlPattern}</p>
 
   <ol>
-    <li>Replace <strong>[current-slug]</strong> above with the slug from the most recent passphrase-rotation email (subject: "Your vault passphrase was rotated") in the vault owner's inbox, or from the matching .txt file in the Google Drive backup folder.</li>
+    <li>Replace <strong>[current-slug]</strong> above with the slug from the most recent passphrase-rotation email (subject: "Your vault passphrase was rotated") in the vault owner's inbox, or from the matching .txt file in the R2 backup archive.</li>
     <li>Open that URL in a browser.</li>
-    <li>Enter the current passphrase from that same email or Drive file.</li>
+    <li>Enter the current passphrase from that same email or R2 file.</li>
     <li>Enter the one-time code sent to the vault owner's email.</li>
     <li>You are now on the disaster-recovery dashboard.</li>
   </ol>
@@ -128,7 +128,7 @@ const html = `<!DOCTYPE html>
   <p class="warning">
     This card intentionally contains no live passphrase, OTP, or URL
     slug — those change on every rotation and are only ever available
-    via email or Google Drive. This card is only useful for finding
+    via email or Cloudflare R2. This card is only useful for finding
     your way back to step 1 if you've forgotten the URL pattern
     itself. Store this card somewhere physically secure (a safe,
     locked drawer). Re-print it if NEXT_PUBLIC_SITE_URL ever changes.

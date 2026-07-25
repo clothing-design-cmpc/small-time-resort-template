@@ -24,12 +24,6 @@
  * LIVE CHECKS:
  *   - Database:    SELECT 1 through the existing Prisma client
  *   - GeoIP:       confirms the .mmdb file at MAXMIND_DB_PATH exists on disk
- *   - Google Drive: drive.about.get() — confirms GOOGLE_OAUTH_REFRESH_TOKEN
- *                   still exchanges for a working access token and the API
- *                   is reachable. Read-only, never calls files.create — this
- *                   is exactly the check that would have caught the
- *                   invalid_grant failure in services/breachResponse.js
- *                   Step 6b before a real breach silently ate it.
  *   - EmailJS:     sends one real, clearly-labeled test email to
  *                  VAULT_OWNER_EMAIL. Unlike the other checks this DOES
  *                  have a side effect (uses one of EmailJS's limited
@@ -42,10 +36,14 @@
  * stays presence-only — a live network call to each on every run isn't
  * needed to answer "did someone forget to set this," and Supabase/R2
  * failures already surface immediately through normal app usage.
+ *
+ * GOOGLE DRIVE DROPPED (July 2026) — this used to run a live
+ * drive.about.get() check too; removed along with the googleDrive env
+ * group in scripts/lib/envGroups.mjs now that R2 is the only backup
+ * destination (services/googleDrive.js's header has the full reasoning).
  */
 import { prisma } from "@/services/prisma";
 import { existsSync } from "node:fs";
-import { getDriveClient } from "@/services/googleDrive";
 import { sendGeneralEmail } from "@/services/emailjs";
 // ENV_GROUPS now lives in scripts/lib/envGroups.mjs so the nightly
 // standalone check (scripts/runEnvCheck.js, runs via plain `node` and
@@ -97,38 +95,7 @@ export async function checkEnvironment() {
       : { status: "failed", message: `No file found at ${maxmindPath}.` };
   }
 
-  // --- Live check 3: Google Drive OAuth token still valid ---
-  // drive.about.get() is the lightest authenticated call the Drive API
-  // offers — confirms the refresh token still exchanges for a working
-  // access token without listing or touching any files. This is the
-  // exact failure (invalid_grant) that was silently eating the vault
-  // passphrase backup in services/breachResponse.js Step 6b — surfacing
-  // it here means the owner can catch a dead token before the next real
-  // breach or scheduled rotation needs it.
-  let googleDriveLive = { status: "unknown", message: "Not checked." };
-  const driveRequiredVars = ["GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET", "GOOGLE_OAUTH_REFRESH_TOKEN"];
-  const missingDriveVars = driveRequiredVars.filter((key) => !process.env[key]);
-  if (missingDriveVars.length > 0) {
-    googleDriveLive = { status: "failed", message: `Not configured — missing ${missingDriveVars.join(", ")}.` };
-  } else {
-    try {
-      const drive = getDriveClient();
-      await drive.about.get({ fields: "user" });
-      googleDriveLive = { status: "ok", message: "Refresh token is valid — Drive is reachable." };
-    } catch (error) {
-      // error.response.data.error carries the real Google API detail
-      // (e.g. "invalid_grant") — see services/googleDrive.js's own
-      // uploadToDrive() catch block for the same pattern.
-      const apiErrorDetail = error?.response?.data?.error;
-      const detailText = typeof apiErrorDetail === "string" ? apiErrorDetail : apiErrorDetail?.message;
-      googleDriveLive = {
-        status: "failed",
-        message: `Drive rejected the request${detailText ? ` (${detailText})` : ""} — the refresh token may need to be regenerated (scripts/getGoogleDriveRefreshToken.mjs).`,
-      };
-    }
-  }
-
-  // --- Live check 4: EmailJS can actually send ---
+  // --- Live check 3: EmailJS can actually send ---
   // Unlike the three checks above, this has a real side effect (sends
   // one email, using one of EmailJS's limited monthly sends) — safe
   // ONLY because checkEnvironment() is invoked exclusively on-demand
@@ -164,7 +131,6 @@ export async function checkEnvironment() {
   const groupsWithLiveChecks = groups.map((group) => {
     if (group.id === "database") return { ...group, liveCheck: databaseLive };
     if (group.id === "geoip") return { ...group, liveCheck: geoipLive };
-    if (group.id === "googleDrive") return { ...group, liveCheck: googleDriveLive };
     if (group.id === "emailjs") return { ...group, liveCheck: emailjsLive };
     return group;
   });
@@ -176,40 +142,4 @@ export async function checkEnvironment() {
     : "ok";
 
   return { groups: groupsWithLiveChecks, overallStatus, checkedAt: new Date().toISOString() };
-}
-
-/**
- * checkEnvGroupsPresence
- * Presence-only check (no live network/connectivity checks, no side
- * effects) scoped to a specific subset of ENV_GROUPS by id.
- *
- * WHY THIS EXISTS SEPARATELY FROM checkEnvironment():
- * checkEnvironment() runs ALL four live checks every time it's called,
- * including one that sends a real test email through EmailJS. The
- * setup wizard's early steps (e.g. the database-connection checklist)
- * only need a yes/no on a couple of specific keys — calling the full
- * checkEnvironment() there would risk firing that EmailJS send during
- * database setup, long before EmailJS is even meant to be configured.
- * This function never touches the network — it only reads
- * process.env — so it's safe to call as often as the wizard wants.
- *
- * @param {string[]} groupIds - which ENV_GROUPS[].id values to include
- */
-export function checkEnvGroupsPresence(groupIds) {
-  const groups = ENV_GROUPS.filter((group) => groupIds.includes(group.id)).map((group) => {
-    const items = group.keys.map(({ key, required }) => ({
-      key,
-      required,
-      present: Boolean(process.env[key] && process.env[key].length > 0),
-    }));
-    const missingRequired = items.filter((item) => item.required && !item.present);
-    return {
-      id: group.id,
-      label: group.label,
-      items,
-      status: missingRequired.length > 0 ? "missing" : "ok",
-    };
-  });
-
-  return { groups, overallStatus: groups.every((g) => g.status === "ok") ? "ok" : "attention_needed" };
 }

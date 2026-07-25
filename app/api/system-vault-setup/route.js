@@ -16,7 +16,7 @@
  *         been set in the new VaultPassphrase table. If NOTHING is
  *         set yet (no DB row AND no VAULT_PASSPHRASE_HASH env
  *         fallback — source "none"), it now auto-generates one on
- *         the spot using the exact same rotate + email + Drive-save +
+ *         the spot using the exact same rotate + email + R2-save +
  *         audit-log flow as POST below, and returns the plaintext in
  *         this one response — same one-time-reveal rule as POST. This
  *         covers first-run / post-wipe bootstrap: hitting this URL
@@ -35,9 +35,10 @@
  *         always leaves ONE consistent source of truth. Also emails
  *         the plaintext (services/emailAlert.js's
  *         sendVaultPassphraseRotationEmail(), same template the
- *         auto-rotation uses) and saves it as a .txt file to Google
- *         Drive (services/googleDrive.js's uploadToDrive()) — both
- *         best-effort, so a failed email/Drive save never blocks the
+ *         auto-rotation uses) and saves it as a durable copy to
+ *         Cloudflare R2 (services/vaultPassphraseBackup.js's
+ *         saveVaultPassphraseToR2()) — both
+ *         best-effort, so a failed email/R2 save never blocks the
  *         owner from seeing the passphrase on screen; the response
  *         reports each outcome separately so the UI can be honest
  *         about what actually happened.
@@ -61,16 +62,10 @@ import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
  * generateAndDistributePassphrase
  * Shared by both GET's auto-generate-on-first-check path and POST's
  * manual "generate new" click, so the two never drift into two
- * slightly different flows. Also imported directly by
- * app/api/system-setup-wizard/generate-passphrase/route.js (Step 8 of
- * the setup wizard) — that route gates on the wizard's own
- * WIZARD_SETUP_KEY session instead of VAULT_SETUP_KEY/admin session
- * (a deliberately separate trust boundary for the first-run bootstrap
- * case), so it calls this function directly rather than going through
- * this route's own auth checks below. Rotates the passphrase, emails
- * the plaintext, saves a .txt copy to Google Drive, and writes the
- * audit log entry — email and Drive are both best-effort (a failure
- * in either never blocks the owner from seeing the passphrase in the
+ * slightly different flows. Rotates the passphrase, emails the
+ * plaintext, saves a copy to Cloudflare R2, and writes the audit
+ * log entry — email and R2 are both best-effort (a failure in
+ * either never blocks the owner from seeing the passphrase in the
  * response itself).
  *
  * @param actor  - VAULT_IDENTITY (key-based path) or the session's uid
@@ -80,7 +75,7 @@ import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
  * @param request - forwarded to logSecurityEvent for IP/device capture
  * @param generatedByLabel - text used inside the R2 .txt file body
  */
-export async function generateAndDistributePassphrase({ actor, reason, request, generatedByLabel }) {
+async function generateAndDistributePassphrase({ actor, reason, request, generatedByLabel }) {
   const newPassphrase = await rotateVaultPassphrase();
 
   // Email the plaintext to VAULT_OWNER_EMAIL — best-effort, reuses the

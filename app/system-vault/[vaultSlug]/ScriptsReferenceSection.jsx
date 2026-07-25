@@ -42,7 +42,7 @@ const SCRIPT_GROUPS = [
       },
       {
         command: "npm run envcheck",
-        purpose: "Walks every required .env key for presence, then pings the database, GeoIP file, and Google Drive to confirm they actually work.",
+        purpose: "Walks every required .env key for presence, then pings the database and GeoIP file to confirm they actually work.",
         whenToRun: "Right after setting up .env.local on a new machine, or when something is failing and you suspect a missing/misconfigured key. Also runs nightly and emails the owner if anything's broken.",
       },
       {
@@ -73,7 +73,7 @@ const SCRIPT_GROUPS = [
       },
       {
         command: "npm run generate-recovery-card",
-        purpose: "Generates a small printable HTML \"recovery card\" — a physical fallback for when both the vault owner's email and Google Drive are unreachable.",
+        purpose: "Generates a small printable HTML \"recovery card\" — a physical fallback for when both the vault owner's email and R2 are unreachable.",
         whenToRun: "Once, right after initial setup — print it and store it somewhere safe (a physical safe, not a cloud drive).",
       },
       {
@@ -89,13 +89,8 @@ const SCRIPT_GROUPS = [
     scripts: [
       {
         command: "npm run backup",
-        purpose: "Dumps the entire Postgres database with pg_dump, uploads the compressed archive to both Cloudflare R2 and Google Drive, and records the result.",
+        purpose: "Dumps the entire Postgres database with pg_dump, uploads the compressed archive to Cloudflare R2, and records the result.",
         whenToRun: "Runs automatically every night. Run manually before any risky change (schema migration, bulk edit, wipe) as an extra safety net.",
-      },
-      {
-        command: "node scripts/backupDatabase.mjs",
-        purpose: "Legacy backup script — superseded by \"npm run backup\" (scripts/runBackup.js), which is the one actually wired into the nightly GitHub Actions workflow.",
-        whenToRun: "Not part of the normal workflow anymore. Kept for reference only — use \"npm run backup\" instead.",
       },
       {
         command: "node scripts/runRestore.js",
@@ -122,11 +117,6 @@ const SCRIPT_GROUPS = [
         command: "node scripts/generateEnvSecret.mjs",
         purpose: "Prints a fresh random secret for VAULT_SETUP_KEY or CRON_SECRET.",
         whenToRun: "Setting up a new environment (local, staging, or production) for the first time.",
-      },
-      {
-        command: "node scripts/getGoogleDriveRefreshToken.mjs",
-        purpose: "Local-only helper that walks you through Google's OAuth flow to produce GOOGLE_OAUTH_REFRESH_TOKEN.",
-        whenToRun: "Once, when first wiring up Google Drive backups. Never run this in GitHub Actions or on a server — local machine only.",
       },
     ],
   },

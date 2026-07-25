@@ -1,8 +1,8 @@
 # FILE: .github/workflows/pre-wipe-backup.yml
 # PURPOSE:
 # Runs scripts/runBackup.js on GitHub's own cloud runners — the exact
-# same backup script database-backup.yml uses (pg_dump -> gzip -> R2 +
-# Google Drive -> BackupLog row). This workflow exists ONLY so a wipe-
+# same backup script database-backup.yml uses (pg_dump -> gzip -> R2 ->
+# BackupLog row). This workflow exists ONLY so a wipe-
 # triggered backup shows up in the Actions tab under its own name
 # ("Pre-Wipe Backup") instead of mixed into "Nightly Database Backup"
 # runs — otherwise there'd be no way to tell from the Actions history
@@ -72,7 +72,3 @@ jobs:
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
           NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL }}
-          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
-          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
-          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
-          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}

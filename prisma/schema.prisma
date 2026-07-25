@@ -183,16 +183,6 @@ model Booking {
   // the "How to Get There" widget will reveal turn-by-turn directions.
   referenceCode  String   @unique @map("reference_code")
 
-  // --- Multi-date rule matching (Section 1 Rule 2 on Booking Rules) ---
-  // NIGHTS actually selected by the guest (checkOutDate - checkInDate in
-  // days) — 0 for Day Tour/Night Tour. Named to match BookingRule's own
-  // column below: an admin rule set built from N selected calendar dates
-  // in the Rule Schedule picker represents N nights (see that column's
-  // comment), so this is the value the booking route matches against to
-  // find which specific rule set (e.g. "4Ds-3Ns" vs "3Ds-2Ns") actually
-  // priced this stay.
-  howManySelectedDates Int @default(0) @map("how_many_selected_dates")
-
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])
@@ -264,7 +254,7 @@ model AdminProfile {
 // reviews after the fact to answer "what happened and who did it."
 model SecurityLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set | setup_key_verified | setup_key_rejected | setup_admin_created
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set
   actor     String?  // email attempted/used, or the admin's full name for admin_action rows
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent") @db.Text
@@ -346,50 +336,33 @@ model BreachEvent {
 }
 
 // ============================================================
-// MODEL: MagicLoginToken  (owner-IP recovery — see services/magicLogin.js)
-// ============================================================
-// One-time, short-lived login token issued only when a login attempt
-// from SystemSettings.ownerVerifiedIp exceeds its 5-attempt limit
-// (services/rateLimit.js). Never issued for any other IP — a non-owner
-// IP that exceeds its 3-attempt limit gets the normal Gatekeeper 1
-// breach response instead, not a token. tokenHash stores a SHA-256
-// hash of the raw token (mailed to VAULT_OWNER_EMAIL) — the raw value
-// itself is never persisted anywhere, same reasoning as a password hash.
-model MagicLoginToken {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tokenHash String    @unique @map("token_hash")
-  adminId   String    @map("admin_id") @db.Uuid
-  expiresAt DateTime  @map("expires_at")
-  usedAt    DateTime? @map("used_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-
-  @@index([expiresAt])
-  @@map("magic_login_tokens")
-}
-
-// ============================================================
 // MODEL: BackupLog  (Database Backup history — see scripts/runBackup.js)
 // ============================================================
 // One row per backup run, written by the standalone backup script
 // (never by the live app itself — see the "decoupled from live
 // traffic" note in scripts/runBackup.js). Lets an admin see backup
-// history and confirm both destinations (R2 + Google Drive) actually
-// received a copy on the Backups admin page.
+// history and confirm R2 actually received a copy on the Backups
+// admin page.
 // ============================================================
 // MODEL: ActivityArchiveLog  (Activity Feed — 100-page auto-archive)
 // ============================================================
 // One row per automatic Activity Feed archive event. Written by
 // services/activityArchive.js the instant a VisitorLog +
-// AccountActivityLog snapshot has been uploaded to Google Drive AND
+// AccountActivityLog snapshot has been uploaded to Cloudflare R2 AND
 // deleted from both source tables. The Activity Feed page reads the
 // single most recent row here to show the "just archived" banner +
-// Open in Google Drive button after a fresh archive fires.
+// a signed download link after a fresh archive fires.
 model ActivityArchiveLog {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fileName      String   @map("file_name") // e.g. "JulyToAugust-activityfeed-2026.sql"
-  driveFileId   String   @map("drive_file_id")
-  driveViewLink String   @map("drive_view_link") @db.Text
+  // Google Drive dropped (unreliable — see services/googleDrive.js's
+  // retirement note). Private Cloudflare R2 key under archives/ — the
+  // permanent CDN URL is never used for this (contains staff IPs/account
+  // ids); a signed, expiring download URL is generated on demand from
+  // this key instead (services/r2.js's getR2SignedDownloadUrl()).
+  r2Key         String   @map("r2_key")
   recordCount   Int      @map("record_count")
+
   rangeStart    DateTime @map("range_start")
   rangeEnd      DateTime @map("range_end")
   createdAt     DateTime @default(now()) @map("created_at")
@@ -411,16 +384,15 @@ model BackupLog {
   fileSizeBytes  Int?      @map("file_size_bytes")
   // Task 6 — Backup integrity check. SHA-256 of the gzipped dump,
   // computed by scripts/runBackup.js right after gzip and before
-  // either upload — so it verifies the exact bytes that went to BOTH
-  // R2 and Drive (one shared value, not one per destination).
+  // upload — so it verifies the exact bytes that went to R2.
   // Displayed on the Backups page and in the vault's "Fix SQL" step
   // so the owner can confirm a downloaded file wasn't corrupted or
   // tampered with before restoring it.
+  // Google Drive dropped as a backup destination (unreliable) — R2 is
+  // now the single destination; see services/googleDrive.js's header.
   checksumSha256 String?   @map("checksum_sha256")
   r2Key          String?   @map("r2_key")
   r2Url          String?   @map("r2_url") @db.Text
-  driveFileId    String?   @map("drive_file_id")
-  driveViewLink  String?   @map("drive_view_link") @db.Text
   errorMessage   String?   @map("error_message") @db.Text
   startedAt      DateTime  @default(now()) @map("started_at")
   completedAt    DateTime? @map("completed_at")
@@ -501,18 +473,6 @@ model BookingRule {
   //     Section 1 completed before it's meaningful to activate). ---
   ruleDates String[] @default([]) @map("rule_dates")
 
-  // Denormalized from ruleDates.length — kept as its own indexed column
-  // (rather than filtering on array length on every request) so the
-  // visitor booking flow can cheaply look up "is there an Active rule
-  // set built for exactly N selected dates" (see
-  // services/bookingRules.js -> getActiveBookingRuleForDateCount()).
-  // A rule set named "4Ds-3Ns" has ruleDates.length = 3 (per the "X
-  // petsa (X gabi)" hint on the Rule Schedule picker — the number of
-  // dates selected there IS the night count), matched against
-  // Booking.howManySelectedDates on the same nights basis. Kept in sync
-  // by the create/update routes every time ruleDates is written.
-  howManySelectedDates Int @default(0) @map("how_many_selected_dates")
-
   // --- Booking Types (extension beyond the base blueprint, per admin request) ---
   allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
   allowDayTour       Boolean @default(false) @map("allow_day_tour")
@@ -559,7 +519,6 @@ model BookingRule {
   updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
 
   @@index([isActive])
-  @@index([isActive, allowOvernightStay, howManySelectedDates])
   @@map("booking_rules")
 }
 
@@ -737,22 +696,6 @@ model SystemSettings {
   postWipeLockdown   Boolean   @default(false) @map("post_wipe_lockdown")
   postWipeLockdownAt DateTime? @map("post_wipe_lockdown_at")
   breachActiveEventId String? @map("breach_active_event_id") @db.Uuid
-
-  // --- Owner Verified IP (GK1 leniency + GK3 exemption) ---
-  // Auto-updated (never set manually) the instant any super-admin login
-  // succeeds with the correct password — see app/api/auth/login/route.js.
-  // Two effects, both read at the top of that same route:
-  //   1. Gatekeeper 1 (brute force): a login attempt from this IP gets
-  //      5 attempts instead of 3, and a one-time magic-login-link email
-  //      instead of a full breach response once exceeded.
-  //   2. Gatekeeper 3 (anomalous login): a NEW-DEVICE trip (different
-  //      browser/OS, same account) from this IP skips only the
-  //      IP-block step — the site-wide lockdown, backup, alert, and
-  //      passphrase rotation still all happen regardless. An
-  //      IMPOSSIBLE-TRAVEL trip is NEVER exempted here, no matter what
-  //      IP it came from — see services/breachResponse.js.
-  ownerVerifiedIp          String?   @map("owner_verified_ip")
-  ownerVerifiedIpUpdatedAt DateTime? @map("owner_verified_ip_updated_at")
 
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")

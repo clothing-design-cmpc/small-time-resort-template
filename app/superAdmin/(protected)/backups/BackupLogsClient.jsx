@@ -147,13 +147,6 @@ function buildBackupLogRow(log, showToast) {
         ) : (
           <span className="backupsDestinationMissing">R2 —</span>
         )}
-        {log.driveViewLink ? (
-          <a href={log.driveViewLink} target="_blank" rel="noopener noreferrer" className="backupsDestinationLink">
-            Drive ↗
-          </a>
-        ) : (
-          <span className="backupsDestinationMissing">Drive —</span>
-        )}
       </div>
     ),
     details: log.errorMessage || (log.status === "running" ? "In progress…" : "—"),

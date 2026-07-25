@@ -4,7 +4,7 @@
  *
  * PURPOSE:
  * Health-checks the vault's own recovery infrastructure — GitHub
- * Actions (backup/restore workflows), Google Drive (offsite
+ * Actions (backup/restore workflows), Cloudflare R2 (offsite
  * passphrase/backup storage), EmailJS (passphrase-rotation and OTP
  * delivery), and the optional secondary alert webhook — without
  * triggering a real backup, workflow dispatch, or EmailJS send. This
@@ -75,7 +75,7 @@ export default function VaultRecoveryChannelsSection({ showToast }) {
       <div className="vaultRecoveryChannelsHeader">
         <h2 className="vaultRecoveryChannelsTitle">Test Recovery Channels</h2>
         <p className="vaultRecoveryChannelsSubtitle">
-          Confirms GitHub Actions, Google Drive, and EmailJS are all reachable — without
+          Confirms GitHub Actions, Cloudflare R2, and EmailJS are all reachable — without
           rotating the passphrase, running a backup, or sending a real email. The secondary
           alert webhook is optional: if it isn't set up, it shows as "Optional — not set up"
           rather than a failure, and doesn't count against the summary below. Run this

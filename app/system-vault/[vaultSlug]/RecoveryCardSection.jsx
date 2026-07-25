@@ -149,7 +149,7 @@ export default function RecoveryCardSection() {
 
       <p className="recoveryCardWarning">
         This card intentionally contains no live passphrase, OTP, or URL slug — those change on every
-        rotation and are only ever available via email or Google Drive. Store this card somewhere
+        rotation and are only ever available via email or Cloudflare R2. Store this card somewhere
         physically secure (a safe, locked drawer). Re-print it whenever NEXT_PUBLIC_SITE_URL changes or a
         hidden page is added or removed.
       </p>
@@ -160,7 +160,7 @@ export default function RecoveryCardSection() {
     <div className="recoveryStepCard">
       <h2>Printable Recovery Card</h2>
       <p>
-        A physical fallback for when both email and Google Drive are unreachable. Contains no live passphrase,
+        A physical fallback for when both email and R2 are unreachable. Contains no live passphrase,
         OTP, or URL slug — only the URL pattern and a directory of every hidden page in the app.
       </p>
       <button type="button" className="recoveryUnbanButton" onClick={handlePrint}>

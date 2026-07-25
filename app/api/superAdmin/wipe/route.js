@@ -96,7 +96,7 @@ export async function POST(request) {
 
   // Immediate "moment of scheduling" backup — the super-admin chose
   // "Back up first, then wipe", so a copy of the current data should
-  // land in R2 + Google Drive right now, not only right before the
+  // land in R2 right now, not only right before the
   // TRUNCATE runs 24 hours later. Dispatches pre-wipe-backup.yml,
   // which runs the exact same scripts/runBackup.js as the nightly
   // workflow (same pg_dump + dual-upload + BackupLog write, decoupled
@@ -123,7 +123,7 @@ export async function POST(request) {
     message:
       payload.backupOption === "with_backup"
         ? immediateBackupDispatched
-          ? "Wipe scheduled for 24 hours from now. A backup is being created now and will also appear in R2 and Google Drive shortly."
+          ? "Wipe scheduled for 24 hours from now. A backup is being created now and will also appear in R2 shortly."
           : "Wipe scheduled, but the immediate backup couldn't be triggered (check GITHUB_ACTIONS_TOKEN, GITHUB_REPO_OWNER, GITHUB_REPO_NAME). A backup will still be attempted right before the wipe runs."
         : "Wipe scheduled for 24 hours from now. You can cancel it any time before then.",
   });

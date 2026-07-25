@@ -11,10 +11,17 @@
  *      in the DB, by id — so nothing written after the snapshot gets
  *      swept up by accident
  *   2. Builds a plain-SQL INSERT dump of exactly that snapshot
- *   3. Uploads the dump to Google Drive (services/googleDrive.js)
+ *   3. Uploads the dump to Cloudflare R2 (services/r2.js), private
+ *      `archives/` key — never the public CDN URL, since the dump
+ *      contains staff account IDs and IP addresses
  *   4. Deletes ONLY the snapshotted rows from both tables
  *   5. Writes one ActivityArchiveLog row so the Activity Feed page can
- *      show a "just archived" banner + Open in Google Drive button
+ *      show a "just archived" banner + a signed download link
+ *
+ * GOOGLE DRIVE DROPPED (July 2026) — this used to upload to Google
+ * Drive; switched to R2 for the same reliability reasons documented in
+ * services/googleDrive.js's header and services/vaultPassphraseBackup.js
+ * (which made the same move earlier for the vault passphrase backup).
  *
  * WHY SNAPSHOT-BY-ID INSTEAD OF "DELETE EVERYTHING OLDER THAN NOW":
  * New visitor/staff activity can be written between the snapshot read
@@ -23,26 +30,33 @@
  * exported — never a row that arrived mid-archive.
  *
  * WHY UPLOAD HAPPENS BEFORE DELETE:
- * If the Google Drive upload throws, execution stops before any
+ * If the R2 upload throws, execution stops before any
  * prisma.deleteMany() call runs — the records simply stay in the DB
  * and the next Activity Feed page load retries the whole archive from
  * scratch. There is no path where records can be deleted without a
- * confirmed, already-uploaded copy existing on Drive first.
+ * confirmed, already-uploaded copy existing in R2 first.
  *
  * DATA FLOW:
  * 1. app/api/admin/activity-feed/route.js calls
  *    archiveActivityFeedIfThresholdReached() after computing totalCount
  * 2. If totalCount < ARCHIVE_THRESHOLD_ROWS, this returns null immediately
  * 3. Otherwise it runs the steps above and returns the new
- *    ActivityArchiveLog row, which the route attaches to its response
- *    as `archiveNotice` for the client to render
+ *    ActivityArchiveLog row (plus a freshly-signed r2SignedUrl,
+ *    generated at call time — never stored, since signed URLs expire),
+ *    which the route attaches to its response as `archiveNotice` for
+ *    the client to render
  */
 import { prisma } from "@/services/prisma";
-import { uploadToDrive } from "@/services/googleDrive";
+import { uploadToR2, getR2SignedDownloadUrl } from "@/services/r2";
 
 const PAGE_SIZE = 10;
 const ARCHIVE_THRESHOLD_PAGES = 100;
 const ARCHIVE_THRESHOLD_ROWS = PAGE_SIZE * ARCHIVE_THRESHOLD_PAGES; // 1000
+
+// Signed URL lifetime for the "just archived" banner's download link —
+// long enough for the admin to open it same-session, short enough that
+// it doesn't stay valid indefinitely if the response is ever logged.
+const SIGNED_URL_EXPIRY_SECONDS = 24 * 60 * 60; // 24 hours
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -151,9 +165,12 @@ export async function archiveActivityFeedIfThresholdReached() {
   const sqlDump = header + visitorSql + staffSql;
   const fileBuffer = Buffer.from(sqlDump, "utf-8");
 
-  // Upload BEFORE deleting anything — if this throws, nothing below
-  // runs and the records stay safely in the DB for the next retry.
-  const { fileId, viewLink } = await uploadToDrive(fileName, fileBuffer, "application/sql");
+  // Private key — never the public CDN URL — since this dump contains
+  // staff account IDs and IP addresses. Upload BEFORE deleting
+  // anything — if this throws, nothing below runs and the records
+  // stay safely in the DB for the next retry.
+  const r2Key = `archives/${fileName}`;
+  await uploadToR2(r2Key, fileBuffer, "application/sql");
 
   const visitorIds = visitorRows.map((row) => row.id);
   const staffIds = staffRows.map((row) => row.id);
@@ -165,14 +182,21 @@ export async function archiveActivityFeedIfThresholdReached() {
     prisma.accountActivityLog.deleteMany({ where: { id: { in: staffIds } } }),
   ]);
 
-  return prisma.activityArchiveLog.create({
+  const archiveLogRow = await prisma.activityArchiveLog.create({
     data: {
       fileName,
-      driveFileId: fileId,
-      driveViewLink: viewLink,
+      r2Key,
       recordCount: visitorRows.length + staffRows.length,
       rangeStart: oldestDate,
       rangeEnd: newestDate,
     },
   });
+
+  // Signed URL generated fresh here, at call time, rather than stored —
+  // it's only ever shown once, on the response where the archive just
+  // fired (see app/api/admin/activity-feed/route.js), so there's no
+  // need to persist a link that expires in 24h anyway.
+  const r2SignedUrl = await getR2SignedDownloadUrl(r2Key, SIGNED_URL_EXPIRY_SECONDS);
+
+  return { ...archiveLogRow, r2SignedUrl };
 }

@@ -7,7 +7,7 @@
  *
  * PURPOSE:
  * Static, in-app reference for every external service this project
- * depends on (Supabase, Cloudflare R2, Google Drive, GitHub Actions,
+ * depends on (Supabase, Cloudflare R2, GitHub Actions,
  * MaxMind GeoIP2, Upstash Redis, EmailJS, Gemini + Google Maps Platform,
  * and the seed admin account) — one collapsible card per service with the
  * exact step-by-step sign-up/configuration instructions and which
@@ -109,26 +109,8 @@ const SETUP_GUIDE_SECTIONS = [
     ],
   },
   {
-    id: "googleDrive",
-    label: "3. Google Drive (OAuth2 user delegation) — Backup storage",
-    envVars: [
-      "GOOGLE_OAUTH_CLIENT_ID",
-      "GOOGLE_OAUTH_CLIENT_SECRET",
-      "GOOGLE_OAUTH_REFRESH_TOKEN",
-      "GOOGLE_DRIVE_FOLDER_ID",
-    ],
-    steps: [
-      "Uses OAuth2 as the real Gmail account, not a service account — service accounts have no storage quota of their own, so uploads fail with \"Service Accounts do not have storage quota.\"",
-      "console.cloud.google.com — sign in AS the Gmail account that should own the backup folder. Create/reuse a project, then enable the Google Drive API (APIs & Services → Library).",
-      "APIs & Services → OAuth consent screen: App name + support email → Audience: External → Contact info → Create. Then Audience → Test users → add your own Gmail (required while in Testing mode).",
-      "APIs & Services → Credentials → Create Credentials → OAuth client ID → Application type: Desktop app (not Web application). Copy the Client ID and Client Secret.",
-      "Locally (never in GitHub Actions — needs an interactive login) run: node scripts/getGoogleDriveRefreshToken.mjs — open the printed URL, sign in as the same Gmail, click Allow (an \"unverified app\" warning is expected in Testing mode), copy the printed refresh token into GOOGLE_OAUTH_REFRESH_TOKEN.",
-      "Create a backup folder in Google Drive, copy its ID from the URL (drive.google.com/drive/folders/[ID]) into GOOGLE_DRIVE_FOLDER_ID.",
-    ],
-  },
-  {
     id: "githubActions",
-    label: "4. GitHub — lets the vault trigger backups on demand",
+    label: "3. GitHub — lets the vault trigger backups on demand",
     envVars: ["GITHUB_REPO_OWNER", "GITHUB_REPO_NAME", "GITHUB_ACTIONS_TOKEN", "GITHUB_WORKFLOW_REF"],
     steps: [
       "github.com/settings/tokens → Generate new token (classic). Classic, not fine-grained — fine-grained tokens can look fully configured yet silently fail to dispatch the workflow.",
@@ -139,7 +121,7 @@ const SETUP_GUIDE_SECTIONS = [
   },
   {
     id: "maxmind",
-    label: "5. MaxMind GeoIP2 — IP-to-location lookups (self-hosted)",
+    label: "4. MaxMind GeoIP2 — IP-to-location lookups (self-hosted)",
     envVars: ["MAXMIND_DB_PATH"],
     steps: [
       "maxmind.com/en/geolite2/signup — create a free account, then My Account → Manage License Keys → Generate new license key.",
@@ -150,7 +132,7 @@ const SETUP_GUIDE_SECTIONS = [
   },
   {
     id: "upstash",
-    label: "6. Upstash Redis — distributed rate limiting",
+    label: "5. Upstash Redis — distributed rate limiting",
     envVars: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
     steps: [
       "console.upstash.com — Create Database, Regional type, region close to where the app is hosted. Free tier is enough for this project.",
@@ -160,7 +142,7 @@ const SETUP_GUIDE_SECTIONS = [
   },
   {
     id: "aiInsightAndDirections",
-    label: "7. Gemini + Google Maps Platform — AI Sales Insight & Directions",
+    label: "6. Gemini + Google Maps Platform — AI Sales Insight & Directions",
     envVars: ["GEMINI_API_KEY", "GEMINI_MODEL", "GOOGLE_MAPS_API_KEY", "GOOGLE_WEATHER_API_KEY"],
     steps: [
       "Gemini: go to aistudio.google.com, sign in, click \"Get API key\" in the left sidebar, then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required. Copy the key into GEMINI_API_KEY.",
@@ -174,7 +156,7 @@ const SETUP_GUIDE_SECTIONS = [
   },
   {
     id: "seedAdmin",
-    label: "8. Seed Admin Account — local config, no signup",
+    label: "7. Seed Admin Account — local config, no signup",
     envVars: ["SEED_ADMIN_EMAIL", "SEED_ADMIN_PASSWORD"],
     steps: [
       "Pick any email/password — these become the first super-admin login credentials.",

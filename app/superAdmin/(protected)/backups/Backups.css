@@ -38,9 +38,9 @@
 
 /*
  * .backupsDestinationLinks
- * R2 + Google Drive links side by side per row — a missing
- * destination shows a muted dash instead of just disappearing, so a
- * partial-failure run is immediately obvious at a glance.
+ * The R2 link for this run — a missing destination shows a muted dash
+ * instead of just disappearing, so a failed run is immediately
+ * obvious at a glance.
  */
 .backupsDestinationLinks {
   display: flex;

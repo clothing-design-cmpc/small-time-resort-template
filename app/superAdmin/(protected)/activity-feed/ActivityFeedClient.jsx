@@ -97,7 +97,7 @@ export default function ActivityFeedClient() {
       if (result.data.archiveNotice) {
         setArchiveNotice(result.data.archiveNotice);
         showToast(
-          `✓ ${result.data.archiveNotice.recordCount} records archived to Google Drive.`,
+          `✓ ${result.data.archiveNotice.recordCount} records archived to Cloudflare R2.`,
           "success"
         );
       }
@@ -152,12 +152,12 @@ export default function ActivityFeedClient() {
           </div>
           <div className="activityFeedArchiveBannerActions">
             <a
-              href={archiveNotice.driveViewLink}
+              href={archiveNotice.r2SignedUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="activityFeedArchiveBannerButton"
             >
-              Open in Google Drive
+              Download Archive
             </a>
             <button
               type="button"

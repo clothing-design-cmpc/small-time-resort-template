@@ -124,6 +124,21 @@
 }
 
 /*
+ * a.setupWizardButton
+ * Same reasoning as a.setupWizardButtonSecondary below — anchor tags
+ * need explicit display/alignment to render like the button rules
+ * above. Only applies when the class is used on an <a> (Step 10's
+ * "Go to Super-Admin Login" link).
+ */
+a.setupWizardButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  width: fit-content;
+}
+
+/*
  * .setupWizardButtonSecondary
  * Lower-emphasis action (e.g. "Check again") that never competes
  * visually with the primary accent button.
@@ -147,6 +162,21 @@
 .setupWizardButtonSecondary:focus-visible {
   border-color: var(--color-border-hover);
   background-color: var(--color-surface-hover);
+}
+
+/*
+ * a.setupWizardButtonSecondary
+ * Anchor tags are inline by default — without this, padding/min-height
+ * above render inconsistently and the link text doesn't center. Only
+ * applies when the class is used on an <a> (Step 9's "Open Vault"
+ * link); the plain button rules above are untouched.
+ */
+a.setupWizardButtonSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  width: fit-content;
 }
 
 /*

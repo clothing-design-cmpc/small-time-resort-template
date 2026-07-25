@@ -539,7 +539,8 @@ const STEP_DATA = [
         <li>Click <b>Create new project</b> and wait for provisioning to finish (usually 1–2 minutes).</li>
         <li>On the project page, click the green <b>Connect</b> button (top of the page). In the panel that opens, under <b>Connection Method</b> select <b>Transaction pooler</b>, keep Type as <b>URI</b>, then copy that connection string into <code>DATABASE_URL</code>.</li>
         <li>Still in the same panel, switch <b>Connection Method</b> to <b>Session pooler</b> (use <b>Direct connection</b> instead only if your network supports IPv6), copy that connection string into <code>DIRECT_URL</code>.</li>
-        <li>Go to <b>Settings → API</b>. Copy the <b>Project URL</b> into <code>NEXT_PUBLIC_SUPABASE_URL</code>, the <b>anon / public key</b> into <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and the <b>service_role key</b> into <code>SUPABASE_SERVICE_ROLE_KEY</code>.</li>
+        <li>Go to <b>Settings → API Keys</b>. The <b>Project URL</b> is shown at the top — copy it into <code>NEXT_PUBLIC_SUPABASE_URL</code>.</li>
+        <li>Click the <b>Legacy anon, service_role API keys</b> tab (not the default "Publishable and secret API keys" tab — this codebase expects the legacy key format). Copy the <b>anon</b> key into <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and the <b>service_role</b> key into <code>SUPABASE_SERVICE_ROLE_KEY</code>.</li>
         <li>Paste all five values into <code>.env.local</code>.</li>
         <li>Back in your terminal, run <code>npx prisma db push</code> then <code>npx prisma generate</code> to sync the schema to your new project.</li>
       </ol>`,
@@ -570,7 +571,7 @@ const STEP_DATA = [
           "Dashboard → New Project (never reuse an existing project across clients — this template is single-owner per deployment).",
           "Name it with the pattern below, pick the region closest to the client, set a strong DB password and save it.",
           "Click the green Connect button on the project page → Connection Method → Transaction pooler → copy the URI into DATABASE_URL, then switch to Session pooler → copy the URI into DIRECT_URL.",
-          "Settings → API → copy the Project URL into NEXT_PUBLIC_SUPABASE_URL, the anon key into NEXT_PUBLIC_SUPABASE_ANON_KEY, and the service_role key into SUPABASE_SERVICE_ROLE_KEY.",
+          "Settings → API Keys → copy the Project URL into NEXT_PUBLIC_SUPABASE_URL. Switch to the Legacy anon, service_role API keys tab, then copy the anon key into NEXT_PUBLIC_SUPABASE_ANON_KEY and the service_role key into SUPABASE_SERVICE_ROLE_KEY.",
         ],
         pattern: "{clientslug}-resort",
       },

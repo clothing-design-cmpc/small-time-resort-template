@@ -82,52 +82,12 @@ export default function SetupKeyForm() {
       <h1 className="setupWizardTitle">First-Run Setup</h1>
       <p className="setupWizardBody">
         This key confirms you have terminal access to this project before
-        the wizard shows anything else.
+        the wizard shows anything else. Get it by running{" "}
+        <code>npm run scaffold-env</code> then{" "}
+        <code>node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY</code> —
+        see <code>scripts/setup-guide.html</code> (opens automatically after{" "}
+        <code>npm install</code>) for the full walkthrough.
       </p>
-
-      <p className="setupWizardBody">
-        Already ran <code>npm run scaffold-env</code> and generated{" "}
-        <code>WIZARD_SETUP_KEY</code> while following the setup guide? Skip
-        straight to the field below and paste that value in — no need to
-        redo the steps.
-      </p>
-
-      <div className="setupWizardInstructions">
-        <span className="setupWizardInstructionsLabel">Don&apos;t have a setup key yet?</span>
-        <p className="setupWizardBody">
-          Requires Node.js 18.18 or newer (Node 24 LTS recommended) — Prisma
-          7 won&apos;t run on an older version.
-        </p>
-        <ol className="setupWizardInstructionsList">
-          <li>
-            Open a terminal in the project folder — Git Bash, PowerShell, or
-            Terminal.
-          </li>
-          <li>
-            Install dependencies (needed before any other command here
-            will work — this is also what makes{" "}
-            <code>npm run dev</code> itself runnable):
-            <code className="setupWizardCodeBlock">npm install</code>
-          </li>
-          <li>
-            Create your <code>.env.local</code> file, pre-filled with every
-            key this project needs:
-            <code className="setupWizardCodeBlock">npm run scaffold-env</code>
-          </li>
-          <li>
-            Generate the setup key:
-            <code className="setupWizardCodeBlock">
-              node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY
-            </code>
-          </li>
-          <li>
-            Copy the printed value into the <code>WIZARD_SETUP_KEY=</code>{" "}
-            line already waiting in <code>.env.local</code>, then restart{" "}
-            <code>npm run dev</code>.
-          </li>
-          <li>Paste that same value into the field below.</li>
-        </ol>
-      </div>
 
       {serverError && (
         <p className="setupWizardError" role="alert">

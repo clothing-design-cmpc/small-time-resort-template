@@ -41,39 +41,37 @@ const DATABASE_ENV_HELP = {
   DATABASE_URL: {
     label: "Transaction pooler connection (port 6543)",
     steps: [
-      "Open your project on supabase.com and go to Settings → Database.",
-      "Under \"Connection Pooling\", switch Mode to \"Transaction\".",
-      "Copy the connection string shown there (ends in port 6543,\n           includes ?pgbouncer=true).",
+      "Open your project on supabase.com and click the green \"Connect\"\n           button at the top of the project page.",
+      "Under \"Connection Method\", select \"Transaction pooler\" (keep Type\n           as URI) and copy that connection string.",
       "Paste it as DATABASE_URL= in .env.local — this is what the live\n           app uses for normal request traffic.",
     ],
   },
   DIRECT_URL: {
     label: "Session pooler connection (port 5432)",
     steps: [
-      "Same Settings → Database page, switch Connection Pooling Mode to\n           \"Session\" (or use the \"Direct connection\" string if shown).",
-      "Copy that connection string (ends in port 5432).",
+      "Same \"Connect\" panel — switch \"Connection Method\" to \"Session\n           pooler\" (use \"Direct connection\" instead only if your network\n           supports IPv6) and copy that connection string.",
       "Paste it as DIRECT_URL= in .env.local — this is what schema commands\n           (db push, enableRls.js, the exclusion constraint script) need,\n           since they require a stable session the transaction pooler\n           doesn't reliably provide.",
     ],
   },
   NEXT_PUBLIC_SUPABASE_URL: {
     label: "Project URL",
     steps: [
-      "Supabase Dashboard → Settings → API.",
-      "Copy the Project URL shown there.",
+      "On the project overview page, click the small \"Copy\" dropdown next\n           to the project URL (top-left, under the project name).",
+      "Select \"Project URL\" from the dropdown.",
       "Paste it as NEXT_PUBLIC_SUPABASE_URL= in .env.local.",
     ],
   },
   NEXT_PUBLIC_SUPABASE_ANON_KEY: {
     label: "Anon / public key",
     steps: [
-      "Same Settings → API page — copy the \"anon\" / \"public\" key.",
+      "Supabase Dashboard → Settings → API Keys → click the \"Legacy anon,\n           service_role API keys\" tab (not the default \"Publishable and\n           secret API keys\" tab — this codebase expects the legacy\n           format). Copy the \"anon\" key.",
       "Paste it as NEXT_PUBLIC_SUPABASE_ANON_KEY= in .env.local — safe to\n           expose to the browser, protected by Row Level Security.",
     ],
   },
   SUPABASE_SERVICE_ROLE_KEY: {
     label: "Service role key",
     steps: [
-      "Same Settings → API page — copy the \"service_role\" key.",
+      "Same \"Legacy anon, service_role API keys\" tab on Settings → API\n           Keys — copy the \"service_role\" key.",
       "Paste it as SUPABASE_SERVICE_ROLE_KEY= in .env.local — NEVER prefix\n           this with NEXT_PUBLIC_, never commit it, never expose it to the\n           client. It bypasses Row Level Security entirely.",
     ],
   },

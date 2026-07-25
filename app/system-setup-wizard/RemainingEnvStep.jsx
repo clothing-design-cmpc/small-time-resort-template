@@ -23,6 +23,11 @@
  * these in any order, over multiple sessions if needed, since none of
  * them block each other.
  *
+ * Also renders <ResellerArchitectureNote /> — a collapsed-by-default,
+ * purely informational card on running this template for multiple
+ * paying clients from one set of provider accounts. Checks nothing,
+ * blocks nothing; see that component's own header for details.
+ *
  * DATA FLOW:
  * 1. On mount and on every "Check again" click -> GET
  *    /api/system-setup-wizard/remaining-env-status
@@ -39,6 +44,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ENV_FIX_INSTRUCTIONS } from "@/scripts/lib/envGroups.mjs";
 import ScriptsHealthStep from "./ScriptsHealthStep";
+import ResellerArchitectureNote from "./ResellerArchitectureNote";
 
 export default function RemainingEnvStep() {
   const [status, setStatus] = useState(null);
@@ -157,6 +163,8 @@ export default function RemainingEnvStep() {
           Check again
         </button>
       </div>
+
+      <ResellerArchitectureNote />
 
       <div className="setupWizardCard">
         <p className="setupWizardBody">

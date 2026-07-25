@@ -308,9 +308,107 @@ h1 {
   border-radius: 6px;
   padding: 0.7rem 0.9rem;
   margin-top: 0.6rem;
+  min-width: 0;
+}
+
+.calloutText {
+  flex: 1;
+  min-width: 0;
 }
 
 .callout strong { color: var(--color-text-primary); }
+
+/* ---------- Provider cards (reseller step) ---------- */
+.providerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.providerCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: var(--space-md);
+  transition: border-color var(--transition-base), background-color var(--transition-base);
+}
+
+.providerCard:hover { border-color: var(--color-border-hover); }
+
+.providerName {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.providerSteps {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.providerSteps li { padding-left: 0.1rem; }
+
+.providerPatternRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #050506;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.providerPatternLabel {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-accent);
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.providerCopyButton {
+  width: 30px;
+  height: 30px;
+  min-width: 44px;
+  min-height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.providerCopyButton:hover,
+.providerCopyButton:focus-visible {
+  background: var(--color-accent-dim);
+  border-color: rgba(34,197,94,0.35);
+  color: var(--color-accent);
+}
+
+.providerCopyButton.isCopied {
+  color: var(--color-accent);
+  border-color: rgba(34,197,94,0.35);
+}
+
+.providerCopyButton svg { width: 14px; height: 14px; }
 
 /* ---------- Reset ---------- */
 .resetRow {
@@ -418,6 +516,94 @@ const STEP_DATA = [
     commands: [],
   },
   {
+    title: "Reselling to multiple clients? (optional)",
+    body: "Skip this step if you're deploying for a single owner. Otherwise: keep one login per provider below, but create a separate, isolated resource per client underneath it — no data crossover, and no risk to other clients if one stops renting. Use one consistent client slug (lowercase, hyphenated) across every service's resource name — offboarding a client is then just deleting the handful of resources with that slug.",
+    commands: [],
+    providers: [
+      {
+        name: "GitHub",
+        steps: [
+          "Open the master repo → Settings → General → check \u201cTemplate repository\u201d.",
+          "For each new client, click \u201cUse this template\u201d → \u201cCreate a new repository\u201d.",
+          "Name it with the pattern below, set it Private, create it. No shared history, no \u201cforked from\u201d link.",
+        ],
+        pattern: "resort-{clientslug}",
+      },
+      {
+        name: "Supabase",
+        steps: [
+          "Dashboard → New Project (never reuse an existing project across clients — this template is single-owner per deployment).",
+          "Name it with the pattern below, pick the region closest to the client, set a strong DB password and save it.",
+          "Settings → Database → Connection Pooling → copy the Transaction Pooler URL into DATABASE_URL and the Session Pooler URL into DIRECT_URL.",
+          "Settings → API → copy the Project URL, anon key, and service_role key.",
+        ],
+        pattern: "{clientslug}-resort",
+      },
+      {
+        name: "Cloudflare R2",
+        steps: [
+          "R2 → Create bucket, named with the pattern below.",
+          "Manage R2 API Tokens → Create API Token → scope it to only this bucket, Object Read & Write.",
+          "Copy the Account ID, Access Key ID, and Secret Access Key into this client's .env.local.",
+          "Connect a public/custom domain for the bucket, then copy that URL into NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL.",
+        ],
+        pattern: "{clientslug}-assets",
+      },
+      {
+        name: "EmailJS",
+        steps: [
+          "Email Services → Add New Service → connect the client's own inbox (or yours), named with the pattern below.",
+          "Email Templates → duplicate your base template for this client, note the new Template ID.",
+          "Copy the Service ID, Template ID, Public Key, and Private Key into this client's .env.local.",
+        ],
+        pattern: "{clientslug}-service",
+      },
+      {
+        name: "GitHub Actions",
+        steps: [
+          "In the client's own repo → Settings → Secrets and variables → Actions → add the same secret names the master repo uses.",
+          "GitHub → Settings → Developer settings → Personal access tokens → generate a token scoped to only this repo (repo + workflow) — never your whole org.",
+        ],
+        pattern: null,
+      },
+      {
+        name: "Upstash Redis",
+        steps: [
+          "Console → Create Database, named with the pattern below, region closest to the deployment.",
+          "REST API tab → copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN into this client's .env.local.",
+        ],
+        pattern: "{clientslug}-ratelimit",
+      },
+      {
+        name: "MaxMind GeoIP",
+        steps: [
+          "One-time only, not per-client — download GeoLite2-City.mmdb once from your existing MaxMind account.",
+          "Copy that same file into every client project at services/geoip/GeoLite2-City.mmdb.",
+        ],
+        pattern: null,
+      },
+      {
+        name: "Google (Gemini / Maps / Weather)",
+        steps: [
+          "Google Cloud Console → APIs & Services → Credentials → Create API Key for this client.",
+          "Restrict the key → HTTP referrers → add only this client's domain.",
+          "Enable the Geocoding API, Routes API, Weather API, and Gemini API for this key.",
+        ],
+        pattern: null,
+      },
+      {
+        name: "Vercel / hosting",
+        steps: [
+          "New Project → import the client's own repo (see the GitHub pattern above).",
+          "Project Settings → Environment Variables → add every key from this client's .env.local.",
+          "Project → Domains → add the client's custom domain, then hand them the CNAME/A record to set at their registrar.",
+        ],
+        pattern: "resort-{clientslug}",
+      },
+    ],
+    note: "The wizard's Step 5 (\u201cRemaining services\u201d) has this same reference under \u201cReselling this to multiple clients?\u201d if you need it again later, mid-project.",
+  },
+  {
     title: "Sync the database schema",
     body: null,
     commands: ["npx prisma db push", "npx prisma generate"],
@@ -494,7 +680,26 @@ function renderSteps() {
     `).join("");
 
     const noteHtml = step.note
-      ? `<div class="callout">${step.note}</div>`
+      ? `<div class="callout"><span class="calloutText">${step.note}</span></div>`
+      : "";
+
+    const providersHtml = step.providers
+      ? `<div class="providerGrid">${step.providers.map((provider, providerIndex) => `
+          <div class="providerCard">
+            <span class="providerName">${provider.name}</span>
+            <ol class="providerSteps">
+              ${provider.steps.map((s) => `<li>${s}</li>`).join("")}
+            </ol>
+            ${provider.pattern ? `
+              <div class="providerPatternRow">
+                <code class="providerPatternLabel" id="pattern-${index}-${providerIndex}">${provider.pattern}</code>
+                <button class="providerCopyButton" type="button" data-copy-target="pattern-${index}-${providerIndex}" aria-label="Copy naming pattern" title="Copy">
+                  ${copyIconSvg}
+                </button>
+              </div>
+            ` : ""}
+          </div>
+        `).join("")}</div>`
       : "";
 
     stepEl.innerHTML = `
@@ -507,6 +712,7 @@ function renderSteps() {
       <h2 class="stepTitle" id="stepTitle-${index}">${step.title}</h2>
       ${step.body ? `<p class="stepBody">${step.body}</p>` : ""}
       ${commandsHtml}
+      ${providersHtml}
       ${noteHtml}
     `;
 
@@ -528,7 +734,7 @@ function wireUpInteractions() {
     });
   });
 
-  document.querySelectorAll(".copyButton").forEach((btn) => {
+  document.querySelectorAll(".copyButton, .providerCopyButton").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const targetId = btn.getAttribute("data-copy-target");
       const text = document.getElementById(targetId).textContent;

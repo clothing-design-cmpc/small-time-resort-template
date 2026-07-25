@@ -419,3 +419,62 @@ a.setupWizardButtonSecondary {
   height: 20px;
   cursor: pointer;
 }
+
+/*
+ * .setupWizardProviderGrid / .setupWizardProviderCard
+ * Per-provider reseller setup checklist inside ResellerArchitectureNote —
+ * one card per external service, auto-filling the available width so it
+ * reflows from a single column on mobile up to several on desktop
+ * without any breakpoint (Rule 23.2).
+ */
+.setupWizardProviderGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-md);
+}
+
+.setupWizardProviderCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.setupWizardProviderName {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.setupWizardProviderSteps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.setupWizardProviderPatternRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.setupWizardProviderPattern {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow-wrap: break-word;
+}

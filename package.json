@@ -10,6 +10,7 @@
     "backup": "node scripts/runBackup.js",
     "envcheck": "node scripts/runEnvCheck.js",
     "check:health": "node scripts/checkSystemHealth.js",
+    "check:wizard-status": "node scripts/checkSetupWizardStatus.js",
     "wipe-database": "node scripts/runDatabaseWipe.js",
     "purge-security-logs": "node scripts/purgeSecurityLogs.js",
     "check:gatekeepers": "node scripts/checkGatekeepers.js",

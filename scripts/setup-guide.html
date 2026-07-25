@@ -147,6 +147,30 @@ h1 {
   letter-spacing: 0.04em;
 }
 
+/* ---------- Wizard status banner (live sync, best-effort) ---------- */
+.wizardStatusBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.wizardStatusBanner--complete {
+  background-color: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: var(--color-accent);
+}
+
+.wizardStatusBanner--pending {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
 /* ---------- Steps ---------- */
 .step {
   position: relative;
@@ -487,6 +511,8 @@ h1 {
     </div>
   </header>
 
+  <div id="wizardStatusBanner" class="wizardStatusBanner" hidden></div>
+
   <div id="stepsContainer"></div>
 
   <div class="resetRow">
@@ -806,7 +832,83 @@ document.getElementById("resetButton").addEventListener("click", () => {
   renderSteps();
 });
 
+/**
+ * Live wizard-status sync (best-effort)
+ * ------------------------------------
+ * This file is a plain local file (file:// origin) — it has no way to
+ * know on its own whether app/system-setup-wizard has actually been
+ * finished. While `npm run dev` is running, it polls
+ * /api/system-setup-wizard/status (a public, CORS-open, boolean-only
+ * route — see that route's own header for why it's safe to leave
+ * unauthenticated) and reflects the SAME derived truth the wizard
+ * itself locks on (services/setupWizardStatus.js).
+ *
+ * Once that comes back locked === true:
+ *   - the last two steps ("Open the wizard" / "Verify AUTO-LOCK after
+ *     finishing") are auto-checked — no need to click "npm run
+ *     check:wizard-status" by hand, the DB already confirmed it
+ *   - polling stops for the rest of this page's lifetime
+ * If the dev server isn't running yet (or the request fails for any
+ * other reason), this fails completely silently — no error shown,
+ * the manual checkboxes still work exactly as before.
+ */
+const WIZARD_STATUS_URL = "http://localhost:3000/api/system-setup-wizard/status";
+const WIZARD_RELATED_STEP_INDEXES = [STEP_DATA.length - 2, STEP_DATA.length - 1];
+let wizardConfirmedLocked = false;
+
+/** updateWizardStatusBanner — shows/hides the banner above the step list for a given live-check outcome. */
+function updateWizardStatusBanner(state) {
+  const banner = document.getElementById("wizardStatusBanner");
+  if (state === "complete") {
+    banner.hidden = false;
+    banner.className = "wizardStatusBanner wizardStatusBanner--complete";
+    banner.textContent =
+      "✓ Setup wizard already completed on this deployment — the last two steps below are auto-checked, and this guide has stopped polling.";
+  } else if (state === "pending") {
+    banner.hidden = false;
+    banner.className = "wizardStatusBanner wizardStatusBanner--pending";
+    banner.textContent =
+      "Dev server reachable — wizard setup isn't finished yet. This rechecks automatically every few seconds.";
+  } else {
+    banner.hidden = true;
+  }
+}
+
+/** pollWizardStatus — fetches live lock status; auto-checks the wizard-related steps once locked, then stops polling. */
+async function pollWizardStatus() {
+  if (wizardConfirmedLocked) return;
+
+  try {
+    const response = await fetch(WIZARD_STATUS_URL, { cache: "no-store" });
+    if (!response.ok) return;
+    const result = await response.json();
+    const locked = Boolean(result?.data?.locked);
+
+    updateWizardStatusBanner(locked ? "complete" : "pending");
+
+    if (locked) {
+      wizardConfirmedLocked = true;
+      WIZARD_RELATED_STEP_INDEXES.forEach((idx) => {
+        progressState[idx] = true;
+      });
+      saveProgress(progressState);
+      renderSteps();
+    }
+  } catch {
+    // Dev server not running yet, or otherwise unreachable — stay
+    // silent, this is a best-effort convenience, not a requirement.
+  }
+}
+
 renderSteps();
+pollWizardStatus();
+const wizardStatusIntervalId = setInterval(() => {
+  if (wizardConfirmedLocked) {
+    clearInterval(wizardStatusIntervalId);
+    return;
+  }
+  pollWizardStatus();
+}, 5000);
 </script>
 </body>
 </html>

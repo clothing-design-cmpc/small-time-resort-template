@@ -7,6 +7,7 @@
   },
   "scripts": {
     "postinstall": "node scripts/postinstallSetup.mjs",
+    "predev": "node scripts/postinstallSetup.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

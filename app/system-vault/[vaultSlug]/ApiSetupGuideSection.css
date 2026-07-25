@@ -87,3 +87,20 @@
   color: var(--color-text-secondary);
   line-height: 1.6;
 }
+
+/*
+ * .apiSetupGuideNote
+ * Context/pricing asides (free-tier limits, non-actionable warnings)
+ * that used to be crammed into the numbered .apiSetupGuideSteps list.
+ * Rendered once, above the steps, so the ordered list only ever
+ * contains things to actually click — not information to read.
+ */
+.apiSetupGuideNote {
+  padding: var(--space-sm) var(--space-md);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}

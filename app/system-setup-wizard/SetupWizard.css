@@ -223,6 +223,22 @@ a.setupWizardButtonSecondary {
 }
 
 /*
+ * .setupWizardInstructionsNote
+ * Context/pricing asides (free-tier limits, non-actionable warnings)
+ * kept out of .setupWizardInstructionsList so the numbered steps only
+ * ever contain things to actually click.
+ */
+.setupWizardInstructionsNote {
+  padding: var(--space-sm) var(--space-md);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/*
  * .setupWizardInstructionsLinks / .setupWizardLink
  * Row of external dashboard/signup links shown above the numbered
  * step list inside an expanded "How do I get these?" panel.

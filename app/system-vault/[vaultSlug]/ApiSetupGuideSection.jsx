@@ -99,14 +99,18 @@ const SETUP_GUIDE_SECTIONS = [
       "CLOUDFLARE_R2_BUCKET_NAME",
       "NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL",
     ],
+    note:
+      "Free tier: 10 GB storage + 1 million Class A (write/list) ops + 10 million Class B (read) ops per month, account-wide — not per bucket. Egress (serving files to visitors) is always free at any volume. Past the free tier: $0.015/GB-month storage, $4.50 per million Class A ops, $0.36 per million Class B ops. A payment method on file is required to enable R2, but a single resort site rarely comes close to these limits.",
     steps: [
-      "Go to dash.cloudflare.com, enable R2 Object Storage (needs a payment method on file, but the free tier covers a project this size).",
-      "Free tier: 10 GB storage + 1 million Class A (write/list) + 10 million Class B (read) operations per month, account-wide — not per bucket. Egress (serving files to visitors) is always free at any volume. Past the free tier: $0.015/GB-month storage, $4.50 per million Class A ops, $0.36 per million Class B ops.",
-      "Create a bucket: R2 Object Storage → Create bucket. Enter a name (e.g. villa-azure-resort — this is permanent, it can't be renamed later), leave Location as Automatic and Default Storage Class as Standard, then Create bucket.",
-      "Copy the Account ID: R2 Object Storage → Overview → scroll down to Account Details → copy Account ID into CLOUDFLARE_R2_ACCOUNT_ID.",
-      "Create the API token: same Account Details section → next to \"API Tokens\" click Manage → Create Account API token (not User API Token — Account tokens keep working even if you ever leave the org). Permissions: choose Object Read & Write. Under \"Specify bucket(s)\" choose \"Apply to specific buckets only\" and select this bucket, so a leaked token can never touch any other bucket. TTL: Forever is fine unless you want it to auto-expire. Click Create Account API Token, then copy the Access Key ID and Secret Access Key immediately — the secret is shown only once — into CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY.",
+      "Go to dash.cloudflare.com and enable R2 Object Storage.",
+      "Create a bucket: R2 Object Storage → Create bucket. Name it (e.g. villa-azure-resort — permanent, can't be renamed later), leave Location as Automatic and Default Storage Class as Standard, then Create bucket.",
+      "Copy the Account ID: R2 Object Storage → Overview → Account Details → copy Account ID into CLOUDFLARE_R2_ACCOUNT_ID.",
+      "Start the API token: same Account Details section → next to \"API Tokens\" click Manage → Create Account API token (not User API Token — Account tokens keep working even if you ever leave the org).",
+      "Set its permissions: Permissions → Object Read & Write. Under \"Specify bucket(s)\" choose \"Apply to specific buckets only\" and select this bucket, so a leaked token can never touch any other bucket. TTL: Forever is fine unless you want it to auto-expire.",
+      "Click Create Account API Token, then immediately copy the Access Key ID and Secret Access Key — the secret is shown only once — into CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY.",
       "Set CLOUDFLARE_R2_BUCKET_NAME to the exact bucket name from the create-bucket step above.",
-      "Make it public: open the bucket → Settings tab → Public Development URL card → Enable. Copy the pub-....r2.dev URL it gives you (https://, no trailing slash) into NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL. (The Custom Domains card just above it is the production-ready alternative, if you have a domain to connect instead.)",
+      "Make it public: open the bucket → Settings tab → Public Development URL card → Enable.",
+      "Copy the pub-....r2.dev URL it gives you (https://, no trailing slash) into NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL. (The Custom Domains card just above it is the production-ready alternative, if you have a domain to connect instead.)",
     ],
   },
   {
@@ -213,6 +217,8 @@ export default function ApiSetupGuideSection() {
                       ))}
                     </ul>
                   )}
+
+                  {section.note && <div className="apiSetupGuideNote">{section.note}</div>}
 
                   <ol className="apiSetupGuideSteps">
                     {section.steps.map((step, index) => (

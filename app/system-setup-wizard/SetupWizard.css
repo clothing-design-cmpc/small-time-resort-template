@@ -1,0 +1,124 @@
+/*
+ * FILE: app/system-setup-wizard/SetupWizard.css
+ * Layout + card styling for the first-run setup wizard. Uses the same
+ * design tokens as the rest of the site (app/styles/globals.css) —
+ * no hardcoded colors, spacing, or transitions.
+ */
+
+/* Full-height section, centers the card both directions */
+.setupWizardSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-lg);
+  background-color: var(--color-bg);
+}
+
+.setupWizardWrapper {
+  width: 100%;
+  max-width: var(--max-width-narrow);
+}
+
+/*
+ * .setupWizardCard
+ * Elevated form card — layered surface + subtle border, matches the
+ * login page's frosted-card treatment without the background photo.
+ */
+.setupWizardCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-xl);
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.setupWizardEyebrow {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--color-text-muted);
+}
+
+.setupWizardTitle {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.setupWizardBody {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}
+
+.setupWizardBody code {
+  font-size: 0.85em;
+  padding: 0.1em 0.4em;
+  background-color: var(--color-surface);
+  border-radius: 4px;
+}
+
+.setupWizardLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.setupWizardInput {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  transition: border-color var(--transition-fast);
+}
+
+.setupWizardInput:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(63, 125, 82, 0.2);
+}
+
+.setupWizardError {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.9rem;
+  color: var(--color-error);
+  background-color: rgba(214, 69, 69, 0.08);
+  border: 1px solid rgba(214, 69, 69, 0.24);
+  border-radius: 8px;
+}
+
+.setupWizardFieldError {
+  font-size: 0.8rem;
+  color: var(--color-error);
+}
+
+.setupWizardButton {
+  padding: var(--space-sm) var(--space-lg);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  touch-action: manipulation;
+  min-height: 44px;
+}
+
+.setupWizardButton:hover,
+.setupWizardButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+.setupWizardButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

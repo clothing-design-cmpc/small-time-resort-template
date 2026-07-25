@@ -108,3 +108,38 @@ export function isValidVaultSetupKey(providedKey) {
 
   return timingSafeEqual(configuredBuffer, providedBuffer);
 }
+
+/**
+ * isValidWizardSetupKey
+ * Constant-time comparison of a caller-supplied setup key against
+ * WIZARD_SETUP_KEY — Step 1's gate for app/system-setup-wizard.
+ *
+ * WHY A SEPARATE KEY FROM VAULT_SETUP_KEY:
+ * The two pages solve different problems and must not share a trust
+ * boundary. VAULT_SETUP_KEY is a disaster-recovery master key that
+ * survives a full database wipe and reaches the vault recovery flow
+ * on an ALREADY-RUNNING, already-configured deployment. WIZARD_SETUP_KEY
+ * gates the opposite moment in a project's life — a freshly cloned,
+ * not-yet-configured repo, before any database, admin account, or
+ * vault even exists. Reusing one key for both would mean whoever
+ * knows the wizard key (handed out during initial setup, possibly to
+ * a contractor or teammate) could also use it as a vault break-glass
+ * key later, and vice versa. Generate it with:
+ *   node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY
+ *
+ * Returns false immediately, with no comparison performed, if
+ * WIZARD_SETUP_KEY isn't configured at all.
+ *
+ * @param providedKey - value submitted on the wizard's Step 1 form
+ */
+export function isValidWizardSetupKey(providedKey) {
+  const configuredKey = process.env.WIZARD_SETUP_KEY;
+  if (!configuredKey || !providedKey) return false;
+
+  const configuredBuffer = Buffer.from(configuredKey, "utf-8");
+  const providedBuffer = Buffer.from(providedKey, "utf-8");
+
+  if (configuredBuffer.length !== providedBuffer.length) return false;
+
+  return timingSafeEqual(configuredBuffer, providedBuffer);
+}

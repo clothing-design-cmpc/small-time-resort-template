@@ -90,11 +90,36 @@ export default function SetupKeyForm() {
       <span className="setupWizardEyebrow">Step 1 of 10</span>
       <h1 className="setupWizardTitle">First-Run Setup</h1>
       <p className="setupWizardBody">
-        Enter the setup key from your <code>.env.local</code> to begin.
-        Generate one with{" "}
-        <code>node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY</code>{" "}
-        if you haven&apos;t already.
+        This key confirms you have terminal access to this project before
+        the wizard shows anything else.
       </p>
+
+      <div className="setupWizardInstructions">
+        <span className="setupWizardInstructionsLabel">Don&apos;t have a setup key yet?</span>
+        <ol className="setupWizardInstructionsList">
+          <li>
+            Open a terminal in the project folder — Git Bash, PowerShell, or
+            Terminal.
+          </li>
+          <li>
+            Create your <code>.env.local</code> file, pre-filled with every
+            key this project needs:
+            <code className="setupWizardCodeBlock">npm run scaffold-env</code>
+          </li>
+          <li>
+            Generate the setup key:
+            <code className="setupWizardCodeBlock">
+              node scripts/generateEnvSecret.mjs WIZARD_SETUP_KEY
+            </code>
+          </li>
+          <li>
+            Copy the printed value into the <code>WIZARD_SETUP_KEY=</code>{" "}
+            line already waiting in <code>.env.local</code>, then restart{" "}
+            <code>npm run dev</code>.
+          </li>
+          <li>Paste that same value into the field below.</li>
+        </ol>
+      </div>
 
       {serverError && (
         <p className="setupWizardError" role="alert">

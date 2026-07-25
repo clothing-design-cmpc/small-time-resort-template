@@ -51,6 +51,18 @@
   color: var(--color-error);
 }
 
+/*
+ * .bookingFormRuleMatch
+ * Small hint line under the Booking Type pills showing which specific
+ * multi-date rule set (e.g. "4Ds-3Ns") matched the guest's selected
+ * nights, once dates are picked.
+ */
+.bookingFormRuleMatch {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.15rem;
+}
+
 /* Minimum 1rem font-size prevents iOS auto-zoom on focus (Rule 29.6) */
 .bookingFormInput {
   width: 100%;

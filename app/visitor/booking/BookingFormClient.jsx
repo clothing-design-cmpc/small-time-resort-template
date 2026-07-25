@@ -64,7 +64,6 @@ const bookingFormSchema = z
   });
 
 export default function BookingFormClient({ initialCheckInDate, initialCheckOutDate }) {
-  const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules();
   const { rooms, isLoading: roomsLoading } = usePublicRooms(false);
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
 
@@ -100,6 +99,22 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   const checkInDate = watch("checkInDate");
   const checkOutDate = watch("checkOutDate");
   const numberOfGuests = watch("numberOfGuests");
+
+  // Nights actually selected for an Overnight stay — drives which
+  // specific rule set the fetch below matches (e.g. "4Ds-3Ns" vs
+  // "3Ds-2Ns" when both are Active), instead of always resolving to
+  // whichever Active rule was most recently updated regardless of how
+  // many nights the guest actually picked.
+  const nightsSelected = useMemo(() => {
+    if (bookingType !== "overnight" || !checkInDate || !checkOutDate) return null;
+    const checkIn = new Date(`${checkInDate}T00:00:00`);
+    const checkOut = new Date(`${checkOutDate}T00:00:00`);
+    if (Number.isNaN(checkIn.getTime()) || Number.isNaN(checkOut.getTime())) return null;
+    const diffDays = Math.round((checkOut - checkIn) / 86400000);
+    return diffDays > 0 ? diffDays : null;
+  }, [bookingType, checkInDate, checkOutDate]);
+
+  const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules(nightsSelected);
 
   const { availability } = useRoomAvailability(bookingType === "overnight" ? roomId : null);
 
@@ -268,6 +283,12 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
             </div>
           )}
         />
+        {bookingType === "overnight" && nightsSelected && bookingRules?.matchedRuleName && (
+          <p className="bookingFormRuleMatch">
+            Package: {bookingRules.matchedRuleName}
+            {bookingRules.matchedRuleNights === nightsSelected ? "" : " (default rate — no exact match for this night count)"}
+          </p>
+        )}
       </div>
 
       {/* Overnight-only: room select */}

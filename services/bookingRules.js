@@ -70,6 +70,32 @@ export async function getActiveBookingRule(bookingType = "overnight") {
 }
 
 /**
+ * getActiveBookingRuleForDateCount
+ * Same resolution as getActiveBookingRule() above, but first tries to
+ * find an Active rule set for this booking type whose
+ * howManySelectedDates matches the guest's actual NIGHTS selected (e.g.
+ * a "4Ds-3Ns" rule set has howManySelectedDates = 3 — see that column's
+ * comment on the BookingRule model). Falls back to
+ * getActiveBookingRule()'s existing "most recently updated Active rule"
+ * behavior whenever howManySelectedDates isn't given or nothing matches
+ * that count, so single-rule resorts and Day Tour/Night Tour (which
+ * don't use this per-length matching) keep working exactly as before.
+ */
+export async function getActiveBookingRuleForDateCount(bookingType = "overnight", howManySelectedDates = null) {
+  const allowField = ALLOW_FIELD_BY_TYPE[bookingType] ?? "allowOvernightStay";
+
+  if (Number.isInteger(howManySelectedDates) && howManySelectedDates > 0) {
+    const matchedRule = await prisma.bookingRule.findFirst({
+      where: { isActive: true, [allowField]: true, howManySelectedDates },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (matchedRule) return matchedRule;
+  }
+
+  return getActiveBookingRule(bookingType);
+}
+
+/**
  * selfHealActiveRulesForExistingTypes
  * Admin "Booking Rules & Configuration" list page only. For each of the
  * three booking types, if the admin has already configured at least one

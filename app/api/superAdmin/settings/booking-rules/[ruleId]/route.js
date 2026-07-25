@@ -73,6 +73,10 @@ export async function PUT(request, { params }) {
         maxNightsAllowed: body.maxNightsAllowed,
         advanceBookingDays: body.advanceBookingDays,
         ruleDates: Array.isArray(body.ruleDates) ? body.ruleDates : undefined,
+        // Denormalized nights count for the date-count rule matching
+        // used by services/bookingRules.js -> getActiveBookingRuleForDateCount()
+        // (see BookingRule.howManySelectedDates in prisma/schema.prisma).
+        howManySelectedDates: Array.isArray(body.ruleDates) ? body.ruleDates.length : undefined,
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         cleaningHours: body.cleaningHours,

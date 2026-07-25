@@ -94,6 +94,10 @@ async function createBookingInTransaction(payload, attempt = 0) {
             checkOutDate: new Date(`${quote.checkOutDate}T00:00:00`),
             totalAmount: quote.total,
             depositAmount: quote.depositAmount,
+            // Nights actually selected — matches BookingRule.howManySelectedDates
+            // so it's clear afterward which specific rule set (e.g.
+            // "4Ds-3Ns") priced this booking. See services/bookingPricing.js.
+            howManySelectedDates: quote.howManySelectedDates,
             notes: payload.notes || null,
             status: "confirmed",
             referenceCode,

@@ -17,7 +17,7 @@
  *     no multi-room cart, so "group" is read as "large party size").
  */
 import { prisma } from "@/services/prisma";
-import { getActiveBookingRule } from "@/services/bookingRules";
+import { getActiveBookingRule, getActiveBookingRuleForDateCount } from "@/services/bookingRules";
 
 const LAST_MINUTE_WINDOW_DAYS = 3;
 
@@ -86,13 +86,34 @@ export async function validateAndQuoteBooking({
   numberOfGuests,
   client = prisma,
 }) {
+  // For an Overnight stay, work out the nights BEFORE resolving the rule
+  // set — this is what lets us match a specific rule set built for this
+  // exact night count (e.g. "4Ds-3Ns"), rather than always falling back
+  // to whichever Active rule happens to be most recently updated. A
+  // malformed/missing checkOutDate just leaves nightsForRuleMatch null,
+  // which getActiveBookingRuleForDateCount treats the same as "no rule
+  // matched" — the checks below (missing checkOutDate, nights < 1,
+  // outside min/max) still fire with their normal messages either way.
+  let nightsForRuleMatch = null;
+  if (bookingType === "overnight" && checkOutDate) {
+    const provisionalCheckIn = startOfDay(new Date(`${checkInDate}T00:00:00`));
+    const provisionalCheckOut = startOfDay(new Date(`${checkOutDate}T00:00:00`));
+    if (!Number.isNaN(provisionalCheckIn.getTime()) && !Number.isNaN(provisionalCheckOut.getTime())) {
+      nightsForRuleMatch = daysBetween(provisionalCheckIn, provisionalCheckOut);
+    }
+  }
+
   // Resolve the rule set active for THIS booking type specifically —
   // Overnight, Day Tour, and Night Tour each have their own independent
   // active rule set (see services/bookingRules.js). This is the actual
   // fix for "set na si Day Tour, tapos gustong mag-Night Tour ng
   // visitor pero walang active rule doon" — each type now always
   // resolves its own rule regardless of which other types are active.
-  const rules = await getActiveBookingRule(bookingType);
+  // For Overnight, this now also tries to match a rule set built for
+  // this exact number of nights (e.g. picking a 3-night stay resolves
+  // "3Ds-2Ns" over "4Ds-3Ns" when both are Active) before falling back
+  // to the old "most recently updated Active rule" behavior.
+  const rules = await getActiveBookingRuleForDateCount(bookingType, nightsForRuleMatch);
 
   // --- Booking type must be enabled by the admin ---
   if (bookingType === "overnight" && !rules.allowOvernightStay) {
@@ -236,6 +257,8 @@ export async function validateAndQuoteBooking({
 
   return {
     nights,
+    howManySelectedDates: nights,
+    matchedRuleName: rules.name,
     checkInDate: toDateKey(checkIn),
     checkOutDate: toDateKey(checkOut),
     total,

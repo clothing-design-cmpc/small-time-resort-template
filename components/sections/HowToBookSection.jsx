@@ -69,6 +69,29 @@ const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
 const TODAY_KEY = toKey(TODAY);
 
+/**
+ * getDateRangeKeys
+ * Given two "YYYY-MM-DD" keys in any order, returns every date key from
+ * the earlier one to the later one, inclusive. Used below so that
+ * tapping a second date fills in every day in between (e.g. tapping
+ * July 24 then July 26 selects July 24, 25, and 26 — not just the two
+ * endpoints).
+ */
+function getDateRangeKeys(keyA, keyB) {
+  const [startKey, endKey] = [keyA, keyB].sort();
+  const [startYear, startMonth, startDay] = startKey.split("-").map(Number);
+  const [endYear, endMonth, endDay] = endKey.split("-").map(Number);
+  const cursor = new Date(startYear, startMonth - 1, startDay);
+  const end = new Date(endYear, endMonth - 1, endDay);
+
+  const keys = [];
+  while (cursor <= end) {
+    keys.push(toKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return keys;
+}
+
 const STEPS = [
   { number: 1, title: "Pick your dates", body: "Tap one or more open days on the calendar below." },
   { number: 2, title: "Choose your villa", body: "See what's available and pick the one that fits your group." },
@@ -158,12 +181,22 @@ export default function HowToBookSection() {
   const leadBlanks = firstDay.getDay();
   const calLabel = MONTH_YEAR_FMT.format(calBase);
 
-  // Toggles an open date in/out of the visitor's selection when
-  // Overnight Stay is enabled (guests can build a multi-date stay
-  // range). When only Tour-type bookings are enabled, a Tour is a
-  // single same-day visit — every click simply replaces whatever was
-  // selected before, so the visitor can never end up with 2+ dates
-  // selected for a booking type that has no way to use a second date.
+  // Section 1's calendar click behavior when Overnight Stay is enabled
+  // (mirrors the same pattern used on the super-admin Booking Rules
+  // date picker):
+  //   - No date selected yet -> selects just the clicked date (range anchor).
+  //   - Exactly one date already selected -> clicking the SAME date
+  //     deselects it; clicking a DIFFERENT date fills in every date
+  //     between the anchor and this click, inclusive (e.g. July 24
+  //     selected, then July 26 clicked -> July 24, 25, 26 all selected).
+  //   - A range/multiple dates are already selected -> clicking any
+  //     date starts a fresh selection with just that date as the new
+  //     anchor, so the visitor can redo the range without clicking
+  //     every day off one at a time.
+  // When only Tour-type bookings are enabled, a Tour is a single
+  // same-day visit — every click simply replaces whatever was selected
+  // before, so the visitor can never end up with 2+ dates selected for
+  // a booking type that has no way to use a second date.
   function handleDayClick(cellKey, isPast, isBooked) {
     if (isPast || isBooked) return;
 
@@ -172,9 +205,34 @@ export default function HowToBookSection() {
       return;
     }
 
-    setSelectedDates((current) =>
-      current.includes(cellKey) ? current.filter((key) => key !== cellKey) : [...current, cellKey].sort()
-    );
+    if (selectedDates.length === 0) {
+      setSelectedDates([cellKey]);
+      return;
+    }
+
+    if (selectedDates.length === 1) {
+      const anchorKey = selectedDates[0];
+      if (anchorKey === cellKey) {
+        setSelectedDates([]);
+        return;
+      }
+
+      const rangeKeys = getDateRangeKeys(anchorKey, cellKey);
+      // A range can't be filled through a day that's already booked —
+      // reject it here instead of silently selecting a stay that
+      // overlaps someone else's reservation.
+      const crossesBookedDate = rangeKeys.some((key) => key !== anchorKey && key !== cellKey && bookedSet.has(key));
+      if (crossesBookedDate) {
+        showToast("✕ That range crosses an already booked date. Please pick a different range.", "error");
+        return;
+      }
+
+      setSelectedDates(rangeKeys);
+      return;
+    }
+
+    // A range/multiple dates are already selected — start fresh.
+    setSelectedDates([cellKey]);
   }
 
   // Before sending the visitor into the reservation flow, confirm the
@@ -186,17 +244,22 @@ export default function HowToBookSection() {
     if (selectedDates.length === 0) return;
     setIsCheckingRule(true);
     try {
-      const response = await axios.get("/api/booking-rules");
+      const sortedDates = [...selectedDates].sort();
+      const checkInKey = sortedDates[0];
+      const checkOutKey = sortedDates[sortedDates.length - 1];
+      const nightsSelected = sortedDates.length - 1;
+
+      // Passing nights here matches the SAME rule set (e.g. "4Ds-3Ns")
+      // the booking page will resolve for this stay — see
+      // app/api/booking-rules/route.js and usePublicBookingRules.js.
+      const response = await axios.get("/api/booking-rules", {
+        params: allowOvernightStay && nightsSelected > 0 ? { nights: nightsSelected } : {},
+      });
       const rule = response.data?.data;
       if (!response.data?.success || !rule) {
         showToast("✕ No existing booking rule found. Please try again later.", "error");
         return;
       }
-
-      const sortedDates = [...selectedDates].sort();
-      const checkInKey = sortedDates[0];
-      const checkOutKey = sortedDates[sortedDates.length - 1];
-      const nightsSelected = sortedDates.length - 1;
 
       if (allowOvernightStay) {
         // Multi-date range — the night count must fall inside this

@@ -183,6 +183,16 @@ model Booking {
   // the "How to Get There" widget will reveal turn-by-turn directions.
   referenceCode  String   @unique @map("reference_code")
 
+  // --- Multi-date rule matching (Section 1 Rule 2 on Booking Rules) ---
+  // NIGHTS actually selected by the guest (checkOutDate - checkInDate in
+  // days) — 0 for Day Tour/Night Tour. Named to match BookingRule's own
+  // column below: an admin rule set built from N selected calendar dates
+  // in the Rule Schedule picker represents N nights (see that column's
+  // comment), so this is the value the booking route matches against to
+  // find which specific rule set (e.g. "4Ds-3Ns" vs "3Ds-2Ns") actually
+  // priced this stay.
+  howManySelectedDates Int @default(0) @map("how_many_selected_dates")
+
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])
@@ -491,6 +501,18 @@ model BookingRule {
   //     Section 1 completed before it's meaningful to activate). ---
   ruleDates String[] @default([]) @map("rule_dates")
 
+  // Denormalized from ruleDates.length — kept as its own indexed column
+  // (rather than filtering on array length on every request) so the
+  // visitor booking flow can cheaply look up "is there an Active rule
+  // set built for exactly N selected dates" (see
+  // services/bookingRules.js -> getActiveBookingRuleForDateCount()).
+  // A rule set named "4Ds-3Ns" has ruleDates.length = 3 (per the "X
+  // petsa (X gabi)" hint on the Rule Schedule picker — the number of
+  // dates selected there IS the night count), matched against
+  // Booking.howManySelectedDates on the same nights basis. Kept in sync
+  // by the create/update routes every time ruleDates is written.
+  howManySelectedDates Int @default(0) @map("how_many_selected_dates")
+
   // --- Booking Types (extension beyond the base blueprint, per admin request) ---
   allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
   allowDayTour       Boolean @default(false) @map("allow_day_tour")
@@ -537,6 +559,7 @@ model BookingRule {
   updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
 
   @@index([isActive])
+  @@index([isActive, allowOvernightStay, howManySelectedDates])
   @@map("booking_rules")
 }
 

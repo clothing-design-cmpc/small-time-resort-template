@@ -1,0 +1,12 @@
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#f4f4f5;padding:32px;border-radius:12px;">
+  <h1 style="font-size:22px;margin:0 0 8px;">Booking Confirmed</h1>
+  <p style="font-size:15px;color:rgba(255,255,255,0.7);margin:0 0 20px;">Hi {{guest_name}}, here are your booking details.</p>
+  <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px;margin:0 0 20px;font-size:14px;line-height:1.8;">
+    <p style="margin:0;"><strong>Reference:</strong> {{reference_code}}</p>
+    <p style="margin:0;"><strong>Room/Package:</strong> {{room_name}} ({{booking_type}})</p>
+    <p style="margin:0;"><strong>Check-in:</strong> {{check_in_date}} &nbsp; <strong>Check-out:</strong> {{check_out_date}}</p>
+    <p style="margin:0;"><strong>Nights:</strong> {{nights}} &nbsp; <strong>Guests:</strong> {{number_of_guests}}</p>
+    <p style="margin:0;"><strong>Total:</strong> {{total_amount}} &nbsp; <strong>Deposit:</strong> {{deposit_amount}}</p>
+  </div>
+  <p style="font-size:14px;"><a href="{{{invoice_url}}}" style="color:#22c55e;">View your invoice →</a></p>
+</div>

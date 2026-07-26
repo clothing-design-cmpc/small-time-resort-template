@@ -134,12 +134,7 @@ export async function checkEnvironment() {
   // (EnvCheckerSection.jsx's "Run Environment Check" button), never on
   // page load, so it never fires without the owner explicitly asking.
   let emailjsLive = { status: "unknown", message: "Not checked." };
-  const emailjsRequiredVars = [
-    "EMAILJS_SERVICE_ID",
-    "EMAILJS_GENERAL_TEMPLATE_ID",
-    "EMAILJS_BOOKING_TEMPLATE_ID",
-    "EMAILJS_PUBLIC_KEY",
-  ];
+  const emailjsRequiredVars = ["EMAILJS_SERVICE_ID", "EMAILJS_GENERAL_TEMPLATE_ID", "EMAILJS_PUBLIC_KEY"];
   const missingEmailjsVars = emailjsRequiredVars.filter((key) => !process.env[key]);
   const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
   if (missingEmailjsVars.length > 0) {

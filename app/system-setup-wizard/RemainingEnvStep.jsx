@@ -24,6 +24,17 @@
  * scripts/runEnvCheck.js (the nightly cron alert email) still relies
  * on that exact shape.
  *
+ * Some groups also carry an optional `codeBlocks` array — an actual
+ * pasteable command or template, not just prose describing it. Each
+ * entry has its own Copy button (same handleCopy/toast pattern
+ * ExternalSetupStep.jsx already uses for terminal commands):
+ *   - emailjs: the two EmailJS "Edit Content" HTML templates
+ *     themselves, ready to paste in verbatim, instead of only a
+ *     written description of which merge tags to place where.
+ *   - vaultSecurity: the `node scripts/generateEnvSecret.mjs` command
+ *     as its own copyable block, not just a sentence mentioning it.
+ *   - siteConfig: a sample .env line for NEXT_PUBLIC_SITE_URL.
+ *
  * This step has no sequential locking and no "I ran this" checkbox —
  * unlike Step 3's database commands, there's nothing to run in order
  * here, just external dashboard values to paste in. The person can set
@@ -51,6 +62,8 @@
 import { useCallback, useEffect, useState } from "react";
 import ScriptsHealthStep from "./ScriptsHealthStep";
 import ResellerArchitectureNote from "./ResellerArchitectureNote";
+import { useToast } from "./shared/useToast";
+import ToastStack from "./shared/ToastStack";
 
 /**
  * REMAINING_ENV_HELP
@@ -84,7 +97,45 @@ const REMAINING_ENV_HELP = {
       "Sign in, then Account → API Keys.",
       "Copy the Public Key into EMAILJS_PUBLIC_KEY and the Private Key (turn on Strict Mode) into EMAILJS_PRIVATE_KEY.",
       "Email Services → copy your connected service's ID into EMAILJS_SERVICE_ID.",
-      "Email Templates → copy the general-purpose template's ID into EMAILJS_GENERAL_TEMPLATE_ID.",
+      "This project uses TWO separate templates — one general-purpose, one booking-only. Do not reuse one template's ID for the other.",
+      "TEMPLATE 1 — general (contact inquiries, vault OTP, breach/rotation alerts): Email Templates → open the \"Contact template\" (or create one) and copy its ID into EMAILJS_GENERAL_TEMPLATE_ID.",
+      "Template 1 right-hand panel: Subject = {{subject}}, To Email = {{to_email}}, Reply To = {{reply_to}}, From Name = a static brand name (e.g. \"Villa Azure\") since it isn't a merge tag this app fills, and clear the Bcc field if it still shows {{email}} from the default template.",
+      "Template 1 Edit Content (raw HTML) must use exactly these lowercase merge tags — case must match services/emailjs.js exactly or EmailJS silently renders them blank: {{eyebrow}}, {{heading}}, {{intro}}, {{highlight_line_1}}, {{highlight_line_2}}, and {{{body_message}}} (triple braces — outputs raw HTML/line breaks instead of escaping them).",
+      "Common mistake on Template 1: a leftover uppercase {{EYEBROW}} from the default template — merge tags are case-sensitive, so it must be lowercased to {{eyebrow}} or that field will always render empty.",
+      "TEMPLATE 2 — booking confirmations only: Email Templates → Create New Template (do not clone/reuse Template 1 — this one has its own field set). Copy its ID into EMAILJS_BOOKING_TEMPLATE_ID.",
+      "Template 2 right-hand panel: same as Template 1 — Subject = {{subject}}, To Email = {{to_email}}, Reply To = {{reply_to}}, From Name = a static brand name.",
+      "Template 2 Edit Content must use these lowercase merge tags: {{guest_name}}, {{reference_code}}, {{room_name}}, {{booking_type}}, {{check_in_date}}, {{check_out_date}}, {{nights}}, {{number_of_guests}}, {{total_amount}}, {{deposit_amount}}, and {{{invoice_url}}} (triple braces so it can render as a live link, e.g. inside <a href=\"{{{invoice_url}}}\">).",
+      "Save both templates, then enable Strict Mode (Account → Security) and generate the Private Key referenced above so this server-side call can't be replayed from a leaked public key.",
+    ],
+    codeBlocks: [
+      {
+        label: "Template 1 — general (paste into Edit Content → HTML)",
+        code: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#f4f4f5;padding:32px;border-radius:12px;">
+  <p style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin:0 0 12px;">{{eyebrow}}</p>
+  <h1 style="font-size:22px;margin:0 0 16px;color:#f4f4f5;">{{heading}}</h1>
+  <p style="font-size:15px;line-height:1.6;color:rgba(255,255,255,0.7);margin:0 0 20px;">{{intro}}</p>
+  <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px;margin:0 0 20px;">
+    <p style="margin:0 0 6px;font-size:15px;color:#f4f4f5;">{{highlight_line_1}}</p>
+    <p style="margin:0;font-size:15px;color:#f4f4f5;">{{highlight_line_2}}</p>
+  </div>
+  <div style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.7);">{{{body_message}}}</div>
+</div>`,
+      },
+      {
+        label: "Template 2 — booking (paste into a new, separate template's Edit Content → HTML)",
+        code: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#f4f4f5;padding:32px;border-radius:12px;">
+  <h1 style="font-size:22px;margin:0 0 8px;">Booking Confirmed</h1>
+  <p style="font-size:15px;color:rgba(255,255,255,0.7);margin:0 0 20px;">Hi {{guest_name}}, here are your booking details.</p>
+  <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px;margin:0 0 20px;font-size:14px;line-height:1.8;">
+    <p style="margin:0;"><strong>Reference:</strong> {{reference_code}}</p>
+    <p style="margin:0;"><strong>Room/Package:</strong> {{room_name}} ({{booking_type}})</p>
+    <p style="margin:0;"><strong>Check-in:</strong> {{check_in_date}} &nbsp; <strong>Check-out:</strong> {{check_out_date}}</p>
+    <p style="margin:0;"><strong>Nights:</strong> {{nights}} &nbsp; <strong>Guests:</strong> {{number_of_guests}}</p>
+    <p style="margin:0;"><strong>Total:</strong> {{total_amount}} &nbsp; <strong>Deposit:</strong> {{deposit_amount}}</p>
+  </div>
+  <p style="font-size:14px;"><a href="{{{invoice_url}}}" style="color:#22c55e;">View your invoice →</a></p>
+</div>`,
+      },
     ],
   },
   githubActions: {
@@ -121,6 +172,12 @@ const REMAINING_ENV_HELP = {
       "CRON_SECRET authenticates the nightly automated call to /api/system-vault-setup/auto-rotate. Update it in BOTH .env.local AND your deployment platform's env vars at the same time — a mismatch fails the cron job silently with a 401.",
       "Set VAULT_OWNER_EMAIL to the email that should receive vault alerts. VAULT_ALERT_WEBHOOK_URL (optional) is a Slack/Discord-style incoming webhook URL, if you want alerts posted to a channel too.",
     ],
+    codeBlocks: [
+      {
+        label: "Run in your terminal, from the project root",
+        code: "node scripts/generateEnvSecret.mjs",
+      },
+    ],
   },
   aiInsightAndDirections: {
     links: [
@@ -143,6 +200,12 @@ const REMAINING_ENV_HELP = {
       "Set NEXT_PUBLIC_SITE_URL to this site's live production URL in .env.local and your deployment platform's env vars.",
       "BASE_URL (optional) only needs setting if a background script needs the site's URL outside the Next.js request context.",
     ],
+    codeBlocks: [
+      {
+        label: "Add to .env.local (and your deployment platform's env vars)",
+        code: "NEXT_PUBLIC_SITE_URL=https://your-deployed-domain.com",
+      },
+    ],
   },
 };
 
@@ -152,6 +215,24 @@ export default function RemainingEnvStep() {
   const [loadError, setLoadError] = useState(null);
   const [openHelpGroupId, setOpenHelpGroupId] = useState(null);
   const [continued, setContinued] = useState(false);
+  const { toasts, showToast, dismissToast } = useToast();
+
+  /**
+   * handleCopy
+   * Copies a code block's content (an EmailJS template, a terminal
+   * command, or a sample .env line) to the clipboard. Same
+   * try/navigator.clipboard/catch pattern ExternalSetupStep.jsx uses
+   * for its terminal commands, kept local here since this step has
+   * its own group-scoped code blocks instead of a flat list.
+   */
+  async function handleCopy(code) {
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast("✓ Copied to clipboard.", "success");
+    } catch {
+      showToast("✕ Couldn't copy automatically — please copy it manually.", "error");
+    }
+  }
 
   /**
    * fetchStatus
@@ -214,6 +295,8 @@ export default function RemainingEnvStep() {
 
   return (
     <div className="setupWizardStepGroup">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
       <div className="setupWizardCard">
         <span className="setupWizardEyebrow">Step 5 of 10</span>
         <h1 className="setupWizardTitle">Remaining services</h1>
@@ -271,6 +354,22 @@ export default function RemainingEnvStep() {
                 {REMAINING_ENV_HELP[group.id]?.note && (
                   <div className="setupWizardInstructionsNote">{REMAINING_ENV_HELP[group.id].note}</div>
                 )}
+
+                {REMAINING_ENV_HELP[group.id]?.codeBlocks?.map((block) => (
+                  <div key={block.label} className="setupWizardCodeBlockGroup">
+                    <span className="setupWizardInstructionsLabel">{block.label}</span>
+                    <div className="setupWizardCommandRow">
+                      <code className="setupWizardCodeBlock setupWizardCodeBlock--multiline">{block.code}</code>
+                      <button
+                        type="button"
+                        className="setupWizardCopyButton"
+                        onClick={() => handleCopy(block.code)}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                ))}
 
                 <ol className="setupWizardInstructionsList">
                   {REMAINING_ENV_HELP[group.id]?.steps.map((stepText, index) => (

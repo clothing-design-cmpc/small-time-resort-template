@@ -308,6 +308,33 @@ a.setupWizardButtonSecondary {
   flex: 1 1 auto;
 }
 
+/*
+ * .setupWizardCodeBlock--multiline
+ * Variant of .setupWizardCodeBlock for pasteable multi-line content
+ * (e.g. an EmailJS "Edit Content" HTML template) instead of a single
+ * terminal command — wraps long lines and caps height with its own
+ * scroll instead of stretching the page.
+ */
+.setupWizardCodeBlock--multiline {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/*
+ * .setupWizardCodeBlockGroup
+ * Wraps one labeled code block (label + command row) inside a group's
+ * "How do I get these?" instructions panel, giving it breathing room
+ * from the note above and the numbered steps below.
+ */
+.setupWizardCodeBlockGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: var(--space-md) 0;
+}
+
 .setupWizardCopyButton {
   flex: 0 0 auto;
   padding: var(--space-xs) var(--space-md);

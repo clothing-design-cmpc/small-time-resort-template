@@ -26,8 +26,10 @@ const GUIDE_PATH = path.join(LIB_DIR, "..", "setup-guide.html");
 /**
  * buildEnvFileContent
  * Renders ENV_GROUPS into a commented, grouped .env.local body — one
- * section header per group (its label), one blank `KEY=` line per
- * variable, and a "(optional)" marker on keys where required: false.
+ * section header per group (its label), one `KEY=` line per variable
+ * (pre-filled with entry.defaultValue when the group declares one,
+ * blank otherwise), and a "(optional)" marker on keys where
+ * required: false.
  */
 export function buildEnvFileContent() {
   const header =
@@ -40,7 +42,7 @@ export function buildEnvFileContent() {
     const groupHeader = `\n# --- ${group.label} ---`;
     const keyLines = group.keys.map((entry) => {
       const suffix = entry.required ? "" : " # (optional)";
-      return `${entry.key}=${suffix}`;
+      return `${entry.key}=${entry.defaultValue ?? ""}${suffix}`;
     });
     return [groupHeader, ...keyLines].join("\n");
   });

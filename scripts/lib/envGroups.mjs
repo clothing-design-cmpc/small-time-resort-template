@@ -51,10 +51,11 @@ export const ENV_GROUPS = [
   },
   {
     id: "emailjs",
-    label: "EmailJS (OTP + alert emails)",
+    label: "EmailJS (general template: OTP/contact/alerts + booking template)",
     keys: [
       { key: "EMAILJS_SERVICE_ID", required: true },
       { key: "EMAILJS_GENERAL_TEMPLATE_ID", required: true },
+      { key: "EMAILJS_BOOKING_TEMPLATE_ID", required: true },
       { key: "EMAILJS_PUBLIC_KEY", required: true },
       { key: "EMAILJS_PRIVATE_KEY", required: true },
     ],
@@ -129,7 +130,7 @@ export const ENV_FIX_INSTRUCTIONS = {
     "Supabase Dashboard → Settings → API Keys → click the Legacy anon, service_role API keys tab (not the default Publishable and secret API keys tab). Copy the Project URL into NEXT_PUBLIC_SUPABASE_URL, the anon key into NEXT_PUBLIC_SUPABASE_ANON_KEY, and the service_role key into SUPABASE_SERVICE_ROLE_KEY.",
   r2: "Cloudflare Dashboard → R2 → Manage API Tokens. Regenerate/copy the Account ID, Access Key ID, Secret Access Key, and bucket name into the matching CLOUDFLARE_R2_* variables.",
   emailjs:
-    "EmailJS Dashboard → Account → API Keys. Confirm EMAILJS_SERVICE_ID, EMAILJS_GENERAL_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, and EMAILJS_PRIVATE_KEY (Strict Mode) match the dashboard.",
+    "EmailJS Dashboard → Account → API Keys. Confirm EMAILJS_SERVICE_ID, EMAILJS_GENERAL_TEMPLATE_ID, EMAILJS_BOOKING_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, and EMAILJS_PRIVATE_KEY (Strict Mode) match the dashboard — two separate templates, two separate IDs.",
   githubActions:
     "GitHub → Settings → Developer settings → Personal access tokens. Regenerate GITHUB_ACTIONS_TOKEN (repo + workflow scopes) and confirm GITHUB_REPO_OWNER / GITHUB_REPO_NAME match this repository.",
   rateLimit:

@@ -39,7 +39,7 @@ import { logVisitorActivity } from "@/services/visitorLog";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { generateUniqueReferenceCode } from "@/services/referenceCode";
-import { sendGeneralEmail } from "@/services/emailjs";
+import { sendBookingEmail } from "@/services/emailjs";
 import { isExclusionViolation, isSerializationFailure } from "@/services/pgErrorCodes";
 
 const BOOKING_SUBMIT_MAX = 10;
@@ -234,18 +234,21 @@ export async function POST(request) {
     // A failed send must never fail an already-confirmed booking.
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${booking.id}/invoice` : null;
-    await sendGeneralEmail({
+    const pesoFormatter = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
+    await sendBookingEmail({
       toEmail: payload.guestEmail,
       subject: `Villa Azure Resort — Booking Confirmed (${booking.referenceCode})`,
-      eyebrow: "BOOKING CONFIRMED",
-      heading: `Thank you, ${payload.guestName}!`,
-      intro:
-        "Your stay at Villa Azure Resort has been confirmed. Keep your reference code below — you'll need it to unlock turn-by-turn directions to the resort.",
-      highlightLine1: `Reference code: ${booking.referenceCode}`,
-      highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
-      bodyMessage: invoiceUrl
-        ? `Download your invoice here: ${invoiceUrl}`
-        : "Your invoice with the reference code above is also available on the booking confirmation page.",
+      guestName: payload.guestName,
+      referenceCode: booking.referenceCode,
+      roomName: quote.room?.name || payload.bookingType.replace("_", " "),
+      bookingType: payload.bookingType,
+      checkInDate: quote.checkInDate,
+      checkOutDate: quote.checkOutDate,
+      nights: quote.nights,
+      numberOfGuests: payload.numberOfGuests,
+      totalAmount: pesoFormatter.format(quote.total),
+      depositAmount: quote.depositRequired ? pesoFormatter.format(quote.depositAmount) : "",
+      invoiceUrl: invoiceUrl || "",
     });
   } catch (error) {
     console.error("[api/bookings] Failed to send confirmation email:", error.message);

@@ -544,6 +544,7 @@ const STEP_DATA = [
     title: "Scaffold .env.local",
     body: "Already done — this file writing out is what opened this guide.",
     commands: ["npm run scaffold-env"],
+    note: "If you run this again yourself and see \"<code>.env.local already exists — refusing to overwrite it</code>\" — that's expected, not a bug. It never overwrites your filled-in values. To force a fresh, blank scaffold (e.g. to test a template change), rename or delete the existing <code>.env.local</code> first, then re-run the command.",
   },
   {
     title: "Generate local secrets",
@@ -615,8 +616,8 @@ const STEP_DATA = [
         name: "EmailJS",
         steps: [
           "Email Services → Add New Service → connect the client's own inbox (or yours), named with the pattern below.",
-          "Email Templates → duplicate your base template for this client, note the new Template ID.",
-          "Copy the Service ID, Template ID, Public Key, and Private Key into this client's .env.local.",
+          "Email Templates → duplicate BOTH base templates (general + booking) for this client, note both new Template IDs.",
+          "Copy the Service ID, both Template IDs (EMAILJS_GENERAL_TEMPLATE_ID and EMAILJS_BOOKING_TEMPLATE_ID), Public Key, and Private Key into this client's .env.local.",
         ],
         pattern: "{clientslug}-service",
       },

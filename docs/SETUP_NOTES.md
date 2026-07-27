@@ -20,11 +20,14 @@ https://github.com/settings/tokens → Generate new token (classic)
   GITHUB_WORKFLOW_REF=static
 
 ## MaxMind GeoIP (task 5)
+Already included in this template at services/geoip/GeoLite2-City.mmdb —
+MAXMIND_DB_PATH already defaults to that path, no setup needed to start.
+One worldwide file, not per-client — reuse the same copy across every
+client project. Still worth refreshing periodically:
 https://www.maxmind.com/en/geolite2/signup
 - Free account → My Account → Manage License Keys → Generate new license key
 - Download GeoLite2 City (.mmdb, not CSV)
-- Save to services/geoip/GeoLite2-City.mmdb
-- MAXMIND_DB_PATH already defaults to that path
+- Replace services/geoip/GeoLite2-City.mmdb — MaxMind refreshes roughly every 2 weeks
 
 ## Vault & Gatekeeper security (task 6)
 Run locally, no signup:

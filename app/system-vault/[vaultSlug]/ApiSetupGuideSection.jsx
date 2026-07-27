@@ -129,10 +129,11 @@ const SETUP_GUIDE_SECTIONS = [
     label: "4. MaxMind GeoIP2 — IP-to-location lookups (self-hosted)",
     envVars: ["MAXMIND_DB_PATH"],
     steps: [
-      "maxmind.com/en/geolite2/signup — create a free account, then My Account → Manage License Keys → Generate new license key.",
+      "Already in this clone — services/geoip/GeoLite2-City.mmdb is committed in this template and MAXMIND_DB_PATH already defaults to that path, so geolocation lookups work out of the box with zero setup.",
+      "One file works for every client deployment you resell this to — GeoLite2-City.mmdb is a single worldwide IP-to-location index, not tied to any one client's business address. Reuse the exact same file across all of them; there's no such thing as a \"per-client\" version.",
+      "Still worth refreshing periodically: maxmind.com/en/geolite2/signup — create a free account, then My Account → Manage License Keys → Generate new license key.",
       "Download GeoLite2 City (the .mmdb file, not the CSV version) from the account's Download Files page.",
-      "Save it to services/geoip/GeoLite2-City.mmdb, and set MAXMIND_DB_PATH to that path.",
-      "Re-download and replace the file periodically — MaxMind refreshes GeoLite2 roughly every 2 weeks.",
+      "Replace services/geoip/GeoLite2-City.mmdb with the fresh download — MaxMind updates GeoLite2 roughly every 2 weeks, and the committed copy only gets staler the longer it sits.",
     ],
   },
   {

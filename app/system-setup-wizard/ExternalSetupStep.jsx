@@ -104,13 +104,17 @@ export default function ExternalSetupStep() {
       <div className="setupWizardCard">
         <h2 className="setupWizardSubStepTitle">3. MaxMind GeoIP database file</h2>
         <p className="setupWizardBody">
-          Not an env var — a physical file. Register a free account at{" "}
+          Not an env var — a physical file. Already included in this
+          template at <code>services/geoip/GeoLite2-City.mmdb</code>, and{" "}
+          <code>MAXMIND_DB_PATH</code> already defaults to that path — no
+          setup required to get started. It&apos;s one worldwide
+          IP-to-location file, not tied to any single client, so the same
+          copy is reused across every client project you deploy this to.
+          Still worth refreshing periodically: register a free account at{" "}
           <code>maxmind.com</code>, download <code>GeoLite2-City.mmdb</code>
-          , and place it at <code>services/geoip/GeoLite2-City.mmdb</code>.
-          Intentionally not committed to git — re-download it on every
-          environment/deployment that needs geolocation lookups.
-          <code>MAXMIND_DB_PATH</code> just points at wherever you put it;
-          the default already matches this location.
+          , and replace the file at that same path — MaxMind updates
+          GeoLite2 roughly every 2 weeks, so the committed copy only gets
+          staler the longer it sits.
         </p>
       </div>
 

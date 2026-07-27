@@ -11,6 +11,17 @@
  * .env.local. This step's job is only to: show those two env keys,
  * show the seed command, and confirm success against the database.
  *
+ * The seed command + its ownerExists (DB-derived) verification are
+ * ALWAYS shown, independent of the env-presence badges above them.
+ * Those badges read process.env at request time, which Next.js only
+ * populates once at dev-server start — editing .env.local without
+ * restarting `npm run dev` leaves them showing stale "Missing" even
+ * after the keys are saved and the seed already ran successfully. If
+ * this card were gated behind that presence check (as it originally
+ * was), a stale env read would hide the one thing that actually
+ * confirms the seed worked. A note explains the restart gotcha
+ * instead of blocking the verification itself.
+ *
  * Once ownerExists is confirmed true for the first time, this
  * component calls /confirm-admin exactly once (guarded by a
  * sessionStorage flag, same pattern as DatabaseSetupStep's 3b) so the
@@ -257,11 +268,7 @@ export default function AdminSetupStep() {
         </ul>
       </div>
 
-      <div
-        className={`setupWizardCard setupWizardSubStepCard ${
-          !envReady ? "setupWizardSubStepCard--locked" : ""
-        }`}
-      >
+      <div className="setupWizardCard setupWizardSubStepCard">
         <h2 className="setupWizardSubStepTitle">Run the seed script</h2>
         <p className="setupWizardBody">
           Creates the Supabase Auth user and the admin_profiles row with
@@ -269,51 +276,56 @@ export default function AdminSetupStep() {
           create a second owner account.
         </p>
 
-        {!envReady ? (
-          <p className="setupWizardLockedNotice">Set both keys above first.</p>
-        ) : (
-          <>
-            <div className="setupWizardCommandRow">
-              <code className="setupWizardCodeBlock">npx prisma db seed</code>
-              <button
-                type="button"
-                className="setupWizardCopyButton"
-                onClick={() => handleCopy("npx prisma db seed")}
-              >
-                Copy
-              </button>
-            </div>
-
-            <div className="setupWizardVerifyRow">
-              <span
-                className={`setupWizardStatusBadge ${
-                  status.ownerExists ? "setupWizardStatusBadge--ok" : "setupWizardStatusBadge--missing"
-                }`}
-              >
-                {status.ownerExists ? "✓ Verified" : "✕ Not detected yet"}
-              </span>
-              <button
-                type="button"
-                className="setupWizardButtonSecondary"
-                onClick={handleCheckAgain}
-                disabled={isConfirming}
-              >
-                Check again
-              </button>
-              {status.ownerExists && (
-                <button
-                  type="button"
-                  className="setupWizardButton"
-                  onClick={runConfirmAdmin}
-                  disabled={isConfirming}
-                >
-                  {isConfirming ? "Confirming…" : "Continue"}
-                </button>
-              )}
-            </div>
-            {confirmError && <p className="setupWizardError">{confirmError}</p>}
-          </>
+        {!envReady && (
+          <p className="setupWizardLockedNotice">
+            The keys above show missing? If you already added them to{" "}
+            <code>.env.local</code>, restart your dev server (stop{" "}
+            <code>npm run dev</code> and run it again) — Next.js only reads{" "}
+            <code>.env.local</code> once, at server start. The verification
+            below always checks the live database directly, though, so you
+            can still confirm the seed already worked without waiting on that.
+          </p>
         )}
+
+        <div className="setupWizardCommandRow">
+          <code className="setupWizardCodeBlock">npx prisma db seed</code>
+          <button
+            type="button"
+            className="setupWizardCopyButton"
+            onClick={() => handleCopy("npx prisma db seed")}
+          >
+            Copy
+          </button>
+        </div>
+
+        <div className="setupWizardVerifyRow">
+          <span
+            className={`setupWizardStatusBadge ${
+              status.ownerExists ? "setupWizardStatusBadge--ok" : "setupWizardStatusBadge--missing"
+            }`}
+          >
+            {status.ownerExists ? "✓ Verified" : "✕ Not detected yet"}
+          </span>
+          <button
+            type="button"
+            className="setupWizardButtonSecondary"
+            onClick={handleCheckAgain}
+            disabled={isConfirming}
+          >
+            Check again
+          </button>
+          {status.ownerExists && (
+            <button
+              type="button"
+              className="setupWizardButton"
+              onClick={runConfirmAdmin}
+              disabled={isConfirming}
+            >
+              {isConfirming ? "Confirming…" : "Continue"}
+            </button>
+          )}
+        </div>
+        {confirmError && <p className="setupWizardError">{confirmError}</p>}
       </div>
     </div>
   );

@@ -164,6 +164,29 @@ a.setupWizardButton {
   background-color: var(--color-surface-hover);
 }
 
+.setupWizardButtonSecondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/*
+ * .setupWizardHint
+ * Small muted note under a lower-emphasis action, explaining a
+ * non-obvious behavior (e.g. why "Check again" won't show freshly
+ * added .env.local keys until the dev server restarts).
+ */
+.setupWizardHint {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.setupWizardHint code {
+  font-family: monospace;
+  color: var(--color-text-secondary);
+}
+
 /*
  * a.setupWizardButtonSecondary
  * Anchor tags are inline by default — without this, padding/min-height

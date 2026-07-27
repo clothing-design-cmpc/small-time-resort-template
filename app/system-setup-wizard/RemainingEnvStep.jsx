@@ -104,37 +104,164 @@ const REMAINING_ENV_HELP = {
       "Common mistake on Template 1: a leftover uppercase {{EYEBROW}} from the default template — merge tags are case-sensitive, so it must be lowercased to {{eyebrow}} or that field will always render empty.",
       "TEMPLATE 2 — booking confirmations only: Email Templates → Create New Template (do not clone/reuse Template 1 — this one has its own field set). Copy its ID into EMAILJS_BOOKING_TEMPLATE_ID.",
       "Template 2 right-hand panel: same as Template 1 — Subject = {{subject}}, To Email = {{to_email}}, Reply To = {{reply_to}}, From Name = a static brand name.",
-      "Template 2 Edit Content must use these lowercase merge tags: {{guest_name}}, {{reference_code}}, {{room_name}}, {{booking_type}}, {{check_in_date}}, {{check_out_date}}, {{nights}}, {{number_of_guests}}, {{total_amount}}, {{deposit_amount}}, and {{{invoice_url}}} (triple braces so it can render as a live link, e.g. inside <a href=\"{{{invoice_url}}}\">).",
+      "Template 2 Edit Content must use these lowercase merge tags: {{submitted_at}}, {{booking_id}}, {{guest_name}}, {{guest_pax}}, {{guest_phone}}, {{guest_email}}, {{room}}, {{package}}, {{check_in}}, {{check_out}}, {{price}}, {{downpayment}}, {{balance}}, {{payment_status}}, and {{special_requests}} — all regular double braces, no raw-HTML tag needed for this one.",
       "Save both templates, then enable Strict Mode (Account → Security) and generate the Private Key referenced above so this server-side call can't be replayed from a leaked public key.",
     ],
     codeBlocks: [
       {
         label: "Template 1 — general (paste into Edit Content → HTML)",
-        code: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#f4f4f5;padding:32px;border-radius:12px;">
-  <p style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin:0 0 12px;">{{eyebrow}}</p>
-  <h1 style="font-size:22px;margin:0 0 16px;color:#f4f4f5;">{{heading}}</h1>
-  <p style="font-size:15px;line-height:1.6;color:rgba(255,255,255,0.7);margin:0 0 20px;">{{intro}}</p>
-  <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px;margin:0 0 20px;">
-    <p style="margin:0 0 6px;font-size:15px;color:#f4f4f5;">{{highlight_line_1}}</p>
-    <p style="margin:0;font-size:15px;color:#f4f4f5;">{{highlight_line_2}}</p>
-  </div>
-  <div style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.7);">{{{body_message}}}</div>
-</div>`,
+        code: `<table style="background-color: #f0ece3; padding: 40px 0;" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td align="center">
+<table style="max-width: 600px; width: 100%; background-color: #ffffff; border-top: 4px solid #d4a574;" width="600" cellspacing="0" cellpadding="0"><!-- Header -->
+<tbody>
+<tr>
+<td style="background-color: #1a2f4f; padding: 40px 48px 32px;" align="center">
+<p style="margin: 0 0 6px; font-family: 'Georgia',serif; font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; color: #d4a574;">Private Resort &amp; Retreat</p>
+<h1 style="margin: 0; font-family: 'Georgia',serif; font-size: 32px; font-weight: 400; letter-spacing: 0.08em; color: #ffffff;">VILLA AZURE</h1>
+<p style="margin: 10px 0 0; font-family: 'Georgia',serif; font-size: 12px; letter-spacing: 0.15em; color: #a0b8c8; text-transform: uppercase;">Nasugbu, Batangas</p>
+</td>
+</tr>
+<!-- Gold Divider -->
+<tr>
+<td style="background-color: #1a2f4f; padding: 0 0 40px;" align="center">
+<table cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td style="width: 40px; height: 1px; background-color: #d4a574;">&nbsp;</td>
+<td style="width: 8px; height: 8px; background-color: #d4a574; border-radius: 50%; margin: 0 8px; display: inline-block;">&nbsp;</td>
+<td style="width: 40px; height: 1px; background-color: #d4a574;">&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<!-- Intro Message -->
+<tr>
+<td style="padding: 48px 48px 0;">
+<p style="margin: 0 0 6px; font-family: 'Georgia',serif; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #d4a574;">{{eyebrow}}</p>
+<h2 style="margin: 0 0 20px; font-family: 'Georgia',serif; font-size: 22px; font-weight: 400; color: #1a2f4f; letter-spacing: 0.03em;">{{heading}}</h2>
+<p style="margin: 0; font-family: 'Georgia',serif; font-size: 15px; line-height: 1.8; color: #5a5a5a;">{{intro}}</p>
+</td>
+</tr>
+<!-- Divider Line -->
+<tr>
+<td style="padding: 32px 48px;"><hr style="border: none; border-top: 1px solid #e2ddd4; margin: 0;"></td>
+</tr>
+<!-- Message Card -->
+<tr>
+<td style="padding: 0 48px;">
+<table style="background-color: #f5f1e8; border-left: 3px solid #d4a574;" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td style="padding: 28px 32px;"><!-- Sender Info -->
+<table style="margin-bottom: 24px;" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td>
+<p style="margin: 0; font-family: 'Georgia',serif; font-size: 13px; color: #7ba8a8;">{{highlight_line_1}}</p>
+<p style="margin: 2px 0 0; font-family: 'Georgia',serif; font-size: 12px; color: #9ca89f; letter-spacing: 0.05em;">{{highlight_line_2}}</p>
+</td>
+</tr>
+</tbody>
+</table>
+<!-- Message Body -->
+<p style="margin: 0; font-family: 'Georgia',serif; font-size: 15px; line-height: 1.85; color: #3a3a3a; white-space: pre-line;">{{{body_message}}}</p>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<!-- Divider Line -->
+<tr>
+<td style="padding: 32px 48px;"><hr style="border: none; border-top: 1px solid #e2ddd4; margin: 0;"></td>
+</tr>
+<!-- Footer -->
+<tr>
+<td style="background-color: #1a2f4f; padding: 32px 48px; text-align: center;">
+<p style="margin: 0 0 6px; font-family: 'Georgia',serif; font-size: 13px; color: #d4a574; letter-spacing: 0.1em; text-transform: uppercase;">Villa Azure</p>
+<p style="margin: 0 0 4px; font-family: 'Georgia',serif; font-size: 12px; color: #7ba8a8;">123 Azure Shores Drive, Nasugbu, Batangas 4231</p>
+<p style="margin: 0 0 4px; font-family: 'Georgia',serif; font-size: 12px; color: #7ba8a8;">+63 917 123 4567 &nbsp;&middot;&nbsp; reservations@villaazure.com</p>
+<p style="margin: 16px 0 0; font-family: 'Georgia',serif; font-size: 11px; color: #4a6a7a; letter-spacing: 0.05em;">Front Desk available 24 hours, 7 days a week.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>`,
       },
       {
         label: "Template 2 — booking (paste into a new, separate template's Edit Content → HTML)",
-        code: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#0a0a0a;color:#f4f4f5;padding:32px;border-radius:12px;">
-  <h1 style="font-size:22px;margin:0 0 8px;">Booking Confirmed</h1>
-  <p style="font-size:15px;color:rgba(255,255,255,0.7);margin:0 0 20px;">Hi {{guest_name}}, here are your booking details.</p>
-  <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:16px 20px;margin:0 0 20px;font-size:14px;line-height:1.8;">
-    <p style="margin:0;"><strong>Reference:</strong> {{reference_code}}</p>
-    <p style="margin:0;"><strong>Room/Package:</strong> {{room_name}} ({{booking_type}})</p>
-    <p style="margin:0;"><strong>Check-in:</strong> {{check_in_date}} &nbsp; <strong>Check-out:</strong> {{check_out_date}}</p>
-    <p style="margin:0;"><strong>Nights:</strong> {{nights}} &nbsp; <strong>Guests:</strong> {{number_of_guests}}</p>
-    <p style="margin:0;"><strong>Total:</strong> {{total_amount}} &nbsp; <strong>Deposit:</strong> {{deposit_amount}}</p>
+        code: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: sans-serif; background: #f8fafc; margin: 0; padding: 24px; }
+    .card { background: #ffffff; max-width: 560px; margin: 0 auto; border-radius: 10px; border: 1px solid #e2e8f0; padding: 32px; }
+    .header { border-bottom: 2px solid #1a2f4f; padding-bottom: 16px; margin-bottom: 24px; }
+    .brand { font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #b8975a; margin-bottom: 4px; }
+    h2 { color: #1a2f4f; margin: 0 0 4px 0; font-size: 20px; }
+    .subtitle { color: #64748b; font-size: 13px; margin: 0; }
+    .greeting { font-size: 15px; color: #334155; margin: 0 0 20px 0; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 9px 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    td:first-child { font-weight: 600; color: #475569; width: 42%; }
+    td:last-child { color: #1e293b; }
+    .badge { display: inline-block; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+    .divider { border: none; border-top: 2px dashed #e2e8f0; margin: 28px 0; }
+    .section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #94a3b8; margin: 0 0 12px 0; }
+    .note { margin-top: 20px; font-size: 13px; color: #64748b; line-height: 1.6; }
+    .sign { margin-top: 12px; font-size: 14px; color: #1a2f4f; font-weight: 600; }
+    .footer { margin-top: 24px; font-size: 11px; color: #cbd5e1; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- Header -->
+    <div class="header">
+      <p class="brand">Villa Azure Private Resort</p>
+      <h2>New Booking Inquiry</h2>
+      <p class="subtitle">Submitted on {{submitted_at}}</p>
+    </div>
+    <!-- Guest Greeting (visible to guest in CC) -->
+    <p class="greeting">
+      Hi <strong>{{guest_name}}</strong>, your reservation inquiry has been received.
+      Our team will reach out shortly to confirm your booking.
+    </p>
+    <!-- Booking Summary -->
+    <p class="section-label">Booking Summary</p>
+    <table>
+      <tr><td>Booking ID</td><td>{{booking_id}}</td></tr>
+      <tr><td>Guest Name</td><td>{{guest_name}}</td></tr>
+      <tr><td>No. of Pax</td><td>{{guest_pax}}</td></tr>
+      <tr><td>Phone</td><td>{{guest_phone}}</td></tr>
+      <tr><td>Email</td><td>{{guest_email}}</td></tr>
+      <tr><td>Room</td><td>{{room}}</td></tr>
+      <tr><td>Package</td><td>{{package}}</td></tr>
+      <tr><td>Check-in</td><td>{{check_in}}</td></tr>
+      <tr><td>Check-out</td><td>{{check_out}}</td></tr>
+      <tr><td>Package Price</td><td>{{price}}</td></tr>
+      <tr><td>Downpayment</td><td>{{downpayment}}</td></tr>
+      <tr><td>Balance</td><td>{{balance}}</td></tr>
+      <tr><td>Payment Status</td><td><span class="badge">{{payment_status}}</span></td></tr>
+      <tr><td>Special Requests</td><td>{{special_requests}}</td></tr>
+    </table>
+    <hr class="divider" />
+    <!-- Guest note -->
+    <p class="note">
+      If you have any questions, please contact us directly.
+      This is an automated confirmation — please do not reply to this email.
+    </p>
+    <p class="sign">— Villa Azure Team</p>
+    <p class="footer">VillaAzure Booking System — automated notification</p>
   </div>
-  <p style="font-size:14px;"><a href="{{{invoice_url}}}" style="color:#22c55e;">View your invoice →</a></p>
-</div>`,
+</body>
+</html>`,
       },
     ],
   },
@@ -212,6 +339,7 @@ const REMAINING_ENV_HELP = {
 export default function RemainingEnvStep() {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [openHelpGroupId, setOpenHelpGroupId] = useState(null);
   const [continued, setContinued] = useState(false);
@@ -239,32 +367,72 @@ export default function RemainingEnvStep() {
    * Pulls presence-only status for the 8 remaining envGroups.mjs
    * groups. Never throws to the caller — failures surface as a
    * user-facing error message instead.
+   *
+   * isRecheck distinguishes a "Check again" click from the initial
+   * mount load. On the initial load a failure can safely fall through
+   * to the full-page error card (status is still null). On a recheck,
+   * status already holds the last successful result — replacing the
+   * whole card with an error would erase everything the person can
+   * already see, so failures are surfaced as a toast instead while the
+   * existing badges stay on screen untouched.
    */
-  const fetchStatus = useCallback(async () => {
-    setIsLoading(true);
+  const fetchStatus = useCallback(async (isRecheck = false) => {
+    if (isRecheck) {
+      setIsChecking(true);
+    } else {
+      setIsLoading(true);
+    }
     setLoadError(null);
     try {
-      const response = await fetch("/api/system-setup-wizard/remaining-env-status");
+      const response = await fetch("/api/system-setup-wizard/remaining-env-status", {
+        cache: "no-store",
+      });
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        setLoadError(result.message ?? "We couldn't check the environment status. Please try again.");
+        const message = result.message ?? "We couldn't check the environment status. Please try again.";
+        if (isRecheck) {
+          showToast(`✕ ${message}`, "error");
+        } else {
+          setLoadError(message);
+        }
         return;
       }
       setStatus(result.data);
+      if (isRecheck) {
+        showToast("✓ Environment status refreshed.", "success");
+      }
     } catch {
-      setLoadError("We couldn't reach the server. Check your connection and try again.");
+      const message = "We couldn't reach the server. Check your connection and try again.";
+      if (isRecheck) {
+        showToast(`✕ ${message}`, "error");
+      } else {
+        setLoadError(message);
+      }
     } finally {
-      setIsLoading(false);
+      if (isRecheck) {
+        setIsChecking(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
-    fetchStatus();
+    fetchStatus(false);
   }, [fetchStatus]);
 
+  /**
+   * handleCheckAgain
+   * Re-runs the presence check. Guards against double-clicks while a
+   * check is already in flight. Note: since this route only reads
+   * process.env, newly added .env.local keys won't show as "✓ Set"
+   * here until the dev server is restarted — Node reads env files once
+   * at startup, it does not hot-reload them.
+   */
   function handleCheckAgain() {
-    fetchStatus();
+    if (isChecking) return;
+    fetchStatus(true);
   }
 
   if (isLoading && !status) {
@@ -381,9 +549,20 @@ export default function RemainingEnvStep() {
           </div>
         ))}
 
-        <button type="button" className="setupWizardButtonSecondary" onClick={handleCheckAgain}>
-          Check again
+        <button
+          type="button"
+          className="setupWizardButtonSecondary"
+          onClick={handleCheckAgain}
+          disabled={isChecking}
+        >
+          {isChecking ? "Checking…" : "Check again"}
         </button>
+        <p className="setupWizardHint">
+          Just added a key to <code>.env.local</code>? Restart your dev
+          server (stop it, then <code>npm run dev</code> again) before
+          checking — Node only reads <code>.env.local</code> once at
+          startup, so new keys won&apos;t show as set until it restarts.
+        </p>
       </div>
 
       <ResellerArchitectureNote />

@@ -121,6 +121,35 @@ const STEPS = [
   { number: 3, title: "Confirm & pay", body: "Fill in your details and secure your stay online." },
 ];
 
+/**
+ * getTodayTourAvailability
+ * When the single selected date is TODAY, which tour types make sense
+ * depends on the current time of day — a Day Tour can't reasonably
+ * start after most of the day is already gone. Only ever narrows
+ * (never widens) whatever allowDayTour/allowNightTour the active
+ * booking rule already permits:
+ *   - 12:00 AM – 11:59 AM -> no time-based restriction (all rule-
+ *     permitted types stay available; there's a full day ahead).
+ *   - 12:00 PM – 9:59 PM  -> Day Tour is hidden; only Night Tour and
+ *     Overnight remain (whichever of those the rule already allows).
+ *   - 10:00 PM – 11:59 PM -> same restriction as the 12 PM–10 PM
+ *     window (Day Tour hidden) — a Day Tour makes even less sense
+ *     this late, and no separate band was specified for it.
+ * Only applies to TODAY — future dates are unaffected regardless of
+ * the current time.
+ */
+function getTodayTourAvailability(checkInKey, ruleAllowDayTour, ruleAllowNightTour) {
+  if (checkInKey !== TODAY_KEY) {
+    return { allowDayTour: ruleAllowDayTour, allowNightTour: ruleAllowNightTour };
+  }
+  const currentHour = new Date().getHours();
+  const isPastNoon = currentHour >= 12;
+  return {
+    allowDayTour: isPastNoon ? false : ruleAllowDayTour,
+    allowNightTour: ruleAllowNightTour,
+  };
+}
+
 export default function HowToBookSection() {
   const router = useRouter();
   const { toasts, showToast, dismissToast } = useToast();
@@ -324,12 +353,18 @@ export default function HowToBookSection() {
 
         if (nightsSelected === 1) {
           // Exactly ONE date selected — ambiguous between Overnight (1
-          // night), Day Tour, or Night Tour. Open Room Selection first
-          // (useful even for a Tour visitor picking a villa to enjoy
-          // for the day/evening), then TourSelectionModal decides the
-          // actual booking type — see handleRoomSelected() below.
-          if (!overnightFits && !rule.allowDayTour && !rule.allowNightTour) {
-            showToast("✕ No booking type is available for this date. Please try again later.", "error");
+          // night), Day Tour, or Night Tour. When the selected date is
+          // TODAY, narrow Day Tour/Night Tour further based on the
+          // current time — see getTodayTourAvailability() above.
+          const { allowDayTour: timeAllowsDayTour, allowNightTour: timeAllowsNightTour } =
+            getTodayTourAvailability(checkInKey, rule.allowDayTour, rule.allowNightTour);
+
+          // Open Room Selection first (useful even for a Tour visitor
+          // picking a villa to enjoy for the day/evening), then
+          // TourSelectionModal decides the actual booking type — see
+          // handleRoomSelected() below.
+          if (!overnightFits && !timeAllowsDayTour && !timeAllowsNightTour) {
+            showToast("✕ No booking type is available for this date right now. Please try again later.", "error");
             return;
           }
           setRoomModalRequest({
@@ -338,8 +373,8 @@ export default function HowToBookSection() {
             ruleId: rule.matchedRuleId,
             singleDateFlow: true,
             allowOvernightStay: overnightFits,
-            allowDayTour: rule.allowDayTour,
-            allowNightTour: rule.allowNightTour,
+            allowDayTour: timeAllowsDayTour,
+            allowNightTour: timeAllowsNightTour,
             dayTourPricePerGuest: rule.dayTourPricePerGuest,
             nightTourPricePerGuest: rule.nightTourPricePerGuest,
           });
@@ -460,7 +495,7 @@ export default function HowToBookSection() {
   }
 
   return (
-    <section className="howToBookSection">
+    <section id="how-to-book" className="howToBookSection">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
       <div className="howToBookContainer">
         <div className="howToBookHeader">

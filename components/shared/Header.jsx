@@ -93,8 +93,11 @@ export default function Header() {
             Login
           </Link>
 
-          {/* Book Now CTA — desktop */}
-          <Link href="/visitor/booking" className="headerBookButton">
+          {/* Book Now CTA — desktop. Scrolls to the homepage's "How to Book"
+              availability calendar (HowToBookSection) rather than jumping
+              straight to the standalone booking form, so visitors pick
+              their dates first. */}
+          <Link href="/visitor#how-to-book" className="headerBookButton">
             Book Now
           </Link>
         </div>
@@ -137,7 +140,7 @@ export default function Header() {
             </Link>
           ))}
           <Link
-            href="/visitor/booking"
+            href="/visitor#how-to-book"
             className="headerMobileBookButton"
             onClick={() => setMenuOpen(false)}
           >

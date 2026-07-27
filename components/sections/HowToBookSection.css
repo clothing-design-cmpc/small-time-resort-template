@@ -7,7 +7,7 @@
  */
 
 .howToBookSection {
-
+  scroll-margin-top: 96px;
   padding: var(--space-2xl) var(--space-lg);
 }
 

@@ -90,8 +90,15 @@ async function createBookingInTransaction(payload, attempt = 0) {
             guestPhone: payload.guestPhone,
             numberOfGuests: payload.numberOfGuests,
             bookingType: payload.bookingType,
-            checkInDate: new Date(`${quote.checkInDate}T00:00:00`),
-            checkOutDate: new Date(`${quote.checkOutDate}T00:00:00`),
+            // Parsed with a "Z" suffix so this is always read as UTC
+            // midnight, never the server's local timezone. Without "Z",
+            // "YYYY-MM-DDT00:00:00" is parsed as LOCAL midnight — on a
+            // server running in a UTC+8 timezone (e.g. Asia/Manila),
+            // local midnight July 27 is 2026-07-26T16:00:00Z, and the
+            // @db.Date column then stores July 26 (the UTC date part),
+            // one day earlier than what the guest actually selected.
+            checkInDate: new Date(`${quote.checkInDate}T00:00:00Z`),
+            checkOutDate: new Date(`${quote.checkOutDate}T00:00:00Z`),
             totalAmount: quote.total,
             depositAmount: quote.depositAmount,
             // Nights actually selected — matches BookingRule.howManySelectedDates

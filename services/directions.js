@@ -105,8 +105,25 @@ export async function computeDrivingRoute(origin, destination) {
     });
 
     const data = await response.json();
+
+    // Google returns HTTP 200 with an `error` object on failure sometimes,
+    // and non-2xx with an error body other times — check both so the real
+    // reason (invalid key, Routes API not enabled, billing not enabled,
+    // REQUEST_DENIED, etc.) is visible instead of a silent null → 502.
+    if (!response.ok || data.error) {
+      console.error(
+        "[directions] Routes API returned an error:",
+        response.status,
+        JSON.stringify(data.error ?? data)
+      );
+      return null;
+    }
+
     const route = data.routes?.[0];
-    if (!route) return null;
+    if (!route) {
+      console.error("[directions] Routes API returned no routes:", JSON.stringify(data));
+      return null;
+    }
 
     const steps = (route.legs?.[0]?.steps ?? []).map((step) => ({
       instruction: step.navigationInstruction?.instructions ?? "Continue",

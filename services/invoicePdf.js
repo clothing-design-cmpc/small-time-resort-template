@@ -21,7 +21,12 @@ const PAGE_WIDTH = 595.28; // A4 in points
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 56;
 
-const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
+// NOTE: Do NOT use Intl.NumberFormat's `currency: "PHP"` style here — it
+// renders the ₱ symbol (U+20B1), which StandardFonts.Helvetica cannot
+// encode (WinAnsi has no ₱ glyph) and throws "WinAnsi cannot encode".
+// "PHP" prefix is used instead so any Standard font can render it safely.
+const PESO_NUMBER = new Intl.NumberFormat("en-PH", { maximumFractionDigits: 0 });
+const PESO = { format: (value) => `PHP ${PESO_NUMBER.format(value)}` };
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 /**

@@ -67,6 +67,20 @@ function toKey(date) {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * addOneDayKey
+ * Returns the "YYYY-MM-DD" key for the day after the given key. Mirrors
+ * the same convention the admin's Booking Rules form already uses
+ * (BookingRuleForm.jsx -> addOneDay()): the actual check-out date for
+ * an N-night stay is the day AFTER the Nth selected/occupied night —
+ * see the nightsSelected comment in handleContinue() below for why
+ * this matters for matching the correct rule set.
+ */
+function addOneDayKey(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return toKey(new Date(year, month - 1, day + 1));
+}
+
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
 const TODAY_KEY = toKey(TODAY);
@@ -257,8 +271,21 @@ export default function HowToBookSection() {
     try {
       const sortedDates = [...selectedDates].sort();
       const checkInKey = sortedDates[0];
-      const checkOutKey = sortedDates[sortedDates.length - 1];
-      const nightsSelected = sortedDates.length - 1;
+      // CONVENTION: each selected calendar day is one OCCUPIED NIGHT
+      // (same convention the admin's Booking Rules form uses — see
+      // BookingRule.howManySelectedDates comment in prisma/schema.prisma
+      // and BookingRuleForm.jsx's addOneDay()). Selecting 3 dates
+      // (e.g. Jul 27-29) means a 3-night stay ("4Ds-3Ns"), with the
+      // real check-out date being the day AFTER the last occupied
+      // night (Jul 30) — NOT the last selected date itself. Using
+      // sortedDates.length - 1 here previously matched real calendar
+      // day-span math (2 nights for 3 tapped days) instead of this
+      // resort's own night-counting convention, so the wrong rule set
+      // (e.g. "3Ds-2Ns") was being matched and shown to the visitor.
+      const nightsSelected = sortedDates.length;
+      const checkOutKey = allowOvernightStay
+        ? addOneDayKey(sortedDates[sortedDates.length - 1])
+        : sortedDates[sortedDates.length - 1];
 
       // Passing nights here matches the SAME rule set (e.g. "4Ds-3Ns")
       // the booking page will resolve for this stay — see

@@ -187,6 +187,11 @@ const bookingRuleSchema = z.object({
   // Visitor-facing guest count shown as plain text on the public
   // reservation page — replaces the old free-text guest input there.
   allowedGuests: z.coerce.number().int().min(1, "At least 1 guest."),
+  // Package Inclusions — what's shown to the visitor as "Included in
+  // this package" on the reservation summary. Both optional/empty by
+  // default; an admin isn't required to pick anything.
+  includedAmenityIds: z.array(z.string()).default([]),
+  packageInclusions: z.array(z.string()).default([]),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
   allowOvernightStay: z.boolean(),
@@ -225,6 +230,8 @@ const bookingRuleSchema = z.object({
 const DEFAULT_BOOKING_RULE_VALUES = {
   ruleDates: [],
   allowedGuests: 2,
+  includedAmenityIds: [],
+  packageInclusions: [],
   checkInTime: "14:00",
   checkOutTime: "11:00",
   allowOvernightStay: true,
@@ -248,7 +255,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   seasonalPricingEnabled: true,
 };
 
-export default function BookingRuleForm({ existingRule, rooms }) {
+export default function BookingRuleForm({ existingRule, rooms, amenities = [] }) {
   const router = useRouter();
   const { toasts, showToast, dismissToast } = useToast();
   const isEditMode = Boolean(existingRule);
@@ -267,6 +274,8 @@ export default function BookingRuleForm({ existingRule, rooms }) {
           name: existingRule.name,
           ruleDates: existingRule.ruleDates ?? [],
           allowedGuests: existingRule.allowedGuests ?? 2,
+          includedAmenityIds: existingRule.includedAmenityIds ?? [],
+          packageInclusions: existingRule.packageInclusions ?? [],
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
           allowOvernightStay: existingRule.allowOvernightStay,
@@ -317,6 +326,13 @@ export default function BookingRuleForm({ existingRule, rooms }) {
    * Day/Night Tour only make sense for a single day, so a stale
    * selection from single-date mode can't linger once a range is picked.
    */
+  const includedAmenityIds = watch("includedAmenityIds") ?? [];
+  const packageInclusions = watch("packageInclusions") ?? [];
+  // Text currently typed into the "Add a custom inclusion" input —
+  // local only, never touches react-hook-form until the admin actually
+  // presses Enter/"Add" (handleAddCustomInclusion below).
+  const [customInclusionDraft, setCustomInclusionDraft] = useState("");
+
   function handleToggleDate(dateKey) {
     setSelectedDates((previousDates) => {
       let nextDates;
@@ -343,6 +359,36 @@ export default function BookingRuleForm({ existingRule, rooms }) {
 
       return nextDates;
     });
+  }
+
+  /**
+   * handleToggleIncludedAmenity
+   * Checkbox toggle for the Package Inclusions -> Amenities checklist.
+   */
+  function handleToggleIncludedAmenity(amenityId) {
+    const next = includedAmenityIds.includes(amenityId)
+      ? includedAmenityIds.filter((id) => id !== amenityId)
+      : [...includedAmenityIds, amenityId];
+    setValue("includedAmenityIds", next, { shouldValidate: true });
+  }
+
+  /**
+   * handleAddCustomInclusion
+   * Adds the current draft text (e.g. "Welcome Drinks") to
+   * packageInclusions, trimmed and de-duplicated, then clears the input.
+   */
+  function handleAddCustomInclusion() {
+    const trimmed = customInclusionDraft.trim();
+    if (!trimmed || packageInclusions.includes(trimmed)) {
+      setCustomInclusionDraft("");
+      return;
+    }
+    setValue("packageInclusions", [...packageInclusions, trimmed], { shouldValidate: true });
+    setCustomInclusionDraft("");
+  }
+
+  function handleRemoveCustomInclusion(item) {
+    setValue("packageInclusions", packageInclusions.filter((existing) => existing !== item), { shouldValidate: true });
   }
 
   // Every field below feeds Preview Impact directly, so changing any of
@@ -518,6 +564,71 @@ export default function BookingRuleForm({ existingRule, rooms }) {
             <input id="allowedGuests" type="number" min="1" {...register("allowedGuests")} />
             {errors.allowedGuests && (
               <span role="alert" className="bookingRulesFormError">{errors.allowedGuests.message}</span>
+            )}
+          </div>
+
+          {/* --- Package Inclusions — what the admin says is included
+               in this package, shown to the visitor on the read-only
+               reservation summary page under "Included in this
+               package". Two pickers: a checklist reusing the resort's
+               already-managed Amenity catalog, and a free-text tag
+               list for package-specific extras (e.g. "Welcome
+               Drinks") that aren't a resort amenity. --- */}
+          <div className="bookingRulesSubPanel">
+            <p className="bookingRulesSubPanelTitle">Package Inclusions</p>
+            <p className="bookingRulesSectionSubtitle">Piliin kung ano ang kasama sa package na ito — makikita ito ng visitor sa reservation page.</p>
+
+            {amenities.length > 0 ? (
+              <div className="bookingRulesInclusionsChecklist">
+                {amenities.map((amenity) => (
+                  <label key={amenity.id} className="bookingRulesToggle">
+                    <input
+                      type="checkbox"
+                      checked={includedAmenityIds.includes(amenity.id)}
+                      onChange={() => handleToggleIncludedAmenity(amenity.id)}
+                    />
+                    {amenity.name}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="bookingRulesHint">Wala pang amenities na naka-configure. Pwede mo pa ring magdagdag ng custom na inclusion sa ibaba.</p>
+            )}
+
+            <div className="bookingRulesCustomInclusionRow">
+              <input
+                id="customInclusionDraft"
+                type="text"
+                placeholder="e.g. Welcome Drinks, Free Breakfast"
+                value={customInclusionDraft}
+                onChange={(event) => setCustomInclusionDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleAddCustomInclusion();
+                  }
+                }}
+              />
+              <button type="button" className="bookingRulesAddInclusionButton" onClick={handleAddCustomInclusion}>
+                Add
+              </button>
+            </div>
+
+            {packageInclusions.length > 0 && (
+              <div className="bookingRulesInclusionTags">
+                {packageInclusions.map((item) => (
+                  <span key={item} className="bookingRulesInclusionTag">
+                    {item}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${item}`}
+                      onClick={() => handleRemoveCustomInclusion(item)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
             )}
           </div>
 

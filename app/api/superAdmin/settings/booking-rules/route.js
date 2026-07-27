@@ -74,6 +74,10 @@ export async function POST(request) {
         // public reservation page (app/visitor/booking/ReservationSummaryClient.jsx)
         // and displayed there as text instead of an editable input.
         allowedGuests: body.allowedGuests,
+        // Package Inclusions — shown to the visitor as "Included in
+        // this package" on the reservation summary.
+        includedAmenityIds: Array.isArray(body.includedAmenityIds) ? body.includedAmenityIds : undefined,
+        packageInclusions: Array.isArray(body.packageInclusions) ? body.packageInclusions : undefined,
         allowOvernightStay: body.allowOvernightStay,
         allowDayTour: body.allowDayTour,
         allowNightTour: body.allowNightTour,

@@ -850,3 +850,103 @@
   max-width: 380px;
   gap: var(--space-md);
 }
+/*
+ * .bookingRulesInclusionsChecklist
+ * Package Inclusions -> Amenities checklist. Auto-responsive grid so
+ * a long amenity catalog wraps into columns instead of one long
+ * vertical list (Rule 23.2 — no breakpoints needed).
+ */
+.bookingRulesInclusionsChecklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-sm) var(--space-md);
+}
+
+/*
+ * .bookingRulesCustomInclusionRow
+ * Free-text input + "Add" button for package-specific extras that
+ * aren't in the Amenity catalog (e.g. "Welcome Drinks").
+ */
+.bookingRulesCustomInclusionRow {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-sm);
+}
+
+.bookingRulesCustomInclusionRow input[type="text"] {
+  flex: 1 1 auto;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.bookingRulesAddInclusionButton {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-lg);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.bookingRulesAddInclusionButton:hover,
+.bookingRulesAddInclusionButton:focus-visible,
+.bookingRulesAddInclusionButton:active {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-accent);
+}
+
+/*
+ * .bookingRulesInclusionTags / .bookingRulesInclusionTag
+ * Chip list of custom package-inclusion text the admin has added —
+ * each chip has its own remove (×) button, never a bulk-clear-only
+ * list, so removing one item never requires re-typing the rest.
+ */
+.bookingRulesInclusionTags {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.bookingRulesInclusionTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+}
+
+.bookingRulesInclusionTag button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.bookingRulesInclusionTag button:hover,
+.bookingRulesInclusionTag button:focus-visible {
+  color: var(--color-error);
+}

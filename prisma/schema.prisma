@@ -524,6 +524,18 @@ model BookingRule {
   //     letting the guest type an arbitrary number. ---
   allowedGuests Int @default(2) @map("allowed_guests")
 
+  // --- Package Inclusions — what the super-admin says is included in
+  //     this specific rule set's package, shown to the visitor on the
+  //     read-only reservation summary page (Section: "Included in
+  //     this package"). Two separate lists on purpose: includedAmenityIds
+  //     lets the admin reuse the resort's already-managed Amenity
+  //     catalog (pool, wifi, parking, etc.) via a checklist instead of
+  //     retyping names that can drift out of sync; packageInclusions is
+  //     free text for package-specific extras that aren't a resort
+  //     amenity at all (e.g. "Welcome Drinks", "Late Checkout"). ---
+  includedAmenityIds String[] @default([]) @map("included_amenity_ids") // Amenity.id values
+  packageInclusions  String[] @default([]) @map("package_inclusions") // free-text extras
+
   // --- Booking Types (extension beyond the base blueprint, per admin request) ---
   allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
   allowDayTour       Boolean @default(false) @map("allow_day_tour")

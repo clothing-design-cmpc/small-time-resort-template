@@ -238,9 +238,17 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
 
         <dt>Included in this package</dt>
         <dd>
-          {room.amenities.length > 0
-            ? room.amenities.map((amenity) => amenity.name).join(", ")
-            : "No additional amenities listed for this room."}
+          {(() => {
+            const inclusionNames = [
+              ...room.amenities.map((amenity) => amenity.name),
+              ...(bookingRules.includedAmenities ?? []).map((amenity) => amenity.name),
+              ...(bookingRules.packageInclusions ?? []),
+            ];
+            const uniqueInclusions = Array.from(new Set(inclusionNames));
+            return uniqueInclusions.length > 0
+              ? uniqueInclusions.join(", ")
+              : "No additional amenities listed for this room.";
+          })()}
         </dd>
       </dl>
 

@@ -31,6 +31,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { prisma } from "@/services/prisma";
 import { getActiveBookingRule, getActiveBookingRuleForDateCount } from "@/services/bookingRules";
 
 export async function GET(request) {
@@ -44,6 +45,17 @@ export async function GET(request) {
       getActiveBookingRule("day_tour"),
       getActiveBookingRule("night_tour"),
     ]);
+
+    // Resolve the matched Overnight rule's included amenity IDs to
+    // actual names — the reservation summary page displays these as
+    // plain text and shouldn't need a second round-trip just to look
+    // up what an amenity ID means.
+    const includedAmenities = overnightRule.includedAmenityIds.length
+      ? await prisma.amenity.findMany({
+          where: { id: { in: overnightRule.includedAmenityIds } },
+          select: { id: true, name: true, icon: true },
+        })
+      : [];
 
     return NextResponse.json({
       success: true,
@@ -73,6 +85,12 @@ export async function GET(request) {
         // Booking Rules form is now the single source of truth for it).
         matchedRuleId: overnightRule.id,
         allowedGuests: overnightRule.allowedGuests,
+        // Package Inclusions — resolved amenity objects + free-text
+        // extras the admin added on the Booking Rules form. The
+        // reservation summary page displays both merged into one
+        // "Included in this package" text list.
+        includedAmenities,
+        packageInclusions: overnightRule.packageInclusions,
 
         // Day Tour-specific — from the rule set active for Day Tour
         allowDayTour: dayTourRule.allowDayTour,

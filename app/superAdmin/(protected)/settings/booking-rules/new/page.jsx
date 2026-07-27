@@ -5,8 +5,9 @@
  * PURPOSE:
  * Create-rule-set route. Fetches the room list server-side (fresh, no
  * cache) so BookingRuleForm's Preview Impact panel has a sample room to
- * calculate against, then hands off to the shared BookingRuleForm in
- * create mode.
+ * calculate against, plus the active Amenity catalog so the Package
+ * Inclusions checklist has something to pick from, then hands off to
+ * the shared BookingRuleForm in create mode.
  */
 import { prisma } from "@/services/prisma";
 import BookingRuleForm from "../BookingRuleForm";
@@ -16,11 +17,18 @@ export const metadata = {
 };
 
 export default async function NewBookingRulePage() {
-  const roomRecords = await prisma.room.findMany({
-    select: { id: true, name: true, pricePerNight: true },
-    orderBy: { sortOrder: "asc" },
-  });
+  const [roomRecords, amenities] = await Promise.all([
+    prisma.room.findMany({
+      select: { id: true, name: true, pricePerNight: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.amenity.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, icon: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
   const rooms = roomRecords.map((room) => ({ ...room, pricePerNight: Number(room.pricePerNight) }));
 
-  return <BookingRuleForm existingRule={null} rooms={rooms} />;
+  return <BookingRuleForm existingRule={null} rooms={rooms} amenities={amenities} />;
 }

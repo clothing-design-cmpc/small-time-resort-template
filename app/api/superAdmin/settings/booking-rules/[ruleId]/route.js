@@ -93,6 +93,10 @@ export async function PUT(request, { params }) {
         // Visitor-facing guest count for this rule set — read by the
         // public reservation page and displayed there as text.
         allowedGuests: body.allowedGuests,
+        // Package Inclusions — shown to the visitor as "Included in
+        // this package" on the reservation summary.
+        includedAmenityIds: Array.isArray(body.includedAmenityIds) ? body.includedAmenityIds : undefined,
+        packageInclusions: Array.isArray(body.packageInclusions) ? body.packageInclusions : undefined,
         refundPercentage: body.refundPercentage,
         cancellationCutoffDays: body.cancellationCutoffDays,
         depositRequired: body.depositRequired,

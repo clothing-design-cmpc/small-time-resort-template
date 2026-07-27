@@ -529,16 +529,24 @@ h1 {
  */
 const STEP_DATA = [
   {
-    title: "Clone the repo",
-    body: "Already done if you're reading this file locally.",
-    commands: [
-      "git clone -b static https://github.com/clothing-design-cmpc/small-time-resort-template.git\ncd small-time-resort-template"
-    ],
+    title: "Install dependencies",
+    body: "Already done if you're reading this file locally — installing dependencies is what triggered this guide to open.",
+    commands: ["npm install"],
   },
   {
-    title: "Install dependencies",
-    body: null,
-    commands: ["npm install"],
+    title: "Point this clone at your own GitHub repo",
+    body: "The clone still has the template's original git history and remote attached. Before your first commit, detach it from the template repo and connect it to a new, empty repo you create for this project on GitHub — replace <code>your-username/your-repo-name.git</code> and <code>your-branch-name</code> below with your own.",
+    commands: [
+      "rm -rf .git",
+      "git init",
+      "git remote add origin https://github.com/your-username/your-repo-name.git",
+      "git add .",
+      "git status",
+      "git checkout -b your-branch-name",
+      "git commit -m \"first commit\"",
+      "git push -u origin your-branch-name",
+    ],
+    note: "Before pushing, confirm it actually took: run <code>git remote -v</code> — it must show YOUR new repo URL, not <code>clothing-design-cmpc/small-time-resort-template</code>. If the template's URL still shows up, <code>.git</code> wasn't fully removed first — delete it again and repeat from <code>git init</code>. Once this new repo is live, come back to Step 5 of the wizard (\"Remaining services\") and update <code>GITHUB_REPO_OWNER</code>, <code>GITHUB_REPO_NAME</code>, and <code>GITHUB_WORKFLOW_REF</code> to match it instead of the template's — those currently still point at the old repo/branch.",
   },
   {
     title: "Scaffold .env.local",

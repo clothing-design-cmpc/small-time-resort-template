@@ -505,7 +505,7 @@ h1 {
     <div class="progressBar">
       <div class="progressTrack"><div class="progressFill" id="progressFill"></div></div>
       <div class="progressLabel">
-        <span id="progressText">0 of 11 done</span>
+        <span id="progressText">0 of 13 done</span>
         <span id="progressPercent">0%</span>
       </div>
     </div>
@@ -553,6 +553,12 @@ const STEP_DATA = [
     body: "Already done — this file writing out is what opened this guide.",
     commands: ["npm run scaffold-env"],
     note: "If you run this again yourself and see \"<code>.env.local already exists — refusing to overwrite it</code>\" — that's expected, not a bug. It never overwrites your filled-in values. To force a fresh, blank scaffold (e.g. to test a template change), rename or delete the existing <code>.env.local</code> first, then re-run the command.",
+  },
+  {
+    title: "Open the project in your editor (VS Code)",
+    body: "You'll be pasting values into <code>.env.local</code> for the rest of this guide — open the project folder in VS Code now so it's ready.",
+    commands: ["code ."],
+    note: "If <code>code</code> isn't recognized in your terminal: open VS Code manually, then Command Palette (<code>Ctrl+Shift+P</code> / <code>Cmd+Shift+P</code>) → \"Shell Command: Install 'code' command in PATH\" → restart your terminal and try again.",
   },
   {
     title: "Generate local secrets",

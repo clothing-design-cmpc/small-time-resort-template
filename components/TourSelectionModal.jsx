@@ -122,9 +122,6 @@ export default function TourSelectionModal({
                 {option.value === "night_tour" && nightTourPricePerGuest > 0 && (
                   <p className="tourSelectionCardPrice">{PESO.format(nightTourPricePerGuest)}/guest</p>
                 )}
-                {option.value === "overnight" && room && (
-                  <p className="tourSelectionCardPrice">{PESO.format(room.pricePerNight)}/night</p>
-                )}
               </button>
             ))}
           </div>

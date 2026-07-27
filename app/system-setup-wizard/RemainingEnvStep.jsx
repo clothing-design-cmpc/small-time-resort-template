@@ -298,8 +298,9 @@ const REMAINING_ENV_HELP = {
       "VAULT_SETUP_KEY reaches /system-vault-setup even after a full database wipe, when there's no admin session left. Never expires or auto-rotates — treat it like a master password.",
       "CRON_SECRET authenticates the nightly automated call to /api/system-vault-setup/auto-rotate. Update it in BOTH .env.local AND your deployment platform's env vars at the same time — a mismatch fails the cron job silently with a 401.",
       "Set VAULT_OWNER_EMAIL to the email that should receive vault alerts. VAULT_ALERT_WEBHOOK_URL (optional) is a Slack/Discord-style incoming webhook URL, if you want alerts posted to a channel too.",
-      "Restart npm run dev after saving these into .env.local — Next.js only reads env vars once at server start, so VAULT_SETUP_KEY, CRON_SECRET, and VAULT_OWNER_EMAIL won't actually take effect until the dev server restarts, even though the file is already saved.",
-      "No vault passphrase registered yet? Locally there's no Vercel Cron to auto-generate the first one on its own schedule — trigger the same auto-rotate route by hand with the command below. It treats \"no VaultPassphrase row yet\" the same as \"expired,\" so it generates, emails (to VAULT_OWNER_EMAIL), and backs up (to R2) the very first passphrase immediately, no 30-day wait.",
+      "Restart npm run dev after saving these into .env.local — Next.js only reads env vars once at server start, so VAULT_SETUP_KEY, CRON_SECRET, and VAULT_OWNER_EMAIL won't actually take effect until the dev server restarts, even though the file is already saved. Keep that npm run dev running in its own terminal tab — the command below needs a second, separate terminal, since the dev server has to still be running (not just restarted and then stopped again) for the request to connect.",
+      "No vault passphrase registered yet? Locally there's no Vercel Cron to auto-generate the first one on its own schedule — trigger the same auto-rotate route by hand with the command below, in that second terminal, while npm run dev is still running. It treats \"no VaultPassphrase row yet\" the same as \"expired,\" so it generates, emails (to VAULT_OWNER_EMAIL), and backs up (to R2) the very first passphrase immediately, no 30-day wait.",
+      "On Windows PowerShell specifically: PowerShell's built-in curl is actually an alias for Invoke-WebRequest, which does NOT accept real curl's -H \"Header: value\" syntax — that's the \"Cannot bind parameter 'Headers'\" error if you hit it. Use the PowerShell-native command below instead, or type curl.exe (not just curl) to call the real curl binary Windows already ships with, which does accept -H normally.",
     ],
     codeBlocks: [
       {
@@ -307,8 +308,12 @@ const REMAINING_ENV_HELP = {
         code: "node scripts/generateEnvSecret.mjs",
       },
       {
-        label: "After restarting npm run dev — replace YOUR_CRON_SECRET with the value from .env.local",
+        label: "macOS / Linux / Git Bash / cmd.exe — replace YOUR_CRON_SECRET with the value from .env.local",
         code: "curl -H \"Authorization: Bearer YOUR_CRON_SECRET\" http://localhost:3000/api/system-vault-setup/auto-rotate",
+      },
+      {
+        label: "Windows PowerShell — same request, PowerShell-native syntax",
+        code: "Invoke-WebRequest -Uri \"http://localhost:3000/api/system-vault-setup/auto-rotate\" -Headers @{ Authorization = \"Bearer YOUR_CRON_SECRET\" }",
       },
     ],
   },

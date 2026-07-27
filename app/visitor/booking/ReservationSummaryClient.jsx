@@ -239,6 +239,13 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
         <dt>Total Pax</dt>
         <dd>{bookingRules.maxPax ?? "—"} pax max</dd>
 
+        <dt>Extra Guest Fee</dt>
+        <dd>
+          {bookingRules.extraGuestFeePerHead > 0
+            ? `${PESO.format(bookingRules.extraGuestFeePerHead)}/head — charged on-site for guests beyond the Max Number of Guests above.`
+            : "No extra guest fee for this package."}
+        </dd>
+
         <dt>Included in this package</dt>
         <dd>
           {(() => {

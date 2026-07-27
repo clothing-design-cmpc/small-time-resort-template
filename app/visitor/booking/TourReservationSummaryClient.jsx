@@ -8,33 +8,39 @@
  * components/TourSelectionModal.jsx (only reachable when exactly one
  * date was selected on the homepage calendar), the booking TYPE and
  * DATE are already locked in — this page only ever DISPLAYS those
- * (package name, date, tour time window, price per guest) as plain
- * text, same as the Overnight summary does for room/dates. The only
- * things left for the visitor to fill in are how many guests are
- * coming (it directly changes the price, so it stays an editable
- * input — unlike Overnight, tours have no fixed allowedGuests) and
- * their contact info, before submitting the same /api/bookings
- * endpoint every other booking path uses.
+ * (package name, date, tour time window, price per guest, Allowed
+ * Guests, Total Pax, and the Extra Guest Fee heads-up) as plain text,
+ * same as the Overnight summary does for room/dates. There is no guest
+ * count input anywhere on this page anymore — headcount isn't always
+ * declared honestly upfront, so the online price always covers exactly
+ * Allowed Guests, and anyone beyond that (up to Total Pax) pays the
+ * Extra Guest Fee to staff once they're actually at the resort. The
+ * only thing left for the visitor to fill in is their contact info,
+ * before submitting the same /api/bookings endpoint every other
+ * booking path uses.
  *
  * DATA FLOW:
  * 1. app/visitor/booking/page.jsx passes checkInDate/bookingType
  *    straight through from the URL (?checkin=&type=day_tour|night_tour)
  * 2. usePublicBookingRules() loads the active rule for both tour types
- *    (package time window + price per guest) — Day Tour and Night Tour
- *    each resolve their own independent active rule regardless of
- *    nights, so nightsSelected is never passed here
- * 3. A debounced live quote (useBookingSubmission.fetchQuote) refetches
- *    whenever numberOfGuests changes, since tour pricing is
- *    perGuestRate * numberOfGuests (see services/bookingPricing.js)
- * 4. On submit, React Hook Form validates guest count + contact info
+ *    (package time window, price per guest, Allowed Guests, Total Pax,
+ *    Extra Guest Fee) — Day Tour and Night Tour each resolve their own
+ *    independent active rule regardless of nights, so nightsSelected
+ *    is never passed here
+ * 3. A live quote (useBookingSubmission.fetchQuote) fetches once rules
+ *    have loaded, using the matched rule's own Allowed Guests as the
+ *    fixed numberOfGuests — never refetches from user input since
+ *    there's no longer a guest-count field to change
+ * 4. On submit, React Hook Form validates only contact info
  *    client-side, then submitBooking() POSTs to /api/bookings with
- *    roomId/checkOutDate both null
+ *    roomId/checkOutDate both null and numberOfGuests fixed to the
+ *    matched rule's Allowed Guests
  * 5. On success, the page is replaced with the same confirmation panel
  *    shape BookingFormClient.jsx / ReservationSummaryClient.jsx use
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -48,31 +54,12 @@ const FULL_DATE = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "lo
 
 const TOUR_LABELS = { day_tour: "Day Tour", night_tour: "Night Tour" };
 
-/**
- * buildGuestInfoSchema
- * Allowed Pax (BookingRule.maxPax) is a hard cap, not enforced with a
- * static min(1) alone — this is why the schema is built dynamically
- * once the active rule's maxPax is known, instead of a fixed module-
- * level z.object(). The real guarantee is still server-side (Rule 6 —
- * services/bookingPricing.js re-checks numberOfGuests against
- * rules.maxPax on every submit), this is just the UX-level guard so
- * the visitor sees the error before they even hit submit.
- *
- * @param {number} maxPax - the matched rule's Allowed Pax ceiling
- */
-function buildGuestInfoSchema(maxPax) {
-  return z.object({
-    numberOfGuests: z.coerce
-      .number()
-      .int()
-      .min(1, "At least 1 guest.")
-      .max(maxPax, `This package allows a maximum of ${maxPax} pax.`),
-    guestName: z.string().trim().min(2, "Enter your full name."),
-    guestEmail: z.string().trim().email("Enter a valid email address."),
-    guestPhone: z.string().trim().min(7, "Enter a valid phone number."),
-    notes: z.string().trim().max(500).optional(),
-  });
-}
+const guestInfoSchema = z.object({
+  guestName: z.string().trim().min(2, "Enter your full name."),
+  guestEmail: z.string().trim().email("Enter a valid email address."),
+  guestPhone: z.string().trim().min(7, "Enter a valid phone number."),
+  notes: z.string().trim().max(500).optional(),
+});
 
 function formatDateText(dateKey) {
   if (!dateKey) return "—";
@@ -92,30 +79,26 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
   const startTime = bookingType === "day_tour" ? bookingRules?.dayTourStartTime : bookingRules?.nightTourStartTime;
   const endTime = bookingType === "day_tour" ? bookingRules?.dayTourEndTime : bookingRules?.nightTourEndTime;
   const pricePerGuest = bookingType === "day_tour" ? bookingRules?.dayTourPricePerGuest : bookingRules?.nightTourPricePerGuest;
-  // Allowed Pax — hard cap for this tour type's matched rule. Falls back
-  // to a very high ceiling while bookingRules is still loading, so the
-  // form doesn't briefly reject valid input before rules arrive.
-  const maxPax =
-    (bookingType === "day_tour" ? bookingRules?.dayTourMaxPax : bookingRules?.nightTourMaxPax) ?? 999;
-
-  // Rebuilt only when maxPax actually changes — keeps the resolver
-  // reference stable across unrelated re-renders (quote refetch, etc.).
-  const guestInfoSchema = useMemo(() => buildGuestInfoSchema(maxPax), [maxPax]);
+  // Total Pax — max on-site capacity for this tour type's matched rule.
+  const maxPax = bookingType === "day_tour" ? bookingRules?.dayTourMaxPax : bookingRules?.nightTourMaxPax;
+  // Allowed Guests — the fixed count baked into the online price. No
+  // input anywhere lets the visitor change this (see file header).
+  const numberOfGuests = bookingType === "day_tour" ? bookingRules?.dayTourAllowedGuests : bookingRules?.nightTourAllowedGuests;
+  // Extra Guest Fee — informational only, collected by staff on-site.
+  const extraGuestFeePerHead = bookingType === "day_tour" ? bookingRules?.dayTourExtraGuestFeePerHead : bookingRules?.nightTourExtraGuestFeePerHead;
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting: isFormValidating },
   } = useForm({
     resolver: zodResolver(guestInfoSchema),
-    defaultValues: { numberOfGuests: 2, guestName: "", guestEmail: "", guestPhone: "", notes: "" },
+    defaultValues: { guestName: "", guestEmail: "", guestPhone: "", notes: "" },
   });
 
-  const numberOfGuests = watch("numberOfGuests");
-
-  // Live quote — refetches whenever the guest count changes, since
-  // tour pricing scales directly with numberOfGuests.
+  // Live quote — fetched once the matched rule (and its Allowed Guests
+  // count) has loaded. Never refetches from user input since there's
+  // no guest-count field on this page anymore.
   useEffect(() => {
     if (!checkInDate || !bookingType || !numberOfGuests || numberOfGuests < 1) {
       setQuote(null);
@@ -151,6 +134,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
         roomId: null,
         checkInDate,
         checkOutDate: null,
+        numberOfGuests,
       });
       setConfirmedBooking(result);
     } catch (error) {
@@ -229,10 +213,11 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
 
   return (
     <div className="reservationSummary">
-      {/* ─── Read-only text summary — package, date, and tour time
-          window. Nothing here is an editable input; the visitor
-          already made these choices on the homepage calendar and
-          TourSelectionModal. ─── */}
+      {/* ─── Read-only text summary — package, date, tour time window,
+          guest count, and pax/fee info. Nothing here is an editable
+          input; the visitor already made these choices on the homepage
+          calendar and TourSelectionModal, and guest count is fixed by
+          the matched rule's Allowed Guests (see file header). ─── */}
       <dl className="reservationSummaryDetails">
         <dt>Package</dt>
         <dd>{TOUR_LABELS[bookingType] || "Tour"}</dd>
@@ -246,8 +231,18 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
         <dt>Price per Guest</dt>
         <dd>{PESO.format(Number(pricePerGuest) || 0)}</dd>
 
+        <dt>Max Number of Guests</dt>
+        <dd>{numberOfGuests ?? "—"}</dd>
+
         <dt>Total Pax</dt>
-        <dd>{maxPax} pax max</dd>
+        <dd>{maxPax ?? "—"} pax max</dd>
+
+        <dt>Extra Guest Fee</dt>
+        <dd>
+          {extraGuestFeePerHead > 0
+            ? `${PESO.format(extraGuestFeePerHead)}/head — charged on-site for guests beyond the Max Number of Guests above.`
+            : "No extra guest fee for this package."}
+        </dd>
 
         <dt>Included in this package</dt>
         <dd>
@@ -289,23 +284,16 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
         </div>
       )}
 
-      {/* ─── Guest count + contact info form — the only interactive
-          part of this page. Guest count stays editable (unlike
-          Overnight) because tour pricing scales directly with it. ─── */}
+      {/* ─── Contact info form — the only interactive part of this page.
+          Guest count is no longer collected here at all (see file
+          header). ─── */}
       <form className="bookingForm reservationSummaryForm" onSubmit={handleSubmit(onSubmit)} noValidate>
         <p className="bookingFormLegend">* Required fields</p>
-
-        <div className="bookingFormField">
-          <label className="bookingFormLabel" htmlFor="numberOfGuests">Number of Guests <span aria-hidden="true">*</span></label>
-          <input id="numberOfGuests" type="number" min={1} max={maxPax} className="bookingFormInput" autoFocus {...register("numberOfGuests")} />
-          <p className="bookingRulesSectionSubtitle">Max {maxPax} pax para sa package na ito.</p>
-          {errors.numberOfGuests && <span className="bookingFormError" role="alert">{errors.numberOfGuests.message}</span>}
-        </div>
 
         <div className="bookingFormRow">
           <div className="bookingFormField">
             <label className="bookingFormLabel" htmlFor="guestName">Full Name <span aria-hidden="true">*</span></label>
-            <input id="guestName" type="text" className="bookingFormInput" {...register("guestName")} />
+            <input id="guestName" type="text" className="bookingFormInput" autoFocus {...register("guestName")} />
             {errors.guestName && <span className="bookingFormError" role="alert">{errors.guestName.message}</span>}
           </div>
           <div className="bookingFormField">

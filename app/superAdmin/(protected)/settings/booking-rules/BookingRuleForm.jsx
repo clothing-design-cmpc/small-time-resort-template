@@ -188,6 +188,9 @@ const bookingRuleSchema = z.object({
   // reservation page — replaces the old free-text guest input there.
   allowedGuests: z.coerce.number().int().min(1, "At least 1 guest."),
   maxPax: z.coerce.number().int().min(1, "At least 1 pax."),
+  // Extra Guest Fee (per head) — informational rate shown to visitors;
+  // staff collects it manually on-site, never charged through the app.
+  extraGuestFeePerHead: z.coerce.number().min(0),
   // Package Inclusions — what's shown to the visitor as "Included in
   // this package" on the reservation summary. Both optional/empty by
   // default; an admin isn't required to pick anything.
@@ -225,6 +228,9 @@ const bookingRuleSchema = z.object({
   groupDiscountThreshold: z.coerce.number().int().min(1),
   groupDiscountPercent: z.coerce.number().int().min(0),
   seasonalPricingEnabled: z.boolean(),
+}).refine((data) => data.maxPax >= data.allowedGuests, {
+  message: "Total Pax must be at least as high as Allowed Guests.",
+  path: ["maxPax"],
 });
 
 /* Mirrors the @default() values on the BookingRule Prisma model.
@@ -235,6 +241,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   ruleDates: [],
   allowedGuests: 2,
   maxPax: 20,
+  extraGuestFeePerHead: 0,
   includedAmenityIds: [],
   includedProductIds: [],
   packageInclusions: [],
@@ -281,6 +288,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           ruleDates: existingRule.ruleDates ?? [],
           allowedGuests: existingRule.allowedGuests ?? 2,
           maxPax: existingRule.maxPax ?? 20,
+          extraGuestFeePerHead: Number(existingRule.extraGuestFeePerHead ?? 0),
           includedAmenityIds: existingRule.includedAmenityIds ?? [],
           includedProductIds: existingRule.includedProductIds ?? [],
           packageInclusions: existingRule.packageInclusions ?? [],
@@ -576,36 +584,50 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           {errors.ruleDates && <span role="alert" className="bookingRulesFormError">{errors.ruleDates.message}</span>}
 
           {/* --- Allowed Guests — applies to every rule set regardless
-               of how many dates are selected. This is now the single
-               source of truth for guest count: the public reservation
-               page reads it off the matched rule and shows it as plain
-               text instead of letting the guest type an arbitrary
-               number. --- */}
+               of booking type (Overnight, Day Tour, Night Tour). This is
+               the guest count baked into the online price and shown as
+               plain text on every reservation summary — visitors never
+               type a guest count anywhere anymore, since headcount
+               isn't always honestly declared upfront. --- */}
           <div className="bookingRulesFormField">
             <label htmlFor="allowedGuests">Allowed Guests</label>
             <input id="allowedGuests" type="number" min="1" {...register("allowedGuests")} />
+            <p className="bookingRulesSectionSubtitle">Ilang guest ang kasama na sa presyo ng package na ito, para sa lahat ng booking type (Overnight, Day Tour, Night Tour).</p>
             {errors.allowedGuests && (
               <span role="alert" className="bookingRulesFormError">{errors.allowedGuests.message}</span>
             )}
           </div>
 
           {/* --- Total Pax (field name stays maxPax) — the MAX capacity
-               for this package, not to be confused with Allowed Guests
-               above. Allowed Guests is the fixed guest count shown on
-               the Overnight summary (never editable by the visitor);
-               Total Pax is the hard ceiling on how many pax a Day Tour /
-               Night Tour guest can enter in their own editable
-               guest-count field, and is now also shown as its own
-               "Total Pax" line on every visitor-facing package details
-               box (Overnight, Day Tour, Night Tour) for consistency.
-               Enforced
+               this package can hold ON-SITE, distinct from Allowed
+               Guests above (the fixed count already paid for online).
+               This is the ceiling on how many extra guests staff can
+               let in beyond Allowed Guests, each paying the Extra Guest
+               Fee below — shown as its own "Total Pax" line on every
+               visitor-facing package details box (Overnight, Day Tour,
+               Night Tour) for consistency. Enforced
                server-side too — see services/bookingPricing.js. --- */}
           <div className="bookingRulesFormField">
             <label htmlFor="maxPax">Total Pax</label>
             <input id="maxPax" type="number" min="1" {...register("maxPax")} />
-            <p className="bookingRulesSectionSubtitle">Pinakamaraming pax na pwede sa package na ito (Day Tour / Night Tour guest count cap). Makikita rin ito bilang "Total Pax" sa package details ng visitor.</p>
+            <p className="bookingRulesSectionSubtitle">Pinakamaraming pax na pwedeng pumasok sa package na ito (kasama na ang Allowed Guests). Makikita rin ito bilang "Total Pax" sa package details ng visitor.</p>
             {errors.maxPax && (
               <span role="alert" className="bookingRulesFormError">{errors.maxPax.message}</span>
+            )}
+          </div>
+
+          {/* --- Extra Guest Fee (per head) — purely informational rate
+               shown on the visitor-facing package details, so bookers
+               are warned upfront that anyone beyond Allowed Guests (up
+               to Total Pax) pays this amount, collected by staff
+               on-site — never charged automatically through the app,
+               since headcount can only really be confirmed in person. --- */}
+          <div className="bookingRulesFormField">
+            <label htmlFor="extraGuestFeePerHead">Extra Guest Fee (₱ per head)</label>
+            <input id="extraGuestFeePerHead" type="number" min="0" step="0.01" {...register("extraGuestFeePerHead")} />
+            <p className="bookingRulesSectionSubtitle">Bayad kada dagdag na tao lampas sa Allowed Guests, babayaran nila sa resort mismo. Ipapakita lang ito sa visitor bilang paalala — hindi ito automatic na sisingilin online.</p>
+            {errors.extraGuestFeePerHead && (
+              <span role="alert" className="bookingRulesFormError">{errors.extraGuestFeePerHead.message}</span>
             )}
           </div>
 

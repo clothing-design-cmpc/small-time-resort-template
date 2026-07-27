@@ -517,23 +517,28 @@ model BookingRule {
   // by the create/update routes every time ruleDates is written.
   howManySelectedDates Int @default(0) @map("how_many_selected_dates")
 
-  // --- Allowed Guests — visitor-facing guest count for this rule set.
-  //     Replaces the old free-text "Number of Guests" input on the
-  //     public reservation page: the reservation page now reads this
-  //     value off the matched rule and displays it as text instead of
-  //     letting the guest type an arbitrary number. ---
+  // --- Allowed Guests — the guest count baked into this package's
+  //     price for EVERY booking type (Overnight, Day Tour, Night Tour
+  //     all use this the same way now). The visitor never types a guest
+  //     count anywhere — people aren't always honest about headcount
+  //     upfront, so the online price is always this fixed count, and
+  //     anyone extra is charged the flat per-head fee below once staff
+  //     verifies the actual headcount on-site. ---
   allowedGuests Int @default(2) @map("allowed_guests")
 
-  // --- Allowed Pax — the MAX capacity this package can hold, distinct
-  //     from allowedGuests above (which is a fixed, non-editable guest
-  //     count shown on the Overnight reservation summary). Allowed Pax
-  //     is a hard cap: Day Tour / Night Tour bookings let the visitor
-  //     type their own guest count (services/bookingPricing.js), and
-  //     this is the ceiling that count can never exceed — enforced both
-  //     client-side (TourReservationSummaryClient.jsx) and, since a
-  //     client check alone is never trusted, server-side inside
-  //     validateAndQuoteBooking() on every submit. ---
+  // --- Total Pax — the MAX capacity this package can hold on-site,
+  //     distinct from allowedGuests above (the fixed count already paid
+  //     for online). This is the ceiling on how many extra guests staff
+  //     can let in beyond allowedGuests, each paying extraGuestFeePerHead
+  //     below. Enforced server-side inside validateAndQuoteBooking(). ---
   maxPax Int @default(20) @map("max_pax")
+
+  // --- Extra Guest Fee (per head) — shown to visitors on the public
+  //     package details as a heads-up, not charged through the app: the
+  //     super-admin sets this rate, staff collects it manually on-site
+  //     for any guest beyond allowedGuests (up to the maxPax ceiling
+  //     above) once they actually see how many people showed up. ---
+  extraGuestFeePerHead Decimal @default(0) @db.Decimal(10, 2) @map("extra_guest_fee_per_head")
 
   // --- Package Inclusions — what the super-admin says is included in
   //     this specific rule set's package, shown to the visitor on the

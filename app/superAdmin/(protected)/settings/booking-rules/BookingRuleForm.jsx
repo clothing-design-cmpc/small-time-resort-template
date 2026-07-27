@@ -589,17 +589,21 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
             )}
           </div>
 
-          {/* --- Allowed Pax — the MAX capacity for this package, not
-               to be confused with Allowed Guests above. Allowed Guests
-               is the fixed guest count shown on the Overnight summary
-               (never editable by the visitor); Allowed Pax is the hard
-               ceiling on how many pax a Day Tour / Night Tour guest can
-               enter in their own editable guest-count field. Enforced
+          {/* --- Total Pax (field name stays maxPax) — the MAX capacity
+               for this package, not to be confused with Allowed Guests
+               above. Allowed Guests is the fixed guest count shown on
+               the Overnight summary (never editable by the visitor);
+               Total Pax is the hard ceiling on how many pax a Day Tour /
+               Night Tour guest can enter in their own editable
+               guest-count field, and is now also shown as its own
+               "Total Pax" line on every visitor-facing package details
+               box (Overnight, Day Tour, Night Tour) for consistency.
+               Enforced
                server-side too — see services/bookingPricing.js. --- */}
           <div className="bookingRulesFormField">
-            <label htmlFor="maxPax">Allowed Pax (Max)</label>
+            <label htmlFor="maxPax">Total Pax</label>
             <input id="maxPax" type="number" min="1" {...register("maxPax")} />
-            <p className="bookingRulesSectionSubtitle">Pinakamaraming pax na pwede sa package na ito (Day Tour / Night Tour guest count cap).</p>
+            <p className="bookingRulesSectionSubtitle">Pinakamaraming pax na pwede sa package na ito (Day Tour / Night Tour guest count cap). Makikita rin ito bilang "Total Pax" sa package details ng visitor.</p>
             {errors.maxPax && (
               <span role="alert" className="bookingRulesFormError">{errors.maxPax.message}</span>
             )}

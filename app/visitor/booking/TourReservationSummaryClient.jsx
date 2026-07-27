@@ -246,6 +246,9 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
         <dt>Price per Guest</dt>
         <dd>{PESO.format(Number(pricePerGuest) || 0)}</dd>
 
+        <dt>Total Pax</dt>
+        <dd>{maxPax} pax max</dd>
+
         <dt>Included in this package</dt>
         <dd>
           {(() => {

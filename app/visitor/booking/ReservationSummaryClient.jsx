@@ -233,8 +233,11 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
         <dt>Room / Villa</dt>
         <dd>{room.name} — {room.bedType} bed</dd>
 
-        <dt>Number of Guests</dt>
+        <dt>Max Number of Guests</dt>
         <dd>{numberOfGuests ?? "—"}</dd>
+
+        <dt>Total Pax</dt>
+        <dd>{bookingRules.maxPax ?? "—"} pax max</dd>
 
         <dt>Included in this package</dt>
         <dd>

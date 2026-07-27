@@ -70,6 +70,10 @@ export async function POST(request) {
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         cleaningHours: body.cleaningHours,
+        // Visitor-facing guest count for this rule set — read by the
+        // public reservation page (app/visitor/booking/ReservationSummaryClient.jsx)
+        // and displayed there as text instead of an editable input.
+        allowedGuests: body.allowedGuests,
         allowOvernightStay: body.allowOvernightStay,
         allowDayTour: body.allowDayTour,
         allowNightTour: body.allowNightTour,

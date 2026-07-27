@@ -517,6 +517,13 @@ model BookingRule {
   // by the create/update routes every time ruleDates is written.
   howManySelectedDates Int @default(0) @map("how_many_selected_dates")
 
+  // --- Allowed Guests — visitor-facing guest count for this rule set.
+  //     Replaces the old free-text "Number of Guests" input on the
+  //     public reservation page: the reservation page now reads this
+  //     value off the matched rule and displays it as text instead of
+  //     letting the guest type an arbitrary number. ---
+  allowedGuests Int @default(2) @map("allowed_guests")
+
   // --- Booking Types (extension beyond the base blueprint, per admin request) ---
   allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
   allowDayTour       Boolean @default(false) @map("allow_day_tour")

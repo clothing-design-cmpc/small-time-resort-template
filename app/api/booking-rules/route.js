@@ -65,6 +65,14 @@ export async function GET(request) {
         // of a generic "Overnight Stay" label.
         matchedRuleName: overnightRule.name,
         matchedRuleNights: overnightRule.howManySelectedDates,
+        // Rule id + allowed guest count — the room-selection modal and
+        // the read-only reservation summary page both need the id to
+        // link a booking to the exact rule set that was matched, and
+        // allowedGuests so the reservation page can display the guest
+        // count as text instead of an editable input (Section 1 of the
+        // Booking Rules form is now the single source of truth for it).
+        matchedRuleId: overnightRule.id,
+        allowedGuests: overnightRule.allowedGuests,
 
         // Day Tour-specific — from the rule set active for Day Tour
         allowDayTour: dayTourRule.allowDayTour,

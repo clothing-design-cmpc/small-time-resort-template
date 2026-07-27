@@ -52,6 +52,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
+import RoomSelectionModal from "@/components/RoomSelectionModal";
+import { useAvailableRooms } from "@/hooks/useAvailableRooms";
 import axios from "axios";
 import "./HowToBookSection.css";
 
@@ -113,6 +115,15 @@ export default function HowToBookSection() {
   // Tour-type bookings are enabled — see the file header for why that
   // matters for date selection.
   const [allowOvernightStay, setAllowOvernightStay] = useState(true);
+
+  // Set only once the Overnight rule check in handleContinue() below has
+  // passed for the visitor's selected dates — opens RoomSelectionModal
+  // with exactly the checkIn/checkOut/ruleId it needs. null = modal closed.
+  const [roomModalRequest, setRoomModalRequest] = useState(null);
+  const { rooms: availableRooms, isLoading: isLoadingRooms, error: availableRoomsError } = useAvailableRooms(
+    roomModalRequest?.checkInDate ?? null,
+    roomModalRequest?.checkOutDate ?? null
+  );
 
   // Fetch which dates are already reserved — same source of truth as
   // BookedDatesSection, kept as its own independent fetch so this
@@ -276,6 +287,13 @@ export default function HowToBookSection() {
           showToast(`✕ No package covers ${nightsSelected} night(s). Available range is ${rangeLabel} night(s) — please adjust your dates.`, "error");
           return;
         }
+
+        // Rule confirmed for these dates — open the room-selection
+        // modal instead of routing straight to the reservation page.
+        // The visitor picks a room there; handleRoomSelected() below
+        // does the actual navigation once they do.
+        setRoomModalRequest({ checkInDate: checkInKey, checkOutDate: checkOutKey, ruleId: rule.matchedRuleId });
+        return;
       } else {
         // Single-date selection — at least one Tour type must be enabled.
         if (!rule.allowDayTour && !rule.allowNightTour) {
@@ -284,6 +302,8 @@ export default function HowToBookSection() {
         }
       }
 
+      // Tour path only reaches here — Overnight returns above once the
+      // room modal opens.
       const params = new URLSearchParams({ checkin: checkInKey });
       if (checkOutKey !== checkInKey) params.set("checkout", checkOutKey);
 
@@ -293,6 +313,27 @@ export default function HowToBookSection() {
     } finally {
       setIsCheckingRule(false);
     }
+  }
+
+  /**
+   * handleRoomSelected
+   * Fired when the visitor taps a room inside RoomSelectionModal.
+   * Closes the modal and routes into the read-only reservation summary
+   * with checkin/checkout/roomId/ruleId all pre-filled — see
+   * app/visitor/booking/page.jsx + ReservationSummaryClient.jsx.
+   */
+  function handleRoomSelected(room) {
+    if (!roomModalRequest) return;
+    const params = new URLSearchParams({
+      checkin: roomModalRequest.checkInDate,
+      roomId: room.id,
+    });
+    if (roomModalRequest.checkOutDate !== roomModalRequest.checkInDate) {
+      params.set("checkout", roomModalRequest.checkOutDate);
+    }
+    if (roomModalRequest.ruleId) params.set("ruleId", roomModalRequest.ruleId);
+    setRoomModalRequest(null);
+    router.push(`/visitor/booking?${params.toString()}`);
   }
 
   return (
@@ -420,6 +461,17 @@ export default function HowToBookSection() {
           </div>
         )}
       </div>
+
+      <RoomSelectionModal
+        isOpen={Boolean(roomModalRequest)}
+        checkInDate={roomModalRequest?.checkInDate}
+        checkOutDate={roomModalRequest?.checkOutDate}
+        rooms={availableRooms}
+        isLoading={isLoadingRooms}
+        error={availableRoomsError}
+        onSelectRoom={handleRoomSelected}
+        onClose={() => setRoomModalRequest(null)}
+      />
     </section>
   );
 }

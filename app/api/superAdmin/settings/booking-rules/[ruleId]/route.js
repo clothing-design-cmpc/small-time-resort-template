@@ -90,6 +90,9 @@ export async function PUT(request, { params }) {
         nightTourEndTime: body.nightTourEndTime,
         nightTourPricePerGuest: body.nightTourPricePerGuest,
         hourlyChargeAmount: body.hourlyChargeAmount,
+        // Visitor-facing guest count for this rule set — read by the
+        // public reservation page and displayed there as text.
+        allowedGuests: body.allowedGuests,
         refundPercentage: body.refundPercentage,
         cancellationCutoffDays: body.cancellationCutoffDays,
         depositRequired: body.depositRequired,

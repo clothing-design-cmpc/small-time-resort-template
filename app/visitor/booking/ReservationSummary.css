@@ -1,0 +1,90 @@
+/*
+ * .reservationSummary
+ * Vertical stack: read-only details -> quote panel -> guest info form.
+ * Generous gap so each block reads as its own section (Rule 23.10 spirit).
+ */
+.reservationSummary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  width: 100%;
+  margin-top: var(--space-xl);
+}
+
+/*
+ * .reservationSummaryDetails
+ * Label/value pairs for the package, dates, room, guests, and included
+ * amenities — every value here is plain text, never an input. Laid out
+ * as a definition list so screen readers get the label/value pairing
+ * for free.
+ */
+.reservationSummaryDetails {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: var(--space-sm) var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  margin: 0;
+}
+
+.reservationSummaryDetails dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.reservationSummaryDetails dd {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+/* Stack to a single column on narrow screens — mobile-first, no
+   interior min/max-width hacks (Rule 23.5). */
+@media (max-width: 480px) {
+  .reservationSummaryDetails {
+    grid-template-columns: 1fr;
+  }
+  .reservationSummaryDetails dt {
+    margin-top: var(--space-sm);
+  }
+  .reservationSummaryDetails dt:first-child {
+    margin-top: 0;
+  }
+}
+
+.reservationSummaryForm {
+  margin-top: 0;
+}
+
+/*
+ * .reservationSummaryErrorState
+ * Shown when the room or rule couldn't be loaded (room deactivated
+ * mid-flow, etc.) — human-readable message plus a way back, never a
+ * dead end (Rule 34.1).
+ */
+.reservationSummaryErrorState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+  color: var(--color-text-secondary);
+}
+
+.reservationSummaryErrorLink {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.reservationSummaryErrorLink:hover,
+.reservationSummaryErrorLink:focus-visible {
+  color: var(--color-accent-hover);
+}

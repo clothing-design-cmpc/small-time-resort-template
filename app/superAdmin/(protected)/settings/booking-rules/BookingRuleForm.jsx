@@ -184,6 +184,9 @@ function hoursOfStayPerNightFromCheckout(checkInTime, checkOutTime, numberOfNigh
 const bookingRuleSchema = z.object({
   name: z.string().min(1, "Give this rule set a name, e.g. \"Regular Season\"."),
   ruleDates: z.array(z.string()).min(1, "Pumili ng kahit isang petsa para sa rule na ito."),
+  // Visitor-facing guest count shown as plain text on the public
+  // reservation page — replaces the old free-text guest input there.
+  allowedGuests: z.coerce.number().int().min(1, "At least 1 guest."),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
   allowOvernightStay: z.boolean(),
@@ -221,6 +224,7 @@ const bookingRuleSchema = z.object({
    admin clicks "Save". */
 const DEFAULT_BOOKING_RULE_VALUES = {
   ruleDates: [],
+  allowedGuests: 2,
   checkInTime: "14:00",
   checkOutTime: "11:00",
   allowOvernightStay: true,
@@ -262,6 +266,7 @@ export default function BookingRuleForm({ existingRule, rooms }) {
       ? {
           name: existingRule.name,
           ruleDates: existingRule.ruleDates ?? [],
+          allowedGuests: existingRule.allowedGuests ?? 2,
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
           allowOvernightStay: existingRule.allowOvernightStay,
@@ -501,6 +506,20 @@ export default function BookingRuleForm({ existingRule, rooms }) {
 
           <RuleDatesCalendar selectedDates={selectedDates} onToggleDate={handleToggleDate} />
           {errors.ruleDates && <span role="alert" className="bookingRulesFormError">{errors.ruleDates.message}</span>}
+
+          {/* --- Allowed Guests — applies to every rule set regardless
+               of how many dates are selected. This is now the single
+               source of truth for guest count: the public reservation
+               page reads it off the matched rule and shows it as plain
+               text instead of letting the guest type an arbitrary
+               number. --- */}
+          <div className="bookingRulesFormField">
+            <label htmlFor="allowedGuests">Allowed Guests</label>
+            <input id="allowedGuests" type="number" min="1" {...register("allowedGuests")} />
+            {errors.allowedGuests && (
+              <span role="alert" className="bookingRulesFormError">{errors.allowedGuests.message}</span>
+            )}
+          </div>
 
           {/* --- Rule 1: exactly one date selected --- */}
           {selectedDates.size === 1 && (

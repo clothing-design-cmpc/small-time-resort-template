@@ -48,6 +48,7 @@ export default async function EditBookingRulePage({ params }) {
     hourlyChargeAmount: Number(rule.hourlyChargeAmount),
     dayTourPricePerGuest: Number(rule.dayTourPricePerGuest),
     nightTourPricePerGuest: Number(rule.nightTourPricePerGuest),
+    extraGuestFeePerHead: Number(rule.extraGuestFeePerHead),
   };
   const rooms = roomRecords.map((room) => ({ ...room, pricePerNight: Number(room.pricePerNight) }));
   const products = productRecords.map((product) => ({ ...product, price: Number(product.price) }));

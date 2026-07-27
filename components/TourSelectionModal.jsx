@@ -15,8 +15,10 @@
  * DATA FLOW:
  * 1. HowToBookSection renders <TourSelectionModal isOpen checkInDate
  *    room allowOvernightStay allowDayTour allowNightTour
- *    dayTourPricePerGuest nightTourPricePerGuest onSelectType onClose />
- *    once the visitor has picked a room for a single selected date
+ *    onSelectType onClose /> once the visitor has picked a room for a
+ *    single selected date. No pricing is shown on this step — every
+ *    package's price depends on the room/rule matched further into the
+ *    flow, not on the type choice made here.
  * 2. Tapping an option calls onSelectType(bookingType) — the caller
  *    (HowToBookSection.handleTourTypeSelected) is responsible for the
  *    actual navigation, this component only ever reports the choice
@@ -25,8 +27,6 @@
 
 import { useEffect } from "react";
 import "./TourSelectionModal.css";
-
-const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
 const OPTIONS = [
   {
@@ -53,8 +53,6 @@ export default function TourSelectionModal({
   allowOvernightStay,
   allowDayTour,
   allowNightTour,
-  dayTourPricePerGuest,
-  nightTourPricePerGuest,
   onSelectType,
   onClose,
 }) {
@@ -116,12 +114,6 @@ export default function TourSelectionModal({
               >
                 <p className="tourSelectionCardName">{option.label}</p>
                 <p className="tourSelectionCardDescription">{option.description}</p>
-                {option.value === "day_tour" && dayTourPricePerGuest > 0 && (
-                  <p className="tourSelectionCardPrice">{PESO.format(dayTourPricePerGuest)}/guest</p>
-                )}
-                {option.value === "night_tour" && nightTourPricePerGuest > 0 && (
-                  <p className="tourSelectionCardPrice">{PESO.format(nightTourPricePerGuest)}/guest</p>
-                )}
               </button>
             ))}
           </div>

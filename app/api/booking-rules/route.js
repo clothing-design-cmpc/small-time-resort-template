@@ -46,16 +46,44 @@ export async function GET(request) {
       getActiveBookingRule("night_tour"),
     ]);
 
-    // Resolve the matched Overnight rule's included amenity IDs to
-    // actual names — the reservation summary page displays these as
-    // plain text and shouldn't need a second round-trip just to look
-    // up what an amenity ID means.
-    const includedAmenities = overnightRule.includedAmenityIds.length
-      ? await prisma.amenity.findMany({
-          where: { id: { in: overnightRule.includedAmenityIds } },
-          select: { id: true, name: true, icon: true },
-        })
-      : [];
+    /**
+     * resolvePackageInclusions
+     * Resolves one rule's includedAmenityIds and includedProductIds to
+     * actual Amenity / StoreProduct records — the reservation summary
+     * pages display these as plain text and shouldn't each need a
+     * separate round-trip to look up what an ID means. Previously this
+     * only ever ran once against overnightRule, so Day Tour and Night
+     * Tour visitor pages silently showed the Overnight rule's
+     * inclusions instead of their own — each booking type now resolves
+     * its own matched rule's inclusions independently.
+     */
+    async function resolvePackageInclusions(rule) {
+      const [includedAmenities, includedProducts] = await Promise.all([
+        rule.includedAmenityIds.length
+          ? prisma.amenity.findMany({
+              where: { id: { in: rule.includedAmenityIds } },
+              select: { id: true, name: true, icon: true },
+            })
+          : [],
+        rule.includedProductIds.length
+          ? prisma.storeProduct.findMany({
+              where: { id: { in: rule.includedProductIds } },
+              select: { id: true, name: true, price: true, imageUrl: true },
+            })
+          : [],
+      ]);
+      return {
+        includedAmenities,
+        includedProducts: includedProducts.map((product) => ({ ...product, price: Number(product.price) })),
+        packageInclusions: rule.packageInclusions,
+      };
+    }
+
+    const [overnightInclusions, dayTourInclusions, nightTourInclusions] = await Promise.all([
+      resolvePackageInclusions(overnightRule),
+      resolvePackageInclusions(dayTourRule),
+      resolvePackageInclusions(nightTourRule),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -85,24 +113,35 @@ export async function GET(request) {
         // Booking Rules form is now the single source of truth for it).
         matchedRuleId: overnightRule.id,
         allowedGuests: overnightRule.allowedGuests,
-        // Package Inclusions — resolved amenity objects + free-text
-        // extras the admin added on the Booking Rules form. The
-        // reservation summary page displays both merged into one
+        // Package Inclusions — resolved amenity/product objects +
+        // free-text extras the admin added on the Booking Rules form.
+        // The reservation summary page displays these merged into one
         // "Included in this package" text list.
-        includedAmenities,
-        packageInclusions: overnightRule.packageInclusions,
+        includedAmenities: overnightInclusions.includedAmenities,
+        includedProducts: overnightInclusions.includedProducts,
+        packageInclusions: overnightInclusions.packageInclusions,
 
-        // Day Tour-specific — from the rule set active for Day Tour
+        // Day Tour-specific — from the rule set active for Day Tour,
+        // including that rule's OWN inclusions (previously showed the
+        // Overnight rule's inclusions instead).
         allowDayTour: dayTourRule.allowDayTour,
         dayTourStartTime: dayTourRule.dayTourStartTime,
         dayTourEndTime: dayTourRule.dayTourEndTime,
         dayTourPricePerGuest: Number(dayTourRule.dayTourPricePerGuest),
+        dayTourIncludedAmenities: dayTourInclusions.includedAmenities,
+        dayTourIncludedProducts: dayTourInclusions.includedProducts,
+        dayTourPackageInclusions: dayTourInclusions.packageInclusions,
 
-        // Night Tour-specific — from the rule set active for Night Tour
+        // Night Tour-specific — from the rule set active for Night
+        // Tour, including that rule's OWN inclusions (same fix as
+        // Day Tour above).
         allowNightTour: nightTourRule.allowNightTour,
         nightTourStartTime: nightTourRule.nightTourStartTime,
         nightTourEndTime: nightTourRule.nightTourEndTime,
         nightTourPricePerGuest: Number(nightTourRule.nightTourPricePerGuest),
+        nightTourIncludedAmenities: nightTourInclusions.includedAmenities,
+        nightTourIncludedProducts: nightTourInclusions.includedProducts,
+        nightTourPackageInclusions: nightTourInclusions.packageInclusions,
       },
       message: "Booking rules fetched successfully.",
     });

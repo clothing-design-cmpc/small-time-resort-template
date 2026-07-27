@@ -534,6 +534,13 @@ model BookingRule {
   //     free text for package-specific extras that aren't a resort
   //     amenity at all (e.g. "Welcome Drinks", "Late Checkout"). ---
   includedAmenityIds String[] @default([]) @map("included_amenity_ids") // Amenity.id values
+  // Wires the Resort Shop into Package Inclusions — lets the admin mark
+  // specific StoreProduct rows as included in this package (e.g. a
+  // souvenir or drink bundled with a Day Tour), reusing the same
+  // checklist pattern as includedAmenityIds instead of retyping the
+  // product name as free text. Resolved to live product records (name,
+  // price) by app/api/booking-rules/route.js, same as Amenity above.
+  includedProductIds String[] @default([]) @map("included_product_ids") // StoreProduct.id values
   packageInclusions  String[] @default([]) @map("package_inclusions") // free-text extras
 
   // --- Booking Types (extension beyond the base blueprint, per admin request) ---

@@ -863,6 +863,20 @@
 }
 
 /*
+ * .bookingRulesInclusionsSubheading
+ * Small label separating the Amenities checklist from the Shop
+ * Products checklist inside the same Package Inclusions sub-panel.
+ */
+.bookingRulesInclusionsSubheading {
+  margin: var(--space-md) 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/*
  * .bookingRulesCustomInclusionRow
  * Free-text input + "Add" button for package-specific extras that
  * aren't in the Amenity catalog (e.g. "Welcome Drinks").

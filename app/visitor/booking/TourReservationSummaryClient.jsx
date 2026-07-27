@@ -218,6 +218,31 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
 
         <dt>Price per Guest</dt>
         <dd>{PESO.format(Number(pricePerGuest) || 0)}</dd>
+
+        <dt>Included in this package</dt>
+        <dd>
+          {(() => {
+            const includedAmenities = bookingType === "day_tour"
+              ? bookingRules.dayTourIncludedAmenities
+              : bookingRules.nightTourIncludedAmenities;
+            const includedProducts = bookingType === "day_tour"
+              ? bookingRules.dayTourIncludedProducts
+              : bookingRules.nightTourIncludedProducts;
+            const packageInclusions = bookingType === "day_tour"
+              ? bookingRules.dayTourPackageInclusions
+              : bookingRules.nightTourPackageInclusions;
+
+            const inclusionNames = [
+              ...(includedAmenities ?? []).map((amenity) => amenity.name),
+              ...(includedProducts ?? []).map((product) => `${product.name} (${PESO.format(product.price)})`),
+              ...(packageInclusions ?? []),
+            ];
+            const uniqueInclusions = Array.from(new Set(inclusionNames));
+            return uniqueInclusions.length > 0
+              ? uniqueInclusions.join(", ")
+              : "No additional inclusions listed for this package.";
+          })()}
+        </dd>
       </dl>
 
       {/* ─── Live quote preview ─── */}

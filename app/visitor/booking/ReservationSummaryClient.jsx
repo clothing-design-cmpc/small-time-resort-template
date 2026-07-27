@@ -242,6 +242,7 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
             const inclusionNames = [
               ...room.amenities.map((amenity) => amenity.name),
               ...(bookingRules.includedAmenities ?? []).map((amenity) => amenity.name),
+              ...(bookingRules.includedProducts ?? []).map((product) => `${product.name} (${PESO.format(product.price)})`),
               ...(bookingRules.packageInclusions ?? []),
             ];
             const uniqueInclusions = Array.from(new Set(inclusionNames));

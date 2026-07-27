@@ -77,6 +77,9 @@ export async function POST(request) {
         // Package Inclusions — shown to the visitor as "Included in
         // this package" on the reservation summary.
         includedAmenityIds: Array.isArray(body.includedAmenityIds) ? body.includedAmenityIds : undefined,
+        // Package Inclusions -> Shop Products checklist (StoreProduct.id
+        // values) — same wiring as includedAmenityIds above.
+        includedProductIds: Array.isArray(body.includedProductIds) ? body.includedProductIds : undefined,
         packageInclusions: Array.isArray(body.packageInclusions) ? body.packageInclusions : undefined,
         allowOvernightStay: body.allowOvernightStay,
         allowDayTour: body.allowDayTour,

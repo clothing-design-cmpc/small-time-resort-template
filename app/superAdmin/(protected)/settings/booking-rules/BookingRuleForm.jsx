@@ -191,6 +191,9 @@ const bookingRuleSchema = z.object({
   // this package" on the reservation summary. Both optional/empty by
   // default; an admin isn't required to pick anything.
   includedAmenityIds: z.array(z.string()).default([]),
+  // Package Inclusions -> Shop Products checklist — StoreProduct.id
+  // values, same pattern as includedAmenityIds above.
+  includedProductIds: z.array(z.string()).default([]),
   packageInclusions: z.array(z.string()).default([]),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
@@ -231,6 +234,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   ruleDates: [],
   allowedGuests: 2,
   includedAmenityIds: [],
+  includedProductIds: [],
   packageInclusions: [],
   checkInTime: "14:00",
   checkOutTime: "11:00",
@@ -255,7 +259,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   seasonalPricingEnabled: true,
 };
 
-export default function BookingRuleForm({ existingRule, rooms, amenities = [] }) {
+export default function BookingRuleForm({ existingRule, rooms, amenities = [], products = [] }) {
   const router = useRouter();
   const { toasts, showToast, dismissToast } = useToast();
   const isEditMode = Boolean(existingRule);
@@ -275,6 +279,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [] })
           ruleDates: existingRule.ruleDates ?? [],
           allowedGuests: existingRule.allowedGuests ?? 2,
           includedAmenityIds: existingRule.includedAmenityIds ?? [],
+          includedProductIds: existingRule.includedProductIds ?? [],
           packageInclusions: existingRule.packageInclusions ?? [],
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
@@ -327,6 +332,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [] })
    * selection from single-date mode can't linger once a range is picked.
    */
   const includedAmenityIds = watch("includedAmenityIds") ?? [];
+  const includedProductIds = watch("includedProductIds") ?? [];
   const packageInclusions = watch("packageInclusions") ?? [];
   // Text currently typed into the "Add a custom inclusion" input —
   // local only, never touches react-hook-form until the admin actually
@@ -370,6 +376,19 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [] })
       ? includedAmenityIds.filter((id) => id !== amenityId)
       : [...includedAmenityIds, amenityId];
     setValue("includedAmenityIds", next, { shouldValidate: true });
+  }
+
+  /**
+   * handleToggleIncludedProduct
+   * Checkbox toggle for the Package Inclusions -> Shop Products
+   * checklist. Wires the Resort Shop catalog into this rule set the
+   * same way handleToggleIncludedAmenity wires the Amenity catalog.
+   */
+  function handleToggleIncludedProduct(productId) {
+    const next = includedProductIds.includes(productId)
+      ? includedProductIds.filter((id) => id !== productId)
+      : [...includedProductIds, productId];
+    setValue("includedProductIds", next, { shouldValidate: true });
   }
 
   /**
@@ -593,6 +612,30 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [] })
               </div>
             ) : (
               <p className="bookingRulesHint">Wala pang amenities na naka-configure. Pwede mo pa ring magdagdag ng custom na inclusion sa ibaba.</p>
+            )}
+
+            {/* --- Shop Products — wires the Resort Shop catalog into
+                 this package the same way the Amenities checklist
+                 above wires the Amenity catalog. Checking a product
+                 here links its live name/price into the visitor-facing
+                 "Included in this package" summary instead of the
+                 admin retyping it as free text. --- */}
+            <p className="bookingRulesInclusionsSubheading">Shop Products</p>
+            {products.length > 0 ? (
+              <div className="bookingRulesInclusionsChecklist">
+                {products.map((product) => (
+                  <label key={product.id} className="bookingRulesToggle">
+                    <input
+                      type="checkbox"
+                      checked={includedProductIds.includes(product.id)}
+                      onChange={() => handleToggleIncludedProduct(product.id)}
+                    />
+                    {product.name} — ₱{product.price}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="bookingRulesHint">Wala pang shop products na naka-configure. Magdagdag muna sa Content &gt; Resort Shop.</p>
             )}
 
             <div className="bookingRulesCustomInclusionRow">

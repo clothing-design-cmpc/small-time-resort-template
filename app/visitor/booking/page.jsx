@@ -17,9 +17,10 @@
  *
  * DATA FLOW:
  * 1. Visitor arrives here from Header's "Book Now" link (no query
- *    params), HowToBookSection's single-date Tour path (?checkin=
- *    only), or HowToBookSection's RoomSelectionModal (?checkin=&
- *    checkout=&roomId=&ruleId=)
+ *    params), HowToBookSection's TourSelectionModal for a single-date
+ *    Day/Night Tour choice (?checkin=&type=day_tour|night_tour), or
+ *    HowToBookSection's RoomSelectionModal / TourSelectionModal
+ *    Overnight choice (?checkin=&checkout=&roomId=&ruleId=)
  * 2. All actual data fetching (room, rule, availability, quote,
  *    submission) happens client-side in whichever client component
  *    is rendered — this Server Component only forwards query params
@@ -39,6 +40,10 @@ export default async function BookingPage({ searchParams }) {
   const initialCheckOutDate = typeof params?.checkout === "string" ? params.checkout : null;
   const roomId = typeof params?.roomId === "string" ? params.roomId : null;
   const ruleId = typeof params?.ruleId === "string" ? params.ruleId : null;
+  // Set only when TourSelectionModal's Day Tour / Night Tour option was
+  // picked for a single selected date — locks BookingFormClient's
+  // Booking Type field to that choice instead of showing pills again.
+  const initialBookingType = typeof params?.type === "string" ? params.type : null;
 
   return (
     <section className="bookingSection">
@@ -59,7 +64,11 @@ export default async function BookingPage({ searchParams }) {
             ruleId={ruleId}
           />
         ) : (
-          <BookingFormClient initialCheckInDate={initialCheckInDate} initialCheckOutDate={initialCheckOutDate} />
+          <BookingFormClient
+            initialCheckInDate={initialCheckInDate}
+            initialCheckOutDate={initialCheckOutDate}
+            initialBookingType={initialBookingType}
+          />
         )}
       </div>
     </section>

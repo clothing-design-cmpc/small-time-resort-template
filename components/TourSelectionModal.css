@@ -1,0 +1,154 @@
+/*
+ * .tourSelectionBackdrop
+ * Full-viewport overlay behind the tour-selection dialog.
+ */
+.tourSelectionBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 43, 32, 0.55);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+/*
+ * .tourSelectionDialog
+ * Centered, width-constrained dialog. Scrolls internally on shorter
+ * viewports rather than letting the option grid push off-screen.
+ */
+.tourSelectionDialog {
+  width: 100%;
+  max-width: 640px;
+  max-height: min(80vh, 640px);
+  overflow-y: auto;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+}
+
+.tourSelectionHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.tourSelectionEyebrow {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.tourSelectionTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: var(--space-xs) 0;
+}
+
+.tourSelectionSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.tourSelectionCloseButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tourSelectionCloseButton:hover,
+.tourSelectionCloseButton:focus-visible,
+.tourSelectionCloseButton:active {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+/*
+ * .tourSelectionGrid
+ * Auto-responsive option-card grid — reflows without breakpoints (Rule 23.2).
+ */
+.tourSelectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-lg);
+}
+
+.tourSelectionEmptyState {
+  padding: var(--space-xl) 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.tourSelectionEmptyHint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+/*
+ * .tourSelectionCard
+ * Selectable booking-type card — full-width button so the whole card
+ * is tappable, not just the text (44px+ touch target, Rule 29.1).
+ */
+.tourSelectionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.tourSelectionCard:hover,
+.tourSelectionCard:focus-visible,
+.tourSelectionCard:active {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.tourSelectionCardName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.tourSelectionCardDescription {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.tourSelectionCardPrice {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  margin: var(--space-xs) 0 0;
+}

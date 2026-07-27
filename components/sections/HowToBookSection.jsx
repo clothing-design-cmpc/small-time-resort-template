@@ -35,16 +35,22 @@
  *    dates at once); when only Tour types are enabled, tapping a day
  *    simply replaces whatever was previously selected
  * 4. "Continue" first checks GET /api/booking-rules to confirm there is
- *    an active booking rule set AND that the selected date range's
- *    night count actually fits that rule's minNightsRequired/
- *    maxNightsAllowed (Overnight Stay) — or, for single-date Tour
- *    selections, that at least one Tour type is enabled. If nothing in
- *    the database matches the selection, a toast explains that and the
- *    visitor stays on this page. If a match exists, the visitor is sent
- *    to /visitor/booking with the earliest selected date as check-in
- *    and the latest as check-out (same date twice if only one day was
- *    picked, which is now the only possibility when Overnight Stay
- *    isn't enabled)
+ *    an active booking rule set AND that the selection is bookable —
+ *    for single-date Tour-only selections, that at least one Tour type
+ *    is enabled. If nothing in the database matches the selection, a
+ *    toast explains that and the visitor stays on this page.
+ * 5. When Overnight Stay is enabled and EXACTLY ONE date is selected,
+ *    the booking type is ambiguous — it could become a 1-night
+ *    Overnight stay, a Day Tour, or a Night Tour. RoomSelectionModal
+ *    still opens first (useful even for a Tour visitor picking a villa
+ *    to enjoy for the day/evening), but instead of routing straight
+ *    through, TourSelectionModal opens next so the visitor picks the
+ *    actual type — see handleRoomSelected() and
+ *    handleTourTypeSelected() below.
+ * 6. When 2+ dates are selected, there is no ambiguity — it can only
+ *    ever be an Overnight stay, so once a room is picked the visitor
+ *    routes straight to /visitor/booking with the earliest selected
+ *    date as check-in and the latest as check-out.
  */
 "use client";
 
@@ -53,6 +59,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import RoomSelectionModal from "@/components/RoomSelectionModal";
+import TourSelectionModal from "@/components/TourSelectionModal";
 import { useAvailableRooms } from "@/hooks/useAvailableRooms";
 import axios from "axios";
 import "./HowToBookSection.css";
@@ -133,11 +140,22 @@ export default function HowToBookSection() {
   // Set only once the Overnight rule check in handleContinue() below has
   // passed for the visitor's selected dates — opens RoomSelectionModal
   // with exactly the checkIn/checkOut/ruleId it needs. null = modal closed.
+  // singleDateFlow (true only when exactly 1 date was selected) tells
+  // handleRoomSelected() below whether to route straight through
+  // (2+ dates -> always Overnight) or open TourSelectionModal next
+  // (1 date -> ambiguous between Overnight/Day Tour/Night Tour).
   const [roomModalRequest, setRoomModalRequest] = useState(null);
   const { rooms: availableRooms, isLoading: isLoadingRooms, error: availableRoomsError } = useAvailableRooms(
     roomModalRequest?.checkInDate ?? null,
     roomModalRequest?.checkOutDate ?? null
   );
+
+  // Set once a room has been picked for a single-date selection — opens
+  // TourSelectionModal so the visitor can say whether this single date
+  // is actually an Overnight stay, a Day Tour, or a Night Tour. null =
+  // modal closed. Never set when 2+ dates were selected (that case
+  // routes straight through as Overnight — see handleRoomSelected()).
+  const [tourSelectionRequest, setTourSelectionRequest] = useState(null);
 
   // Fetch which dates are already reserved — same source of truth as
   // BookedDatesSection, kept as its own independent fetch so this
@@ -300,16 +318,42 @@ export default function HowToBookSection() {
       }
 
       if (allowOvernightStay) {
-        // Multi-date range — the night count must fall inside this
-        // rule's configured min/max for an Overnight stay.
         const minNights = rule.minNightsRequired ?? 1;
         const maxNights = rule.maxNightsAllowed ?? Infinity;
+        const overnightFits = rule.allowOvernightStay && nightsSelected >= minNights && nightsSelected <= maxNights;
 
+        if (nightsSelected === 1) {
+          // Exactly ONE date selected — ambiguous between Overnight (1
+          // night), Day Tour, or Night Tour. Open Room Selection first
+          // (useful even for a Tour visitor picking a villa to enjoy
+          // for the day/evening), then TourSelectionModal decides the
+          // actual booking type — see handleRoomSelected() below.
+          if (!overnightFits && !rule.allowDayTour && !rule.allowNightTour) {
+            showToast("✕ No booking type is available for this date. Please try again later.", "error");
+            return;
+          }
+          setRoomModalRequest({
+            checkInDate: checkInKey,
+            checkOutDate: checkOutKey,
+            ruleId: rule.matchedRuleId,
+            singleDateFlow: true,
+            allowOvernightStay: overnightFits,
+            allowDayTour: rule.allowDayTour,
+            allowNightTour: rule.allowNightTour,
+            dayTourPricePerGuest: rule.dayTourPricePerGuest,
+            nightTourPricePerGuest: rule.nightTourPricePerGuest,
+          });
+          return;
+        }
+
+        // 2+ dates selected — no ambiguity, this can only ever be an
+        // Overnight stay, so it must fit this rule's configured
+        // min/max nights.
         if (!rule.allowOvernightStay) {
           showToast("✕ Overnight stays aren't available right now. Please try again later.", "error");
           return;
         }
-        if (nightsSelected < minNights || nightsSelected > maxNights) {
+        if (!overnightFits) {
           const rangeLabel = minNights === maxNights ? `${minNights}` : `${minNights}–${maxNights}`;
           showToast(`✕ No package covers ${nightsSelected} night(s). Available range is ${rangeLabel} night(s) — please adjust your dates.`, "error");
           return;
@@ -318,8 +362,9 @@ export default function HowToBookSection() {
         // Rule confirmed for these dates — open the room-selection
         // modal instead of routing straight to the reservation page.
         // The visitor picks a room there; handleRoomSelected() below
-        // does the actual navigation once they do.
-        setRoomModalRequest({ checkInDate: checkInKey, checkOutDate: checkOutKey, ruleId: rule.matchedRuleId });
+        // does the actual navigation once they do (singleDateFlow is
+        // false here, so it routes straight through as Overnight).
+        setRoomModalRequest({ checkInDate: checkInKey, checkOutDate: checkOutKey, ruleId: rule.matchedRuleId, singleDateFlow: false });
         return;
       } else {
         // Single-date selection — at least one Tour type must be enabled.
@@ -345,12 +390,35 @@ export default function HowToBookSection() {
   /**
    * handleRoomSelected
    * Fired when the visitor taps a room inside RoomSelectionModal.
-   * Closes the modal and routes into the read-only reservation summary
-   * with checkin/checkout/roomId/ruleId all pre-filled — see
+   * When 2+ dates were selected (singleDateFlow false), this is
+   * unambiguously an Overnight stay — closes the modal and routes
+   * straight into the read-only reservation summary with
+   * checkin/checkout/roomId/ruleId all pre-filled — see
    * app/visitor/booking/page.jsx + ReservationSummaryClient.jsx.
+   * When exactly 1 date was selected (singleDateFlow true), the
+   * booking type is still ambiguous — opens TourSelectionModal next
+   * instead of routing, so the visitor can say whether this is
+   * actually Overnight, Day Tour, or Night Tour.
    */
   function handleRoomSelected(room) {
     if (!roomModalRequest) return;
+
+    if (roomModalRequest.singleDateFlow) {
+      setTourSelectionRequest({
+        checkInDate: roomModalRequest.checkInDate,
+        checkOutDate: roomModalRequest.checkOutDate,
+        ruleId: roomModalRequest.ruleId,
+        room,
+        allowOvernightStay: roomModalRequest.allowOvernightStay,
+        allowDayTour: roomModalRequest.allowDayTour,
+        allowNightTour: roomModalRequest.allowNightTour,
+        dayTourPricePerGuest: roomModalRequest.dayTourPricePerGuest,
+        nightTourPricePerGuest: roomModalRequest.nightTourPricePerGuest,
+      });
+      setRoomModalRequest(null);
+      return;
+    }
+
     const params = new URLSearchParams({
       checkin: roomModalRequest.checkInDate,
       roomId: room.id,
@@ -360,6 +428,34 @@ export default function HowToBookSection() {
     }
     if (roomModalRequest.ruleId) params.set("ruleId", roomModalRequest.ruleId);
     setRoomModalRequest(null);
+    router.push(`/visitor/booking?${params.toString()}`);
+  }
+
+  /**
+   * handleTourTypeSelected
+   * Fired when the visitor taps a booking type inside
+   * TourSelectionModal (only ever shown for a single selected date).
+   * "overnight" routes into the same read-only reservation summary as
+   * the 2+ dates path, using the room already picked. "day_tour" /
+   * "night_tour" have no room or checkout — routes into the plain
+   * booking form with ?type= so it can lock straight to that type
+   * instead of showing the Overnight/Day Tour/Night Tour pills again.
+   */
+  function handleTourTypeSelected(type) {
+    if (!tourSelectionRequest) return;
+    const { checkInDate, checkOutDate, ruleId, room } = tourSelectionRequest;
+
+    if (type === "overnight") {
+      const params = new URLSearchParams({ checkin: checkInDate, roomId: room.id });
+      if (checkOutDate !== checkInDate) params.set("checkout", checkOutDate);
+      if (ruleId) params.set("ruleId", ruleId);
+      setTourSelectionRequest(null);
+      router.push(`/visitor/booking?${params.toString()}`);
+      return;
+    }
+
+    const params = new URLSearchParams({ checkin: checkInDate, type });
+    setTourSelectionRequest(null);
     router.push(`/visitor/booking?${params.toString()}`);
   }
 
@@ -498,6 +594,19 @@ export default function HowToBookSection() {
         error={availableRoomsError}
         onSelectRoom={handleRoomSelected}
         onClose={() => setRoomModalRequest(null)}
+      />
+
+      <TourSelectionModal
+        isOpen={Boolean(tourSelectionRequest)}
+        checkInDate={tourSelectionRequest?.checkInDate}
+        room={tourSelectionRequest?.room}
+        allowOvernightStay={tourSelectionRequest?.allowOvernightStay}
+        allowDayTour={tourSelectionRequest?.allowDayTour}
+        allowNightTour={tourSelectionRequest?.allowNightTour}
+        dayTourPricePerGuest={tourSelectionRequest?.dayTourPricePerGuest}
+        nightTourPricePerGuest={tourSelectionRequest?.nightTourPricePerGuest}
+        onSelectType={handleTourTypeSelected}
+        onClose={() => setTourSelectionRequest(null)}
       />
     </section>
   );

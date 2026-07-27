@@ -63,7 +63,13 @@ const bookingFormSchema = z
     path: ["checkOutDate"],
   });
 
-export default function BookingFormClient({ initialCheckInDate, initialCheckOutDate }) {
+const BOOKING_TYPE_LABELS = {
+  overnight: "Overnight Stay",
+  day_tour: "Day Tour",
+  night_tour: "Night Tour",
+};
+
+export default function BookingFormClient({ initialCheckInDate, initialCheckOutDate, initialBookingType }) {
   const { rooms, isLoading: roomsLoading } = usePublicRooms(false);
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
 
@@ -73,16 +79,23 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
   // The home calendar (HowToBookSection) only ever sends ?checkout= when
-  // 2+ dates were selected there (see app/visitor/booking/page.jsx) — a
-  // single selected date arrives as ?checkin= alone. Per the intended
-  // flow: 1 date selected -> the guest still gets to choose Overnight /
-  // Day Tour / Night Tour here, since a single date could be any of the
-  // three; 2+ dates selected -> it can only ever be an Overnight stay,
-  // so the guest isn't shown a choice at all. Captured once on mount
-  // (not re-derived from the watched fields below) so it reflects only
-  // what was actually selected on the home calendar, not any later edit
-  // the guest makes to the date fields on this page.
-  const [isLockedToOvernight] = useState(() => Boolean(initialCheckOutDate));
+  // 2+ dates were selected there (see app/visitor/booking/page.jsx) —
+  // that case can only ever be an Overnight stay. A single selected
+  // date now goes through HowToBookSection's TourSelectionModal first,
+  // which sends ?type=overnight (with ?checkout=) / ?type=day_tour /
+  // ?type=night_tour depending on what the visitor actually picked
+  // there — so by the time this form loads, the type is already known
+  // and the guest isn't shown the pill choice again. Only the header's
+  // plain "Book Now" link (no query params at all) still lets the
+  // guest pick freely below. Captured once on mount (not re-derived
+  // from the watched fields below) so it reflects only what was
+  // actually chosen upstream, not any later edit the guest makes to
+  // the date fields on this page.
+  const [lockedBookingType] = useState(() => {
+    if (initialCheckOutDate) return "overnight";
+    if (initialBookingType && BOOKING_TYPE_LABELS[initialBookingType]) return initialBookingType;
+    return null;
+  });
 
   const {
     register,
@@ -94,7 +107,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   } = useForm({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
-      bookingType: "overnight",
+      bookingType: lockedBookingType || "overnight",
       roomId: "",
       checkInDate: initialCheckInDate || todayKey(),
       checkOutDate: initialCheckOutDate || "",
@@ -275,12 +288,14 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
       <p className="bookingFormLegend">* Required fields</p>
 
       {/* Booking type pills — hidden in favor of a plain locked label
-          when the guest already picked 2+ dates on the home calendar,
-          since that can only ever be an Overnight stay. */}
+          when the guest already made this choice upstream: either 2+
+          dates on the home calendar (always Overnight), or a single
+          date run through TourSelectionModal there (Overnight / Day
+          Tour / Night Tour, whichever they actually picked). */}
       <div className="bookingFormField">
         <label className="bookingFormLabel">Booking Type <span aria-hidden="true">*</span></label>
-        {isLockedToOvernight ? (
-          <div className="bookingTypeLocked">Overnight Stay</div>
+        {lockedBookingType ? (
+          <div className="bookingTypeLocked">{BOOKING_TYPE_LABELS[lockedBookingType]}</div>
         ) : (
           <Controller
             control={control}

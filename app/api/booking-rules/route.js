@@ -113,6 +113,7 @@ export async function GET(request) {
         // Booking Rules form is now the single source of truth for it).
         matchedRuleId: overnightRule.id,
         allowedGuests: overnightRule.allowedGuests,
+        maxPax: overnightRule.maxPax,
         // Package Inclusions — resolved amenity/product objects +
         // free-text extras the admin added on the Booking Rules form.
         // The reservation summary page displays these merged into one
@@ -128,6 +129,7 @@ export async function GET(request) {
         dayTourStartTime: dayTourRule.dayTourStartTime,
         dayTourEndTime: dayTourRule.dayTourEndTime,
         dayTourPricePerGuest: Number(dayTourRule.dayTourPricePerGuest),
+        dayTourMaxPax: dayTourRule.maxPax,
         dayTourIncludedAmenities: dayTourInclusions.includedAmenities,
         dayTourIncludedProducts: dayTourInclusions.includedProducts,
         dayTourPackageInclusions: dayTourInclusions.packageInclusions,
@@ -139,6 +141,7 @@ export async function GET(request) {
         nightTourStartTime: nightTourRule.nightTourStartTime,
         nightTourEndTime: nightTourRule.nightTourEndTime,
         nightTourPricePerGuest: Number(nightTourRule.nightTourPricePerGuest),
+        nightTourMaxPax: nightTourRule.maxPax,
         nightTourIncludedAmenities: nightTourInclusions.includedAmenities,
         nightTourIncludedProducts: nightTourInclusions.includedProducts,
         nightTourPackageInclusions: nightTourInclusions.packageInclusions,

@@ -93,6 +93,9 @@ export async function PUT(request, { params }) {
         // Visitor-facing guest count for this rule set — read by the
         // public reservation page and displayed there as text.
         allowedGuests: body.allowedGuests,
+        // Allowed Pax — hard capacity cap, distinct from allowedGuests
+        // above (see prisma/schema.prisma BookingRule.maxPax comment).
+        maxPax: body.maxPax,
         // Package Inclusions — shown to the visitor as "Included in
         // this package" on the reservation summary.
         includedAmenityIds: Array.isArray(body.includedAmenityIds) ? body.includedAmenityIds : undefined,

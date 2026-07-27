@@ -145,6 +145,15 @@ export async function validateAndQuoteBooking({
     throw new Error("Enter a valid number of guests.");
   }
 
+  // --- Allowed Pax — hard capacity cap for this rule set (Section 1,
+  //     Booking Rules form). Re-checked here regardless of what the
+  //     visitor form already enforced client-side, since this is the
+  //     only place a Booking row actually gets written from (see
+  //     app/api/bookings/route.js file header). ---
+  if (numberOfGuests > rules.maxPax) {
+    throw new Error(`This package allows a maximum of ${rules.maxPax} pax.`);
+  }
+
   // --- Room lookup (overnight requires one; tours may optionally reference one for capacity context) ---
   let room = null;
   if (roomId) {

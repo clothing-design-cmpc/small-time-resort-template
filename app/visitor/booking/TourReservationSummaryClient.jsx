@@ -34,7 +34,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -48,13 +48,31 @@ const FULL_DATE = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "lo
 
 const TOUR_LABELS = { day_tour: "Day Tour", night_tour: "Night Tour" };
 
-const guestInfoSchema = z.object({
-  numberOfGuests: z.coerce.number().int().min(1, "At least 1 guest."),
-  guestName: z.string().trim().min(2, "Enter your full name."),
-  guestEmail: z.string().trim().email("Enter a valid email address."),
-  guestPhone: z.string().trim().min(7, "Enter a valid phone number."),
-  notes: z.string().trim().max(500).optional(),
-});
+/**
+ * buildGuestInfoSchema
+ * Allowed Pax (BookingRule.maxPax) is a hard cap, not enforced with a
+ * static min(1) alone — this is why the schema is built dynamically
+ * once the active rule's maxPax is known, instead of a fixed module-
+ * level z.object(). The real guarantee is still server-side (Rule 6 —
+ * services/bookingPricing.js re-checks numberOfGuests against
+ * rules.maxPax on every submit), this is just the UX-level guard so
+ * the visitor sees the error before they even hit submit.
+ *
+ * @param {number} maxPax - the matched rule's Allowed Pax ceiling
+ */
+function buildGuestInfoSchema(maxPax) {
+  return z.object({
+    numberOfGuests: z.coerce
+      .number()
+      .int()
+      .min(1, "At least 1 guest.")
+      .max(maxPax, `This package allows a maximum of ${maxPax} pax.`),
+    guestName: z.string().trim().min(2, "Enter your full name."),
+    guestEmail: z.string().trim().email("Enter a valid email address."),
+    guestPhone: z.string().trim().min(7, "Enter a valid phone number."),
+    notes: z.string().trim().max(500).optional(),
+  });
+}
 
 function formatDateText(dateKey) {
   if (!dateKey) return "—";
@@ -70,6 +88,20 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
   const [submitError, setSubmitError] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
+  const isAllowed = bookingType === "day_tour" ? bookingRules?.allowDayTour : bookingRules?.allowNightTour;
+  const startTime = bookingType === "day_tour" ? bookingRules?.dayTourStartTime : bookingRules?.nightTourStartTime;
+  const endTime = bookingType === "day_tour" ? bookingRules?.dayTourEndTime : bookingRules?.nightTourEndTime;
+  const pricePerGuest = bookingType === "day_tour" ? bookingRules?.dayTourPricePerGuest : bookingRules?.nightTourPricePerGuest;
+  // Allowed Pax — hard cap for this tour type's matched rule. Falls back
+  // to a very high ceiling while bookingRules is still loading, so the
+  // form doesn't briefly reject valid input before rules arrive.
+  const maxPax =
+    (bookingType === "day_tour" ? bookingRules?.dayTourMaxPax : bookingRules?.nightTourMaxPax) ?? 999;
+
+  // Rebuilt only when maxPax actually changes — keeps the resolver
+  // reference stable across unrelated re-renders (quote refetch, etc.).
+  const guestInfoSchema = useMemo(() => buildGuestInfoSchema(maxPax), [maxPax]);
+
   const {
     register,
     handleSubmit,
@@ -81,11 +113,6 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
   });
 
   const numberOfGuests = watch("numberOfGuests");
-
-  const isAllowed = bookingType === "day_tour" ? bookingRules?.allowDayTour : bookingRules?.allowNightTour;
-  const startTime = bookingType === "day_tour" ? bookingRules?.dayTourStartTime : bookingRules?.nightTourStartTime;
-  const endTime = bookingType === "day_tour" ? bookingRules?.dayTourEndTime : bookingRules?.nightTourEndTime;
-  const pricePerGuest = bookingType === "day_tour" ? bookingRules?.dayTourPricePerGuest : bookingRules?.nightTourPricePerGuest;
 
   // Live quote — refetches whenever the guest count changes, since
   // tour pricing scales directly with numberOfGuests.
@@ -267,7 +294,8 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
 
         <div className="bookingFormField">
           <label className="bookingFormLabel" htmlFor="numberOfGuests">Number of Guests <span aria-hidden="true">*</span></label>
-          <input id="numberOfGuests" type="number" min={1} className="bookingFormInput" autoFocus {...register("numberOfGuests")} />
+          <input id="numberOfGuests" type="number" min={1} max={maxPax} className="bookingFormInput" autoFocus {...register("numberOfGuests")} />
+          <p className="bookingRulesSectionSubtitle">Max {maxPax} pax para sa package na ito.</p>
           {errors.numberOfGuests && <span className="bookingFormError" role="alert">{errors.numberOfGuests.message}</span>}
         </div>
 

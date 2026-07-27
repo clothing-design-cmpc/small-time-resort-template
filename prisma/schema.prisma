@@ -524,6 +524,17 @@ model BookingRule {
   //     letting the guest type an arbitrary number. ---
   allowedGuests Int @default(2) @map("allowed_guests")
 
+  // --- Allowed Pax — the MAX capacity this package can hold, distinct
+  //     from allowedGuests above (which is a fixed, non-editable guest
+  //     count shown on the Overnight reservation summary). Allowed Pax
+  //     is a hard cap: Day Tour / Night Tour bookings let the visitor
+  //     type their own guest count (services/bookingPricing.js), and
+  //     this is the ceiling that count can never exceed — enforced both
+  //     client-side (TourReservationSummaryClient.jsx) and, since a
+  //     client check alone is never trusted, server-side inside
+  //     validateAndQuoteBooking() on every submit. ---
+  maxPax Int @default(20) @map("max_pax")
+
   // --- Package Inclusions — what the super-admin says is included in
   //     this specific rule set's package, shown to the visitor on the
   //     read-only reservation summary page (Section: "Included in

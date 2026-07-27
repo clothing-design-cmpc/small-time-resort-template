@@ -187,6 +187,7 @@ const bookingRuleSchema = z.object({
   // Visitor-facing guest count shown as plain text on the public
   // reservation page — replaces the old free-text guest input there.
   allowedGuests: z.coerce.number().int().min(1, "At least 1 guest."),
+  maxPax: z.coerce.number().int().min(1, "At least 1 pax."),
   // Package Inclusions — what's shown to the visitor as "Included in
   // this package" on the reservation summary. Both optional/empty by
   // default; an admin isn't required to pick anything.
@@ -233,6 +234,7 @@ const bookingRuleSchema = z.object({
 const DEFAULT_BOOKING_RULE_VALUES = {
   ruleDates: [],
   allowedGuests: 2,
+  maxPax: 20,
   includedAmenityIds: [],
   includedProductIds: [],
   packageInclusions: [],
@@ -278,6 +280,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           name: existingRule.name,
           ruleDates: existingRule.ruleDates ?? [],
           allowedGuests: existingRule.allowedGuests ?? 2,
+          maxPax: existingRule.maxPax ?? 20,
           includedAmenityIds: existingRule.includedAmenityIds ?? [],
           includedProductIds: existingRule.includedProductIds ?? [],
           packageInclusions: existingRule.packageInclusions ?? [],
@@ -583,6 +586,22 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
             <input id="allowedGuests" type="number" min="1" {...register("allowedGuests")} />
             {errors.allowedGuests && (
               <span role="alert" className="bookingRulesFormError">{errors.allowedGuests.message}</span>
+            )}
+          </div>
+
+          {/* --- Allowed Pax — the MAX capacity for this package, not
+               to be confused with Allowed Guests above. Allowed Guests
+               is the fixed guest count shown on the Overnight summary
+               (never editable by the visitor); Allowed Pax is the hard
+               ceiling on how many pax a Day Tour / Night Tour guest can
+               enter in their own editable guest-count field. Enforced
+               server-side too — see services/bookingPricing.js. --- */}
+          <div className="bookingRulesFormField">
+            <label htmlFor="maxPax">Allowed Pax (Max)</label>
+            <input id="maxPax" type="number" min="1" {...register("maxPax")} />
+            <p className="bookingRulesSectionSubtitle">Pinakamaraming pax na pwede sa package na ito (Day Tour / Night Tour guest count cap).</p>
+            {errors.maxPax && (
+              <span role="alert" className="bookingRulesFormError">{errors.maxPax.message}</span>
             )}
           </div>
 

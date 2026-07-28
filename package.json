@@ -15,6 +15,7 @@
     "backup": "node scripts/runBackup.js",
     "envcheck": "node scripts/runEnvCheck.js",
     "scaffold-env": "node scripts/scaffoldEnvFile.mjs",
+    "reseed-about-story": "node scripts/reseedAboutStory.js",
     "check:health": "node scripts/checkSystemHealth.js",
     "check:wizard-status": "node scripts/checkSetupWizardStatus.js",
     "wipe-database": "node scripts/runDatabaseWipe.js",

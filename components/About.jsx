@@ -43,6 +43,8 @@ const DEFAULT_DIFFERENTIATORS = [
   },
 ];
 
+const DEFAULT_ABOUT_TITLE = "A Retreat, Not a Resort";
+
 const DEFAULT_ABOUT_BODY =
   "Villa Azure Resort began as a single villa on an otherwise untouched " +
   "shoreline. What started as one family's private escape has grown, " +
@@ -56,6 +58,8 @@ export default async function About() {
   // row hasn't been created yet.
   const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
 
+  const aboutEyebrow = settings?.aboutEyebrow?.trim() || "Our Story";
+  const aboutTitle = settings?.aboutTitle?.trim() || DEFAULT_ABOUT_TITLE;
   const aboutBody = settings?.aboutPageContent?.trim() || DEFAULT_ABOUT_BODY;
 
   // Each card falls back independently — an admin filling in only one
@@ -72,8 +76,8 @@ export default async function About() {
   return (
     <section className="aboutSection" id="about">
       <div className="aboutContainer">
-        <span className="aboutEyebrow">Our Story</span>
-        <h2 className="aboutTitle">A Retreat, Not a Resort</h2>
+        <span className="aboutEyebrow">{aboutEyebrow}</span>
+        <h2 className="aboutTitle">{aboutTitle}</h2>
         <p className="aboutBody">{aboutBody}</p>
 
         <div className="aboutDifferentiators">

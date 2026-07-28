@@ -46,59 +46,64 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const featuredOnly = searchParams.get("featured") === "true";
+    const roomSelect = {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      pricePerNight: true,
+      capacity: true,
+      bedType: true,
+      imageUrl: true,
+      roomImages: {
+        orderBy: { displayOrder: "asc" },
+        select: { id: true, imageUrl: true, caption: true, isFeatured: true },
+      },
+    };
 
-    // Featured requests prefer the admin's explicitly-ordered picks
-    // from the Homepage Settings singleton. If none have been chosen
-    // there yet, fall back to rooms individually marked isFeatured on
-    // the Content > Rooms edit form — see file header for why.
-    let featuredRoomIds = [];
-    let useIsFeaturedFallback = false;
+    let orderedRooms;
+
     if (featuredOnly) {
+      // Try the admin's explicitly-ordered picks from Homepage Settings first.
       const homepageSettings = await prisma.systemSettings.findUnique({
         where: { id: "singleton" },
         select: { featuredRoomIds: true },
       });
-      featuredRoomIds = homepageSettings?.featuredRoomIds ?? [];
-      useIsFeaturedFallback = featuredRoomIds.length === 0;
+      const featuredRoomIds = homepageSettings?.featuredRoomIds ?? [];
+
+      let curatedRooms = [];
+      if (featuredRoomIds.length > 0) {
+        const matches = await prisma.room.findMany({
+          where: { isActive: true, id: { in: featuredRoomIds } },
+          select: roomSelect,
+        });
+        // Prisma's `id: { in: [...] }` doesn't preserve input order, so
+        // re-sort to match the exact order the admin picked in.
+        curatedRooms = featuredRoomIds.map((id) => matches.find((room) => room.id === id)).filter(Boolean);
+      }
+
+      if (curatedRooms.length > 0) {
+        orderedRooms = curatedRooms;
+      } else {
+        // Curated selection is empty OR every ID it contains is stale
+        // (deleted room, or a room that's since gone inactive) — either
+        // way, zero real matches. Fall back to rooms individually marked
+        // isFeatured on the Content > Rooms edit form (see file header),
+        // capped to 3 to match the homepage's card layout.
+        orderedRooms = await prisma.room.findMany({
+          where: { isActive: true, isFeatured: true },
+          orderBy: { sortOrder: "asc" },
+          take: 3,
+          select: roomSelect,
+        });
+      }
+    } else {
+      orderedRooms = await prisma.room.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: "asc" },
+        select: roomSelect,
+      });
     }
-
-    const rooms = await prisma.room.findMany({
-      where: {
-        isActive: true,
-        ...(featuredOnly && !useIsFeaturedFallback ? { id: { in: featuredRoomIds } } : {}),
-        ...(featuredOnly && useIsFeaturedFallback ? { isFeatured: true } : {}),
-      },
-      orderBy: { sortOrder: "asc" },
-      // Homepage only ever shows 3 cards — cap the fallback the same
-      // way the explicit picker already caps itself at selection time.
-      ...(featuredOnly && useIsFeaturedFallback ? { take: 3 } : {}),
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        pricePerNight: true,
-        capacity: true,
-        bedType: true,
-        imageUrl: true,
-        roomImages: {
-          orderBy: { displayOrder: "asc" },
-          select: { id: true, imageUrl: true, caption: true, isFeatured: true },
-        },
-      },
-    });
-
-    // Prisma's `id: { in: [...] }` does not preserve the input array's
-    // order, so re-sort to match the exact order the admin picked the
-    // rooms in on the Homepage Settings page — that ordering is the
-    // whole point of a manually curated (vs. auto sortOrder) selection.
-    // Not applicable to the isFeatured fallback path — that one is
-    // already correctly ordered by sortOrder straight from the query.
-    const orderedRooms = featuredOnly && !useIsFeaturedFallback
-      ? featuredRoomIds
-          .map((roomId) => rooms.find((room) => room.id === roomId))
-          .filter(Boolean)
-      : rooms;
 
     return NextResponse.json({
       success: true,

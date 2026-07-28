@@ -12,10 +12,11 @@
  *    set by the super-admin under Content > Homepage), then queries the
  *    Testimonial table using that config — same two-step pattern as the
  *    Rooms "featured" query, just config-driven instead of hardcoded
- * 3. Returns null entirely when the admin has turned the section off
- * 4. Falls back to a small set of placeholder reviews if no testimonials
- *    exist yet, so this section is never blank on a fresh install
- * 5. Eyebrow/title text also come from SystemSettings
+ * 3. Returns null entirely when the admin has turned the section off,
+ *    OR when there are zero testimonials in the database — no
+ *    placeholder/sample reviews are ever shown, so what a visitor sees
+ *    always matches exactly what's in Super-Admin > Testimonials.
+ * 4. Eyebrow/title text come from SystemSettings
  *    (testimonialsEyebrow/testimonialsTitle, same Homepage section
  *    header fields every other section on the page uses) — never
  *    hardcoded, with the current copy as the fallback default so the
@@ -39,27 +40,6 @@ function getInitials(name) {
     .map((word) => word[0]?.toUpperCase())
     .join("");
 }
-
-const DEFAULT_TESTIMONIALS = [
-  {
-    id: "t1",
-    quote: "We came for a weekend and stayed for a week. The kind of quiet this place has is genuinely hard to find. Not a single thing to complain about.",
-    guestName: "Marie C.",
-    rating: 5,
-  },
-  {
-    id: "t2",
-    quote: "The team remembered our names on day two. The food was exceptional. The view from our villa at sunrise made everything else irrelevant.",
-    guestName: "James & Toni R.",
-    rating: 5,
-  },
-  {
-    id: "t3",
-    quote: "Exactly what we needed — no crowds, no noise, just water and stillness. We'll be back every year if they'll have us.",
-    guestName: "Katrina M.",
-    rating: 5,
-  },
-];
 
 /* Renders 5 star characters, filled or muted */
 function StarRating({ count }) {
@@ -98,7 +78,10 @@ export default async function TestimonialsSection() {
     })
     .catch(() => []);
 
-  const displayTestimonials = testimonials.length > 0 ? testimonials : DEFAULT_TESTIMONIALS;
+  // No placeholder fallback — if there are no real testimonials yet,
+  // hide the section entirely rather than showing sample/fake reviews
+  // that don't exist in the database.
+  if (testimonials.length === 0) return null;
 
   return (
     <section className="testimonialsSection" id="testimonials">
@@ -109,7 +92,7 @@ export default async function TestimonialsSection() {
         </div>
 
         <div className="testimonialsGrid">
-          {displayTestimonials.map((t) => (
+          {testimonials.map((t) => (
             <article key={t.id} className="testimonialCard">
               <div className="testimonialAvatarRow">
                 {/* Guest photo — uploaded via Super-Admin > Testimonials, stored

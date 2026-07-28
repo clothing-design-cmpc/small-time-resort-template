@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
+import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
 
 export async function GET(request) {
   try {
@@ -53,6 +54,10 @@ export async function POST(request) {
       );
     }
 
+    // Enforce mutual exclusivity server-side regardless of what the
+    // client sent — see services/bookingTypeFlags.js.
+    const bookingTypeFlags = normalizeBookingTypeFlags(body);
+
     const createdRule = await prisma.bookingRule.create({
       data: {
         name,
@@ -85,9 +90,9 @@ export async function POST(request) {
         // values) — same wiring as includedAmenityIds above.
         includedProductIds: Array.isArray(body.includedProductIds) ? body.includedProductIds : undefined,
         packageInclusions: Array.isArray(body.packageInclusions) ? body.packageInclusions : undefined,
-        allowOvernightStay: body.allowOvernightStay,
-        allowDayTour: body.allowDayTour,
-        allowNightTour: body.allowNightTour,
+        allowOvernightStay: bookingTypeFlags.allowOvernightStay,
+        allowDayTour: bookingTypeFlags.allowDayTour,
+        allowNightTour: bookingTypeFlags.allowNightTour,
         dayTourStartTime: body.dayTourStartTime,
         dayTourEndTime: body.dayTourEndTime,
         dayTourPricePerGuest: body.dayTourPricePerGuest,

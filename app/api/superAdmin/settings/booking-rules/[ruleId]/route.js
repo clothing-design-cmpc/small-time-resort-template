@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
+import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
 
 export async function GET(request, { params }) {
   const { ruleId } = await params;
@@ -62,6 +63,13 @@ export async function PUT(request, { params }) {
       }
     }
 
+    // Enforce mutual exclusivity server-side regardless of what the
+    // client sent — see services/bookingTypeFlags.js for why this
+    // matters (a stale/incorrect flag combination silently persisting
+    // forever was the actual root cause of a real mismatched-package
+    // bug in production).
+    const bookingTypeFlags = normalizeBookingTypeFlags(body);
+
     const updatedRule = await prisma.bookingRule.update({
       where: { id: ruleId },
       data: {
@@ -80,9 +88,9 @@ export async function PUT(request, { params }) {
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         cleaningHours: body.cleaningHours,
-        allowOvernightStay: body.allowOvernightStay,
-        allowDayTour: body.allowDayTour,
-        allowNightTour: body.allowNightTour,
+        allowOvernightStay: bookingTypeFlags.allowOvernightStay,
+        allowDayTour: bookingTypeFlags.allowDayTour,
+        allowNightTour: bookingTypeFlags.allowNightTour,
         dayTourStartTime: body.dayTourStartTime,
         dayTourEndTime: body.dayTourEndTime,
         dayTourPricePerGuest: body.dayTourPricePerGuest,

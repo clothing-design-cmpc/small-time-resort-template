@@ -253,7 +253,12 @@ export async function validateAndQuoteBooking({
         status: "confirmed",
         bookingType: "overnight",
         checkInDate: { lte: checkIn },
-        checkOutDate: { gt: checkIn },
+        // gte (not gt): the overnight guest's checkout DAY still blocks
+        // Day/Night Tour bookings on that same date — checkout is at
+        // checkOutTime (e.g. 11:00), which overlaps Day Tour's start
+        // (e.g. 08:00). Day-level exclusivity, not a literal time-window
+        // comparison — see the comment above this block.
+        checkOutDate: { gte: checkIn },
       },
       select: { id: true },
     });

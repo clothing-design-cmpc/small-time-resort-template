@@ -148,6 +148,123 @@ async function seedActivities() {
 }
 
 /**
+ * seedSystemSettings
+ * Upserts the singleton SystemSettings row (id: "singleton") with sample
+ * Our Story / Policies / homepage / SEO copy so the visitor site isn't
+ * blank on a fresh project. update: only fills fields that are currently
+ * null/empty on the existing row — never overwrites content an admin has
+ * already edited from Super-Admin > Policies & Content on a later re-run.
+ */
+async function seedSystemSettings() {
+  const content = {
+    // --- Our Story / About ---
+    aboutEyebrow: "Our Story",
+    aboutTitle: "A Family Legacy, Built on the Shore",
+    aboutPageContent:
+      "Villa Azure Resort began in 2008 as a single beachfront cottage, built by hand by the founding family who wanted to share their piece of the coastline with travelers looking for quiet, unhurried days by the water. What started as three rooms and a small dining nipa hut has grown, over more than a decade, into the resort you see today — without losing the personal, family-run feel that guests kept coming back for.\n\nEvery villa and suite on the property was designed to feel like a private retreat rather than a hotel room, and every member of our team — from the kitchen to housekeeping to the boat crew — has been with us for years, not months. We believe hospitality is remembered in small details: a name remembered, a favorite table saved, a quiet recommendation for where to watch the sunset. That's the experience we still aim to give every guest who walks through our gate.",
+    aboutDifferentiator1Title: "Family-Owned Since Day One",
+    aboutDifferentiator1Body:
+      "No corporate chain, no franchise — every decision, from the menu to the room design, is made by the family that built this place.",
+    aboutDifferentiator2Title: "A Team That Stays",
+    aboutDifferentiator2Body:
+      "Most of our staff have been with the resort for years, which means genuinely warm, familiar service instead of a rotating cast of strangers.",
+    aboutDifferentiator3Title: "Private, Never Crowded",
+    aboutDifferentiator3Body:
+      "We deliberately keep room count low and book the villa exclusively per stay, so you're never sharing the beach with another group.",
+
+    // --- Policies ---
+    houseRules:
+      "1. Check-in is from 2:00 PM and check-out is by 12:00 PM. Early check-in and late check-out are available on request, subject to availability.\n2. The resort is a family-friendly property — please be mindful of noise levels after 10:00 PM, especially near neighboring villas.\n3. Outside food and beverages are welcome for personal consumption; corkage does not apply for personal use.\n4. Pets are not permitted on the property at this time.\n5. Smoking is only allowed in designated outdoor areas — never inside villas or suites.\n6. Guests are responsible for any damage to resort property caused during their stay.\n7. Use of resort water sports equipment (kayaks, paddleboards, snorkeling gear) requires a basic swimming ability and is at the guest's own risk.\n8. The resort reserves the right to refuse service or ask guests to leave in cases of behavior that endangers other guests or staff.",
+    bookingPoliciesIntro:
+      "These are the terms that apply to every reservation made through our website, whether for an Overnight stay, Day Tour, or Night Tour.",
+    bookingPolicies:
+      "A valid ID and downpayment are required to confirm any reservation. Full payment is due upon check-in unless other arrangements have been made in writing with resort management. Room and villa rates are per stay, not per person, unless stated otherwise on the room's listing — extra guest fees apply beyond the allowed pax limit shown on your booking confirmation. Rates and availability are subject to change without prior notice until a booking is confirmed and paid. Bookings are exclusive per stay — once your Overnight reservation is confirmed, the villa is reserved solely for your party for the full duration of your stay.",
+    cancellationPolicyIntro:
+      "We understand plans change. Here's how cancellations and refunds are handled depending on how close to your check-in date you cancel.",
+    cancellationPolicy:
+      "Cancellations made 14 days or more before check-in are eligible for a full refund, less a small processing fee. Cancellations made 7–13 days before check-in are eligible for a 50% refund of the total paid. Cancellations made less than 7 days before check-in are non-refundable, though we're happy to discuss rebooking to a later date subject to availability. No-shows are treated the same as a late cancellation. Refunds, when applicable, are processed within 5–10 business days back to the original payment method. See the Refund Summary table below for the exact figures currently in effect.",
+    termsOfService:
+      "By booking with Villa Azure Resort, you agree to the following: all information provided during booking must be accurate and complete; the resort is not liable for personal belongings lost or damaged during your stay; guests under 18 must be accompanied by a parent or guardian; the resort reserves the right to update these terms at any time, with changes applying to bookings made after the update date; any disputes arising from a stay will first be addressed directly with resort management before any other action is pursued. Continued use of this website and completion of a booking constitutes acceptance of these terms.",
+    privacyPolicy:
+      "We collect only the information needed to process your reservation — your name, contact details, and payment information — and we never sell or share this information with third parties for marketing purposes. Payment details are processed securely through our payment provider and are not stored on our servers. Booking information is retained for as long as needed for accounting and legal purposes, after which it is securely deleted. You may request a copy of the information we hold about you, or request its deletion, by contacting us directly using the details on our Contact page.",
+
+    // --- Refund Summary Table ---
+    refundFullWindowDays: 14,
+    refundFullRefundFee: "₱500",
+    refundPartialWindowDays: 7,
+    refundPartialPercent: 50,
+
+    // --- Check-In / Check-Out notes ---
+    checkInTime: "2:00 PM",
+    checkOutTime: "12:00 PM",
+    checkInNote: "Early check-in may be arranged in advance, subject to villa availability.",
+    checkOutNote: "Late check-out beyond 12:00 PM may incur an additional half-day charge.",
+
+    // --- Contact Info ---
+    resortPhone: "+63 917 000 0000",
+    resortEmail: "reservations@villaazureresort.com",
+    resortAddress: "Barangay Seaside, Nasugbu, Batangas, Philippines",
+
+    // --- Homepage Copy ---
+    heroEyebrow: "Welcome to Villa Azure",
+    heroTitle: "Your Private Escape by the Sea",
+    heroTagline: "Experience Luxury, Away From It All",
+    ctaSectionHeading: "Ready to Plan Your Stay?",
+    ctaSectionSubtext: "Villas book up quickly during peak season — reserve your dates today.",
+    ctaButtonText: "Plan Your Stay",
+
+    // --- Section Headers ---
+    roomsEyebrow: "Accommodations",
+    roomsTitle: "Rooms & Villas",
+    roomsSubtitle: "Each space is designed for privacy, comfort, and an unobstructed view of the water.",
+    amenitiesEyebrow: "Resort Amenities",
+    amenitiesTitle: "Everything You Need, Steps Away",
+    amenitiesSubtitle: "From the pool to the spa, every amenity is included in your stay.",
+    shopEyebrow: "Resort Shop",
+    shopTitle: "Drinks & Refreshments",
+    shopSubtitle: "Order to your villa or pick up at the poolside bar.",
+    shopFootnote: "Prices are in Philippine Peso (₱) and subject to change.",
+    testimonialsEyebrow: "Guest Reviews",
+    testimonialsTitle: "What Our Guests Say",
+    activitiesEyebrow: "Things To Do",
+    activitiesTitle: "Activities & Experiences",
+    activitiesSubtitle: "Guided tours and experiences you can book alongside your stay.",
+    galleryEyebrow: "Gallery",
+    galleryTitle: "A Glimpse of Villa Azure",
+    bookedDatesEyebrow: "Availability",
+    bookedDatesTitle: "Check Booked Dates",
+    bookedDatesSubtitle: "See which dates are already reserved before you plan your stay.",
+    policiesEyebrow: "Good to Know",
+    policiesTitle: "Policies & Guidelines",
+    policiesSubtitle: "Please review our house rules and booking terms before reserving.",
+
+    // --- SEO ---
+    siteTitle: "Villa Azure Resort",
+    siteDescription:
+      "A private, family-run beachfront resort in Batangas offering exclusive villas, guided island activities, and unhurried days by the sea.",
+  };
+
+  await prisma.systemSettings.upsert({
+    where: { id: "singleton" },
+    // On an existing row, only fill fields that are still null/empty —
+    // never clobber content an admin has already customized from the
+    // Super-Admin dashboard on a later re-run of this script.
+    update: Object.fromEntries(
+      await (async () => {
+        const existing = await prisma.systemSettings.findUnique({ where: { id: "singleton" } });
+        if (!existing) return Object.entries(content);
+        return Object.entries(content).filter(([key]) => {
+          const current = existing[key];
+          return current === null || current === undefined || current === "";
+        });
+      })()
+    ),
+    create: { id: "singleton", ...content },
+  });
+  console.log("✓ Seeded Our Story / Policies / homepage copy (system_settings)");
+}
+
+/**
  * seedSuperAdmin
  * Creates the super-admin Auth user via the Supabase Admin API if it
  * doesn't already exist. If it already exists, its password and email
@@ -228,6 +345,7 @@ async function main() {
   await seedAmenities();
   await seedStoreProducts();
   await seedActivities();
+  await seedSystemSettings();
   await clearStaleBookings();
   await seedSuperAdmin();
 }

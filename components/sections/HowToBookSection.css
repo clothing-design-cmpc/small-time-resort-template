@@ -163,8 +163,11 @@
 }
 
 /* Base day cell is a real <button> — every cell is a tap target, even
-   disabled ones, so the grid never reflows between open/closed days. */
+   disabled ones, so the grid never reflows between open/closed days.
+   position: relative so the checkout-day corner marker below can be
+   absolutely positioned against the cell itself. */
 .howToBookCalendarDay {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,6 +226,25 @@
 .howToBookCalendarDaySelected:focus-visible {
   background-color: var(--color-accent);
   opacity: 0.9;
+}
+
+/* Open day that's also the checkout day of an existing overnight stay —
+ * small amber corner dot flags it without needing room for full text in
+ * a ~32px cell. Full detail ("Checkout 11:00") is available via the
+ * button's native title tooltip and its aria-label, and explained once
+ * in the legend below. */
+.howToBookCalendarDayCheckoutBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--color-warning);
+}
+
+.howToBookCalendarLegendDotCheckout {
+  background-color: var(--color-warning);
 }
 
 /* ─── Legend ─────────────────────────────────────────────────────────── */

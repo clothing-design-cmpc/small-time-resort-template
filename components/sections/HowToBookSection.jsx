@@ -61,6 +61,7 @@ import ToastStack from "@/app/visitor/shared/ToastStack";
 import RoomSelectionModal from "@/components/RoomSelectionModal";
 import TourSelectionModal from "@/components/TourSelectionModal";
 import { useAvailableRooms } from "@/hooks/useAvailableRooms";
+import { useBookedDates } from "@/hooks/useBookedDates";
 import axios from "axios";
 import "./HowToBookSection.css";
 
@@ -157,15 +158,21 @@ export default function HowToBookSection() {
   // in app/api/bookings/dates/route.js's file header: Overnight blocks
   // every other type on that date; Day Tour and Night Tour coexist
   // freely with each other but each still conflicts with an existing
-  // Overnight booking. Kept as three separate sets (rather than one
-  // flat "booked" list) so the calendar and the ambiguous single-date
-  // TourSelectionModal flow can apply the correct rule instead of
-  // treating any booking as blocking every type.
-  const [overnightBookedDates, setOvernightBookedDates] = useState([]);
-  const [dayTourBookedDates, setDayTourBookedDates] = useState([]);
-  const [nightTourBookedDates, setNightTourBookedDates] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
+  // Overnight booking. Shared hook (also used by BookingFormClient.jsx)
+  // so both surfaces apply the exact same blocking rules — including
+  // overnightBlocksTourSet, which (unlike overnightSet) also covers the
+  // CHECKOUT day of an overnight stay, since checkout time overlaps Day
+  // Tour's start.
+  const {
+    overnightSet,
+    dayTourSet,
+    nightTourSet,
+    overnightCheckoutSet,
+    overnightBlocksTourSet,
+    anyBookedSet,
+    isLoading,
+    error: loadError,
+  } = useBookedDates();
   const [monthOffset, setMonthOffset] = useState(0);
   const [selectedDates, setSelectedDates] = useState([]);
   const [isCheckingRule, setIsCheckingRule] = useState(false);
@@ -175,6 +182,11 @@ export default function HowToBookSection() {
   // Tour-type bookings are enabled — see the file header for why that
   // matters for date selection.
   const [allowOvernightStay, setAllowOvernightStay] = useState(true);
+  // Active rule's checkout time (e.g. "11:00") — shown on the calendar
+  // as a "Checkout {time}" indicator on a date that's the checkout day
+  // of an existing overnight stay, so visitors know why a Tour option
+  // might be unavailable that day before they even tap Continue.
+  const [checkOutTime, setCheckOutTime] = useState(null);
 
   // Set only once the Overnight rule check in handleContinue() below has
   // passed for the visitor's selected dates — opens RoomSelectionModal
@@ -196,45 +208,14 @@ export default function HowToBookSection() {
   // routes straight through as Overnight — see handleRoomSelected()).
   const [tourSelectionRequest, setTourSelectionRequest] = useState(null);
 
-  // Fetch which dates are already reserved, broken out per type — same
-  // source of truth as BookedDatesSection, kept as its own independent
-  // fetch so this component has no hard dependency on that one.
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function fetchBookedDates() {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const response = await fetch("/api/bookings/dates");
-        const result = await response.json();
-        if (isCancelled) return;
-        if (!result.success) {
-          setLoadError(result.message || "Failed to load availability. Please try again.");
-          return;
-        }
-        setOvernightBookedDates(result.data.overnightBookedDates);
-        setDayTourBookedDates(result.data.dayTourBookedDates);
-        setNightTourBookedDates(result.data.nightTourBookedDates);
-      } catch {
-        if (!isCancelled) setLoadError("We couldn't reach the server. Check your connection and try again.");
-      } finally {
-        if (!isCancelled) setIsLoading(false);
-      }
-    }
-
-    fetchBookedDates();
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
   // Learn whether Overnight Stay is currently enabled on the active
   // rule — this decides single-date vs. multi-date range selection
   // below. A failed fetch or a missing rule intentionally falls back
   // to single-date-only (the safer default — see file header): if we
   // don't actually know an overnight rule exists, we shouldn't let a
-  // visitor build a range the backend has nothing to price.
+  // visitor build a range the backend has nothing to price. Also
+  // captures checkOutTime, shown on the calendar as a "Checkout {time}"
+  // indicator on a date that's the checkout day of an existing stay.
   useEffect(() => {
     let isCancelled = false;
 
@@ -243,6 +224,7 @@ export default function HowToBookSection() {
         const response = await axios.get("/api/booking-rules");
         if (isCancelled) return;
         setAllowOvernightStay(Boolean(response.data?.data?.allowOvernightStay));
+        setCheckOutTime(response.data?.data?.checkOutTime ?? null);
       } catch {
         if (!isCancelled) setAllowOvernightStay(false);
       }
@@ -254,18 +236,6 @@ export default function HowToBookSection() {
     };
   }, []);
 
-  const overnightSet = useMemo(() => new Set(overnightBookedDates), [overnightBookedDates]);
-  const dayTourSet = useMemo(() => new Set(dayTourBookedDates), [dayTourBookedDates]);
-  const nightTourSet = useMemo(() => new Set(nightTourBookedDates), [nightTourBookedDates]);
-  // Any existing booking of any type on a date — a multi-date selection
-  // is always an Overnight stay (see file header), and Overnight
-  // conflicts with an existing booking of ANY type on that date, so
-  // this combined set is what range-crossing and single-date ambiguity
-  // checks need, rather than just the Overnight-only set below.
-  const anyBookedSet = useMemo(
-    () => new Set([...overnightSet, ...dayTourSet, ...nightTourSet]),
-    [overnightSet, dayTourSet, nightTourSet]
-  );
   // Calendar cells only render as fully blocked (red, unclickable) when
   // an Overnight booking exists there — a date with just a Day Tour
   // and/or Night Tour booking stays open, since the other tour type
@@ -395,16 +365,32 @@ export default function HowToBookSection() {
           // header): an existing booking of ANY type on this date blocks
           // a NEW Overnight booking here, since Overnight is exclusive
           // use of the villa. An existing OVERNIGHT booking blocks both
-          // Tour types too. Day Tour and Night Tour don't block each
+          // Tour types too — using overnightBlocksTourSet here (not
+          // overnightSet) because that also includes the CHECKOUT day
+          // of an overnight stay: checkout time overlaps Day Tour's
+          // start, so that day must hide Day/Night Tour too even though
+          // it stays open on the calendar for a new Overnight check-in
+          // (see the matching gte fix in services/bookingPricing.js's
+          // exclusivity check). Day Tour and Night Tour don't block each
           // other — a date already carrying one of those still allows
           // the other. (The Overnight-booking case below is normally
           // unreachable since such a date is already unclickable on the
           // calendar — kept anyway as defense-in-depth.)
-          const dateHasOvernightBooking = overnightSet.has(checkInKey);
+          const dateBlocksTourTypes = overnightBlocksTourSet.has(checkInKey);
           const dateHasAnyExistingBooking = anyBookedSet.has(checkInKey);
           const conflictAdjustedOvernightFits = overnightFits && !dateHasAnyExistingBooking;
-          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateHasOvernightBooking;
-          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateHasOvernightBooking;
+          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksTourTypes;
+          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateBlocksTourTypes;
+          // Pure checkout-day case — the date itself isn't otherwise
+          // booked (still open on the calendar for a new Overnight
+          // check-in), but it does carry a same-day checkout that just
+          // narrowed the Tour options above. Surfaced to the visitor as
+          // an awareness notice in TourSelectionModal rather than
+          // letting them find out only after picking Day Tour.
+          const checkoutNotice =
+            !dateHasAnyExistingBooking && overnightCheckoutSet.has(checkInKey) && checkOutTime
+              ? `The previous guests check out at ${checkOutTime} this day, so Day Tour may not be available.`
+              : null;
 
           // Open Room Selection first (useful even for a Tour visitor
           // picking a villa to enjoy for the day/evening), then
@@ -424,6 +410,7 @@ export default function HowToBookSection() {
             allowNightTour: conflictAdjustedAllowNightTour,
             dayTourPricePerGuest: rule.dayTourPricePerGuest,
             nightTourPricePerGuest: rule.nightTourPricePerGuest,
+            checkoutNotice,
           });
           return;
         }
@@ -496,6 +483,7 @@ export default function HowToBookSection() {
         allowNightTour: roomModalRequest.allowNightTour,
         dayTourPricePerGuest: roomModalRequest.dayTourPricePerGuest,
         nightTourPricePerGuest: roomModalRequest.nightTourPricePerGuest,
+        checkoutNotice: roomModalRequest.checkoutNotice,
       });
       setRoomModalRequest(null);
       return;
@@ -609,6 +597,13 @@ export default function HowToBookSection() {
                 const isPast = cellDate < TODAY;
                 const isOpen = !isBooked && !isPast;
                 const isSelected = selectedSet.has(cellKey);
+                // Open day that's still the checkout day of an existing
+                // overnight stay — stays clickable (a new Overnight
+                // guest can check in this day), but Day Tour won't be
+                // an option here, so flag it visually up front instead
+                // of only after the visitor picks Day Tour and hits an
+                // error. See overnightCheckoutSet in useBookedDates.
+                const isCheckoutDay = isOpen && overnightCheckoutSet.has(cellKey);
 
                 let cls = "howToBookCalendarDay";
                 if (isBooked) cls += " howToBookCalendarDayBooked";
@@ -616,6 +611,7 @@ export default function HowToBookSection() {
                 if (isToday) cls += " howToBookCalendarDayToday";
                 if (isOpen) cls += " howToBookCalendarDayOpen";
                 if (isSelected) cls += " howToBookCalendarDaySelected";
+                if (isCheckoutDay) cls += " howToBookCalendarDayCheckout";
 
                 return (
                   <button
@@ -624,10 +620,20 @@ export default function HowToBookSection() {
                     className={cls}
                     disabled={!isOpen}
                     aria-pressed={isOpen ? isSelected : undefined}
-                    aria-label={isOpen ? `${isSelected ? "Deselect" : "Select"} ${cellKey}` : undefined}
+                    aria-label={
+                      isOpen
+                        ? `${isSelected ? "Deselect" : "Select"} ${cellKey}${
+                            isCheckoutDay && checkOutTime ? ` — previous guests check out ${checkOutTime}` : ""
+                          }`
+                        : undefined
+                    }
                     onClick={() => handleDayClick(cellKey, isPast, isBooked)}
+                    title={isCheckoutDay && checkOutTime ? `Checkout ${checkOutTime}` : undefined}
                   >
                     {day}
+                    {isCheckoutDay && checkOutTime && (
+                      <span className="howToBookCalendarDayCheckoutBadge" aria-hidden="true" />
+                    )}
                   </button>
                 );
               })}
@@ -645,6 +651,10 @@ export default function HowToBookSection() {
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotToday" />
                 Today
+              </span>
+              <span className="howToBookCalendarLegendItem">
+                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotCheckout" />
+                Open, but a guest checks out that morning
               </span>
             </div>
 
@@ -687,6 +697,7 @@ export default function HowToBookSection() {
         allowNightTour={tourSelectionRequest?.allowNightTour}
         dayTourPricePerGuest={tourSelectionRequest?.dayTourPricePerGuest}
         nightTourPricePerGuest={tourSelectionRequest?.nightTourPricePerGuest}
+        checkoutNotice={tourSelectionRequest?.checkoutNotice}
         onSelectType={handleTourTypeSelected}
         onClose={() => setTourSelectionRequest(null)}
       />

@@ -34,6 +34,14 @@
  *    purely informational "busy dates" display, and as the safe
  *    default for any caller that hasn't been updated to the per-type
  *    fields yet)
+ * 5. Also returns `overnightCheckoutDates` (the checkout day of each
+ *    overnight booking, on its own) and `overnightBlocksTourDates`
+ *    (overnightBookedDates + overnightCheckoutDates combined) — the
+ *    checkout day must stay OUT of overnightBookedDates so a new
+ *    overnight guest can still check in that day, but it must be IN
+ *    overnightBlocksTourDates since checkout time overlaps Day Tour's
+ *    start. See HowToBookSection.jsx and BookingFormClient.jsx for
+ *    where each set gets used.
  */
 export const dynamic = "force-dynamic";
 
@@ -86,12 +94,22 @@ export async function GET() {
     const overnightSet = new Set();
     const dayTourSet = new Set();
     const nightTourSet = new Set();
+    // The checkout DAY of each overnight booking, tracked on its own —
+    // deliberately NOT merged into overnightSet, since a checkout day
+    // must stay open for a new overnight guest to check in (standard
+    // hotel convention). But it still needs to be visible on its own so
+    // the calendar can show a "Checkout {time}" indicator there, and so
+    // Day/Night Tour bookings can be correctly blocked on it below
+    // (checkout time overlaps Day Tour's start — see the matching gte
+    // fix in services/bookingPricing.js's exclusivity check).
+    const overnightCheckoutSet = new Set();
 
     for (const booking of bookings) {
       if (booking.bookingType === "overnight") {
         for (const key of expandOvernightRange(booking.checkInDate, booking.checkOutDate)) {
           overnightSet.add(key);
         }
+        overnightCheckoutSet.add(toDateKey(booking.checkOutDate));
       } else {
         // Day Tour / Night Tour — always a single same-day occupied
         // date (checkInDate === checkOutDate at booking time), so just
@@ -109,11 +127,20 @@ export async function GET() {
     // need type-level nuance, just "don't expect this date to be free".
     const bookedDateSet = new Set([...overnightSet, ...dayTourSet, ...nightTourSet]);
 
+    // The actual set that should hide/block Day Tour and Night Tour —
+    // occupied nights PLUS the checkout day itself. Kept separate from
+    // overnightBookedDates (which stays checkout-day-exclusive, for
+    // blocking a NEW overnight booking) so callers can apply the
+    // correct rule for whichever type they're checking.
+    const overnightBlocksTourSet = new Set([...overnightSet, ...overnightCheckoutSet]);
+
     return NextResponse.json({
       success: true,
       data: {
         bookedDates: Array.from(bookedDateSet).sort(),
         overnightBookedDates: Array.from(overnightSet).sort(),
+        overnightCheckoutDates: Array.from(overnightCheckoutSet).sort(),
+        overnightBlocksTourDates: Array.from(overnightBlocksTourSet).sort(),
         dayTourBookedDates: Array.from(dayTourSet).sort(),
         nightTourBookedDates: Array.from(nightTourSet).sort(),
       },

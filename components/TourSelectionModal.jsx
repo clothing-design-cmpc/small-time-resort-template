@@ -14,11 +14,17 @@
  *
  * DATA FLOW:
  * 1. HowToBookSection renders <TourSelectionModal isOpen checkInDate
- *    room allowOvernightStay allowDayTour allowNightTour
+ *    room allowOvernightStay allowDayTour allowNightTour checkoutNotice
  *    onSelectType onClose /> once the visitor has picked a room for a
  *    single selected date. No pricing is shown on this step — every
  *    package's price depends on the room/rule matched further into the
- *    flow, not on the type choice made here.
+ *    flow, not on the type choice made here. checkoutNotice (optional)
+ *    is a plain-English heads-up shown at the top of this modal when
+ *    the selected date is the checkout day of an existing overnight
+ *    stay — e.g. "The previous guests check out at 11:00 this day,
+ *    so Day Tour may not be available." Makes the visitor aware of the
+ *    existing booking BEFORE they pick a type, instead of only finding
+ *    out from an error after filling out the whole form.
  * 2. Tapping an option calls onSelectType(bookingType) — the caller
  *    (HowToBookSection.handleTourTypeSelected) is responsible for the
  *    actual navigation, this component only ever reports the choice
@@ -53,6 +59,7 @@ export default function TourSelectionModal({
   allowOvernightStay,
   allowDayTour,
   allowNightTour,
+  checkoutNotice,
   onSelectType,
   onClose,
 }) {
@@ -97,6 +104,17 @@ export default function TourSelectionModal({
             </svg>
           </button>
         </div>
+
+        {checkoutNotice && (
+          <p className="tourSelectionCheckoutNotice" role="status">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {checkoutNotice}
+          </p>
+        )}
 
         {availableOptions.length === 0 ? (
           <div className="tourSelectionEmptyState">

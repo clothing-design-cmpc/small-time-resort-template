@@ -285,6 +285,28 @@
 }
 
 /*
+ * .bookingConfirmAdjustedNotice
+ * Same-Day Check-In Policy (auto_adjust) — surfaces the shifted
+ * check-in/out (or tour start/end) moment when a booking is made after
+ * today's normal start time. Sits between the summary table and the
+ * cancellation policy line; amber tone signals "heads up" without
+ * reading as an error, since the booking still succeeded.
+ */
+.bookingConfirmAdjustedNotice {
+  font-size: 0.85rem;
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  line-height: 1.5;
+}
+
+.bookingConfirmAdjustedNotice strong {
+  color: var(--color-text-primary);
+}
+
+/*
  * .bookingConfirmCancelNote
  * Tells the guest how to cancel/change their booking — there's no
  * self-service flow, so this is a direct call-to-action to phone the

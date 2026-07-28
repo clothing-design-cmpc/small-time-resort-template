@@ -31,12 +31,17 @@ import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { useRoomAvailability } from "@/hooks/useRoomAvailability";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
-import { useBookedDates } from "@/hooks/useBookedDates";
 import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
 import "./BookingForm.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+// Formats effectiveCheckInAt/effectiveCheckOutAt ISO timestamps (Same-Day
+// Check-In Policy auto-adjust — see services/bookingPricing.js) into a
+// readable date + time for the "Adjusted" notice below.
+const FULL_DATE_TIME = new Intl.DateTimeFormat("en-US", {
+  weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+});
 
 function todayKey() {
   const d = new Date();
@@ -142,12 +147,6 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
   const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules(nightsSelected);
 
-  // Same source of truth the home calendar uses (HowToBookSection.jsx) —
-  // needed here too because this plain-entry form lets a guest type ANY
-  // check-in date freely, with no calendar UI in front of it filtering
-  // out conflicting dates first.
-  const { overnightBlocksDayTourSet, anyBookedSet } = useBookedDates();
-
   const { availability } = useRoomAvailability(bookingType === "overnight" ? roomId : null);
 
   // Which booking types the super-admin currently allows — drives the pill selector below
@@ -155,21 +154,10 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     if (!bookingRules) return [];
     const types = [];
     if (bookingRules.allowOvernightStay) types.push({ value: "overnight", label: "Overnight Stay" });
-    // overnightBlocksDayTourSet covers the CHECKOUT day of an existing
-    // overnight stay (not just its occupied nights) — checkout time
-    // overlaps Day Tour's morning start, so that day hides the Day Tour
-    // pill too. Night Tour does NOT get this same-day-checkout
-    // treatment — it starts in the evening, long after any reasonable
-    // checkout time, so it's only hidden by a genuine existing booking
-    // on the exact date (anyBookedSet). See
-    // services/bookingPricing.js's matching gte/gt split and
-    // app/api/bookings/dates/route.js's file header for why.
-    const dayTourBlocked = checkInDate ? overnightBlocksDayTourSet.has(checkInDate) : false;
-    const nightTourBlocked = checkInDate ? anyBookedSet.has(checkInDate) : false;
-    if (bookingRules.allowDayTour && !dayTourBlocked) types.push({ value: "day_tour", label: "Day Tour" });
-    if (bookingRules.allowNightTour && !nightTourBlocked) types.push({ value: "night_tour", label: "Night Tour" });
+    if (bookingRules.allowDayTour) types.push({ value: "day_tour", label: "Day Tour" });
+    if (bookingRules.allowNightTour) types.push({ value: "night_tour", label: "Night Tour" });
     return types;
-  }, [bookingRules, checkInDate, overnightBlocksDayTourSet, anyBookedSet]);
+  }, [bookingRules]);
 
   // Whenever the loaded rules change which types are enabled, make sure the
   // currently selected type is still valid — otherwise fall back to the first enabled one.
@@ -280,6 +268,24 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
             </>
           )}
         </dl>
+        {/* Same-Day Check-In Policy (auto_adjust) — only rendered when the
+            booking was submitted after today's normal start time and the
+            active rule set is on "auto_adjust". Tells the guest their
+            actual arrival/departure moment, since it's later than the
+            package's standard check-in/out time shown above. */}
+        {confirmedBookingRecord?.effectiveCheckInAt && (
+          <p className="bookingConfirmAdjustedNotice">
+            Since this booking was made after today&apos;s normal check-in time, your check-in has
+            been adjusted to <strong>{FULL_DATE_TIME.format(new Date(confirmedBookingRecord.effectiveCheckInAt))}</strong>
+            {confirmedBookingRecord.effectiveCheckOutAt && (
+              <>
+                {" "}and check-out to{" "}
+                <strong>{FULL_DATE_TIME.format(new Date(confirmedBookingRecord.effectiveCheckOutAt))}</strong>
+              </>
+            )}{" "}
+            — your full paid duration is preserved.
+          </p>
+        )}
         <p className="bookingConfirmPolicy">
           Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in
           ({confirmedQuote.refundPercentage}% refund).
@@ -469,14 +475,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
       {submitError && <p className="bookingFormSubmitError" role="alert">{submitError}</p>}
 
-      {/* Blocked whenever the live quote came back with a rule violation
-          (e.g. strict same-day check-in cutoff already passed) — the
-          guest must not be able to proceed past that error. */}
-      <button
-        type="submit"
-        className="bookingFormSubmit"
-        disabled={isSubmitting || isFormValidating || Boolean(quoteError)}
-      >
+      <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating}>
         {isSubmitting ? "Confirming…" : "Confirm Booking"}
       </button>
     </form>

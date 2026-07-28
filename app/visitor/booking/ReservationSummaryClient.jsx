@@ -45,6 +45,12 @@ import "./ReservationSummary.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+// Formats effectiveCheckInAt/effectiveCheckOutAt ISO timestamps (Same-Day
+// Check-In Policy auto-adjust — see services/bookingPricing.js) into a
+// readable date + time for the "Adjusted" notice below.
+const FULL_DATE_TIME = new Intl.DateTimeFormat("en-US", {
+  weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+});
 
 const guestInfoSchema = z.object({
   guestName: z.string().trim().min(2, "Enter your full name."),
@@ -183,6 +189,24 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
             </>
           )}
         </dl>
+        {/* Same-Day Check-In Policy (auto_adjust) — only rendered when the
+            booking was submitted after today's normal start time and the
+            active rule set is on "auto_adjust". Tells the guest their
+            actual arrival/departure moment, since it's later than the
+            package's standard check-in/out time shown above. */}
+        {confirmedBookingRecord?.effectiveCheckInAt && (
+          <p className="bookingConfirmAdjustedNotice">
+            Since this booking was made after today&apos;s normal check-in time, your check-in has
+            been adjusted to <strong>{FULL_DATE_TIME.format(new Date(confirmedBookingRecord.effectiveCheckInAt))}</strong>
+            {confirmedBookingRecord.effectiveCheckOutAt && (
+              <>
+                {" "}and check-out to{" "}
+                <strong>{FULL_DATE_TIME.format(new Date(confirmedBookingRecord.effectiveCheckOutAt))}</strong>
+              </>
+            )}{" "}
+            — your full paid duration is preserved.
+          </p>
+        )}
         <p className="bookingConfirmPolicy">
           Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in
           ({confirmedQuote.refundPercentage}% refund).

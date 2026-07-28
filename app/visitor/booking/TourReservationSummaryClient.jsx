@@ -51,6 +51,12 @@ import "./ReservationSummary.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+// Formats effectiveCheckInAt/effectiveCheckOutAt ISO timestamps (Same-Day
+// Check-In Policy auto-adjust — see services/bookingPricing.js) into a
+// readable date + time for the "Adjusted" notice below.
+const FULL_DATE_TIME = new Intl.DateTimeFormat("en-US", {
+  weekday: "long", month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+});
 
 const TOUR_LABELS = { day_tour: "Day Tour", night_tour: "Night Tour" };
 
@@ -180,6 +186,24 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
             </>
           )}
         </dl>
+        {/* Same-Day Check-In Policy (auto_adjust) — only rendered when this
+            tour was booked after its normal start time today and the
+            active rule set is on "auto_adjust". Tells the guest their
+            actual arrival/departure moment, since it's later than the
+            tour's standard start/end time shown above. */}
+        {confirmedBookingRecord?.effectiveCheckInAt && (
+          <p className="bookingConfirmAdjustedNotice">
+            Since this booking was made after today&apos;s normal start time, your tour start has
+            been adjusted to <strong>{FULL_DATE_TIME.format(new Date(confirmedBookingRecord.effectiveCheckInAt))}</strong>
+            {confirmedBookingRecord.effectiveCheckOutAt && (
+              <>
+                {" "}and end time to{" "}
+                <strong>{FULL_DATE_TIME.format(new Date(confirmedBookingRecord.effectiveCheckOutAt))}</strong>
+              </>
+            )}{" "}
+            — your full paid duration is preserved.
+          </p>
+        )}
         <p className="bookingConfirmPolicy">
           Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in
           ({confirmedQuote.refundPercentage}% refund).

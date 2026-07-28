@@ -344,7 +344,8 @@ export default function HowToBookSection() {
       });
       const rule = response.data?.data;
       if (!response.data?.success || !rule) {
-        showToast("✕ No existing booking rule found. Please try again later.", "error");
+        console.error("[HowToBookSection] /api/booking-rules returned failure:", response.data);
+        showToast(`✕ ${response.data?.message || "No existing booking rule found. Please try again later."}`, "error");
         return;
       }
 
@@ -449,8 +450,16 @@ export default function HowToBookSection() {
       if (checkOutKey !== checkInKey) params.set("checkout", checkOutKey);
 
       router.push(`/visitor/booking?${params.toString()}`);
-    } catch {
-      showToast("✕ No existing booking rule found. Please try again later.", "error");
+    } catch (error) {
+      // Surfaces the REAL failure instead of a one-size-fits-all message
+      // — this used to always show "No existing booking rule found"
+      // regardless of cause, making it impossible to tell a genuine
+      // "no rule configured" case apart from a network/server error.
+      // Logged to console so the browser DevTools/terminal shows the
+      // actual stack trace for debugging.
+      console.error("[HowToBookSection] handleContinue failed:", error);
+      const serverMessage = error?.response?.data?.message;
+      showToast(`✕ ${serverMessage || "Something went wrong finding your booking rule. Please try again."}`, "error");
     } finally {
       setIsCheckingRule(false);
     }

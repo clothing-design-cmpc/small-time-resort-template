@@ -21,7 +21,7 @@ import { prisma } from "@/services/prisma";
 import "./Hero.css";
 
 const DEFAULT_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1759372945658-1e9f56e751bd?auto=format&fit=crop&w=2400&q=80";
+  "https://images.unsplash.com/photo-1760681556302-69e76e476b27?auto=format&fit=crop&w=2400&q=80";
 
 export default async function Hero() {
   // Read-only fetch of the singleton settings row the super-admin edits

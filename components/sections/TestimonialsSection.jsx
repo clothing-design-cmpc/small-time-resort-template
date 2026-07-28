@@ -22,7 +22,23 @@
  *    heading is never blank before an admin sets custom text.
  */
 import { prisma } from "@/services/prisma";
+import Image from "next/image";
 import "./TestimonialsSection.css";
+
+/**
+ * getInitials
+ * Falls back to the guest's initials (e.g. "Marie C." -> "MC") when no
+ * guestPhoto was uploaded, so every testimonial card has a consistent
+ * avatar treatment instead of a blank gap where a photo would go.
+ */
+function getInitials(name) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+}
 
 const DEFAULT_TESTIMONIALS = [
   {
@@ -95,11 +111,29 @@ export default async function TestimonialsSection() {
         <div className="testimonialsGrid">
           {displayTestimonials.map((t) => (
             <article key={t.id} className="testimonialCard">
-              <StarRating count={t.rating} />
+              <div className="testimonialAvatarRow">
+                {/* Guest photo — uploaded via Super-Admin > Testimonials, stored
+                    in Cloudflare R2. Falls back to an initials avatar when no
+                    photo was uploaded, so every card looks intentional. */}
+                {t.guestPhoto ? (
+                  <Image
+                    src={t.guestPhoto}
+                    alt={t.guestName}
+                    width={48}
+                    height={48}
+                    className="testimonialAvatarPhoto"
+                  />
+                ) : (
+                  <div className="testimonialAvatarInitials" aria-hidden="true">
+                    {getInitials(t.guestName)}
+                  </div>
+                )}
+                <div className="testimonialAvatarMeta">
+                  <span className="testimonialName">{t.guestName}</span>
+                  <StarRating count={t.rating} />
+                </div>
+              </div>
               <blockquote className="testimonialQuote">&ldquo;{t.quote}&rdquo;</blockquote>
-              <footer className="testimonialMeta">
-                <span className="testimonialName">{t.guestName}</span>
-              </footer>
             </article>
           ))}
         </div>

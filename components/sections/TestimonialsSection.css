@@ -97,26 +97,64 @@
   font-size: 1rem;
 }
 
+/*
+ * .testimonialAvatarRow
+ * Photo/initials avatar + name/stars, side by side above the quote —
+ * mirrors the standard review-card layout (avatar leads, quote follows).
+ */
+.testimonialAvatarRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/*
+ * .testimonialAvatarPhoto
+ * Guest photo uploaded via Super-Admin > Testimonials (Cloudflare R2).
+ * Fixed circular crop so mixed aspect-ratio uploads still align in a row.
+ */
+.testimonialAvatarPhoto {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+
+/*
+ * .testimonialAvatarInitials
+ * Fallback avatar (guest initials) shown when no photo was uploaded —
+ * keeps every card visually consistent instead of leaving a gap.
+ */
+.testimonialAvatarInitials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--color-surface-active);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.testimonialAvatarMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .testimonialQuote {
   font-size: 0.95rem;
   line-height: 1.75;
   color: var(--color-text-secondary);
   font-style: italic;
   flex-grow: 1;
-}
-
-/*
- * .testimonialMeta
- * Author name + date on the same row, separated visually.
- */
-.testimonialMeta {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: var(--space-sm);
-  border-top: 1px solid var(--color-border);
-  gap: var(--space-sm);
 }
 
 .testimonialName {

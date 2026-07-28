@@ -71,6 +71,35 @@
   color: var(--color-text-muted);
 }
 
+/*
+ * .testimonialsPhotoCellImage / .testimonialsPhotoCellInitials
+ * Small circular thumbnail (uploaded guest photo) or initials fallback
+ * shown in the list table's Photo column — same visual treatment as
+ * the visitor-facing Guest Reviews avatar, so a testimonial reads as
+ * one consistent thing whether an admin or a guest is looking at it.
+ */
+.testimonialsPhotoCellImage {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+
+.testimonialsPhotoCellInitials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--color-surface-active);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
 .testimonialsQuotePreview {
   color: var(--color-text-secondary);
   font-size: 0.85rem;

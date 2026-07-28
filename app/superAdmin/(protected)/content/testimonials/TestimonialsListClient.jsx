@@ -18,6 +18,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useTestimonials } from "@/hooks/useTestimonials";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
@@ -25,6 +26,46 @@ import DataTable from "@/components/superAdmin/DataTable";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import TestimonialFormModal from "./TestimonialFormModal";
+
+/**
+ * getInitials
+ * Same fallback treatment as the visitor-facing card — keeps the admin
+ * list and the public Guest Reviews section visually consistent so a
+ * testimonial always looks like the same "thing" in both places.
+ */
+function getInitials(name) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+}
+
+/**
+ * PhotoCell
+ * Small circular thumbnail (or initials fallback) so the admin can see
+ * at a glance which reviews have a guest photo attached, without
+ * opening each row's Edit modal.
+ */
+function PhotoCell({ guestPhoto, guestName }) {
+  if (guestPhoto) {
+    return (
+      <Image
+        src={guestPhoto}
+        alt={guestName}
+        width={32}
+        height={32}
+        className="testimonialsPhotoCellImage"
+      />
+    );
+  }
+  return (
+    <span className="testimonialsPhotoCellInitials" aria-hidden="true">
+      {getInitials(guestName)}
+    </span>
+  );
+}
 
 /**
  * StarRatingCell
@@ -76,6 +117,7 @@ export default function TestimonialsListClient() {
   }
 
   const columns = [
+    { key: "photo", label: "Photo", align: "center" },
     { key: "guestName", label: "Guest Name" },
     { key: "rating", label: "Rating", align: "center" },
     { key: "quote", label: "Quote" },
@@ -86,6 +128,7 @@ export default function TestimonialsListClient() {
   const rows = testimonials.map((testimonial) => {
     return {
       id: testimonial.id,
+      photo: <PhotoCell guestPhoto={testimonial.guestPhoto} guestName={testimonial.guestName} />,
       guestName: testimonial.guestName,
       rating: <StarRatingCell rating={testimonial.rating} />,
       quote: (

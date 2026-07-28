@@ -206,6 +206,19 @@ model Booking {
   effectiveCheckInAt  DateTime? @map("effective_check_in_at")
   effectiveCheckOutAt DateTime? @map("effective_check_out_at")
 
+  // --- Booking-time device/location capture ---
+  // Captured server-side from the request that submitted THIS booking
+  // (never trusted from the client body) — separate from VisitorLog's
+  // own booking_submitted row (services/visitorLog.js), which logs the
+  // event but isn't linked back to the specific Booking row it caused.
+  // These columns let an admin see the origin of a specific booking
+  // directly on the record itself, without joining/matching by
+  // timestamp against VisitorLog.
+  ipAddress  String? @map("ip_address")
+  userAgent  String? @map("user_agent")
+  geoCity    String? @map("geo_city")
+  geoCountry String? @map("geo_country") // ISO country code, e.g. "PH"
+
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])

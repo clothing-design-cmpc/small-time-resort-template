@@ -14,7 +14,13 @@
  * 2. Rate limited to 10 submissions per 15 minutes per IP (Rule 32.1)
  * 3. Zod validates the request shape; validateAndQuoteBooking()
  *    re-runs every rule check + computes the authoritative price
- * 4. On success, inserts the Booking row and returns it plus the quote
+ * 4. IP, user-agent, and city/country (self-hosted MaxMind lookup) are
+ *    resolved server-side and stored directly on the Booking row
+ *    (ipAddress/userAgent/geoCity/geoCountry) — never trusted from the
+ *    request body — so an admin can see a specific booking's origin
+ *    without cross-referencing VisitorLog's separate booking_submitted
+ *    event by timestamp
+ * 5. On success, inserts the Booking row and returns it plus the quote
  *
  * RACE-CONDITION FIX (deep search Section 2):
  * Step 3's overlap re-check and step 4's insert now run inside ONE
@@ -36,6 +42,7 @@ import { validateAndQuoteBooking } from "@/services/bookingPricing";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { logVisitorActivity } from "@/services/visitorLog";
+import { lookupGeoLocation } from "@/services/geoip";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { generateUniqueReferenceCode } from "@/services/referenceCode";
@@ -69,7 +76,7 @@ const MAX_SERIALIZATION_RETRIES = 1;
  * Postgres aborting one of two genuinely conflicting transactions is
  * expected, correct behavior under Serializable isolation, not a bug.
  */
-async function createBookingInTransaction(payload, attempt = 0) {
+async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
   try {
     return await prisma.$transaction(
       async (tx) => {
@@ -116,6 +123,13 @@ async function createBookingInTransaction(payload, attempt = 0) {
             notes: payload.notes || null,
             status: "confirmed",
             referenceCode,
+            // Device/location capture — resolved server-side before this
+            // transaction started (see POST handler below), never trusted
+            // from the request body.
+            ipAddress: requestMeta.ipAddress,
+            userAgent: requestMeta.userAgent,
+            geoCity: requestMeta.geoCity,
+            geoCountry: requestMeta.geoCountry,
           },
         });
 
@@ -125,7 +139,7 @@ async function createBookingInTransaction(payload, attempt = 0) {
     );
   } catch (error) {
     if (isSerializationFailure(error) && attempt < MAX_SERIALIZATION_RETRIES) {
-      return createBookingInTransaction(payload, attempt + 1);
+      return createBookingInTransaction(payload, requestMeta, attempt + 1);
     }
     throw error;
   }
@@ -188,7 +202,19 @@ export async function POST(request) {
 
   let bookingResult;
   try {
-    bookingResult = await createBookingInTransaction(payload);
+    // Resolved once, before the transaction — geolocation is a local
+    // MaxMind read (services/geoip.js), never blocking or external, but
+    // there's no reason to run it inside the Serializable transaction.
+    const userAgent = request.headers.get("user-agent") ?? null;
+    const location = await lookupGeoLocation(ip);
+    const requestMeta = {
+      ipAddress: ip !== "unknown" ? ip : null,
+      userAgent,
+      geoCity: location.city,
+      geoCountry: location.countryCode,
+    };
+
+    bookingResult = await createBookingInTransaction(payload, requestMeta);
   } catch (error) {
     // Either guard rejected this booking because another guest just took
     // the same room/dates — the DB-level EXCLUDE constraint (23P01) or

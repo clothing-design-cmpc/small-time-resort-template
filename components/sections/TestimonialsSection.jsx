@@ -15,6 +15,11 @@
  * 3. Returns null entirely when the admin has turned the section off
  * 4. Falls back to a small set of placeholder reviews if no testimonials
  *    exist yet, so this section is never blank on a fresh install
+ * 5. Eyebrow/title text also come from SystemSettings
+ *    (testimonialsEyebrow/testimonialsTitle, same Homepage section
+ *    header fields every other section on the page uses) — never
+ *    hardcoded, with the current copy as the fallback default so the
+ *    heading is never blank before an admin sets custom text.
  */
 import { prisma } from "@/services/prisma";
 import "./TestimonialsSection.css";
@@ -63,6 +68,12 @@ export default async function TestimonialsSection() {
   const count = settings?.testimonialsSectionCount ?? 3;
   const featuredOnly = settings?.testimonialsFeaturedOnly ?? true;
 
+  // Section header copy — admin-editable under Super-Admin > Content >
+  // Homepage. Falls back to the original static copy so the heading is
+  // never blank on a fresh install before these fields are set.
+  const eyebrowText = settings?.testimonialsEyebrow || "Guest Reviews";
+  const titleText = settings?.testimonialsTitle || "What Guests Say";
+
   const testimonials = await prisma.testimonial
     .findMany({
       where: featuredOnly ? { isFeatured: true } : {},
@@ -77,8 +88,8 @@ export default async function TestimonialsSection() {
     <section className="testimonialsSection" id="testimonials">
       <div className="testimonialsContainer">
         <div className="testimonialsHeader">
-          <span className="testimonialsEyebrow">Guest Reviews</span>
-          <h2 className="testimonialsTitle">What Guests Say</h2>
+          <span className="testimonialsEyebrow">{eyebrowText}</span>
+          <h2 className="testimonialsTitle">{titleText}</h2>
         </div>
 
         <div className="testimonialsGrid">

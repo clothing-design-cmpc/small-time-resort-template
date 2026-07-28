@@ -226,6 +226,15 @@ export default function DirectionsClient() {
 
           {route && (
             <div className="directionsResult">
+              {/* mapImageDataUrl can be null if the Static Maps call failed server-side —
+                  the turn-by-turn list below still works without it, so this never blocks. */}
+              {route.mapImageDataUrl && (
+                <img
+                  src={route.mapImageDataUrl}
+                  alt="Map showing your route to your-private-resort"
+                  className="directionsMapImage"
+                />
+              )}
               <div className="directionsResultSummary">
                 <span><strong>{formatDistance(route.distanceMeters)}</strong> away</span>
                 <span>Approx. <strong>{formatDuration(route.durationSeconds)}</strong> by car</span>

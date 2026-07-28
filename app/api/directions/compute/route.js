@@ -37,7 +37,7 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
-import { geocodeAddress, computeDrivingRoute } from "@/services/directions";
+import { geocodeAddress, computeDrivingRoute, getRouteMapImage } from "@/services/directions";
 
 const COMPUTE_MAX_ATTEMPTS = 10;
 const COMPUTE_WINDOW_MS = 15 * 60 * 1000;
@@ -123,9 +123,22 @@ export async function POST(request) {
     );
   }
 
+  // Render a Static Maps image of the actual route — a missing/failed
+  // image should never block the turn-by-turn directions that already
+  // succeeded above, so this degrades to null (no map, list still shows).
+  const mapImageBuffer = await getRouteMapImage(originCoords, destination, route.encodedPolyline);
+  const mapImageDataUrl = mapImageBuffer ? `data:image/png;base64,${mapImageBuffer.toString("base64")}` : null;
+
   return NextResponse.json({
     success: true,
-    data: { route, origin: originCoords, destination },
+    data: {
+      // encodedPolyline is only ever consumed server-side (by
+      // getRouteMapImage() above) — never send it to the client, which
+      // gets the already-rendered mapImageDataUrl instead.
+      route: { distanceMeters: route.distanceMeters, durationSeconds: route.durationSeconds, steps: route.steps, mapImageDataUrl },
+      origin: originCoords,
+      destination,
+    },
     message: "Directions calculated.",
   });
 }

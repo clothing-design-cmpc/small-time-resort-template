@@ -181,6 +181,23 @@
   border-radius: 10px;
 }
 
+/*
+ * .directionsMapImage
+ * Static Maps API image showing the guest's actual route — width:100%
+ * with height:auto inside its container per the image responsiveness
+ * standard, aspect-ratio matches the 640x400 size requested server-side
+ * (services/directions.js getRouteMapImage) so it never stretches.
+ */
+.directionsMapImage {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 640 / 400;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  display: block;
+}
+
 .directionsResultSummary {
   display: flex;
   flex-wrap: wrap;

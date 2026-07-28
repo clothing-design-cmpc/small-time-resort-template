@@ -147,7 +147,7 @@ export default function SuperAdminLoginPage() {
       {/* Same placeholder villa photo used on the visitor Hero — swap for
           real resort photography in public/images/ once R2 is connected */}
       <Image
-        src="https://images.unsplash.com/photo-1760681556302-69e76e476b27?auto=format&fit=crop&w=2400&q=80"
+        src="https://images.unsplash.com/photo-1759372945658-1e9f56e751bd?auto=format&fit=crop&w=2400&q=80"
         alt="Farmhouse in the countryside at twilight"
         fill
         priority

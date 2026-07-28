@@ -586,6 +586,20 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           <h2 className="bookingRulesSectionTitle">Section 1: Rule Schedule</h2>
           <p className="bookingRulesSectionSubtitle">Piliin ang petsa (o mga petsa) na sasakupin ng rule na ito, tapos punan ang mga detalye.</p>
 
+          {/* Clarifies what the calendar actually does — admins kept
+              assuming a past selected date meant the rule "expired" and
+              stopped working. It doesn't: the system only uses how MANY
+              dates were picked (the nights/days count) to match this rule
+              set against a guest's booking — the specific calendar dates
+              themselves are just a preview aid while building the rule
+              and are never checked again afterward, so the rule keeps
+              applying regardless of today's date. */}
+          <p className="bookingRulesHint">
+            Ang petsang pipiliin dito ay para lang sa <strong>preview</strong> habang ginagawa ang rule set —
+            ang ginagamit talaga ng system ay ang <strong>bilang</strong> ng mga petsang pinili (ilang gabi/araw).
+            Hindi ito expiry — gagana pa rin ang rule set na ito kahit lumipas na ang partikular na petsang napili dito.
+          </p>
+
           <RuleDatesCalendar selectedDates={selectedDates} onToggleDate={handleToggleDate} />
           {errors.ruleDates && <span role="alert" className="bookingRulesFormError">{errors.ruleDates.message}</span>}
 

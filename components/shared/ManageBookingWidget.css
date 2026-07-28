@@ -1,0 +1,277 @@
+/*
+ * .manageBookingButton
+ * Floating circular icon fixed to the bottom-right corner, directly
+ * above WalkInChatWidget's callback button (56px button + space-sm
+ * gap + space-lg base offset = stacked, not overlapping).
+ */
+.manageBookingButton {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: calc(var(--space-lg) + 56px + var(--space-sm));
+  width: 56px;
+  height: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: var(--shadow-card-hover);
+  z-index: var(--z-sticky);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  will-change: transform;
+}
+
+.manageBookingButton:hover,
+.manageBookingButton:focus-visible,
+.manageBookingButton:active {
+  background-color: var(--color-accent-hover);
+  transform: scale(1.05);
+}
+
+/*
+ * .manageBookingTooltip
+ * "Cancellation" label shown on hover/focus only — hidden by default,
+ * fades in to the left of the icon so it never gets clipped by the
+ * viewport's right edge.
+ */
+.manageBookingTooltip {
+  position: absolute;
+  right: calc(100% + var(--space-sm));
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.manageBookingButton:hover .manageBookingTooltip,
+.manageBookingButton:focus-visible .manageBookingTooltip {
+  opacity: 1;
+}
+
+/* ============================================================
+ * MODAL — same centered-dialog pattern as WalkInChatWidget.css
+ * ============================================================ */
+.manageBookingBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 43, 32, 0.45);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.manageBookingModal {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+}
+
+.rebookCalendarModal {
+  max-width: 480px;
+}
+
+.manageBookingCloseButton {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.manageBookingCloseButton:hover,
+.manageBookingCloseButton:focus-visible,
+.manageBookingCloseButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.manageBookingTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.manageBookingSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.manageBookingField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.manageBookingField input {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+}
+
+.manageBookingError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.manageBookingLoadingText {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  padding: var(--space-md) 0;
+}
+
+/*
+ * .manageBookingSummary
+ * Read-only key/value pairs — room + dates — shown once a reference
+ * code resolves to a real, still-confirmed booking.
+ */
+.manageBookingSummary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-xs) var(--space-md);
+  font-size: 0.9rem;
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.manageBookingSummary dt {
+  color: var(--color-text-muted);
+}
+
+.manageBookingSummary dd {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  margin: 0;
+  text-align: right;
+}
+
+.manageBookingActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.manageBookingSubmitButton,
+.manageBookingRebookButton,
+.manageBookingCancelButton,
+.manageBookingNeutralButton {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.manageBookingSubmitButton,
+.manageBookingRebookButton {
+  border: none;
+  background-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.manageBookingSubmitButton:hover,
+.manageBookingRebookButton:hover,
+.manageBookingSubmitButton:focus-visible,
+.manageBookingRebookButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+.manageBookingCancelButton {
+  border: 1px solid var(--color-error);
+  background-color: transparent;
+  color: var(--color-error);
+}
+
+.manageBookingCancelButton:hover,
+.manageBookingCancelButton:focus-visible {
+  background-color: rgba(214, 69, 69, 0.1);
+}
+
+.manageBookingNeutralButton {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.manageBookingNeutralButton:hover,
+.manageBookingNeutralButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.manageBookingSubmitButton:disabled,
+.manageBookingRebookButton:disabled,
+.manageBookingCancelButton:disabled,
+.manageBookingNeutralButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * .manageBookingSuccess
+ * Shown after a successful cancellation.
+ */
+.manageBookingSuccess {
+  text-align: center;
+  padding: var(--space-lg) 0 0 0;
+}
+
+.manageBookingSuccessTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.manageBookingSuccessSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-lg) 0;
+}

@@ -23,6 +23,7 @@ import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 import ScheduledMaintenanceIcon from "@/components/shared/ScheduledMaintenanceIcon";
 import WalkInChatWidget from "@/components/shared/WalkInChatWidget";
+import ManageBookingWidget from "@/components/shared/ManageBookingWidget";
 
 // Forces this layout to always re-run getMaintenanceStatus() on every
 // request instead of being statically cached (Next.js's default for a
@@ -127,6 +128,8 @@ export default async function VisitorLayout({ children }) {
       <Footer />
       {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
       <WalkInChatWidget />
+      {/* Floating "manage/cancel my booking" icon — stacked directly above WalkInChatWidget's button */}
+      <ManageBookingWidget />
       {/* Floating scheduled-maintenance heads-up icon — bottom-left, paired with WalkInChatWidget's bottom-right */}
       <ScheduledMaintenanceIcon />
     </div>

@@ -31,8 +31,15 @@ function toDateKey(date) {
 
 /** Expands [start, end] (inclusive on both ends — BlackoutDate ranges — or
  *  [start, end) exclusive-end for Booking ranges, per `inclusiveEnd`) into
- *  individual date keys. */
+ *  individual date keys. Same-day ranges (Day Tour / Night Tour, where
+ *  checkInDate === checkOutDate) would otherwise expand to zero dates
+ *  under the exclusive-end rule — handled explicitly here, mirroring the
+ *  fix already applied in app/api/bookings/dates/route.js. */
 function expandRange(start, end, inclusiveEnd) {
+  if (start.getTime() === end.getTime()) {
+    return [toDateKey(start)];
+  }
+
   const keys = [];
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const stop = new Date(end.getFullYear(), end.getMonth(), end.getDate());
@@ -46,6 +53,13 @@ function expandRange(start, end, inclusiveEnd) {
 
 export async function GET(request, { params }) {
   const { roomId } = await params;
+  // Self-service Rebook (components/shared/RebookCalendarModal.jsx) passes
+  // this so a guest's OWN current booking doesn't show as "unavailable"
+  // on the calendar they're using to pick its new dates — the reference
+  // code (not a raw DB id) is what the guest-facing side already treats
+  // as the booking's identifier everywhere else (directions unlock, etc).
+  const { searchParams } = new URL(request.url);
+  const excludeReferenceCode = searchParams.get("excludeReferenceCode");
 
   try {
     const room = await prisma.room.findUnique({ where: { id: roomId } });
@@ -56,9 +70,22 @@ export async function GET(request, { params }) {
       );
     }
 
+    let excludeBookingId = null;
+    if (excludeReferenceCode) {
+      const excludedBooking = await prisma.booking.findUnique({
+        where: { referenceCode: excludeReferenceCode.toUpperCase() },
+        select: { id: true },
+      });
+      excludeBookingId = excludedBooking?.id ?? null;
+    }
+
     const [bookings, blackoutRanges, rules] = await Promise.all([
       prisma.booking.findMany({
-        where: { roomId, status: "confirmed" },
+        where: {
+          roomId,
+          status: "confirmed",
+          ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
+        },
         select: { checkInDate: true, checkOutDate: true },
       }),
       prisma.blackoutDate.findMany({

@@ -168,7 +168,7 @@ export default function HowToBookSection() {
     dayTourSet,
     nightTourSet,
     overnightCheckoutSet,
-    overnightBlocksTourSet,
+    overnightBlocksDayTourSet,
     anyBookedSet,
     isLoading,
     error: loadError,
@@ -377,7 +377,7 @@ export default function HowToBookSection() {
           // the other. (The Overnight-booking case below is normally
           // unreachable since such a date is already unclickable on the
           // calendar — kept anyway as defense-in-depth.)
-          const dateBlocksTourTypes = overnightBlocksTourSet.has(checkInKey);
+          const dateBlocksTourTypes = overnightBlocksDayTourSet.has(checkInKey);
           const dateHasAnyExistingBooking = anyBookedSet.has(checkInKey);
           const conflictAdjustedOvernightFits = overnightFits && !dateHasAnyExistingBooking;
           const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksTourTypes;

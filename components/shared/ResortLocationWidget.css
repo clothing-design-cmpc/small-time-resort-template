@@ -1,0 +1,135 @@
+/*
+ * .resortLocationButton
+ * Floating circular icon fixed to the bottom-right corner, directly
+ * above ManageBookingWidget's "Cancellation" button, which itself
+ * sits above WalkInChatWidget's callback button — three icons
+ * stacked with a consistent 56px button + space-sm gap rhythm.
+ */
+.resortLocationButton {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: calc(var(--space-lg) + (56px + var(--space-sm)) * 2);
+  width: 56px;
+  height: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: var(--shadow-card-hover);
+  z-index: var(--z-sticky);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  will-change: transform;
+}
+
+.resortLocationButton:hover,
+.resortLocationButton:focus-visible,
+.resortLocationButton:active {
+  background-color: var(--color-accent-hover);
+  transform: scale(1.05);
+}
+
+/*
+ * .resortLocationTooltip
+ * "Location" label shown on hover/focus only — same fade-in-to-the-left
+ * pattern as ManageBookingWidget's tooltip, so it never gets clipped
+ * by the viewport's right edge.
+ */
+.resortLocationTooltip {
+  position: absolute;
+  right: calc(100% + var(--space-sm));
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.resortLocationButton:hover .resortLocationTooltip,
+.resortLocationButton:focus-visible .resortLocationTooltip {
+  opacity: 1;
+}
+
+/* ============================================================
+ * MODAL — same centered-dialog pattern as ManageBookingWidget.css
+ * ============================================================ */
+.resortLocationBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 43, 32, 0.45);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.resortLocationModal {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+}
+
+.resortLocationCloseButton {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.resortLocationCloseButton:hover,
+.resortLocationCloseButton:focus-visible,
+.resortLocationCloseButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.resortLocationTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+/*
+ * .resortLocationAddress
+ * The resort's exact address text, shown above the pin map so the
+ * guest has both the readable address and the visual location.
+ */
+.resortLocationAddress {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}

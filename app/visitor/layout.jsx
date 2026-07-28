@@ -24,6 +24,7 @@ import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownSc
 import ScheduledMaintenanceIcon from "@/components/shared/ScheduledMaintenanceIcon";
 import WalkInChatWidget from "@/components/shared/WalkInChatWidget";
 import ManageBookingWidget from "@/components/shared/ManageBookingWidget";
+import ResortLocationWidget from "@/components/shared/ResortLocationWidget";
 
 // Forces this layout to always re-run getMaintenanceStatus() on every
 // request instead of being statically cached (Next.js's default for a
@@ -130,6 +131,8 @@ export default async function VisitorLayout({ children }) {
       <WalkInChatWidget />
       {/* Floating "manage/cancel my booking" icon — stacked directly above WalkInChatWidget's button */}
       <ManageBookingWidget />
+      {/* Floating "resort location" icon — stacked directly above ManageBookingWidget's button */}
+      <ResortLocationWidget />
       {/* Floating scheduled-maintenance heads-up icon — bottom-left, paired with WalkInChatWidget's bottom-right */}
       <ScheduledMaintenanceIcon />
     </div>

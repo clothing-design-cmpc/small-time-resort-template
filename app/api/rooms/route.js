@@ -10,19 +10,19 @@
  * updatedBy or imageKey.
  *
  * FEATURED SELECTION SOURCE OF TRUTH:
- * ?featured=true reads SystemSettings.featuredRoomIds — the up-to-3,
+ * ?featured=true prefers SystemSettings.featuredRoomIds — the up-to-3,
  * admin-ordered picker on the Homepage Settings page (Section 2:
- * "Featured Rooms") — NOT Room.isFeatured. Those are two separate
- * fields: Room.isFeatured is a per-room checkbox on the Content > Rooms
- * edit form used elsewhere (e.g. the admin Rooms list "Featured"
- * column), while SystemSettings.featuredRoomIds is the dedicated,
- * capped, explicitly-ordered selection meant specifically for this
- * homepage section. Previously this route filtered by Room.isFeatured
- * instead, so whatever the admin picked on the Homepage Settings page
- * had no effect at all on what the homepage actually showed — the
- * checkboxes there were silently disconnected from the real output.
- * Results are returned in the SAME order the admin picked them in
- * (the order they appear in featuredRoomIds), not room sortOrder.
+ * "Featured Rooms") — since that's an explicit, deliberately-ordered
+ * curation. If that picker is empty (nothing chosen there yet), it
+ * FALLS BACK to Room.isFeatured — the per-room "Featured on homepage"
+ * checkbox on the Content > Rooms edit form, whose own hint text
+ * promises "Featured rooms appear in the homepage highlights."
+ * Previously that checkbox was completely disconnected from this
+ * route (it only ever read featuredRoomIds), so checking it on a room
+ * silently did nothing — a misleading dead control. The fallback is
+ * capped to 3 rooms (sortOrder) to match the homepage's card layout.
+ * Whichever source is used, that source also controls the order:
+ * featuredRoomIds order when present, otherwise sortOrder.
  *
  * DATA FLOW:
  * 1. hooks/usePublicRooms.js calls GET /api/rooms (optionally
@@ -47,32 +47,31 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const featuredOnly = searchParams.get("featured") === "true";
 
-    // Featured requests need the admin's chosen room IDs (and their
-    // order) from the Homepage Settings singleton before the room
-    // query itself can be scoped correctly.
+    // Featured requests prefer the admin's explicitly-ordered picks
+    // from the Homepage Settings singleton. If none have been chosen
+    // there yet, fall back to rooms individually marked isFeatured on
+    // the Content > Rooms edit form — see file header for why.
     let featuredRoomIds = [];
+    let useIsFeaturedFallback = false;
     if (featuredOnly) {
       const homepageSettings = await prisma.systemSettings.findUnique({
         where: { id: "singleton" },
         select: { featuredRoomIds: true },
       });
       featuredRoomIds = homepageSettings?.featuredRoomIds ?? [];
-
-      // Nothing picked yet — return early with an empty list rather
-      // than falling through to "all active rooms," which would show
-      // an unintended, unordered set instead of the empty state the
-      // homepage component already handles gracefully.
-      if (featuredRoomIds.length === 0) {
-        return NextResponse.json({ success: true, data: [], message: "Rooms fetched successfully." });
-      }
+      useIsFeaturedFallback = featuredRoomIds.length === 0;
     }
 
     const rooms = await prisma.room.findMany({
       where: {
         isActive: true,
-        ...(featuredOnly ? { id: { in: featuredRoomIds } } : {}),
+        ...(featuredOnly && !useIsFeaturedFallback ? { id: { in: featuredRoomIds } } : {}),
+        ...(featuredOnly && useIsFeaturedFallback ? { isFeatured: true } : {}),
       },
       orderBy: { sortOrder: "asc" },
+      // Homepage only ever shows 3 cards — cap the fallback the same
+      // way the explicit picker already caps itself at selection time.
+      ...(featuredOnly && useIsFeaturedFallback ? { take: 3 } : {}),
       select: {
         id: true,
         name: true,
@@ -93,7 +92,9 @@ export async function GET(request) {
     // order, so re-sort to match the exact order the admin picked the
     // rooms in on the Homepage Settings page — that ordering is the
     // whole point of a manually curated (vs. auto sortOrder) selection.
-    const orderedRooms = featuredOnly
+    // Not applicable to the isFeatured fallback path — that one is
+    // already correctly ordered by sortOrder straight from the query.
+    const orderedRooms = featuredOnly && !useIsFeaturedFallback
       ? featuredRoomIds
           .map((roomId) => rooms.find((room) => room.id === roomId))
           .filter(Boolean)

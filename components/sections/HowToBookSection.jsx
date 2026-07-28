@@ -160,17 +160,15 @@ export default function HowToBookSection() {
   // freely with each other but each still conflicts with an existing
   // Overnight booking. Shared hook (also used by BookingFormClient.jsx)
   // so both surfaces apply the exact same blocking rules — including
-  // overnightBlocksDayTourSet, which (unlike overnightSet) also covers
-  // the CHECKOUT day of an overnight stay, since checkout time overlaps
-  // Day Tour's morning start. Night Tour deliberately does NOT use that
-  // set — it starts in the evening, long after any reasonable checkout
-  // time, so a same-day checkout has no real overlap with it.
+  // overnightBlocksTourSet, which (unlike overnightSet) also covers the
+  // CHECKOUT day of an overnight stay, since checkout time overlaps Day
+  // Tour's start.
   const {
     overnightSet,
     dayTourSet,
     nightTourSet,
     overnightCheckoutSet,
-    overnightBlocksDayTourSet,
+    overnightBlocksTourSet,
     anyBookedSet,
     isLoading,
     error: loadError,
@@ -366,35 +364,29 @@ export default function HowToBookSection() {
           // Exclusivity rule (see app/api/bookings/dates/route.js's file
           // header): an existing booking of ANY type on this date blocks
           // a NEW Overnight booking here, since Overnight is exclusive
-          // use of the villa. An existing OVERNIGHT booking blocks Day
-          // Tour too — using overnightBlocksDayTourSet here (not
+          // use of the villa. An existing OVERNIGHT booking blocks both
+          // Tour types too — using overnightBlocksTourSet here (not
           // overnightSet) because that also includes the CHECKOUT day
           // of an overnight stay: checkout time overlaps Day Tour's
-          // morning start, so that day must hide Day Tour too even
-          // though it stays open on the calendar for a new Overnight
-          // check-in (see the matching gte fix in
-          // services/bookingPricing.js's exclusivity check). Night Tour
-          // does NOT get this same-day-checkout treatment — it starts
-          // in the evening, long after any reasonable checkout time, so
-          // it only gets blocked by a genuine existing booking on the
-          // exact date (anyBookedSet), same as Overnight above. Day
-          // Tour and Night Tour don't block each other — a date already
-          // carrying one of those still allows the other. (The
-          // Overnight-booking case below is normally unreachable since
-          // such a date is already unclickable on the calendar — kept
-          // anyway as defense-in-depth.)
-          const dateBlocksDayTour = overnightBlocksDayTourSet.has(checkInKey);
+          // start, so that day must hide Day/Night Tour too even though
+          // it stays open on the calendar for a new Overnight check-in
+          // (see the matching gte fix in services/bookingPricing.js's
+          // exclusivity check). Day Tour and Night Tour don't block each
+          // other — a date already carrying one of those still allows
+          // the other. (The Overnight-booking case below is normally
+          // unreachable since such a date is already unclickable on the
+          // calendar — kept anyway as defense-in-depth.)
+          const dateBlocksTourTypes = overnightBlocksTourSet.has(checkInKey);
           const dateHasAnyExistingBooking = anyBookedSet.has(checkInKey);
           const conflictAdjustedOvernightFits = overnightFits && !dateHasAnyExistingBooking;
-          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksDayTour;
-          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateHasAnyExistingBooking;
+          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksTourTypes;
+          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateBlocksTourTypes;
           // Pure checkout-day case — the date itself isn't otherwise
           // booked (still open on the calendar for a new Overnight
           // check-in), but it does carry a same-day checkout that just
-          // narrowed Day Tour above (Night Tour is unaffected). Surfaced
-          // to the visitor as an awareness notice in TourSelectionModal
-          // rather than letting them find out only after picking Day
-          // Tour.
+          // narrowed the Tour options above. Surfaced to the visitor as
+          // an awareness notice in TourSelectionModal rather than
+          // letting them find out only after picking Day Tour.
           const checkoutNotice =
             !dateHasAnyExistingBooking && overnightCheckoutSet.has(checkInKey) && checkOutTime
               ? `The previous guests check out at ${checkOutTime} this day, so Day Tour may not be available.`
@@ -612,6 +604,15 @@ export default function HowToBookSection() {
                 // of only after the visitor picks Day Tour and hits an
                 // error. See overnightCheckoutSet in useBookedDates.
                 const isCheckoutDay = isOpen && overnightCheckoutSet.has(cellKey);
+                // Open day that already has a Day Tour and/or Night Tour
+                // booking — still clickable (another Tour can still be
+                // booked, and multiple tours coexist per day up to
+                // capacity), but a NEW Overnight stay can't start here
+                // (see conflictAdjustedOvernightFits in handleContinue()
+                // above). Flagged visually up front, same reasoning as
+                // isCheckoutDay above, instead of only surfacing after
+                // the visitor picks Overnight and hits a rejection.
+                const isTourBookedDay = isOpen && (dayTourSet.has(cellKey) || nightTourSet.has(cellKey));
 
                 let cls = "howToBookCalendarDay";
                 if (isBooked) cls += " howToBookCalendarDayBooked";
@@ -620,6 +621,7 @@ export default function HowToBookSection() {
                 if (isOpen) cls += " howToBookCalendarDayOpen";
                 if (isSelected) cls += " howToBookCalendarDaySelected";
                 if (isCheckoutDay) cls += " howToBookCalendarDayCheckout";
+                if (isTourBookedDay) cls += " howToBookCalendarDayTourBooked";
 
                 return (
                   <button
@@ -632,15 +634,24 @@ export default function HowToBookSection() {
                       isOpen
                         ? `${isSelected ? "Deselect" : "Select"} ${cellKey}${
                             isCheckoutDay && checkOutTime ? ` — previous guests check out ${checkOutTime}` : ""
-                          }`
+                          }${isTourBookedDay ? " — a Tour is already booked this day" : ""}`
                         : undefined
                     }
                     onClick={() => handleDayClick(cellKey, isPast, isBooked)}
-                    title={isCheckoutDay && checkOutTime ? `Checkout ${checkOutTime}` : undefined}
+                    title={
+                      isCheckoutDay && checkOutTime
+                        ? `Checkout ${checkOutTime}`
+                        : isTourBookedDay
+                        ? "A Tour is already booked this day"
+                        : undefined
+                    }
                   >
                     {day}
                     {isCheckoutDay && checkOutTime && (
                       <span className="howToBookCalendarDayCheckoutBadge" aria-hidden="true" />
+                    )}
+                    {isTourBookedDay && (
+                      <span className="howToBookCalendarDayTourBookedBadge" aria-hidden="true" />
                     )}
                   </button>
                 );
@@ -663,6 +674,10 @@ export default function HowToBookSection() {
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotCheckout" />
                 Open, but a guest checks out that morning
+              </span>
+              <span className="howToBookCalendarLegendItem">
+                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotTourBooked" />
+                Open, but a Tour is already booked that day
               </span>
             </div>
 

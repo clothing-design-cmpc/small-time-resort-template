@@ -247,6 +247,24 @@
   background-color: var(--color-warning);
 }
 
+/* Mirrors .howToBookCalendarDayCheckoutBadge above, but bottom-right
+ * (not top-right) so it never visually collides with a checkout badge
+ * on the rare date that carries both — see isTourBookedDay's comment
+ * in HowToBookSection.jsx for when this applies. */
+.howToBookCalendarDayTourBookedBadge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: var(--color-info);
+}
+
+.howToBookCalendarLegendDotTourBooked {
+  background-color: var(--color-info);
+}
+
 /* ─── Legend ─────────────────────────────────────────────────────────── */
 .howToBookCalendarLegend {
   display: flex;

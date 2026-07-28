@@ -285,6 +285,22 @@
 }
 
 /*
+ * .bookingConfirmCancelNote
+ * Tells the guest how to cancel/change their booking — there's no
+ * self-service flow, so this is a direct call-to-action to phone the
+ * resort. Sits right under the cancellation policy line.
+ */
+.bookingConfirmCancelNote {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.bookingConfirmCancelNote a {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/*
  * .bookingConfirmReferenceBox
  * Highlights the reference code — this is the credential the guest
  * needs later for the invoice and the gated Directions widget, so it

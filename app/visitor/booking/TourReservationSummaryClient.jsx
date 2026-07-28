@@ -66,7 +66,7 @@ function formatDateText(dateKey) {
   return FULL_DATE.format(new Date(`${dateKey}T00:00:00`));
 }
 
-export default function TourReservationSummaryClient({ checkInDate, bookingType }) {
+export default function TourReservationSummaryClient({ checkInDate, bookingType, resortPhone }) {
   const { bookingRules, isLoading: isRulesLoading, error: rulesError } = usePublicBookingRules();
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
 
@@ -183,6 +183,10 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType 
         <p className="bookingConfirmPolicy">
           Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in
           ({confirmedQuote.refundPercentage}% refund).
+        </p>
+        <p className="bookingConfirmCancelNote">
+          Need to cancel or change this booking? Call us at{" "}
+          <a href={`tel:${resortPhone.replace(/[^\d+]/g, "")}`}>{resortPhone}</a> and have your reference code ready.
         </p>
       </div>
     );

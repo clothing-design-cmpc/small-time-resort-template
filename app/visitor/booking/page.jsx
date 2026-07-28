@@ -32,7 +32,16 @@
 import BookingFormClient from "./BookingFormClient";
 import ReservationSummaryClient from "./ReservationSummaryClient";
 import TourReservationSummaryClient from "./TourReservationSummaryClient";
+import { prisma } from "@/services/prisma";
 import "./Booking.css";
+
+// Shown on the confirmation panel so a guest who wants to cancel knows
+// to call the resort directly — there's no self-service cancel/refund
+// flow yet, so a phone call is the real path (see Section 35.2's
+// resortPhone field, same one Footer.jsx already displays). Matches
+// Footer.jsx's own placeholder text/number until the admin fills in
+// the real number under Super-Admin > Policies & Content > Contact Info.
+const PLACEHOLDER_PHONE = "+63 9XX XXX XXXX";
 
 export const metadata = {
   title: "Book Your Stay | your-private-resort",
@@ -51,6 +60,11 @@ export default async function BookingPage({ searchParams }) {
   const initialBookingType = typeof params?.type === "string" ? params.type : null;
   const isLockedTourType = !roomId && (initialBookingType === "day_tour" || initialBookingType === "night_tour");
 
+  // .catch(() => null) means a DB hiccup falls back to the placeholder
+  // number below instead of breaking the whole booking page.
+  const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
+  const resortPhone = settings?.resortPhone || PLACEHOLDER_PHONE;
+
   return (
     <section className="bookingSection">
       <div className="bookingContainer">
@@ -68,14 +82,16 @@ export default async function BookingPage({ searchParams }) {
             checkOutDate={initialCheckOutDate}
             roomId={roomId}
             ruleId={ruleId}
+            resortPhone={resortPhone}
           />
         ) : isLockedTourType ? (
-          <TourReservationSummaryClient checkInDate={initialCheckInDate} bookingType={initialBookingType} />
+          <TourReservationSummaryClient checkInDate={initialCheckInDate} bookingType={initialBookingType} resortPhone={resortPhone} />
         ) : (
           <BookingFormClient
             initialCheckInDate={initialCheckInDate}
             initialCheckOutDate={initialCheckOutDate}
             initialBookingType={initialBookingType}
+            resortPhone={resortPhone}
           />
         )}
       </div>

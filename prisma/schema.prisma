@@ -251,6 +251,12 @@ model AdminProfile {
   isOwner   Boolean  @default(false) @map("is_owner")
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Sidebar "new bookings" badge (O) baseline — updated every time this
+  // admin opens the Bookings page. Defaults to now() so the migration
+  // itself never creates a false backlog of "new" bookings for admins
+  // who already existed before this field was added.
+  bookingsLastViewedAt DateTime @default(now()) @map("bookings_last_viewed_at")
+
   @@map("admin_profiles")
 }
 

@@ -16,7 +16,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNavBadges } from "@/hooks/useNavBadges";
 import "./Sidebar.css";
+
+// Maps a nav link's href to which badge counter (from useNavBadges)
+// applies to it, and which visual treatment that badge gets. Kept as a
+// lookup instead of hardcoding hrefs inline below, so adding a badge to
+// a future nav item is a one-line change here.
+const BADGE_RULES = {
+  "/superAdmin/walkin-inquiries": { countKey: "pendingWalkInCount", variant: "urgent", icon: "!" },
+  "/superAdmin/bookings": { countKey: "newBookingsCount", variant: "update", icon: "O" },
+};
 
 /* Add entries here as new admin pages are built. Grouped into sections
    since the flat list grew too long to scan once Content/Insights pages
@@ -71,6 +81,7 @@ const navGroups = [
 
 export default function Sidebar({ isOwner = false }) {
   const pathname = usePathname();
+  const badgeCounts = useNavBadges();
 
   // Vault passphrase generation/rotation and recovery-channel testing
   // are deliberately NOT exposed anywhere in this dashboard, even to
@@ -92,13 +103,32 @@ export default function Sidebar({ isOwner = false }) {
               // Marks the current page's nav link so the admin always
               // knows where they are in the control center.
               const isActive = pathname === link.href;
+
+              // Look up whether this link has a live badge counter
+              // (Walk-in Inquiries -> urgent "!", Bookings -> update "O")
+              // and only render it once that counter is above zero.
+              const badgeRule = BADGE_RULES[link.href];
+              const badgeCount = badgeRule ? badgeCounts[badgeRule.countKey] : 0;
+
               return (
                 <li key={link.href}>
                   <Link
                     href={link.href}
                     className={`adminSidebarLink${isActive ? " adminSidebarLink--active" : ""}`}
                   >
-                    {link.label}
+                    <span className="adminSidebarLinkLabel">{link.label}</span>
+                    {badgeRule && badgeCount > 0 && (
+                      <span
+                        className={`adminSidebarBadge adminSidebarBadge--${badgeRule.variant}`}
+                        aria-label={
+                          badgeRule.variant === "urgent"
+                            ? `${badgeCount} awaiting reply`
+                            : `${badgeCount} new`
+                        }
+                      >
+                        {badgeRule.icon} {badgeCount}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

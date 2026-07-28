@@ -106,3 +106,45 @@
   color: var(--color-primary);
   font-weight: 700;
 }
+
+/*
+ * .adminSidebarLinkLabel
+ * Wraps the link's text so it can grow and push any badge (below) to
+ * the right edge of the row via margin-left: auto on the badge itself.
+ */
+.adminSidebarLinkLabel {
+  flex: 1 1 auto;
+}
+
+/*
+ * .adminSidebarBadge
+ * Small pill shown after a nav link's label — "!" (urgent, e.g. a
+ * walk-in inquiry still awaiting reply) or "O" (update, e.g. new
+ * bookings placed since this admin last checked). Pinned to the right
+ * edge of the row via margin-left: auto so it never shifts the label.
+ */
+.adminSidebarBadge {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px var(--space-xs);
+  border-radius: 999px;
+  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+/* Urgent — needs a reply/action, e.g. Walk-in Inquiries */
+.adminSidebarBadge--urgent {
+  background-color: var(--color-error);
+  color: #ffffff;
+}
+
+/* Update — informational only, e.g. new Bookings placed */
+.adminSidebarBadge--update {
+  background-color: var(--color-info);
+  color: #ffffff;
+}

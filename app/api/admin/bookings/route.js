@@ -33,7 +33,7 @@ export async function GET(request) {
 
   try {
     const bookings = await prisma.booking.findMany({
-      orderBy: { checkInDate: "desc" },
+      orderBy: { checkInDate: "asc" },
       include: { room: { select: { name: true } } },
     });
 

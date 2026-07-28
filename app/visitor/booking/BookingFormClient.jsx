@@ -451,7 +451,14 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
       {submitError && <p className="bookingFormSubmitError" role="alert">{submitError}</p>}
 
-      <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating}>
+      {/* Blocked whenever the live quote came back with a rule violation
+          (e.g. strict same-day check-in cutoff already passed) — the
+          guest must not be able to proceed past that error. */}
+      <button
+        type="submit"
+        className="bookingFormSubmit"
+        disabled={isSubmitting || isFormValidating || Boolean(quoteError)}
+      >
         {isSubmitting ? "Confirming…" : "Confirm Booking"}
       </button>
     </form>

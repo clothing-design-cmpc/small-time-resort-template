@@ -151,8 +151,14 @@ export default function AdminHeader() {
 
   // Live clock — ticks every second, purely client-side (no server
   // round-trip needed for "what time is it right now").
-  const [now, setNow] = useState(() => new Date());
+  // Starts as null (not `new Date()`) so the server-rendered markup and
+  // the client's first hydration pass produce identical output — seeding
+  // this with new Date() causes two different timestamps to be formatted
+  // (one at SSR time, one at hydration time), which is a hydration
+  // mismatch. The real Date is only ever set client-side, inside this effect.
+  const [now, setNow] = useState(null);
   useEffect(() => {
+    setNow(new Date());
     const tick = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(tick);
   }, []);
@@ -251,11 +257,11 @@ export default function AdminHeader() {
         <div className="adminHeaderInfoGroup">
           <span className="adminHeaderInfoBadge" title="Today's date (Asia/Manila)">
             <Calendar size={14} aria-hidden="true" />
-            {DATE_FORMATTER.format(now)}
+            {now ? DATE_FORMATTER.format(now) : "—"}
           </span>
           <span className="adminHeaderInfoBadge" title="Current time (Asia/Manila)">
             <Clock size={14} aria-hidden="true" />
-            {TIME_FORMATTER.format(now)}
+            {now ? TIME_FORMATTER.format(now) : "—"}
           </span>
           <span className="adminHeaderInfoBadge" title="What's happening today">
             <Sparkles size={14} aria-hidden="true" />

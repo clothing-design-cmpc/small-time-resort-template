@@ -42,6 +42,31 @@ const GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
 
+// How many days before a booking's check-in date the Directions widget
+// unlocks. Keeps the gated Routes/Geocoding API spend limited to guests
+// who are actually about to travel, instead of being available the
+// moment a booking is made (which could be months in advance).
+const DIRECTIONS_AVAILABILITY_LEAD_DAYS = 1;
+
+/**
+ * getDirectionsAvailability
+ * Determines whether the Directions widget should be unlocked for a
+ * given booking, based on its checkInDate. Available starting at
+ * 00:00 UTC, DIRECTIONS_AVAILABILITY_LEAD_DAYS before check-in — never
+ * before that, regardless of a confirmed booking status.
+ *
+ * @param {Date} checkInDate - Booking.checkInDate (@db.Date, UTC midnight)
+ * @returns {{ available: boolean, availableFrom: Date }}
+ */
+export function getDirectionsAvailability(checkInDate) {
+  const availableFrom = new Date(checkInDate);
+  availableFrom.setUTCDate(availableFrom.getUTCDate() - DIRECTIONS_AVAILABILITY_LEAD_DAYS);
+  availableFrom.setUTCHours(0, 0, 0, 0);
+
+  return { available: new Date() >= availableFrom, availableFrom };
+}
+
+
 /**
  * geocodeAddress
  * Converts a free-text address into { latitude, longitude }. Only

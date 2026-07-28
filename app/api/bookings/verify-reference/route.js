@@ -18,7 +18,11 @@
  *    brute-forcing reference codes even though the code space is huge
  * 3. Booking looked up by referenceCode; valid only if status is
  *    "confirmed" (a cancelled booking's code no longer works)
- * 4. Returns { valid: true, guestFirstName } or { valid: false }
+ * 4. A confirmed booking's checkInDate is also checked against
+ *    getDirectionsAvailability() (services/directions.js) — the widget
+ *    stays locked until 1 day before check-in even for a real,
+ *    confirmed booking, so guests can't preview directions months out
+ * 5. Returns { valid: true, guestFirstName } or { valid: false }
  */
 export const dynamic = "force-dynamic";
 
@@ -27,6 +31,7 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
+import { getDirectionsAvailability } from "@/services/directions";
 
 const VERIFY_MAX_ATTEMPTS = 10;
 const VERIFY_WINDOW_MS = 15 * 60 * 1000;
@@ -63,7 +68,7 @@ export async function POST(request) {
 
   const booking = await prisma.booking.findUnique({
     where: { referenceCode: payload.referenceCode.toUpperCase() },
-    select: { id: true, guestName: true, status: true },
+    select: { id: true, guestName: true, status: true, checkInDate: true },
   });
 
   const isValid = !!booking && booking.status === "confirmed";
@@ -73,6 +78,25 @@ export async function POST(request) {
       success: true,
       data: { valid: false },
       message: "That reference code wasn't found. Please check your invoice and try again.",
+    });
+  }
+
+  // Real, confirmed booking — but Directions stays locked until 1 day
+  // before check-in. Log the attempt's IP so the super-admin has
+  // visibility into early-access attempts, same pattern as the
+  // rate_limit_hit logging above.
+  const { available, availableFrom } = getDirectionsAvailability(booking.checkInDate);
+  if (!available) {
+    await logSecurityEvent({
+      eventType: "directions_denied_early",
+      actor: null,
+      request,
+      details: `Reference code verified but too early for directions (check-in ${booking.checkInDate.toISOString().slice(0, 10)}).`,
+    });
+    return NextResponse.json({
+      success: true,
+      data: { valid: false, availableFrom: availableFrom.toISOString() },
+      message: `Directions open starting ${availableFrom.toISOString().slice(0, 10)} — please check back closer to your visit.`,
     });
   }
 

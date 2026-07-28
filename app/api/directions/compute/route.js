@@ -23,11 +23,16 @@
  * 3. referenceCode re-verified against Booking (status must be
  *    "confirmed") — a mismatch or cancelled booking returns 403, no
  *    API calls spent
- * 4. If origin.address was given instead of coordinates, geocode it
+ * 4. checkInDate is also re-checked against getDirectionsAvailability()
+ *    on every call — the widget's own "isVerified" state is a UX
+ *    convenience only, so a request replayed after verify-reference
+ *    passed but before the availability window opened must still be
+ *    blocked here, no API calls spent
+ * 5. If origin.address was given instead of coordinates, geocode it
  *    first (services/directions.js)
- * 5. Destination is read from SystemSettings.resortLatitude/Longitude
+ * 6. Destination is read from SystemSettings.resortLatitude/Longitude
  *    (fixed, set once by the super-admin — never retyped per request)
- * 6. computeDrivingRoute() calls the Routes API and returns distance,
+ * 7. computeDrivingRoute() calls the Routes API and returns distance,
  *    ETA, and turn-by-turn steps
  */
 export const dynamic = "force-dynamic";
@@ -37,7 +42,7 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
-import { geocodeAddress, computeDrivingRoute, getRouteMapImage } from "@/services/directions";
+import { geocodeAddress, computeDrivingRoute, getRouteMapImage, getDirectionsAvailability } from "@/services/directions";
 
 const COMPUTE_MAX_ATTEMPTS = 10;
 const COMPUTE_WINDOW_MS = 15 * 60 * 1000;
@@ -80,11 +85,33 @@ export async function POST(request) {
   // "already verified" flag (see file header).
   const booking = await prisma.booking.findUnique({
     where: { referenceCode: payload.referenceCode.toUpperCase() },
-    select: { status: true },
+    select: { status: true, checkInDate: true },
   });
   if (!booking || booking.status !== "confirmed") {
     return NextResponse.json(
       { success: false, data: null, message: "Invalid or expired reference code." },
+      { status: 403 }
+    );
+  }
+
+  // Same availability window as verify-reference, re-checked here since
+  // this is the route that actually spends Geocoding/Routes API calls —
+  // blocks a request replayed after the reference code passed but
+  // before the 1-day-before-check-in window opened.
+  const { available, availableFrom } = getDirectionsAvailability(booking.checkInDate);
+  if (!available) {
+    await logSecurityEvent({
+      eventType: "directions_denied_early",
+      actor: null,
+      request,
+      details: `Directions compute blocked — available starting ${availableFrom.toISOString().slice(0, 10)}.`,
+    });
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: `Directions open starting ${availableFrom.toISOString().slice(0, 10)} — please check back closer to your visit.`,
+      },
       { status: 403 }
     );
   }

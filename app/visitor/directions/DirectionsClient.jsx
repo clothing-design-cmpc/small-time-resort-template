@@ -107,12 +107,22 @@ export default function DirectionsClient() {
     setIsVerifying(true);
     try {
       const response = await axios.post("/api/bookings/verify-reference", { referenceCode: referenceCode.trim() });
-      const { valid, guestFirstName: name } = response.data.data;
+      const { valid, guestFirstName: name, availableFrom } = response.data.data;
 
       if (valid) {
         setIsVerified(true);
         setGuestFirstName(name || "");
         showToast("✓ Reference code verified.", "success");
+      } else if (availableFrom) {
+        // Real, confirmed booking — just too early. Show the exact date
+        // instead of the generic "not found" message, per the raw ISO
+        // date the API returns.
+        const formattedDate = new Date(availableFrom).toLocaleDateString(undefined, {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+        showToast(`Directions open starting ${formattedDate} — please check back closer to your visit.`, "warning");
       } else {
         showToast(response.data.message || "That reference code wasn't found.", "error");
       }

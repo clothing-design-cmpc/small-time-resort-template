@@ -9,11 +9,16 @@
  * the manual "Book Now" form (BookingFormClient.jsx), so both surfaces
  * agree on which dates are blocked for which booking type.
  *
- * overnightBlocksTourDates (and its Set form, overnightBlocksTourSet)
- * is the one that matters for hiding Day Tour / Night Tour choices —
- * it includes the checkout day of an overnight stay, unlike
- * overnightBookedDates, which deliberately excludes it (a checkout day
- * must stay open for a NEW overnight guest to check in).
+ * overnightBlocksDayTourDates (and its Set form,
+ * overnightBlocksDayTourSet) is the one that matters for hiding Day
+ * Tour specifically — it includes the checkout day of an overnight
+ * stay, unlike overnightBookedDates, which deliberately excludes it (a
+ * checkout day must stay open for a NEW overnight guest to check in).
+ * Night Tour deliberately does NOT get this treatment — it starts in
+ * the evening, long after any reasonable checkout time, so it has no
+ * real overlap with a same-day checkout; use overnightSet (or
+ * anyBookedSet, for "does this exact date already have any booking at
+ * all") for Night Tour instead.
  */
 "use client";
 
@@ -58,7 +63,7 @@ export function useBookedDates() {
   const dayTourSet = useMemo(() => new Set(data?.dayTourBookedDates ?? EMPTY), [data]);
   const nightTourSet = useMemo(() => new Set(data?.nightTourBookedDates ?? EMPTY), [data]);
   const overnightCheckoutSet = useMemo(() => new Set(data?.overnightCheckoutDates ?? EMPTY), [data]);
-  const overnightBlocksTourSet = useMemo(() => new Set(data?.overnightBlocksTourDates ?? EMPTY), [data]);
+  const overnightBlocksDayTourSet = useMemo(() => new Set(data?.overnightBlocksDayTourDates ?? EMPTY), [data]);
   const anyBookedSet = useMemo(
     () => new Set([...overnightSet, ...dayTourSet, ...nightTourSet]),
     [overnightSet, dayTourSet, nightTourSet]
@@ -74,7 +79,7 @@ export function useBookedDates() {
     dayTourSet,
     nightTourSet,
     overnightCheckoutSet,
-    overnightBlocksTourSet,
+    overnightBlocksDayTourSet,
     anyBookedSet,
   };
 }

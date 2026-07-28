@@ -160,15 +160,17 @@ export default function HowToBookSection() {
   // freely with each other but each still conflicts with an existing
   // Overnight booking. Shared hook (also used by BookingFormClient.jsx)
   // so both surfaces apply the exact same blocking rules — including
-  // overnightBlocksTourSet, which (unlike overnightSet) also covers the
-  // CHECKOUT day of an overnight stay, since checkout time overlaps Day
-  // Tour's start.
+  // overnightBlocksDayTourSet, which (unlike overnightSet) also covers
+  // the CHECKOUT day of an overnight stay, since checkout time overlaps
+  // Day Tour's morning start. Night Tour deliberately does NOT use that
+  // set — it starts in the evening, long after any reasonable checkout
+  // time, so a same-day checkout has no real overlap with it.
   const {
     overnightSet,
     dayTourSet,
     nightTourSet,
     overnightCheckoutSet,
-    overnightBlocksTourSet,
+    overnightBlocksDayTourSet,
     anyBookedSet,
     isLoading,
     error: loadError,
@@ -364,29 +366,35 @@ export default function HowToBookSection() {
           // Exclusivity rule (see app/api/bookings/dates/route.js's file
           // header): an existing booking of ANY type on this date blocks
           // a NEW Overnight booking here, since Overnight is exclusive
-          // use of the villa. An existing OVERNIGHT booking blocks both
-          // Tour types too — using overnightBlocksTourSet here (not
+          // use of the villa. An existing OVERNIGHT booking blocks Day
+          // Tour too — using overnightBlocksDayTourSet here (not
           // overnightSet) because that also includes the CHECKOUT day
           // of an overnight stay: checkout time overlaps Day Tour's
-          // start, so that day must hide Day/Night Tour too even though
-          // it stays open on the calendar for a new Overnight check-in
-          // (see the matching gte fix in services/bookingPricing.js's
-          // exclusivity check). Day Tour and Night Tour don't block each
-          // other — a date already carrying one of those still allows
-          // the other. (The Overnight-booking case below is normally
-          // unreachable since such a date is already unclickable on the
-          // calendar — kept anyway as defense-in-depth.)
-          const dateBlocksTourTypes = overnightBlocksTourSet.has(checkInKey);
+          // morning start, so that day must hide Day Tour too even
+          // though it stays open on the calendar for a new Overnight
+          // check-in (see the matching gte fix in
+          // services/bookingPricing.js's exclusivity check). Night Tour
+          // does NOT get this same-day-checkout treatment — it starts
+          // in the evening, long after any reasonable checkout time, so
+          // it only gets blocked by a genuine existing booking on the
+          // exact date (anyBookedSet), same as Overnight above. Day
+          // Tour and Night Tour don't block each other — a date already
+          // carrying one of those still allows the other. (The
+          // Overnight-booking case below is normally unreachable since
+          // such a date is already unclickable on the calendar — kept
+          // anyway as defense-in-depth.)
+          const dateBlocksDayTour = overnightBlocksDayTourSet.has(checkInKey);
           const dateHasAnyExistingBooking = anyBookedSet.has(checkInKey);
           const conflictAdjustedOvernightFits = overnightFits && !dateHasAnyExistingBooking;
-          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksTourTypes;
-          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateBlocksTourTypes;
+          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksDayTour;
+          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateHasAnyExistingBooking;
           // Pure checkout-day case — the date itself isn't otherwise
           // booked (still open on the calendar for a new Overnight
           // check-in), but it does carry a same-day checkout that just
-          // narrowed the Tour options above. Surfaced to the visitor as
-          // an awareness notice in TourSelectionModal rather than
-          // letting them find out only after picking Day Tour.
+          // narrowed Day Tour above (Night Tour is unaffected). Surfaced
+          // to the visitor as an awareness notice in TourSelectionModal
+          // rather than letting them find out only after picking Day
+          // Tour.
           const checkoutNotice =
             !dateHasAnyExistingBooking && overnightCheckoutSet.has(checkInKey) && checkOutTime
               ? `The previous guests check out at ${checkOutTime} this day, so Day Tour may not be available.`

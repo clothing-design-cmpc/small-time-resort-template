@@ -31,6 +31,7 @@ import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { useRoomAvailability } from "@/hooks/useRoomAvailability";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
+import { useBookedDates } from "@/hooks/useBookedDates";
 import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
 import "./BookingForm.css";
 
@@ -141,6 +142,12 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
   const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules(nightsSelected);
 
+  // Same source of truth the home calendar uses (HowToBookSection.jsx) —
+  // needed here too because this plain-entry form lets a guest type ANY
+  // check-in date freely, with no calendar UI in front of it filtering
+  // out conflicting dates first.
+  const { overnightBlocksDayTourSet, anyBookedSet } = useBookedDates();
+
   const { availability } = useRoomAvailability(bookingType === "overnight" ? roomId : null);
 
   // Which booking types the super-admin currently allows — drives the pill selector below
@@ -148,10 +155,21 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     if (!bookingRules) return [];
     const types = [];
     if (bookingRules.allowOvernightStay) types.push({ value: "overnight", label: "Overnight Stay" });
-    if (bookingRules.allowDayTour) types.push({ value: "day_tour", label: "Day Tour" });
-    if (bookingRules.allowNightTour) types.push({ value: "night_tour", label: "Night Tour" });
+    // overnightBlocksDayTourSet covers the CHECKOUT day of an existing
+    // overnight stay (not just its occupied nights) — checkout time
+    // overlaps Day Tour's morning start, so that day hides the Day Tour
+    // pill too. Night Tour does NOT get this same-day-checkout
+    // treatment — it starts in the evening, long after any reasonable
+    // checkout time, so it's only hidden by a genuine existing booking
+    // on the exact date (anyBookedSet). See
+    // services/bookingPricing.js's matching gte/gt split and
+    // app/api/bookings/dates/route.js's file header for why.
+    const dayTourBlocked = checkInDate ? overnightBlocksDayTourSet.has(checkInDate) : false;
+    const nightTourBlocked = checkInDate ? anyBookedSet.has(checkInDate) : false;
+    if (bookingRules.allowDayTour && !dayTourBlocked) types.push({ value: "day_tour", label: "Day Tour" });
+    if (bookingRules.allowNightTour && !nightTourBlocked) types.push({ value: "night_tour", label: "Night Tour" });
     return types;
-  }, [bookingRules]);
+  }, [bookingRules, checkInDate, overnightBlocksDayTourSet, anyBookedSet]);
 
   // Whenever the loaded rules change which types are enabled, make sure the
   // currently selected type is still valid — otherwise fall back to the first enabled one.

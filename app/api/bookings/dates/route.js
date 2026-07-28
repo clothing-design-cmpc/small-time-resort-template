@@ -35,13 +35,17 @@
  *    default for any caller that hasn't been updated to the per-type
  *    fields yet)
  * 5. Also returns `overnightCheckoutDates` (the checkout day of each
- *    overnight booking, on its own) and `overnightBlocksTourDates`
+ *    overnight booking, on its own) and `overnightBlocksDayTourDates`
  *    (overnightBookedDates + overnightCheckoutDates combined) — the
  *    checkout day must stay OUT of overnightBookedDates so a new
  *    overnight guest can still check in that day, but it must be IN
- *    overnightBlocksTourDates since checkout time overlaps Day Tour's
- *    start. See HowToBookSection.jsx and BookingFormClient.jsx for
- *    where each set gets used.
+ *    overnightBlocksDayTourDates since checkout time overlaps Day
+ *    Tour's morning start. Deliberately NOT applied to Night Tour —
+ *    Night Tour starts in the evening, long after any reasonable
+ *    checkout time, so it has no real overlap and stays bookable on
+ *    the checkout day; only overnightBookedDates (occupied nights)
+ *    blocks it, same as any other date. See HowToBookSection.jsx and
+ *    BookingFormClient.jsx for where each set gets used.
  */
 export const dynamic = "force-dynamic";
 
@@ -127,12 +131,13 @@ export async function GET() {
     // need type-level nuance, just "don't expect this date to be free".
     const bookedDateSet = new Set([...overnightSet, ...dayTourSet, ...nightTourSet]);
 
-    // The actual set that should hide/block Day Tour and Night Tour —
-    // occupied nights PLUS the checkout day itself. Kept separate from
+    // The set that should hide/block Day Tour specifically — occupied
+    // nights PLUS the checkout day itself. Kept separate from
     // overnightBookedDates (which stays checkout-day-exclusive, for
     // blocking a NEW overnight booking) so callers can apply the
-    // correct rule for whichever type they're checking.
-    const overnightBlocksTourSet = new Set([...overnightSet, ...overnightCheckoutSet]);
+    // correct rule for whichever type they're checking. Deliberately
+    // NOT used for Night Tour — see the file header for why.
+    const overnightBlocksDayTourSet = new Set([...overnightSet, ...overnightCheckoutSet]);
 
     return NextResponse.json({
       success: true,
@@ -140,7 +145,7 @@ export async function GET() {
         bookedDates: Array.from(bookedDateSet).sort(),
         overnightBookedDates: Array.from(overnightSet).sort(),
         overnightCheckoutDates: Array.from(overnightCheckoutSet).sort(),
-        overnightBlocksTourDates: Array.from(overnightBlocksTourSet).sort(),
+        overnightBlocksDayTourDates: Array.from(overnightBlocksDayTourSet).sort(),
         dayTourBookedDates: Array.from(dayTourSet).sort(),
         nightTourBookedDates: Array.from(nightTourSet).sort(),
       },

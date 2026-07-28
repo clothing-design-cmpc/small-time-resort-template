@@ -316,17 +316,21 @@ export async function validateAndQuoteBooking({
   // never conflict with each other (see exclusivity rule above), so
   // this only ever checks against confirmed Overnight bookings.
   if (bookingType === "day_tour" || bookingType === "night_tour") {
+    // gte for Day Tour ONLY, not Night Tour: the overnight guest's
+    // checkout DAY still blocks Day Tour — checkout is at checkOutTime
+    // (e.g. 11:00), which overlaps Day Tour's morning start (e.g.
+    // 08:00). Night Tour starts in the evening (e.g. 18:00), long after
+    // any reasonable checkout time, so it has no real overlap and must
+    // stay bookable on the checkout day — using gte for it too was the
+    // bug: it hid Night Tour on a date where nothing actually conflicts
+    // with it.
+    const checkoutDateOperator = bookingType === "day_tour" ? "gte" : "gt";
     const conflictingOvernightStay = await client.booking.findFirst({
       where: {
         status: "confirmed",
         bookingType: "overnight",
         checkInDate: { lte: checkIn },
-        // gte (not gt): the overnight guest's checkout DAY still blocks
-        // Day/Night Tour bookings on that same date — checkout is at
-        // checkOutTime (e.g. 11:00), which overlaps Day Tour's start
-        // (e.g. 08:00). Day-level exclusivity, not a literal time-window
-        // comparison — see the comment above this block.
-        checkOutDate: { gte: checkIn },
+        checkOutDate: { [checkoutDateOperator]: checkIn },
       },
       select: { id: true },
     });

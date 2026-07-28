@@ -1,39 +1,63 @@
 /**
  * FILE: app/api/vault/request-access/route.ts
- * ROLE: Called by an authenticated vault session that lacks super-admin role
+ * ROLE: Super-admin only, non-owner — protected by requireSuperAdmin() below
  *
  * PURPOSE:
- * Logs the access request as a security event and emails the super-admin
- * so they can approve ending the lockdown themselves. Never grants access
+ * A super_admin whose AdminProfile.isOwner is false cannot access the
+ * vault directly (see services/vaultAuth.js). This route logs their
+ * request and emails the actual vault owner (VAULT_OWNER_EMAIL) so the
+ * owner can approve ending the lockdown themselves. Never grants access
  * directly — this only notifies; approval always happens through the
- * super-admin's own authenticated session.
+ * owner's own vault session.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { logSecurityEvent } from "@/services/securityLog";
-import { sendEmail } from "@/services/emailjs";
-import { getSessionFromRequest } from "@/services/auth";
+import { sendGeneralEmail } from "@/services/emailjs";
+import { requireSuperAdmin } from "@/services/adminSession";
+import { adminClient } from "@/services/supabase";
 
 export async function POST(request: Request) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
   const { vaultCode } = await request.json();
-  const session = await getSessionFromRequest(request);
+  // AdminProfile has no email column — email lives only in Supabase Auth,
+  // same reason app/api/auth/login/route.js resolves it via adminClient
+  // rather than a Prisma column.
+  const { data: userLookup } = await adminClient.auth.admin.getUserById(session.uid);
+  const requestedBy = userLookup?.user?.email ?? "unknown";
+  const requestedAt = new Date().toISOString();
 
   // Record the request so it shows up in Security Logs for audit purposes
   await logSecurityEvent({
     eventType: "admin_login_denied",
-    actor: session?.email ?? "unknown",
+    actor: requestedBy,
     request,
-    details: `Requested super-admin approval to end lockdown (vault: ${vaultCode})`,
+    details: `Requested vault-owner approval to end lockdown (vault: ${vaultCode})`,
   });
 
-  const result = await sendEmail("vault_access_request", {
-    requested_by: session?.email ?? "unknown",
-    vault_code: vaultCode,
-    requested_at: new Date().toISOString(),
+  // sendGeneralEmail is a single-template sender (services/emailjs.js) —
+  // there's no separate "vault_access_request" template, so the vault
+  // context is composed into its generic heading/intro/highlight fields.
+  const wasSent = await sendGeneralEmail({
+    toEmail: process.env.VAULT_OWNER_EMAIL ?? "",
+    subject: "Vault access request — approval needed",
+    heading: "Vault Access Requested",
+    eyebrow: "Security",
+    intro: `${requestedBy} is requesting approval to end vault lockdown ${vaultCode}.`,
+    highlightLine1: `Requested by: ${requestedBy}`,
+    highlightLine2: `Requested at: ${requestedAt}`,
+    bodyMessage: "Sign in to the Super-Admin dashboard to review and approve this request.",
   });
 
-  if (!result.success) {
+  if (!wasSent) {
     return NextResponse.json(
       { success: false, data: null, message: "Failed to notify super-admin. Please try again." },
       { status: 500 }

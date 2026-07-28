@@ -20,10 +20,15 @@
  *    /api/rooms/{roomId}/availability?excludeReferenceCode=... — the
  *    exclude param keeps the guest's OWN current dates from showing
  *    as "unavailable" on their own reschedule calendar
- * 3. Overnight bookings use RoomAvailabilityCalendar's normal range
- *    picker, but a night-count mismatch against the original stay is
- *    caught client-side (disables Confirm + shows a hint) before ever
- *    hitting the server's authoritative same-check
+ * 3. Overnight bookings use RoomAvailabilityCalendar's range picker, but
+ *    a single click now auto-completes the range using the SAME night
+ *    count as the original stay — matching HowToBookSection's one-tap
+ *    ease of use, instead of always requiring a second manual click
+ *    just to re-enable Confirm (see handleSelectRange's own comment for
+ *    why the pre-filled initial range made that second click necessary
+ *    before this fix). A night-count mismatch or an auto-complete
+ *    conflict is still caught client-side (disables Confirm + shows a
+ *    hint) before ever hitting the server's authoritative same-check
  * 4. Day Tour / Night Tour bookings force single-day selection — every
  *    click sets both checkIn and checkOut to that one day
  * 5. Confirm -> POST /api/bookings/manage/reschedule -> onRescheduled()
@@ -35,10 +40,22 @@ import { useEffect, useMemo, useState } from "react";
 import RoomAvailabilityCalendar from "@/app/visitor/booking/RoomAvailabilityCalendar";
 import "./ManageBookingWidget.css";
 
+function toDateKey(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function daysBetween(checkInKey, checkOutKey) {
   const checkIn = new Date(`${checkInKey}T00:00:00`);
   const checkOut = new Date(`${checkOutKey}T00:00:00`);
   return Math.round((checkOut - checkIn) / 86400000);
+}
+
+function addDaysKey(dateKey, days) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return toDateKey(new Date(year, month - 1, day + days));
 }
 
 export default function RebookCalendarModal({ booking, onClose, onRescheduled }) {
@@ -85,22 +102,70 @@ export default function RebookCalendarModal({ booking, onClose, onRescheduled })
     };
   }, [booking.roomId, booking.referenceCode]);
 
+  const unavailableSet = useMemo(() => new Set(unavailableDates), [unavailableDates]);
+
   // Day Tour / Night Tour: every click is a single-day pick — ignore
   // RoomAvailabilityCalendar's range-completion logic and just set
   // both dates to whichever day was clicked.
+  //
+  // Overnight: RoomAvailabilityCalendar reports newCheckOut === "" the
+  // moment a click starts a FRESH range (see its own handleDayClick —
+  // this fires on literally the first click here too, since the modal
+  // opens with a full range already pre-filled from the existing
+  // booking, which the calendar treats as "a range is already picked,
+  // so this click starts over"). Previously that meant Confirm went
+  // straight from enabled (unclicked, pre-filled) to disabled the
+  // instant the guest touched the calendar at all, needing a full
+  // second click just to get back to a valid, enabled state — reading
+  // exactly like "you have to click 2 dates before Confirm works."
+  // HowToBookSection's own calendar never has this problem because it
+  // only ever needs ONE tapped date to enable its Continue button.
+  // To match that same one-tap responsiveness here, a fresh single
+  // click now auto-completes the range using the SAME night count as
+  // the original stay (the one thing reschedule already requires
+  // anyway — see nightsMismatch below), so Confirm re-enables
+  // immediately without a second click in the common case. If that
+  // auto-computed checkout lands on a conflicting date, it's left
+  // blank instead — the guest can still complete the range manually
+  // with a second click, exactly as before.
   function handleSelectRange(newCheckIn, newCheckOut) {
-    if (isOvernight) {
-      setSelectedCheckIn(newCheckIn);
-      setSelectedCheckOut(newCheckOut);
-    } else {
+    if (!isOvernight) {
       setSelectedCheckIn(newCheckIn);
       setSelectedCheckOut(newCheckIn);
+      setErrorMessage(null);
+      return;
+    }
+
+    if (newCheckOut === "") {
+      const autoCheckOut = addDaysKey(newCheckIn, originalNights);
+      // Check every night between the new check-in and the auto
+      // checkout for a conflict — same "no unavailable date inside the
+      // range" guard RoomAvailabilityCalendar itself applies when a
+      // guest completes a range manually.
+      let cursor = newCheckIn;
+      let hasConflict = false;
+      while (cursor < autoCheckOut) {
+        if (unavailableSet.has(cursor)) {
+          hasConflict = true;
+          break;
+        }
+        cursor = addDaysKey(cursor, 1);
+      }
+      setSelectedCheckIn(newCheckIn);
+      setSelectedCheckOut(hasConflict ? "" : autoCheckOut);
+    } else {
+      setSelectedCheckIn(newCheckIn);
+      setSelectedCheckOut(newCheckOut);
     }
     setErrorMessage(null);
   }
 
   const selectedNights = selectedCheckIn && selectedCheckOut ? daysBetween(selectedCheckIn, selectedCheckOut) : null;
   const nightsMismatch = isOvernight && selectedNights !== null && selectedNights !== originalNights;
+  // Auto-complete (see handleSelectRange above) hit a conflict and left
+  // checkout blank — distinct from nightsMismatch, which only applies
+  // once both ends of a range are actually set.
+  const needsManualCheckout = isOvernight && Boolean(selectedCheckIn) && !selectedCheckOut;
   const canConfirm = isOvernight
     ? Boolean(selectedCheckIn && selectedCheckOut && !nightsMismatch)
     : Boolean(selectedCheckIn);
@@ -168,6 +233,11 @@ export default function RebookCalendarModal({ booking, onClose, onRescheduled })
         {nightsMismatch && (
           <p className="manageBookingError" role="alert">
             Please select {originalNights} night(s) to match your original booking.
+          </p>
+        )}
+        {needsManualCheckout && (
+          <p className="manageBookingError" role="alert">
+            We couldn't fit {originalNights} consecutive night(s) starting here — tap an end date to complete a different range.
           </p>
         )}
         {errorMessage && <p className="manageBookingError" role="alert">{errorMessage}</p>}

@@ -53,61 +53,8 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin, isValidVaultSetupKey } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
-import { rotateVaultPassphrase, VAULT_IDENTITY } from "@/services/vaultAuth";
-import { sendVaultPassphraseRotationEmail } from "@/services/emailAlert";
-import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
-
-/**
- * generateAndDistributePassphrase
- * Shared by both GET's auto-generate-on-first-check path and POST's
- * manual "generate new" click, so the two never drift into two
- * slightly different flows. Rotates the passphrase, emails the
- * plaintext, saves a copy to Cloudflare R2, and writes the audit
- * log entry — email and R2 are both best-effort (a failure in
- * either never blocks the owner from seeing the passphrase in the
- * response itself).
- *
- * @param actor  - VAULT_IDENTITY (key-based path) or the session's uid
- * @param reason - human-readable audit trail string, distinguishes
- *                 auto-generated (GET, nothing set yet) from a manual
- *                 rotation (POST, owner clicked "generate new")
- * @param request - forwarded to logSecurityEvent for IP/device capture
- * @param generatedByLabel - text used inside the R2 .txt file body
- */
-async function generateAndDistributePassphrase({ actor, reason, request, generatedByLabel }) {
-  const newPassphrase = await rotateVaultPassphrase();
-
-  // Email the plaintext to VAULT_OWNER_EMAIL — best-effort, reuses the
-  // exact same template the auto-rotation path uses (Rule: one
-  // template per email type, never duplicated per trigger).
-  const emailSent = await sendVaultPassphraseRotationEmail({ newPassphrase, reason });
-
-  // Save a .txt copy to Cloudflare R2 (private secrets/ key, never the
-  // public CDN URL — see services/vaultPassphraseBackup.js's header)
-  // as a second, durable place to find it later — also best-effort,
-  // independent of the email above. Uses the shared helper (Task 4)
-  // which retries once on failure before giving up, so a single
-  // transient R2 error no longer silently skips the backup the way the
-  // old one-shot upload did.
-  const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
-    newPassphrase,
-    generatedByLabel,
-  });
-
-  // Audit trail — this is a disaster-recovery credential, always
-  // logged with the admin (or the key-based VAULT_IDENTITY) who
-  // triggered it, distinct from the "vault_passphrase_rotated"
-  // auto-rotation event (actor: "vault") fired by breach response.
-  await logSecurityEvent({
-    eventType: "vault_passphrase_set",
-    actor,
-    request,
-    details: `${reason}. Email sent: ${emailSent}. Saved to R2: ${r2Saved}.`,
-  });
-
-  return { passphrase: newPassphrase, emailSent, r2Saved, r2SignedUrl };
-}
+import { VAULT_IDENTITY } from "@/services/vaultAuth";
+import { generateAndDistributePassphrase } from "@/services/vaultPassphrase";
 
 /**
  * GET

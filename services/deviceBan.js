@@ -18,7 +18,7 @@
 import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
 import { parseDeviceInfo } from "@/services/deviceFingerprint";
-import { getGeolocationFromIP } from "@/services/geoip";
+import { lookupGeoLocation } from "@/services/geoip";
 import crypto from "crypto";
 
 const BAN_THRESHOLDS = [
@@ -89,7 +89,7 @@ export async function isDeviceBanned(deviceFingerprint, ipAddress) {
 export async function recordFailedAttempt({ deviceFingerprint, ipAddress, request }) {
   const userAgent = request?.headers?.get("user-agent") ?? null;
   const deviceInfo = userAgent ? parseDeviceInfo(userAgent) : {};
-  const geoInfo = ipAddress ? getGeolocationFromIP(ipAddress) : {};
+  const geoInfo = ipAddress ? await lookupGeoLocation(ipAddress) : {};
 
   const existing = await prisma.bannedDevice.findFirst({
     where: { deviceFingerprint },
@@ -116,8 +116,8 @@ export async function recordFailedAttempt({ deviceFingerprint, ipAddress, reques
     deviceType: deviceInfo.deviceType,
     browserName: deviceInfo.browserName,
     osName: deviceInfo.osName,
-    geoCity: geoInfo.geoCity,
-    geoCountry: geoInfo.geoCountry,
+    geoCity: geoInfo.city,
+    geoCountry: geoInfo.countryCode,
   };
 
   const shouldCreateNewRow = !existing || wasCleared;

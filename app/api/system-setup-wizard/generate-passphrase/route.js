@@ -11,8 +11,7 @@
  * (services/setupWizardStatus.js) — this is the last step that
  * changes any state; Step 9 only verifies, Step 10 only confirms.
  *
- * Reuses generateAndDistributePassphrase() directly from
- * app/api/system-vault-setup/route.js (now exported for this reason)
+ * Reuses generateAndDistributePassphrase() from services/vaultPassphrase.js
  * instead of duplicating the rotate + email + R2-save + audit-log
  * flow a third time. Deliberately does NOT call that route over HTTP
  * with the x-vault-setup-key header — VAULT_SETUP_KEY and
@@ -73,7 +72,7 @@ import { prisma } from "@/services/prisma";
 import { isSetupWizardLocked } from "@/services/setupWizardStatus";
 import { hasWizardSession } from "@/services/wizardSession";
 import { logSecurityEvent } from "@/services/securityLog";
-import { generateAndDistributePassphrase } from "@/app/api/system-vault-setup/route";
+import { generateAndDistributePassphrase } from "@/services/vaultPassphrase";
 import { getVaultRecoveryUrl } from "@/services/vaultAuth";
 
 export async function GET(request) {

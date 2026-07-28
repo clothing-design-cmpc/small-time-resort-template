@@ -56,6 +56,19 @@ export default function ManageBookingWidget() {
     setErrorMessage(null);
   }
 
+  /**
+   * handleCancelledClose
+   * Closing the "Booking cancelled" success screen reloads the page —
+   * not just resetAndClose()'s state reset — so the calendars elsewhere
+   * on the page (HowToBookSection, BookedDatesSection) show the newly
+   * freed date immediately. Both fetch their booked-dates data via a
+   * client-side hook on mount only, so nothing else would prompt them
+   * to refetch after this widget's own cancel request succeeds.
+   */
+  function handleCancelledClose() {
+    window.location.reload();
+  }
+
   function handleOpen() {
     setIsModalOpen(true);
   }
@@ -251,7 +264,7 @@ export default function ManageBookingWidget() {
                 <p className="manageBookingSuccessSubtitle">
                   Your reservation has been cancelled and those dates are now free.
                 </p>
-                <button type="button" className="manageBookingSubmitButton" onClick={resetAndClose}>
+                <button type="button" className="manageBookingSubmitButton" onClick={handleCancelledClose}>
                   Close
                 </button>
               </div>

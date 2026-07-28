@@ -1,24 +1,25 @@
 /**
- * FILE: app/superAdmin/(protected)/content/rooms/new/page.jsx
+ * FILE: app/superAdmin/(protected)/content/rooms/page.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Create-room route. Fetches the amenities list server-side (fresh,
- * no cache) so RoomForm's amenity checkboxes are ready on first paint,
- * then hands off to the shared RoomForm in create mode.
+ * Rooms Management (blueprint Page 1). Lists every room with price,
+ * max guests, featured/active state, and row actions to edit or delete.
+ * "Add Room" links to the create form.
+ *
+ * DATA FLOW:
+ * 1. RoomsListClient (Client Component) owns the actual data fetching
+ *    via useRooms() since the list needs live delete/refetch behavior
+ * 2. This file is the thin Server Component route entry — no data
+ *    fetching happens here directly
  */
-import { prisma } from "@/services/prisma";
-import RoomForm from "../RoomForm";
+import "./Rooms.css";
+import RoomsListClient from "./RoomsListClient";
 
 export const metadata = {
-  title: "Add Room | Super-Admin | your-private-resort",
+  title: "Rooms | Super-Admin | your-private-resort",
 };
 
-export default async function NewRoomPage() {
-  const amenities = await prisma.amenity.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  return <RoomForm existingRoom={null} amenities={amenities} />;
+export default function RoomsManagementPage() {
+  return <RoomsListClient />;
 }

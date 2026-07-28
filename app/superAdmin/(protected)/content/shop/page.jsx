@@ -1,17 +1,25 @@
 /**
- * FILE: app/superAdmin/(protected)/content/shop/new/page.jsx
+ * FILE: app/superAdmin/(protected)/content/shop/page.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Create-product route. Hands off to the shared ShopProductForm in
- * create mode.
+ * Resort Shop Management (blueprint Page 3). Category-tabbed product
+ * list plus a Shop Configuration panel (hours, location, alcohol
+ * warning text). "Add Product" links to the create form.
+ *
+ * DATA FLOW:
+ * 1. ShopListClient (Client Component) owns data fetching via
+ *    useShopProducts() and useShopConfig()
+ * 2. This file is the thin Server Component route entry — no data
+ *    fetching happens here directly
  */
-import ShopProductForm from "../ShopProductForm";
+import "./Shop.css";
+import ShopListClient from "./ShopListClient";
 
 export const metadata = {
-  title: "Add Product | Super-Admin | your-private-resort",
+  title: "Resort Shop | Super-Admin | your-private-resort",
 };
 
-export default function NewShopProductPage() {
-  return <ShopProductForm existingProduct={null} />;
+export default function ShopManagementPage() {
+  return <ShopListClient />;
 }

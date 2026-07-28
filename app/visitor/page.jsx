@@ -1,37 +1,57 @@
 /**
- * FILE: app/visitor/directions/page.jsx
- * ROLE: Visitor — public, no auth required
+ * FILE: app/visitor/page.jsx
+ * ROLE: Visitor — public landing page
  *
  * PURPOSE:
- * "How to Get There" — thin Server Component shell around
- * DirectionsClient (villa-azure-ai-insight-and-directions-plan.txt,
- * Part 2). All interactivity (geolocation, reference code verification,
- * gated directions widget) lives in the Client Component below, per
- * Rule 31.1 — this file only renders the static intro copy and
- * metadata.
+ * Homepage that renders all visitor sections in sequence:
+ * Hero → About → Featured Rooms → Amenities → Mini Store →
+ * Testimonials → Activities → Gallery Preview → How to Book →
+ * Booked Dates
+ *
+ * DATA FLOW:
+ * 1. Visitor hits "/visitor"
+ * 2. Hero, About, AmenitiesHighlightSection, TestimonialsSection,
+ *    ActivitiesHighlightSection, and GalleryPreviewSection are all
+ *    Server Components that read their data directly via Prisma —
+ *    same pattern app/visitor/policies/page.jsx uses. MiniStoreSection
+ *    is a Client Component that fetches from /api/shop.
+ * 3. BookedDatesSection is a Client Component — it owns interactive
+ *    calendar state locally, no SSR data needed
  */
-import "./Directions.css";
-import DirectionsClient from "./DirectionsClient";
+import Hero from "@/components/Hero";
+import About from "@/components/About";
+import FeaturedRoomsSection from "@/components/sections/FeaturedRoomsSection";
+import AmenitiesHighlightSection from "@/components/sections/AmenitiesHighlightSection";
+import MiniStoreSection from "@/components/sections/MiniStoreSection";
+import TestimonialsSection from "@/components/sections/TestimonialsSection";
+import ActivitiesHighlightSection from "@/components/sections/ActivitiesHighlightSection";
+import GalleryPreviewSection from "@/components/sections/GalleryPreviewSection";
+import HowToBookSection from "@/components/sections/HowToBookSection";
+import BookedDatesSection from "@/components/sections/BookedDatesSection";
 
 export const metadata = {
-  title: "How to Get There | your-private-resort",
-  description: "Get turn-by-turn directions to your-private-resort using your booking reference code.",
+  title: "your-private-resort | Home",
+  description: "A private resort offering an intimate escape — one room, thoughtful care, and the quiet of the countryside.",
+  openGraph: {
+    title: "your-private-resort",
+    description: "A private resort offering an intimate escape.",
+    images: ["/images/og-villa-azure.jpg"],
+  },
 };
 
-export default function DirectionsPage() {
+export default function VisitorHomePage() {
   return (
-    <main className="directionsPage">
-      <section className="directionsHero">
-        <span className="directionsEyebrow">FOR CONFIRMED GUESTS</span>
-        <h1 className="directionsTitle">How to Get There</h1>
-        <p className="directionsSubtitle">
-          Enter the reference code from your booking invoice to unlock turn-by-turn directions
-          to your-private-resort from your current location.
-        </p>
-        <div className="directionsContainer">
-          <DirectionsClient />
-        </div>
-      </section>
+    <main>
+      <Hero />
+      <About />
+      <FeaturedRoomsSection />
+      <AmenitiesHighlightSection />
+      <MiniStoreSection />
+      <TestimonialsSection />
+      <ActivitiesHighlightSection />
+      <GalleryPreviewSection />
+      <HowToBookSection />
+      <BookedDatesSection />
     </main>
   );
 }

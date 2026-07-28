@@ -40,6 +40,20 @@ function daysBetween(a, b) {
 }
 
 /**
+ * combineDateAndTime
+ * Builds a real Date/moment from a calendar date + a rule's "HH:mm"
+ * time string (checkInTime, dayTourStartTime, etc). Used only for the
+ * Same-Day Check-In Policy comparison below — never mutates the input
+ * date.
+ */
+function combineDateAndTime(date, hhmm) {
+  const [hour, minute] = String(hhmm).split(":").map(Number);
+  const moment = new Date(date);
+  moment.setHours(hour || 0, minute || 0, 0, 0);
+  return moment;
+}
+
+/**
  * findSeasonalRate
  * Returns the overriding per-night rate for `date` from `seasonalPrices`
  * if one of the room's seasonal ranges covers it, otherwise null.
@@ -192,6 +206,60 @@ export async function validateAndQuoteBooking({
     }
   }
 
+  // --- Same-Day Check-In Policy (BookingRule.sameDayPolicy) ---
+  // Only relevant when the requested check-in date is TODAY and the
+  // clock has already passed this rule's normal start time for the
+  // chosen booking type — a future-dated booking is never affected no
+  // matter what time it is right now. Each type is checked against its
+  // own start/end time pair (overnight uses checkInTime/checkOutTime;
+  // Day/Night Tour use their own tour start/end times).
+  let effectiveCheckInAt = null;
+  let effectiveCheckOutAt = null;
+
+  if (checkIn.getTime() === today.getTime()) {
+    const startTimeByType = {
+      overnight: rules.checkInTime,
+      day_tour: rules.dayTourStartTime,
+      night_tour: rules.nightTourStartTime,
+    };
+    const endTimeByType = {
+      overnight: rules.checkOutTime,
+      day_tour: rules.dayTourEndTime,
+      night_tour: rules.nightTourEndTime,
+    };
+    const ruleStartMoment = combineDateAndTime(checkIn, startTimeByType[bookingType]);
+    const now = new Date();
+
+    if (now > ruleStartMoment) {
+      if (rules.sameDayPolicy === "auto_adjust") {
+        // Shift the effective check-in to right now, and push the
+        // checkout moment forward by the exact same delay so the
+        // guest's paid duration never shrinks just because they're
+        // arriving later than the rule's normal start time.
+        const originalCheckOutMoment = combineDateAndTime(checkOut, endTimeByType[bookingType]);
+        const delayMs = now.getTime() - ruleStartMoment.getTime();
+
+        effectiveCheckInAt = now;
+        effectiveCheckOutAt = new Date(originalCheckOutMoment.getTime() + delayMs);
+
+        // If the shifted checkout moment lands on a different calendar
+        // day than the rule's original checkout day, the booking's
+        // checkOutDate itself must move forward to match — this is the
+        // "and the date too" part of the auto-adjust behavior.
+        if (toDateKey(effectiveCheckOutAt) !== toDateKey(originalCheckOutMoment)) {
+          checkOut = startOfDay(effectiveCheckOutAt);
+        }
+      } else {
+        // "strict" (default) — the rule's start time for today has
+        // already passed; refuse the booking outright rather than
+        // silently reinterpreting the rule everyone else books under.
+        throw new Error(
+          `Check-in time for today (${startTimeByType[bookingType]}) has already passed. Please choose a different date or contact us directly.`
+        );
+      }
+    }
+  }
+
   // --- Type-exclusivity check against existing confirmed bookings ---
   // Uses `client` (not the global `prisma`) so this read happens inside the
   // same transaction as the eventual booking.create() in
@@ -319,6 +387,12 @@ export async function validateAndQuoteBooking({
     depositRequired: rules.depositRequired,
     checkInTime: rules.checkInTime,
     checkOutTime: rules.checkOutTime,
+    // Non-null only when Same-Day Check-In Policy auto-adjusted this
+    // specific booking (see block above) — the create route persists
+    // these onto the Booking row; the quote preview route just returns
+    // them as-is so the visitor form can show "Adjusted check-in: ..."
+    effectiveCheckInAt: effectiveCheckInAt ? effectiveCheckInAt.toISOString() : null,
+    effectiveCheckOutAt: effectiveCheckOutAt ? effectiveCheckOutAt.toISOString() : null,
     cancellationCutoffDays: rules.cancellationCutoffDays,
     refundPercentage: rules.refundPercentage,
     room: room ? { id: room.id, name: room.name, pricePerNight: Number(room.pricePerNight) } : null,

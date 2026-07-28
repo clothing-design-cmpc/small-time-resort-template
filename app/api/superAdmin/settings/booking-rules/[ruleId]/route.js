@@ -87,6 +87,7 @@ export async function PUT(request, { params }) {
         howManySelectedDates: Array.isArray(body.ruleDates) ? body.ruleDates.length : undefined,
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
+        sameDayPolicy: body.sameDayPolicy,
         cleaningHours: body.cleaningHours,
         allowOvernightStay: bookingTypeFlags.allowOvernightStay,
         allowDayTour: bookingTypeFlags.allowDayTour,

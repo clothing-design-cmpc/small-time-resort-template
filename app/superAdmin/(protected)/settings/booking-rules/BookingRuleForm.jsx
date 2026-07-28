@@ -201,6 +201,9 @@ const bookingRuleSchema = z.object({
   packageInclusions: z.array(z.string()).default([]),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
+  // Same-Day Check-In Policy — see prisma/schema.prisma BookingRule.sameDayPolicy
+  // comment for the full "strict" vs "auto_adjust" behavior.
+  sameDayPolicy: z.enum(["strict", "auto_adjust"]),
   allowOvernightStay: z.boolean(),
   allowDayTour: z.boolean(),
   allowNightTour: z.boolean(),
@@ -247,6 +250,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   packageInclusions: [],
   checkInTime: "14:00",
   checkOutTime: "11:00",
+  sameDayPolicy: "strict",
   allowOvernightStay: true,
   allowDayTour: false,
   allowNightTour: false,
@@ -294,6 +298,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           packageInclusions: existingRule.packageInclusions ?? [],
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
+          sameDayPolicy: existingRule.sameDayPolicy ?? "strict",
           allowOvernightStay: existingRule.allowOvernightStay,
           allowDayTour: existingRule.allowDayTour,
           allowNightTour: existingRule.allowNightTour,
@@ -432,6 +437,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
   const allowOvernightStay = watch("allowOvernightStay");
   const allowDayTour = watch("allowDayTour");
   const allowNightTour = watch("allowNightTour");
+  const sameDayPolicy = watch("sameDayPolicy");
   // Read by the "Total Hours of Stay" dropdowns below — each dropdown
   // shows the currently implied duration (start -> end) and, on
   // change, recomputes the matching end time field.
@@ -718,6 +724,39 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                 ))}
               </div>
             )}
+          </div>
+
+          {/* --- Same-Day Check-In Policy — applies to whichever booking
+              type is selected below (Overnight, Day Tour, or Night
+              Tour). Governs what happens when a guest books for TODAY
+              after this rule's normal start time has already passed.
+              See prisma/schema.prisma BookingRule.sameDayPolicy and
+              services/bookingPricing.js for the enforcement logic. --- */}
+          <div className="bookingRulesSubPanel">
+            <p className="bookingRulesSubPanelTitle">Same-Day Check-In Policy</p>
+            <p className="bookingRulesHint">
+              Ano ang gagawin kapag nag-book ang guest ngayong araw pero lampas na sa normal na check-in time?
+            </p>
+            <div className="bookingRulesToggleRow">
+              <label className="bookingRulesToggle">
+                <input
+                  type="radio"
+                  name="sameDayPolicy"
+                  checked={sameDayPolicy === "strict"}
+                  onChange={() => setValue("sameDayPolicy", "strict", { shouldValidate: true })}
+                />
+                Strict — huwag payagan, ipakita ang error
+              </label>
+              <label className="bookingRulesToggle">
+                <input
+                  type="radio"
+                  name="sameDayPolicy"
+                  checked={sameDayPolicy === "auto_adjust"}
+                  onChange={() => setValue("sameDayPolicy", "auto_adjust", { shouldValidate: true })}
+                />
+                Auto-Adjust — gamitin ang current time bilang check-in, i-shift ang check-out
+              </label>
+            </div>
           </div>
 
           {/* --- Rule 1: exactly one date selected --- */}

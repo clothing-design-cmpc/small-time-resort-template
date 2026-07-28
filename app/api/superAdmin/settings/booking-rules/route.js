@@ -74,6 +74,7 @@ export async function POST(request) {
         howManySelectedDates: Array.isArray(body.ruleDates) ? body.ruleDates.length : undefined,
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
+        sameDayPolicy: body.sameDayPolicy,
         cleaningHours: body.cleaningHours,
         // Visitor-facing guest count for this rule set — read by the
         // public reservation page (app/visitor/booking/ReservationSummaryClient.jsx)

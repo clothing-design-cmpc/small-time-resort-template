@@ -193,6 +193,19 @@ model Booking {
   // priced this stay.
   howManySelectedDates Int @default(0) @map("how_many_selected_dates")
 
+  // --- Same-Day Auto-Adjust snapshot (only ever set when the rule that
+  // priced this booking had sameDayPolicy = "auto_adjust" AND the guest
+  // booked today after the rule's normal start time for this booking
+  // type). Records the ACTUAL check-in/check-out moments used for THIS
+  // specific booking. Null for every booking made under "strict", or
+  // made for a future date, where the rule's own checkInTime/
+  // checkOutTime (or tour start/end times) apply unchanged. Kept on the
+  // booking itself — never on the shared BookingRule row — since the
+  // adjustment belongs to this one guest's late arrival, not a change
+  // to the rule every other guest still books under.
+  effectiveCheckInAt  DateTime? @map("effective_check_in_at")
+  effectiveCheckOutAt DateTime? @map("effective_check_out_at")
+
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])
@@ -504,6 +517,23 @@ model BookingRule {
   advanceBookingDays Int    @default(365) @map("advance_booking_days") // guests can book at most this many days ahead
   checkInTime        String @default("14:00") @map("check_in_time") // 24h "HH:mm"
   checkOutTime       String @default("11:00") @map("check_out_time") // 24h "HH:mm"
+
+  // --- Same-Day Check-In Policy — governs what happens when a guest
+  // tries to book for TODAY after this rule's normal start time for the
+  // chosen booking type has already passed (e.g. checkInTime is 14:00
+  // but the guest is submitting the booking at 16:00 today).
+  //   "strict"      — refuse the booking outright with a clear message.
+  //                   The rule's start time is never reinterpreted.
+  //   "auto_adjust" — accept the booking, treat the current moment as
+  //                   the guest's actual check-in, and push the
+  //                   checkout moment (and checkout DATE, if the shift
+  //                   crosses midnight) forward by that same delay so
+  //                   the paid duration never shrinks.
+  // Applies uniformly across Overnight, Day Tour, and Night Tour — each
+  // type is checked against its own start time (checkInTime /
+  // dayTourStartTime / nightTourStartTime respectively). See
+  // services/bookingPricing.js for the enforcement logic.
+  sameDayPolicy String @default("strict") @map("same_day_policy") // "strict" | "auto_adjust"
 
   // --- Rule Schedule — which specific calendar dates this rule set's
   //     Section 1 settings apply to. Stored as "YYYY-MM-DD" keys.

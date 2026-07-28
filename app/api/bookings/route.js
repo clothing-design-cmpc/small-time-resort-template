@@ -105,6 +105,14 @@ async function createBookingInTransaction(payload, attempt = 0) {
             // so it's clear afterward which specific rule set (e.g.
             // "4Ds-3Ns") priced this booking. See services/bookingPricing.js.
             howManySelectedDates: quote.howManySelectedDates,
+            // Only non-null when the active rule's Same-Day Check-In
+            // Policy is "auto_adjust" and this booking was submitted
+            // today after the rule's normal start time — see
+            // services/bookingPricing.js. Null otherwise, meaning the
+            // rule's own checkInTime/checkOutTime (or tour start/end
+            // times) apply unchanged.
+            effectiveCheckInAt: quote.effectiveCheckInAt ? new Date(quote.effectiveCheckInAt) : null,
+            effectiveCheckOutAt: quote.effectiveCheckOutAt ? new Date(quote.effectiveCheckOutAt) : null,
             notes: payload.notes || null,
             status: "confirmed",
             referenceCode,

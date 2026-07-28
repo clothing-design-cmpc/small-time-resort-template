@@ -37,36 +37,36 @@ const supabaseAdmin = createClient(
 async function seedRooms() {
   const rooms = [
     {
-      name: "Ocean View Villa",
-      slug: "ocean-view-villa",
+      name: "Farmhouse Villa",
+      slug: "farmhouse-villa",
       description:
-        "A private villa with an infinity pool overlooking the bay, floor-to-ceiling windows, and a king-size bed.",
-      pricePerNight: 18500.0,
+        "A private villa overlooking the rice paddies, with floor-to-ceiling windows, a wraparound porch, and a queen-size bed.",
+      pricePerNight: 4500.0,
       capacity: 2,
       imageUrl:
-        "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1499696010180-025ef6e1a8f9?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 1,
     },
     {
-      name: "Garden Suite",
-      slug: "garden-suite",
+      name: "Garden Cottage",
+      slug: "garden-cottage",
       description:
-        "A quiet suite surrounded by tropical gardens, with an outdoor rain shower and a private lanai.",
-      pricePerNight: 9800.0,
+        "A quiet cottage surrounded by fruit trees and vegetable beds, with a small porch and an outdoor sink.",
+      pricePerNight: 2800.0,
       capacity: 2,
       imageUrl:
         "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 2,
     },
     {
-      name: "Family Beach House",
-      slug: "family-beach-house",
+      name: "Family Farmhouse",
+      slug: "family-farmhouse",
       description:
-        "A two-bedroom beachfront house with a full kitchen, living area, and direct beach access — ideal for families.",
-      pricePerNight: 26500.0,
+        "A two-bedroom farmhouse with a full kitchen, living area, and a short walk to the basketball court and playground — ideal for families.",
+      pricePerNight: 6800.0,
       capacity: 6,
       imageUrl:
-        "https://images.unsplash.com/photo-1602343168117-bb8ffe3e2e9f?auto=format&fit=crop&w=1600&q=80",
+        "https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=1600&q=80",
       sortOrder: 3,
     },
   ];
@@ -88,12 +88,11 @@ async function seedRooms() {
  */
 async function seedAmenities() {
   const amenities = [
-    { name: "Infinity Pool", description: "Adults-only infinity pool overlooking the ocean, open until 10pm.", icon: "waves", sortOrder: 1 },
-    { name: "Spa Cabana", description: "Private open-air cabanas for massages and treatments.", icon: "flower-2", sortOrder: 2 },
-    { name: "Beachfront Dining", description: "Fresh seafood and local dishes served steps from the shoreline.", icon: "utensils", sortOrder: 3 },
-    { name: "Water Sports Center", description: "Kayaks, paddleboards, and snorkeling gear available daily.", icon: "anchor", sortOrder: 4 },
-    { name: "Fitness Pavilion", description: "Open-air gym with ocean views, open 24 hours.", icon: "dumbbell", sortOrder: 5 },
-    { name: "Kids Club", description: "Supervised activities for children ages 4–12, daily 9am–5pm.", icon: "toy-brick", sortOrder: 6 },
+    { name: "Karaoke KTV", description: "A private videoke room stocked with a song catalog for family sing-alongs day or night.", icon: "mic-2", sortOrder: 1 },
+    { name: "Basketball Court", description: "A full outdoor half-court open to all guests — bring your own ball or borrow one at reception.", icon: "circle-dot", sortOrder: 2 },
+    { name: "Mini Kitchen", description: "A shared cooking area with a gas stove, sink, and basic cookware for guests who want to prepare their own meals.", icon: "cooking-pot", sortOrder: 3 },
+    { name: "Children's Playground", description: "A small, fenced play area with slides and swings, right next to the picnic huts.", icon: "toy-brick", sortOrder: 4 },
+    { name: "BBQ Area", description: "Open-air grilling stations with charcoal on hand — perfect for a family cookout after a swim.", icon: "flame", sortOrder: 5 },
   ];
 
   await prisma.amenity.deleteMany();
@@ -114,12 +113,12 @@ async function seedAmenities() {
  */
 async function seedStoreProducts() {
   const products = [
-    { name: "Craft Pale Ale", description: "A local Philippine craft ale brewed with Benguet hops. Light, citrusy, and cold — best enjoyed poolside or at the gazebo bar after sunset.", price: 180.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=600&q=80", sortOrder: 1 },
-    { name: "House Red Wine", description: "A smooth Chilean Merlot selected by the resort as its house pour. Pairs with the villa's evening charcuterie set. Available by the glass or bottle.", price: 320.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80", sortOrder: 2 },
-    { name: "Premium Rum", description: "Aged dark rum from Negros Occidental, straight or over ice. The bar also mixes it into the resort's signature mojito with fresh mint from the garden.", price: 280.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1569529465841-dfecdab7503b?auto=format&fit=crop&w=600&q=80", sortOrder: 3 },
-    { name: "Fresh Buko Juice", description: "Young coconut water served straight from the shell, chilled and cut to order. Naturally sweet, no added sugar. Sourced daily from the resort's own coconut grove.", price: 120.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1758186989205-20afdf8d2665?auto=format&fit=crop&w=600&q=80", sortOrder: 4 },
-    { name: "Sparkling Water", description: "San Pellegrino sparkling mineral water, 750ml. Cold, clean, and fizzy. Available at reception anytime or delivered to the villa on request.", price: 95.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=600&q=80", sortOrder: 5 },
-    { name: "Mango Soda", description: "Local canned mango soda made from Philippine carabao mangoes. Bright, sweet, and nostalgic. A resort favorite with kids and adults alike.", price: 80.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80", sortOrder: 6 },
+    { name: "Charcoal (Uling)", description: "A sack of cooking-grade charcoal for the BBQ area's grilling stations. Ready to light at check-in.", price: 150.0, category: "grill", imageUrl: "https://images.unsplash.com/photo-1604335399105-a0c585fd81a1?auto=format&fit=crop&w=600&q=80", sortOrder: 1 },
+    { name: "Coca-Cola", description: "Ice-cold Coca-Cola in the classic bottle. Sold at the shop, chilled and ready to grab.", price: 45.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=600&q=80", sortOrder: 2 },
+    { name: "Sprite", description: "Crisp, lemon-lime Sprite, served ice-cold from the resort shop.", price: 45.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80", sortOrder: 3 },
+    { name: "Royal", description: "Royal Tru-Orange soda, a Filipino classic — sweet, fruity, and always cold at the shop.", price: 45.0, category: "beverage", imageUrl: "https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=600&q=80", sortOrder: 4 },
+    { name: "Plastic Cups (Pack of 10)", description: "Disposable plastic cups for drinks around the pavilion or BBQ area — sold by the pack of 10.", price: 40.0, category: "supplies", imageUrl: "https://images.unsplash.com/photo-1620403305510-6b8cd0e4c9cc?auto=format&fit=crop&w=600&q=80", sortOrder: 5 },
+    { name: "Plastic Utensils (Pack of 10)", description: "Disposable spoons and forks, sold by the pack of 10 — handy for the BBQ area and mini kitchen.", price: 40.0, category: "supplies", imageUrl: "https://images.unsplash.com/photo-1608219994488-cc0e0e6c6c0e?auto=format&fit=crop&w=600&q=80", sortOrder: 6 },
   ];
 
   await prisma.storeProduct.deleteMany();
@@ -135,11 +134,11 @@ async function seedStoreProducts() {
  */
 async function seedActivities() {
   const activities = [
-    { name: "Sunset Catamaran Sail", description: "A guided two-hour sail along the coastline as the sun goes down, with light snacks and drinks included.", duration: "2 hours", minGroupSize: 2, maxGroupSize: 12, imageUrl: "https://images.unsplash.com/photo-1500627964684-141351970a7f?auto=format&fit=crop&w=800&q=80", isFeatured: true, sortOrder: 1 },
-    { name: "Guided Snorkeling Tour", description: "Explore the resort's house reef with a certified guide, gear included. Great for beginners and experienced snorkelers alike.", duration: "1.5 hours", minGroupSize: 1, maxGroupSize: 8, imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80", isFeatured: true, sortOrder: 2 },
-    { name: "Island Hopping Day Trip", description: "Visit three nearby islands by outrigger boat, with a beach lunch stop. Departs from the resort's private dock.", duration: "Full day", minGroupSize: 2, maxGroupSize: 15, imageUrl: "https://images.unsplash.com/photo-1544644181-1484b3fdfc32?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 3 },
-    { name: "Sunrise Yoga on the Beach", description: "A gentle, all-levels yoga session on the sand as the sun rises over the water. Mats provided.", duration: "1 hour", minGroupSize: 1, maxGroupSize: 20, imageUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 4 },
-    { name: "Kayak & Mangrove Tour", description: "Paddle through the calm mangrove channels behind the resort with a local guide pointing out native wildlife.", duration: "2 hours", minGroupSize: 1, maxGroupSize: 6, imageUrl: "https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 5 },
+    { name: "Karaoke Night", description: "Book the KTV room for a few hours and belt out your favorites with the family — song list included.", duration: "2 hours", minGroupSize: 2, maxGroupSize: 12, imageUrl: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=800&q=80", isFeatured: true, sortOrder: 1 },
+    { name: "Pick-Your-Own Harvest", description: "Walk the farm rows with a caretaker and pick fresh vegetables and fruit in season to take home or cook on-site.", duration: "1 hour", minGroupSize: 1, maxGroupSize: 10, imageUrl: "https://images.unsplash.com/photo-1500651230702-0e2d8a49d4ad?auto=format&fit=crop&w=800&q=80", isFeatured: true, sortOrder: 2 },
+    { name: "Family BBQ Cookout", description: "Grill your own food at the BBQ area — charcoal, grills, and picnic tables provided, just bring what you'd like to cook.", duration: "Half day", minGroupSize: 2, maxGroupSize: 15, imageUrl: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 3 },
+    { name: "Basketball Pick-Up Games", description: "Open half-court games for guests of all ages — grab a ball at reception and shoot around anytime.", duration: "1 hour", minGroupSize: 1, maxGroupSize: 10, imageUrl: "https://images.unsplash.com/photo-1546519638-68e109498ffd?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 4 },
+    { name: "Farm Animal Feeding", description: "Visit the small animal pens with a caretaker and help feed the chickens, goats, and ducks — a hit with the kids.", duration: "45 minutes", minGroupSize: 1, maxGroupSize: 10, imageUrl: "https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=800&q=80", isFeatured: false, sortOrder: 5 },
   ];
 
   await prisma.activity.deleteMany();
@@ -159,9 +158,9 @@ async function seedSystemSettings() {
   const content = {
     // --- Our Story / About ---
     aboutEyebrow: "Our Story",
-    aboutTitle: "A Family Legacy, Built on the Shore",
+    aboutTitle: "A Family Legacy, Built on the Farm",
     aboutPageContent:
-      "Villa Azure Resort began in 2008 as a single beachfront cottage, built by hand by the founding family who wanted to share their piece of the coastline with travelers looking for quiet, unhurried days by the water. What started as three rooms and a small dining nipa hut has grown, over more than a decade, into the resort you see today — without losing the personal, family-run feel that guests kept coming back for.\n\nEvery villa and suite on the property was designed to feel like a private retreat rather than a hotel room, and every member of our team — from the kitchen to housekeeping to the boat crew — has been with us for years, not months. We believe hospitality is remembered in small details: a name remembered, a favorite table saved, a quiet recommendation for where to watch the sunset. That's the experience we still aim to give every guest who walks through our gate.",
+      "Casa Bukid Farm Resort began in 2008 as a single farmhouse, built by hand by the founding family who wanted to share their piece of countryside with travelers looking for quiet, unhurried days away from the city. What started as three rooms and a small dining nipa hut has grown, over more than a decade, into the resort you see today — without losing the personal, family-run feel that guests kept coming back for.\n\nEvery villa and cottage on the property was designed to feel like a private retreat rather than a hotel room, and every member of our team — from the kitchen to housekeeping to the farm caretakers — has been with us for years, not months. We believe hospitality is remembered in small details: a name remembered, a favorite table saved, a quiet recommendation for the best time to visit the animal pens. That's the experience we still aim to give every guest who walks through our gate.",
     aboutDifferentiator1Title: "Family-Owned Since Day One",
     aboutDifferentiator1Body:
       "No corporate chain, no franchise — every decision, from the menu to the room design, is made by the family that built this place.",
@@ -170,11 +169,11 @@ async function seedSystemSettings() {
       "Most of our staff have been with the resort for years, which means genuinely warm, familiar service instead of a rotating cast of strangers.",
     aboutDifferentiator3Title: "Private, Never Crowded",
     aboutDifferentiator3Body:
-      "We deliberately keep room count low and book the villa exclusively per stay, so you're never sharing the beach with another group.",
+      "We deliberately keep room count low and book the property exclusively per stay, so you're never sharing the grounds with another group.",
 
     // --- Policies ---
     houseRules:
-      "1. Check-in is from 2:00 PM and check-out is by 12:00 PM. Early check-in and late check-out are available on request, subject to availability.\n2. The resort is a family-friendly property — please be mindful of noise levels after 10:00 PM, especially near neighboring villas.\n3. Outside food and beverages are welcome for personal consumption; corkage does not apply for personal use.\n4. Pets are not permitted on the property at this time.\n5. Smoking is only allowed in designated outdoor areas — never inside villas or suites.\n6. Guests are responsible for any damage to resort property caused during their stay.\n7. Use of resort water sports equipment (kayaks, paddleboards, snorkeling gear) requires a basic swimming ability and is at the guest's own risk.\n8. The resort reserves the right to refuse service or ask guests to leave in cases of behavior that endangers other guests or staff.",
+      "1. Check-in is from 2:00 PM and check-out is by 12:00 PM. Early check-in and late check-out are available on request, subject to availability.\n2. The resort is a family-friendly property — please be mindful of noise levels after 10:00 PM, especially near the karaoke room.\n3. Outside food and beverages are welcome for personal consumption; corkage does not apply for personal use.\n4. Pets are not permitted on the property at this time.\n5. Smoking is only allowed in designated outdoor areas — never inside villas or cottages.\n6. Guests are responsible for any damage to resort property caused during their stay.\n7. Use of the basketball court and children's playground is at the guest's own risk — please supervise young children at all times.\n8. Charcoal and grills at the BBQ area must be handled with care; guests are responsible for fully extinguishing coals after use.\n9. The resort reserves the right to refuse service or ask guests to leave in cases of behavior that endangers other guests or staff.",
     bookingPoliciesIntro:
       "These are the terms that apply to every reservation made through our website, whether for an Overnight stay, Day Tour, or Night Tour.",
     bookingPolicies:
@@ -202,13 +201,13 @@ async function seedSystemSettings() {
 
     // --- Contact Info ---
     resortPhone: "+63 917 000 0000",
-    resortEmail: "reservations@villaazureresort.com",
-    resortAddress: "Barangay Seaside, Nasugbu, Batangas, Philippines",
+    resortEmail: "reservations@casabukidfarmresort.com",
+    resortAddress: "Barangay Bukid, Silang, Cavite, Philippines",
 
     // --- Homepage Copy ---
-    heroEyebrow: "Welcome to Villa Azure",
-    heroTitle: "Your Private Escape by the Sea",
-    heroTagline: "Experience Luxury, Away From It All",
+    heroEyebrow: "Welcome to Casa Bukid",
+    heroTitle: "Your Private Escape in the Countryside",
+    heroTagline: "Fresh Air, Farm Views, and Family Time",
     ctaSectionHeading: "Ready to Plan Your Stay?",
     ctaSectionSubtext: "Villas book up quickly during peak season — reserve your dates today.",
     ctaButtonText: "Plan Your Stay",
@@ -216,21 +215,21 @@ async function seedSystemSettings() {
     // --- Section Headers ---
     roomsEyebrow: "Accommodations",
     roomsTitle: "Rooms & Villas",
-    roomsSubtitle: "Each space is designed for privacy, comfort, and an unobstructed view of the water.",
+    roomsSubtitle: "Each space is designed for privacy, comfort, and a view of the surrounding farmland.",
     amenitiesEyebrow: "Resort Amenities",
     amenitiesTitle: "Everything You Need, Steps Away",
-    amenitiesSubtitle: "From the pool to the spa, every amenity is included in your stay.",
+    amenitiesSubtitle: "From the KTV room to the basketball court, every amenity is included in your stay.",
     shopEyebrow: "Resort Shop",
-    shopTitle: "Drinks & Refreshments",
-    shopSubtitle: "Order to your villa or pick up at the poolside bar.",
+    shopTitle: "Farm Store & Essentials",
+    shopSubtitle: "Grab charcoal, cold drinks, and party supplies at the shop — no need to bring everything from home.",
     shopFootnote: "Prices are in Philippine Peso (₱) and subject to change.",
     testimonialsEyebrow: "Guest Reviews",
     testimonialsTitle: "What Our Guests Say",
     activitiesEyebrow: "Things To Do",
     activitiesTitle: "Activities & Experiences",
-    activitiesSubtitle: "Guided tours and experiences you can book alongside your stay.",
+    activitiesSubtitle: "Farm activities and experiences you can enjoy alongside your stay.",
     galleryEyebrow: "Gallery",
-    galleryTitle: "A Glimpse of Villa Azure",
+    galleryTitle: "A Glimpse of Casa Bukid",
     bookedDatesEyebrow: "Availability",
     bookedDatesTitle: "Check Booked Dates",
     bookedDatesSubtitle: "See which dates are already reserved before you plan your stay.",
@@ -239,9 +238,9 @@ async function seedSystemSettings() {
     policiesSubtitle: "Please review our house rules and booking terms before reserving.",
 
     // --- SEO ---
-    siteTitle: "Villa Azure Resort",
+    siteTitle: "Casa Bukid Farm Resort",
     siteDescription:
-      "A private, family-run beachfront resort in Batangas offering exclusive villas, guided island activities, and unhurried days by the sea.",
+      "A private, family-run farm resort in Cavite offering exclusive villas, karaoke, basketball, BBQ, and unhurried days in the countryside.",
   };
 
   await prisma.systemSettings.upsert({
@@ -319,8 +318,8 @@ async function seedSuperAdmin() {
     // account (from SEED_ADMIN_EMAIL), so it's always the real owner.
     // Any additional staff accounts created later (outside this
     // script) should be left at the isOwner default (false).
-    update: { fullName: "Villa Azure Admin", role: "super_admin", isOwner: true },
-    create: { id: authUser.id, fullName: "Villa Azure Admin", role: "super_admin", isOwner: true },
+    update: { fullName: "Casa Bukid Admin", role: "super_admin", isOwner: true },
+    create: { id: authUser.id, fullName: "Casa Bukid Admin", role: "super_admin", isOwner: true },
   });
   console.log(`✓ Linked admin_profiles for ${email}`);
 }

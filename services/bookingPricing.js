@@ -192,23 +192,41 @@ export async function validateAndQuoteBooking({
     }
   }
 
-  // --- Overlap checks against existing confirmed bookings + blackout dates (overnight only) ---
+  // --- Type-exclusivity check against existing confirmed bookings ---
   // Uses `client` (not the global `prisma`) so this read happens inside the
   // same transaction as the eventual booking.create() in
   // app/api/bookings/route.js — the Serializable isolation level then makes
   // Postgres itself detect if a concurrent request already booked these
   // dates between this read and that write.
+  //
+  // Exclusivity rule (villa is booked for exclusive use per stay):
+  //   - Overnight conflicts with ANY existing confirmed booking (Overnight,
+  //     Day Tour, or Night Tour) that falls within its date range — the
+  //     villa is committed to another visit, regardless of type or room.
+  //   - Day Tour and Night Tour do NOT conflict with each other — a
+  //     daytime visit and a separate evening visit the same date don't
+  //     overlap in time, so both can be confirmed for the same date.
+  //   - Day Tour and Night Tour DO conflict with an existing Overnight
+  //     booking on that date — the villa is already exclusively occupied.
   if (bookingType === "overnight" && roomId) {
     const existingBookings = await client.booking.findMany({
-      where: { roomId, status: "confirmed" },
-      select: { checkInDate: true, checkOutDate: true },
+      where: { status: "confirmed" },
+      select: { checkInDate: true, checkOutDate: true, bookingType: true },
     });
 
-    const requestedOverlaps = existingBookings.some(
-      (existing) => checkIn < existing.checkOutDate && checkOut > existing.checkInDate
-    );
+    // Day Tour / Night Tour bookings occupy exactly one date
+    // (checkInDate === checkOutDate) — treat that single date as
+    // occupying [date, date+1) for the same half-open range comparison
+    // used for Overnight-vs-Overnight overlap below.
+    const requestedOverlaps = existingBookings.some((existing) => {
+      const existingCheckOut =
+        existing.bookingType === "overnight"
+          ? existing.checkOutDate
+          : new Date(existing.checkInDate.getTime() + 86400000);
+      return checkIn < existingCheckOut && checkOut > existing.checkInDate;
+    });
     if (requestedOverlaps) {
-      throw new Error("Those dates were just booked for this room. Please pick a different date.");
+      throw new Error("Those dates were just booked. Please pick a different date.");
     }
 
     const blackoutRanges = await client.blackoutDate.findMany({
@@ -220,6 +238,27 @@ export async function validateAndQuoteBooking({
     );
     if (hitsBlackout) {
       throw new Error("This room is closed for part of your selected date range. Please pick a different date.");
+    }
+  }
+
+  // Day Tour / Night Tour: no room-based overlap check needed (tours
+  // don't lock a specific room the way an Overnight stay does), but an
+  // existing Overnight booking on this date DOES conflict — the villa
+  // is already exclusively occupied that day. Day Tour and Night Tour
+  // never conflict with each other (see exclusivity rule above), so
+  // this only ever checks against confirmed Overnight bookings.
+  if (bookingType === "day_tour" || bookingType === "night_tour") {
+    const conflictingOvernightStay = await client.booking.findFirst({
+      where: {
+        status: "confirmed",
+        bookingType: "overnight",
+        checkInDate: { lte: checkIn },
+        checkOutDate: { gt: checkIn },
+      },
+      select: { id: true },
+    });
+    if (conflictingOvernightStay) {
+      throw new Error("The villa is already booked for an overnight stay on this date. Please pick a different date.");
     }
   }
 

@@ -3,19 +3,37 @@
  * ROLE: Public endpoint — called by BookedDatesSection.jsx and HowToBookSection.jsx
  *
  * PURPOSE:
- * Returns every calendar date currently reserved by a confirmed Booking,
- * as a flat array of "YYYY-MM-DD" strings. Replaces the old hardcoded
- * BOOKED_DATES constant that used to live in BookedDatesSection.jsx —
- * both the Booked Dates carousel and the Availability calendar now
- * read from this one source of truth.
+ * Returns which calendar dates are already reserved by a confirmed
+ * Booking, broken down by booking type so the visitor calendar can
+ * apply the correct exclusivity rule instead of one flat "booked" flag:
+ *   - Overnight blocks EVERYTHING on that date (Day Tour, Night Tour,
+ *     and any other Overnight stay) — it's exclusive use of the villa.
+ *   - Day Tour and Night Tour do NOT block each other — a same-day
+ *     daytime visit and a separate evening visit can coexist on the
+ *     same date, since they don't overlap in time.
+ *   - Either Day Tour or Night Tour blocks a NEW Overnight booking for
+ *     that date (the villa is already committed to a visit that day),
+ *     and Overnight blocks new Day Tour / Night Tour bookings too.
+ *
+ * PREVIOUS BUG: Day Tour and Night Tour bookings save checkInDate ===
+ * checkOutDate (same-day, no overnight). The old expandDateRange()
+ * loop required `cursor < end`, which is immediately false when the
+ * two dates are equal — so a confirmed Day Tour or Night Tour booking
+ * never actually appeared in the booked-dates list at all, letting the
+ * calendar show that date as fully open even with a confirmed booking
+ * already on it. Fixed below by handling same-day bookings explicitly.
  *
  * DATA FLOW:
  * 1. Visitor loads the homepage; BookedDatesSection and HowToBookSection
  *    each fetch this route on mount
  * 2. Query confirmed bookings from the DB
- * 3. Expand each booking's [checkInDate, checkOutDate) range into
- *    individual date keys (checkout day itself is not occupied)
- * 4. Return a deduplicated, sorted array of date strings
+ * 3. Expand each booking's occupied date(s) into the set matching its
+ *    own booking type (overnight / day_tour / night_tour)
+ * 4. Return both the per-type sets AND a backward-compatible flat
+ *    `bookedDates` (any type present — used by BookedDatesSection's
+ *    purely informational "busy dates" display, and as the safe
+ *    default for any caller that hasn't been updated to the per-type
+ *    fields yet)
  */
 export const dynamic = "force-dynamic";
 
@@ -35,12 +53,14 @@ function toDateKey(date) {
 }
 
 /**
- * expandDateRange
+ * expandOvernightRange
  * Returns every date key from checkIn (inclusive) up to but not
  * including checkOut — standard hotel convention, so the checkout date
- * itself is free for the next guest to check in.
+ * itself is free for the next guest to check in. Overnight-only; Day
+ * Tour / Night Tour bookings are handled separately below since they
+ * occupy exactly one date with no range to expand.
  */
-function expandDateRange(checkIn, checkOut) {
+function expandOvernightRange(checkIn, checkOut) {
   const keys = [];
   const cursor = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
   const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
@@ -56,23 +76,47 @@ export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
       where: { status: "confirmed" },
-      select: { checkInDate: true, checkOutDate: true },
+      select: { checkInDate: true, checkOutDate: true, bookingType: true },
     });
 
-    // Expand every booking's range and dedupe with a Set, since two
-    // bookings for different rooms can share overlapping dates.
-    const bookedDateSet = new Set();
+    // Tracked separately per type so the calendar can apply the
+    // exclusivity rule described in the file header instead of one
+    // flat "booked" boolean — see getEffectiveBookedSet() in
+    // HowToBookSection.jsx for how these get combined per mode.
+    const overnightSet = new Set();
+    const dayTourSet = new Set();
+    const nightTourSet = new Set();
+
     for (const booking of bookings) {
-      for (const key of expandDateRange(booking.checkInDate, booking.checkOutDate)) {
-        bookedDateSet.add(key);
+      if (booking.bookingType === "overnight") {
+        for (const key of expandOvernightRange(booking.checkInDate, booking.checkOutDate)) {
+          overnightSet.add(key);
+        }
+      } else {
+        // Day Tour / Night Tour — always a single same-day occupied
+        // date (checkInDate === checkOutDate at booking time), so just
+        // record that one date directly rather than trying to expand a
+        // zero-length range (the bug described above).
+        const key = toDateKey(booking.checkInDate);
+        if (booking.bookingType === "day_tour") dayTourSet.add(key);
+        else if (booking.bookingType === "night_tour") nightTourSet.add(key);
       }
     }
 
-    const bookedDates = Array.from(bookedDateSet).sort();
+    // Backward-compatible flat list — "any booking of any type exists
+    // on this date". Kept for BookedDatesSection.jsx's purely
+    // informational "busy dates" carousel/mini-calendar, which doesn't
+    // need type-level nuance, just "don't expect this date to be free".
+    const bookedDateSet = new Set([...overnightSet, ...dayTourSet, ...nightTourSet]);
 
     return NextResponse.json({
       success: true,
-      data: { bookedDates },
+      data: {
+        bookedDates: Array.from(bookedDateSet).sort(),
+        overnightBookedDates: Array.from(overnightSet).sort(),
+        dayTourBookedDates: Array.from(dayTourSet).sort(),
+        nightTourBookedDates: Array.from(nightTourSet).sort(),
+      },
       message: "Booked dates fetched successfully.",
     });
   } catch (error) {

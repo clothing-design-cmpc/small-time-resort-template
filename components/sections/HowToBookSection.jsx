@@ -153,7 +153,17 @@ function getTodayTourAvailability(checkInKey, ruleAllowDayTour, ruleAllowNightTo
 export default function HowToBookSection() {
   const router = useRouter();
   const { toasts, showToast, dismissToast } = useToast();
-  const [bookedDates, setBookedDates] = useState([]);
+  // Booked dates broken out per booking type — see the exclusivity rule
+  // in app/api/bookings/dates/route.js's file header: Overnight blocks
+  // every other type on that date; Day Tour and Night Tour coexist
+  // freely with each other but each still conflicts with an existing
+  // Overnight booking. Kept as three separate sets (rather than one
+  // flat "booked" list) so the calendar and the ambiguous single-date
+  // TourSelectionModal flow can apply the correct rule instead of
+  // treating any booking as blocking every type.
+  const [overnightBookedDates, setOvernightBookedDates] = useState([]);
+  const [dayTourBookedDates, setDayTourBookedDates] = useState([]);
+  const [nightTourBookedDates, setNightTourBookedDates] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -186,9 +196,9 @@ export default function HowToBookSection() {
   // routes straight through as Overnight — see handleRoomSelected()).
   const [tourSelectionRequest, setTourSelectionRequest] = useState(null);
 
-  // Fetch which dates are already reserved — same source of truth as
-  // BookedDatesSection, kept as its own independent fetch so this
-  // component has no hard dependency on that one.
+  // Fetch which dates are already reserved, broken out per type — same
+  // source of truth as BookedDatesSection, kept as its own independent
+  // fetch so this component has no hard dependency on that one.
   useEffect(() => {
     let isCancelled = false;
 
@@ -203,7 +213,9 @@ export default function HowToBookSection() {
           setLoadError(result.message || "Failed to load availability. Please try again.");
           return;
         }
-        setBookedDates(result.data.bookedDates);
+        setOvernightBookedDates(result.data.overnightBookedDates);
+        setDayTourBookedDates(result.data.dayTourBookedDates);
+        setNightTourBookedDates(result.data.nightTourBookedDates);
       } catch {
         if (!isCancelled) setLoadError("We couldn't reach the server. Check your connection and try again.");
       } finally {
@@ -242,7 +254,24 @@ export default function HowToBookSection() {
     };
   }, []);
 
-  const bookedSet = useMemo(() => new Set(bookedDates), [bookedDates]);
+  const overnightSet = useMemo(() => new Set(overnightBookedDates), [overnightBookedDates]);
+  const dayTourSet = useMemo(() => new Set(dayTourBookedDates), [dayTourBookedDates]);
+  const nightTourSet = useMemo(() => new Set(nightTourBookedDates), [nightTourBookedDates]);
+  // Any existing booking of any type on a date — a multi-date selection
+  // is always an Overnight stay (see file header), and Overnight
+  // conflicts with an existing booking of ANY type on that date, so
+  // this combined set is what range-crossing and single-date ambiguity
+  // checks need, rather than just the Overnight-only set below.
+  const anyBookedSet = useMemo(
+    () => new Set([...overnightSet, ...dayTourSet, ...nightTourSet]),
+    [overnightSet, dayTourSet, nightTourSet]
+  );
+  // Calendar cells only render as fully blocked (red, unclickable) when
+  // an Overnight booking exists there — a date with just a Day Tour
+  // and/or Night Tour booking stays open, since the other tour type
+  // (or another same-type visit) can still be booked on it. See the
+  // exclusivity rule in app/api/bookings/dates/route.js's file header.
+  const bookedSet = overnightSet;
   const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
 
   const calBase = new Date(TODAY.getFullYear(), TODAY.getMonth() + monthOffset, 1);
@@ -290,10 +319,13 @@ export default function HowToBookSection() {
       }
 
       const rangeKeys = getDateRangeKeys(anchorKey, cellKey);
-      // A range can't be filled through a day that's already booked —
-      // reject it here instead of silently selecting a stay that
-      // overlaps someone else's reservation.
-      const crossesBookedDate = rangeKeys.some((key) => key !== anchorKey && key !== cellKey && bookedSet.has(key));
+      // A multi-date selection is always an Overnight stay, which
+      // conflicts with ANY existing booking (Overnight, Day Tour, or
+      // Night Tour) on any date it spans — checks every date in the
+      // range, including the anchor and clicked endpoint themselves,
+      // since those can carry a Day/Night Tour booking that the
+      // Overnight-only bookedSet above wouldn't have caught at click time.
+      const crossesBookedDate = rangeKeys.some((key) => anyBookedSet.has(key));
       if (crossesBookedDate) {
         showToast("✕ That range crosses an already booked date. Please pick a different range.", "error");
         return;
@@ -359,11 +391,26 @@ export default function HowToBookSection() {
           const { allowDayTour: timeAllowsDayTour, allowNightTour: timeAllowsNightTour } =
             getTodayTourAvailability(checkInKey, rule.allowDayTour, rule.allowNightTour);
 
+          // Exclusivity rule (see app/api/bookings/dates/route.js's file
+          // header): an existing booking of ANY type on this date blocks
+          // a NEW Overnight booking here, since Overnight is exclusive
+          // use of the villa. An existing OVERNIGHT booking blocks both
+          // Tour types too. Day Tour and Night Tour don't block each
+          // other — a date already carrying one of those still allows
+          // the other. (The Overnight-booking case below is normally
+          // unreachable since such a date is already unclickable on the
+          // calendar — kept anyway as defense-in-depth.)
+          const dateHasOvernightBooking = overnightSet.has(checkInKey);
+          const dateHasAnyExistingBooking = anyBookedSet.has(checkInKey);
+          const conflictAdjustedOvernightFits = overnightFits && !dateHasAnyExistingBooking;
+          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateHasOvernightBooking;
+          const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateHasOvernightBooking;
+
           // Open Room Selection first (useful even for a Tour visitor
           // picking a villa to enjoy for the day/evening), then
           // TourSelectionModal decides the actual booking type — see
           // handleRoomSelected() below.
-          if (!overnightFits && !timeAllowsDayTour && !timeAllowsNightTour) {
+          if (!conflictAdjustedOvernightFits && !conflictAdjustedAllowDayTour && !conflictAdjustedAllowNightTour) {
             showToast("✕ No booking type is available for this date right now. Please try again later.", "error");
             return;
           }
@@ -372,9 +419,9 @@ export default function HowToBookSection() {
             checkOutDate: checkOutKey,
             ruleId: rule.matchedRuleId,
             singleDateFlow: true,
-            allowOvernightStay: overnightFits,
-            allowDayTour: timeAllowsDayTour,
-            allowNightTour: timeAllowsNightTour,
+            allowOvernightStay: conflictAdjustedOvernightFits,
+            allowDayTour: conflictAdjustedAllowDayTour,
+            allowNightTour: conflictAdjustedAllowNightTour,
             dayTourPricePerGuest: rule.dayTourPricePerGuest,
             nightTourPricePerGuest: rule.nightTourPricePerGuest,
           });

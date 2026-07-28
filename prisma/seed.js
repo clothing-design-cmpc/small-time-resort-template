@@ -1,7 +1,7 @@
 /**
  * FILE: prisma/seed.js
  * PURPOSE:
- * Seeds sample data for Rooms & Villas, Resort Amenities, and the Resort
+ * Seeds sample data for Rooms, Resort Amenities, and the Resort
  * Shop. Also creates (or finds) the super-admin Auth user via the
  * Supabase Admin API and links it to admin_profiles.
  *
@@ -32,15 +32,15 @@ const supabaseAdmin = createClient(
 
 /**
  * seedRooms
- * Upserts sample Rooms & Villas by slug so this script is safe to re-run.
+ * Upserts sample Rooms by slug so this script is safe to re-run.
  */
 async function seedRooms() {
   const rooms = [
     {
-      name: "Farmhouse Villa",
-      slug: "farmhouse-villa",
+      name: "Room 1",
+      slug: "room-1",
       description:
-        "A private villa overlooking the rice paddies, with floor-to-ceiling windows, a wraparound porch, and a queen-size bed.",
+        "A private room overlooking the rice paddies, with large windows, a wraparound porch, and a queen-size bed.",
       pricePerNight: 4500.0,
       capacity: 2,
       imageUrl:
@@ -48,10 +48,10 @@ async function seedRooms() {
       sortOrder: 1,
     },
     {
-      name: "Garden Cottage",
-      slug: "garden-cottage",
+      name: "Room 2",
+      slug: "room-2",
       description:
-        "A quiet cottage surrounded by fruit trees and vegetable beds, with a small porch and an outdoor sink.",
+        "A quiet room surrounded by fruit trees and vegetable beds, with a small porch and an outdoor sink.",
       pricePerNight: 2800.0,
       capacity: 2,
       imageUrl:
@@ -59,10 +59,10 @@ async function seedRooms() {
       sortOrder: 2,
     },
     {
-      name: "Family Farmhouse",
-      slug: "family-farmhouse",
+      name: "Room 3",
+      slug: "room-3",
       description:
-        "A two-bedroom farmhouse with a full kitchen, living area, and a short walk to the basketball court and playground — ideal for families.",
+        "A two-bedroom family room with a full kitchen, living area, and a short walk to the basketball court and playground — ideal for families.",
       pricePerNight: 6800.0,
       capacity: 6,
       imageUrl:
@@ -158,32 +158,32 @@ async function seedSystemSettings() {
   const content = {
     // --- Our Story / About ---
     aboutEyebrow: "Our Story",
-    aboutTitle: "A Family Legacy, Built on the Farm",
+    aboutTitle: "Where the City Slows Down",
     aboutPageContent:
-      "Casa Bukid Farm Resort began in 2008 as a single farmhouse, built by hand by the founding family who wanted to share their piece of countryside with travelers looking for quiet, unhurried days away from the city. What started as three rooms and a small dining nipa hut has grown, over more than a decade, into the resort you see today — without losing the personal, family-run feel that guests kept coming back for.\n\nEvery villa and cottage on the property was designed to feel like a private retreat rather than a hotel room, and every member of our team — from the kitchen to housekeeping to the farm caretakers — has been with us for years, not months. We believe hospitality is remembered in small details: a name remembered, a favorite table saved, a quiet recommendation for the best time to visit the animal pens. That's the experience we still aim to give every guest who walks through our gate.",
-    aboutDifferentiator1Title: "Family-Owned Since Day One",
+      "your-private-resort was never meant to be big. It started as a small piece of farmland that the family used for weekend gatherings — a place to get away from traffic, noise, and screens, even if just for a day or two. Over time, friends started asking to bring their own families along, and what began as a private backyard slowly grew into the small resort it is today.\n\nWe kept it small on purpose. There's no sprawling lobby here, no crowd of strangers — just a handful of rooms, open fields, and simple activities that bring people together: a game of basketball, a round of karaoke, a grill going at the BBQ area while the kids run around the playground. It's the kind of place where you cook your own meal in the mini kitchen instead of ordering room service, and where the loudest sound after sunset is usually laughter.\n\nWe're not trying to be a five-star resort. We're trying to be the place your family requests to go back to every year.",
+    aboutDifferentiator1Title: "Small By Design",
     aboutDifferentiator1Body:
-      "No corporate chain, no franchise — every decision, from the menu to the room design, is made by the family that built this place.",
-    aboutDifferentiator2Title: "A Team That Stays",
+      "We only take a limited number of guests at a time, so the property never feels crowded or rushed.",
+    aboutDifferentiator2Title: "Built for Families",
     aboutDifferentiator2Body:
-      "Most of our staff have been with the resort for years, which means genuinely warm, familiar service instead of a rotating cast of strangers.",
-    aboutDifferentiator3Title: "Private, Never Crowded",
+      "Every amenity — the playground, the BBQ area, the basketball court — was chosen with families and groups in mind.",
+    aboutDifferentiator3Title: "Run By Us, Not a Chain",
     aboutDifferentiator3Body:
-      "We deliberately keep room count low and book the property exclusively per stay, so you're never sharing the grounds with another group.",
+      "There's no corporate office behind this — just a family that still checks guests in personally and fixes the grill when it breaks.",
 
     // --- Policies ---
     houseRules:
-      "1. Check-in is from 2:00 PM and check-out is by 12:00 PM. Early check-in and late check-out are available on request, subject to availability.\n2. The resort is a family-friendly property — please be mindful of noise levels after 10:00 PM, especially near the karaoke room.\n3. Outside food and beverages are welcome for personal consumption; corkage does not apply for personal use.\n4. Pets are not permitted on the property at this time.\n5. Smoking is only allowed in designated outdoor areas — never inside villas or cottages.\n6. Guests are responsible for any damage to resort property caused during their stay.\n7. Use of the basketball court and children's playground is at the guest's own risk — please supervise young children at all times.\n8. Charcoal and grills at the BBQ area must be handled with care; guests are responsible for fully extinguishing coals after use.\n9. The resort reserves the right to refuse service or ask guests to leave in cases of behavior that endangers other guests or staff.",
+      "1. Check-in is from 2:00 PM and check-out is by 12:00 PM. Early check-in and late check-out are available on request, subject to availability.\n2. The resort is a family-friendly property — please be mindful of noise levels after 10:00 PM, especially near the karaoke room.\n3. Outside food and beverages are welcome for personal consumption; corkage does not apply for personal use.\n4. Pets are not permitted on the property at this time.\n5. Smoking is only allowed in designated outdoor areas — never inside rooms.\n6. Guests are responsible for any damage to resort property caused during their stay.\n7. Use of the basketball court and children's playground is at the guest's own risk — please supervise young children at all times.\n8. Charcoal and grills at the BBQ area must be handled with care; guests are responsible for fully extinguishing coals after use.\n9. The resort reserves the right to refuse service or ask guests to leave in cases of behavior that endangers other guests or staff.",
     bookingPoliciesIntro:
       "These are the terms that apply to every reservation made through our website, whether for an Overnight stay, Day Tour, or Night Tour.",
     bookingPolicies:
-      "A valid ID and downpayment are required to confirm any reservation. Full payment is due upon check-in unless other arrangements have been made in writing with resort management. Room and villa rates are per stay, not per person, unless stated otherwise on the room's listing — extra guest fees apply beyond the allowed pax limit shown on your booking confirmation. Rates and availability are subject to change without prior notice until a booking is confirmed and paid. Bookings are exclusive per stay — once your Overnight reservation is confirmed, the villa is reserved solely for your party for the full duration of your stay.",
+      "A valid ID and downpayment are required to confirm any reservation. Full payment is due upon check-in unless other arrangements have been made in writing with resort management. Room rates are per stay, not per person, unless stated otherwise on the room's listing — extra guest fees apply beyond the allowed pax limit shown on your booking confirmation. Rates and availability are subject to change without prior notice until a booking is confirmed and paid. Bookings are exclusive per stay — once your Overnight reservation is confirmed, the room is reserved solely for your party for the full duration of your stay.",
     cancellationPolicyIntro:
       "We understand plans change. Here's how cancellations and refunds are handled depending on how close to your check-in date you cancel.",
     cancellationPolicy:
       "Cancellations made 14 days or more before check-in are eligible for a full refund, less a small processing fee. Cancellations made 7–13 days before check-in are eligible for a 50% refund of the total paid. Cancellations made less than 7 days before check-in are non-refundable, though we're happy to discuss rebooking to a later date subject to availability. No-shows are treated the same as a late cancellation. Refunds, when applicable, are processed within 5–10 business days back to the original payment method. See the Refund Summary table below for the exact figures currently in effect.",
     termsOfService:
-      "By booking with Villa Azure Resort, you agree to the following: all information provided during booking must be accurate and complete; the resort is not liable for personal belongings lost or damaged during your stay; guests under 18 must be accompanied by a parent or guardian; the resort reserves the right to update these terms at any time, with changes applying to bookings made after the update date; any disputes arising from a stay will first be addressed directly with resort management before any other action is pursued. Continued use of this website and completion of a booking constitutes acceptance of these terms.",
+      "By booking with your-private-resort, you agree to the following: all information provided during booking must be accurate and complete; the resort is not liable for personal belongings lost or damaged during your stay; guests under 18 must be accompanied by a parent or guardian; the resort reserves the right to update these terms at any time, with changes applying to bookings made after the update date; any disputes arising from a stay will first be addressed directly with resort management before any other action is pursued. Continued use of this website and completion of a booking constitutes acceptance of these terms.",
     privacyPolicy:
       "We collect only the information needed to process your reservation — your name, contact details, and payment information — and we never sell or share this information with third parties for marketing purposes. Payment details are processed securely through our payment provider and are not stored on our servers. Booking information is retained for as long as needed for accounting and legal purposes, after which it is securely deleted. You may request a copy of the information we hold about you, or request its deletion, by contacting us directly using the details on our Contact page.",
 
@@ -196,26 +196,26 @@ async function seedSystemSettings() {
     // --- Check-In / Check-Out notes ---
     checkInTime: "2:00 PM",
     checkOutTime: "12:00 PM",
-    checkInNote: "Early check-in may be arranged in advance, subject to villa availability.",
+    checkInNote: "Early check-in may be arranged in advance, subject to room availability.",
     checkOutNote: "Late check-out beyond 12:00 PM may incur an additional half-day charge.",
 
     // --- Contact Info ---
     resortPhone: "+63 917 000 0000",
-    resortEmail: "reservations@casabukidfarmresort.com",
+    resortEmail: "reservations@your-private-resort.com",
     resortAddress: "Barangay Bukid, Silang, Cavite, Philippines",
 
     // --- Homepage Copy ---
-    heroEyebrow: "Welcome to Casa Bukid",
+    heroEyebrow: "Welcome to your-private-resort",
     heroTitle: "Your Private Escape in the Countryside",
     heroTagline: "Fresh Air, Farm Views, and Family Time",
     ctaSectionHeading: "Ready to Plan Your Stay?",
-    ctaSectionSubtext: "Villas book up quickly during peak season — reserve your dates today.",
+    ctaSectionSubtext: "Rooms book up quickly during peak season — reserve your dates today.",
     ctaButtonText: "Plan Your Stay",
 
     // --- Section Headers ---
     roomsEyebrow: "Accommodations",
-    roomsTitle: "Rooms & Villas",
-    roomsSubtitle: "Each space is designed for privacy, comfort, and a view of the surrounding farmland.",
+    roomsTitle: "Rooms",
+    roomsSubtitle: "Each room is designed for privacy, comfort, and a view of the surrounding farmland.",
     amenitiesEyebrow: "Resort Amenities",
     amenitiesTitle: "Everything You Need, Steps Away",
     amenitiesSubtitle: "From the KTV room to the basketball court, every amenity is included in your stay.",
@@ -229,7 +229,7 @@ async function seedSystemSettings() {
     activitiesTitle: "Activities & Experiences",
     activitiesSubtitle: "Farm activities and experiences you can enjoy alongside your stay.",
     galleryEyebrow: "Gallery",
-    galleryTitle: "A Glimpse of Casa Bukid",
+    galleryTitle: "A Glimpse of your-private-resort",
     bookedDatesEyebrow: "Availability",
     bookedDatesTitle: "Check Booked Dates",
     bookedDatesSubtitle: "See which dates are already reserved before you plan your stay.",
@@ -238,9 +238,9 @@ async function seedSystemSettings() {
     policiesSubtitle: "Please review our house rules and booking terms before reserving.",
 
     // --- SEO ---
-    siteTitle: "Casa Bukid Farm Resort",
+    siteTitle: "your-private-resort",
     siteDescription:
-      "A private, family-run farm resort in Cavite offering exclusive villas, karaoke, basketball, BBQ, and unhurried days in the countryside.",
+      "your-private-resort is a private, family-run farm resort in Cavite offering exclusive rooms, karaoke, basketball, BBQ, and unhurried days in the countryside.",
   };
 
   await prisma.systemSettings.upsert({
@@ -318,8 +318,8 @@ async function seedSuperAdmin() {
     // account (from SEED_ADMIN_EMAIL), so it's always the real owner.
     // Any additional staff accounts created later (outside this
     // script) should be left at the isOwner default (false).
-    update: { fullName: "Casa Bukid Admin", role: "super_admin", isOwner: true },
-    create: { id: authUser.id, fullName: "Casa Bukid Admin", role: "super_admin", isOwner: true },
+    update: { fullName: "your-private-resort Admin", role: "super_admin", isOwner: true },
+    create: { id: authUser.id, fullName: "your-private-resort Admin", role: "super_admin", isOwner: true },
   });
   console.log(`✓ Linked admin_profiles for ${email}`);
 }

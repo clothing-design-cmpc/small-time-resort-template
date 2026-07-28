@@ -76,7 +76,7 @@ export default function GalleryVisitorClient({ images }) {
               <div className="galleryVisitorImageWrapper">
                 <Image
                   src={image.imageUrl}
-                  alt={image.caption || "Villa Azure Resort"}
+                  alt={image.caption || "your-private-resort"}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="galleryVisitorImage"

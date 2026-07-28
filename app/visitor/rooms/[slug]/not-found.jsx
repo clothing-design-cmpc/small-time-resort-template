@@ -18,7 +18,7 @@ export default function RoomNotFound() {
           We couldn&apos;t find what you&apos;re looking for. It may have been moved or is no longer available.
         </p>
         <Link href="/visitor/#rooms" className="roomDetailBookButton">
-          Back to Rooms & Villas
+          Back to Rooms
         </Link>
       </div>
     </main>

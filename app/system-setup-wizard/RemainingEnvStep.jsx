@@ -99,7 +99,7 @@ const REMAINING_ENV_HELP = {
       "Email Services → copy your connected service's ID into EMAILJS_SERVICE_ID.",
       "This project uses TWO separate templates — one general-purpose, one booking-only. Do not reuse one template's ID for the other.",
       "TEMPLATE 1 — general (contact inquiries, vault OTP, breach/rotation alerts): Email Templates → open the \"Contact template\" (or create one) and copy its ID into EMAILJS_GENERAL_TEMPLATE_ID.",
-      "Template 1 right-hand panel: Subject = {{subject}}, To Email = {{to_email}}, Reply To = {{reply_to}}, From Name = a static brand name (e.g. \"Villa Azure\") since it isn't a merge tag this app fills, and clear the Bcc field if it still shows {{email}} from the default template.",
+      "Template 1 right-hand panel: Subject = {{subject}}, To Email = {{to_email}}, Reply To = {{reply_to}}, From Name = a static brand name (e.g. \"your-private-resort\") since it isn't a merge tag this app fills, and clear the Bcc field if it still shows {{email}} from the default template.",
       "Template 1 Edit Content (raw HTML) must use exactly these lowercase merge tags — case must match services/emailjs.js exactly or EmailJS silently renders them blank: {{eyebrow}}, {{heading}}, {{intro}}, {{highlight_line_1}}, {{highlight_line_2}}, and {{{body_message}}} (triple braces — outputs raw HTML/line breaks instead of escaping them).",
       "Common mistake on Template 1: a leftover uppercase {{EYEBROW}} from the default template — merge tags are case-sensitive, so it must be lowercased to {{eyebrow}} or that field will always render empty.",
       "TEMPLATE 2 — booking confirmations only: Email Templates → Create New Template (do not clone/reuse Template 1 — this one has its own field set). Copy its ID into EMAILJS_BOOKING_TEMPLATE_ID.",
@@ -181,7 +181,7 @@ const REMAINING_ENV_HELP = {
 <!-- Footer -->
 <tr>
 <td style="background-color: #1a2f4f; padding: 32px 48px; text-align: center;">
-<p style="margin: 0 0 6px; font-family: 'Georgia',serif; font-size: 13px; color: #d4a574; letter-spacing: 0.1em; text-transform: uppercase;">Villa Azure</p>
+<p style="margin: 0 0 6px; font-family: 'Georgia',serif; font-size: 13px; color: #d4a574; letter-spacing: 0.1em; text-transform: uppercase;">your-private-resort</p>
 <p style="margin: 0 0 4px; font-family: 'Georgia',serif; font-size: 12px; color: #7ba8a8;">123 Azure Shores Drive, Nasugbu, Batangas 4231</p>
 <p style="margin: 0 0 4px; font-family: 'Georgia',serif; font-size: 12px; color: #7ba8a8;">+63 917 123 4567 &nbsp;&middot;&nbsp; reservations@villaazure.com</p>
 <p style="margin: 16px 0 0; font-family: 'Georgia',serif; font-size: 11px; color: #4a6a7a; letter-spacing: 0.05em;">Front Desk available 24 hours, 7 days a week.</p>
@@ -224,7 +224,7 @@ const REMAINING_ENV_HELP = {
   <div class="card">
     <!-- Header -->
     <div class="header">
-      <p class="brand">Villa Azure Private Resort</p>
+      <p class="brand">your-private-resort</p>
       <h2>New Booking Inquiry</h2>
       <p class="subtitle">Submitted on {{submitted_at}}</p>
     </div>
@@ -257,7 +257,7 @@ const REMAINING_ENV_HELP = {
       If you have any questions, please contact us directly.
       This is an automated confirmation — please do not reply to this email.
     </p>
-    <p class="sign">— Villa Azure Team</p>
+    <p class="sign">— your-private-resort Team</p>
     <p class="footer">VillaAzure Booking System — automated notification</p>
   </div>
 </body>

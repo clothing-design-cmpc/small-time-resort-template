@@ -35,8 +35,8 @@ import TourReservationSummaryClient from "./TourReservationSummaryClient";
 import "./Booking.css";
 
 export const metadata = {
-  title: "Book Your Stay | Villa Azure Resort",
-  description: "Reserve your stay at Villa Azure Resort — pick your dates, choose a villa, and confirm your booking online.",
+  title: "Book Your Stay | your-private-resort",
+  description: "Reserve your stay at your-private-resort — pick your dates, and confirm your booking online.",
 };
 
 export default async function BookingPage({ searchParams }) {
@@ -59,7 +59,7 @@ export default async function BookingPage({ searchParams }) {
         <p className="bookingBody">
           {roomId || isLockedTourType
             ? "Review your reservation details below, then confirm."
-            : "Pick your dates, choose a villa, and confirm — no phone call needed."}
+            : "Pick your dates and confirm — no phone call needed."}
         </p>
 
         {roomId ? (

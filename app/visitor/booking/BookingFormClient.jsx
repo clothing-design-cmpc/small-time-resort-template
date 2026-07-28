@@ -278,7 +278,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     return (
       <p className="bookingBody">
         Online booking is temporarily unavailable. Please reach out through our Contact page
-        and our team will help you reserve your villa directly.
+        and our team will help you reserve your room directly.
       </p>
     );
   }

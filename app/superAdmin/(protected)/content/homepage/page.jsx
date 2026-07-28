@@ -18,7 +18,7 @@ import "./Homepage.css";
 import HomepageSettingsClient from "./HomepageSettingsClient";
 
 export const metadata = {
-  title: "Homepage | Super-Admin | Villa Azure Resort",
+  title: "Homepage | Super-Admin | your-private-resort",
 };
 
 export default function HomepageCustomizationPage() {

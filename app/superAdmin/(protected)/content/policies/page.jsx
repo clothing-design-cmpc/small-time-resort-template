@@ -18,7 +18,7 @@ import "./Policies.css";
 import PoliciesClient from "./PoliciesClient";
 
 export const metadata = {
-  title: "Policies | Super-Admin | Villa Azure Resort",
+  title: "Policies | Super-Admin | your-private-resort",
 };
 
 export default function PoliciesManagementPage() {

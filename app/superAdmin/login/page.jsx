@@ -31,7 +31,7 @@ import "./Login.css";
 
 /* Placeholder demo credentials for the quick-fill button. Must match the
    SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD used by prisma/seed.js. */
-const DEMO_SUPER_ADMIN_EMAIL = "superadmin@villaazure.com";
+const DEMO_SUPER_ADMIN_EMAIL = "superadmin@your-private-resort.com";
 const DEMO_SUPER_ADMIN_PASSWORD = "superadmin123";
 
 const loginSchema = z.object({
@@ -148,7 +148,7 @@ export default function SuperAdminLoginPage() {
           real resort photography in public/images/ once R2 is connected */}
       <Image
         src="https://images.unsplash.com/photo-1759372945658-1e9f56e751bd?auto=format&fit=crop&w=2400&q=80"
-        alt="Tropical villa with a private pool at twilight"
+        alt="Farmhouse in the countryside at twilight"
         fill
         priority
         className="loginBackgroundImage"
@@ -162,7 +162,7 @@ export default function SuperAdminLoginPage() {
           <path d="M19 12H5" />
           <path d="M12 19l-7-7 7-7" />
         </svg>
-        Back to Villa Azure
+        Back to your-private-resort
       </Link>
 
       <div className="loginCard">
@@ -175,7 +175,7 @@ export default function SuperAdminLoginPage() {
               <path d="M8 10V7a4 4 0 0 1 8 0v3" />
             </svg>
           </span>
-          <span className="loginEyebrow">Villa Azure Admin</span>
+          <span className="loginEyebrow">your-private-resort Admin</span>
           <h1 className="loginTitle">Super-Admin Login</h1>
           <p className="loginLegend">* Required fields</p>
         </div>

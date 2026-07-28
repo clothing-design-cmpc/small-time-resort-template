@@ -18,7 +18,7 @@ import "./Gallery.css";
 import GalleryClient from "./GalleryClient";
 
 export const metadata = {
-  title: "Gallery | Super-Admin | Villa Azure Resort",
+  title: "Gallery | Super-Admin | your-private-resort",
 };
 
 export default function GalleryManagementPage() {

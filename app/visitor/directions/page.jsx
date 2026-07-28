@@ -14,8 +14,8 @@ import "./Directions.css";
 import DirectionsClient from "./DirectionsClient";
 
 export const metadata = {
-  title: "How to Get There | Villa Azure Resort",
-  description: "Get turn-by-turn directions to Villa Azure Resort using your booking reference code.",
+  title: "How to Get There | your-private-resort",
+  description: "Get turn-by-turn directions to your-private-resort using your booking reference code.",
 };
 
 export default function DirectionsPage() {
@@ -26,7 +26,7 @@ export default function DirectionsPage() {
         <h1 className="directionsTitle">How to Get There</h1>
         <p className="directionsSubtitle">
           Enter the reference code from your booking invoice to unlock turn-by-turn directions
-          to Villa Azure Resort from your current location.
+          to your-private-resort from your current location.
         </p>
         <div className="directionsContainer">
           <DirectionsClient />

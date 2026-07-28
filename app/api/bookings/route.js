@@ -243,11 +243,11 @@ export async function POST(request) {
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${booking.id}/invoice` : null;
     await sendGeneralEmail({
       toEmail: payload.guestEmail,
-      subject: `Villa Azure Resort — Booking Confirmed (${booking.referenceCode})`,
+      subject: `your-private-resort — Booking Confirmed (${booking.referenceCode})`,
       eyebrow: "BOOKING CONFIRMED",
       heading: `Thank you, ${payload.guestName}!`,
       intro:
-        "Your stay at Villa Azure Resort has been confirmed. Keep your reference code below — you'll need it to unlock turn-by-turn directions to the resort.",
+        "Your stay at your-private-resort has been confirmed. Keep your reference code below — you'll need it to unlock turn-by-turn directions to the resort.",
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
       bodyMessage: invoiceUrl

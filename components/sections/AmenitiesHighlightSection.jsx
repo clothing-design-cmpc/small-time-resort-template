@@ -26,7 +26,7 @@ import "./AmenitiesHighlightSection.css";
 /* Shown only as a fallback — before any admin has added amenities, or if
    the query fails — so this section is never blank on a fresh install. */
 const DEFAULT_AMENITIES = [
-  { id: "wifi", name: "Free WiFi", description: "High-speed in all villas", icon: "wifi" },
+  { id: "wifi", name: "Free WiFi", description: "High-speed throughout the property", icon: "wifi" },
   { id: "pool", name: "Swimming Pool", description: "Freshwater pool & lounge", icon: "waves" },
   { id: "ac", name: "Air Conditioning", description: "All rooms climate-controlled", icon: "wind" },
   { id: "restaurant", name: "Restaurant", description: "On-site dining, local cuisine", icon: "utensils" },

@@ -70,7 +70,7 @@ export default function Header() {
       <div className="headerContainer">
         {/* Logo */}
         <Link href="/visitor" className="headerLogo">
-          Villa Azure
+          your-private-resort
         </Link>
 
         {/* Desktop nav */}

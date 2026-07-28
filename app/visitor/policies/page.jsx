@@ -24,8 +24,8 @@ import "./Policies.css";
 import { prisma } from "@/services/prisma";
 
 export const metadata = {
-  title: "Policies | Villa Azure Resort",
-  description: "Booking policies, refund and cancellation terms, house rules, and privacy policy for Villa Azure Resort.",
+  title: "Policies | your-private-resort",
+  description: "Booking policies, refund and cancellation terms, house rules, and privacy policy for your-private-resort.",
 };
 
 /* ─── Data ─────────────────────────────────────────────────────── */
@@ -34,7 +34,7 @@ const bookingPolicies = [
   {
     id: "bp-1",
     title: "Reservation & Confirmation",
-    body: "All reservations are considered tentative until a booking deposit has been received and a written confirmation has been issued by Villa Azure Resort. Verbal or online inquiries do not constitute a confirmed booking.",
+    body: "All reservations are considered tentative until a booking deposit has been received and a written confirmation has been issued by your-private-resort. Verbal or online inquiries do not constitute a confirmed booking.",
   },
   {
     id: "bp-2",
@@ -49,7 +49,7 @@ const bookingPolicies = [
   {
     id: "bp-4",
     title: "Guest Occupancy",
-    body: "Each villa has a stated maximum occupancy. Exceeding the stated guest count without prior approval is not permitted and may result in the booking being cancelled without a refund. Day visitors must be declared and approved by the front desk.",
+    body: "The room has a stated maximum occupancy. Exceeding the stated guest count without prior approval is not permitted and may result in the booking being cancelled without a refund. Day visitors must be declared and approved by the front desk.",
   },
   {
     id: "bp-5",
@@ -59,7 +59,7 @@ const bookingPolicies = [
   {
     id: "bp-6",
     title: "Rates & Inclusions",
-    body: "Published rates are per villa per night and include standard amenities as listed per room type. Rates do not include optional add-ons such as spa services, extra meals, or activity packages unless explicitly stated in the booking confirmation.",
+    body: "Published rates are per night and include standard amenities as listed per room type. Rates do not include optional add-ons such as spa services, extra meals, or activity packages unless explicitly stated in the booking confirmation.",
   },
 ];
 
@@ -87,12 +87,12 @@ const refundPolicies = [
   {
     id: "rp-5",
     title: "Early Departure",
-    body: "No refund will be issued for unused nights resulting from an early departure once a stay has commenced. This includes departures due to personal reasons, changes in travel plans, or dissatisfaction not attributable to Villa Azure Resort.",
+    body: "No refund will be issued for unused nights resulting from an early departure once a stay has commenced. This includes departures due to personal reasons, changes in travel plans, or dissatisfaction not attributable to your-private-resort.",
   },
   {
     id: "rp-6",
     title: "Force Majeure & Resort-Initiated Changes",
-    body: "In the event of a cancellation initiated by Villa Azure Resort due to unforeseen circumstances beyond our control (severe weather, natural disaster, or facility emergency), guests will be offered either a full refund or a complimentary rebooking at their preference.",
+    body: "In the event of a cancellation initiated by your-private-resort due to unforeseen circumstances beyond our control (severe weather, natural disaster, or facility emergency), guests will be offered either a full refund or a complimentary rebooking at their preference.",
   },
   {
     id: "rp-7",
@@ -103,13 +103,13 @@ const refundPolicies = [
 
 const houseRules = [
   "Quiet hours are observed from 10:00 PM to 7:00 AM. Loud music, gatherings, and any noise that may disturb other guests is not permitted during this period.",
-  "Smoking is prohibited inside all villas and enclosed areas. Designated outdoor smoking areas are available — please ask the front desk.",
-  "Pets are not allowed on resort premises without prior written approval. Approved pets must remain within the guest's villa at all times.",
-  "All resort equipment and villa furnishings must be treated with care. Guests will be charged for any deliberate or negligent damage to property.",
-  "Outside food and beverages are permitted in private villas. Outside food is not allowed in the resort's restaurant or common dining areas.",
+  "Smoking is prohibited inside the room and enclosed areas. Designated outdoor smoking areas are available — please ask the front desk.",
+  "Pets are not allowed on resort premises without prior written approval. Approved pets must remain within the guest's room at all times.",
+  "All resort equipment and room furnishings must be treated with care. Guests will be charged for any deliberate or negligent damage to property.",
+  "Outside food and beverages are permitted in the room. Outside food is not allowed in the resort's restaurant or common dining areas.",
   "The resort reserves the right to refuse service or remove any guest whose behavior is disruptive, threatening, or in violation of these house rules — without a refund.",
-  "Children under 12 must be supervised by an adult at all times near the pool, beach, and other water features.",
-  "Single-use plastics are discouraged on resort grounds. Guests are encouraged to use the refillable water stations provided in each villa.",
+  "Children under 12 must be supervised by an adult at all times near the basketball court and playground.",
+  "Single-use plastics are discouraged on resort grounds. Guests are encouraged to use the refillable water station provided in the room.",
 ];
 
 /* ─── Component ─────────────────────────────────────────────────── */
@@ -147,7 +147,7 @@ export default async function PoliciesPage() {
 
   const bookingPoliciesIntro =
     settings?.bookingPoliciesIntro?.trim() ||
-    "The following terms apply to all reservations made directly with Villa Azure Resort, whether by phone, email, or online inquiry.";
+    "The following terms apply to all reservations made directly with your-private-resort, whether by phone, email, or online inquiry.";
   const cancellationPolicyIntro =
     settings?.cancellationPolicyIntro?.trim() ||
     "We understand that plans change. The following refund schedule applies to all cancellations. We recommend travel insurance for peace of mind.";
@@ -336,16 +336,16 @@ export default async function PoliciesPage() {
               {privacyPolicyText ?? (
                 <>
                   <p className="policiesItemBody">
-                    Villa Azure Resort collects personal information (name, contact details, and identification) solely for the purpose of processing reservations, managing your stay, and maintaining resort security. We do not sell, rent, or share your personal data with third parties for marketing purposes.
+                    your-private-resort collects personal information (name, contact details, and identification) solely for the purpose of processing reservations, managing your stay, and maintaining resort security. We do not sell, rent, or share your personal data with third parties for marketing purposes.
                   </p>
                   <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
-                    Guest information is stored securely and retained only for as long as required by applicable law or operational necessity. You may request access to or deletion of your personal data at any time by contacting us directly at <a href="mailto:hello@villaazure.com" className="policiesInlineLink">hello@villaazure.com</a>.
+                    Guest information is stored securely and retained only for as long as required by applicable law or operational necessity. You may request access to or deletion of your personal data at any time by contacting us directly at <a href="mailto:hello@your-private-resort.com" className="policiesInlineLink">hello@your-private-resort.com</a>.
                   </p>
                   <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
-                    For account security, Villa Azure Resort also records limited technical information whenever you or our staff sign in to a resort account — including IP address, device/browser type, and an approximate geographic location (city and country, derived from IP address, never precise GPS coordinates). This information is used solely to detect suspicious sign-ins, such as an account being accessed from an unexpected location or an unrecognized device, and is retained only for a limited period before being automatically and permanently deleted.
+                    For account security, your-private-resort also records limited technical information whenever you or our staff sign in to a resort account — including IP address, device/browser type, and an approximate geographic location (city and country, derived from IP address, never precise GPS coordinates). This information is used solely to detect suspicious sign-ins, such as an account being accessed from an unexpected location or an unrecognized device, and is retained only for a limited period before being automatically and permanently deleted.
                   </p>
                   <p className="policiesItemBody" style={{ marginTop: "1rem" }}>
-                    By making a reservation with Villa Azure Resort, you consent to the collection and use of your information as described above. This policy was last updated in July 2026.
+                    By making a reservation with your-private-resort, you consent to the collection and use of your information as described above. This policy was last updated in July 2026.
                   </p>
                 </>
               )}

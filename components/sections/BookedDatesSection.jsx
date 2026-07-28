@@ -252,7 +252,7 @@ export default function BookedDatesSection() {
         {!isLoading && !loadError && bookedDateObjects.length === 0 && (
           <div className="bookedDatesEmptyState">
             <p className="bookedDatesEmptyTitle">No dates are booked yet.</p>
-            <p className="bookedDatesEmptySubtitle">Every villa is currently available — check the calendar below or the Reserve Your Villa section to pick a date.</p>
+            <p className="bookedDatesEmptySubtitle">The room is currently available — check the calendar below or the Reserve Your Room section to pick a date.</p>
           </div>
         )}
 

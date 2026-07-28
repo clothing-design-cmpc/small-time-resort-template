@@ -1,26 +1,17 @@
 /**
- * FILE: app/superAdmin/(protected)/content/activities/page.jsx
+ * FILE: app/superAdmin/(protected)/content/activities/new/page.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Activities Management (blueprint Page 4). Lists every activity with
- * duration, group size, featured/active state. "Add Activity" links to
- * the create form.
- *
- * DATA FLOW:
- * 1. ActivitiesListClient (Client Component) owns the actual data
- *    fetching via useActivities() since the list needs live delete/
- *    refetch behavior
- * 2. This file is the thin Server Component route entry — no data
- *    fetching happens here directly
+ * Create-activity route. Hands off to the shared ActivityForm in
+ * create mode.
  */
-import "./Activities.css";
-import ActivitiesListClient from "./ActivitiesListClient";
+import ActivityForm from "../ActivityForm";
 
 export const metadata = {
-  title: "Activities | Super-Admin | Villa Azure Resort",
+  title: "Add Activity | Super-Admin | your-private-resort",
 };
 
-export default function ActivitiesManagementPage() {
-  return <ActivitiesListClient />;
+export default function NewActivityPage() {
+  return <ActivityForm existingActivity={null} />;
 }

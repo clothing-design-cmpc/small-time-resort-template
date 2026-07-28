@@ -40,7 +40,7 @@ import "./Footer.css";
  * Add it back here once a Gallery section with id="gallery" is built.
  */
 const quickLinks = [
-  { label: "Rooms & Villas", href: "/visitor#rooms" },
+  { label: "Rooms", href: "/visitor#rooms" },
   { label: "Amenities",      href: "/visitor#amenities" },
   { label: "Shop",           href: "/visitor#shop" },
   { label: "About Us",       href: "/visitor#about" },
@@ -53,7 +53,7 @@ const quickLinks = [
 // contact info from Super-Admin > Policies & Content > Contact Info.
 const PLACEHOLDER_PHONE = "+63 9XX XXX XXXX";
 const PLACEHOLDER_PHONE_HREF = "tel:+639XXXXXXXXX";
-const PLACEHOLDER_EMAIL = "hello@villaazure.com";
+const PLACEHOLDER_EMAIL = "hello@your-private-resort.com";
 const PLACEHOLDER_ADDRESS = "Philippines";
 
 export default async function Footer() {
@@ -83,9 +83,9 @@ export default async function Footer() {
       <div className="footerContainer">
         {/* Column 1 — Brand + tagline */}
         <div className="footerBrand">
-          <span className="footerLogoText">Villa Azure Resort</span>
+          <span className="footerLogoText">your-private-resort</span>
           <p className="footerTagline">
-            An intimate private retreat on a quiet shoreline. A handful of villas, a small attentive team, and nothing else to distract you.
+            An intimate private retreat in the province. One room, a small attentive team, and nothing else to distract you.
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export default async function Footer() {
           <ResortLocationMap
             latitude={resortLatitude}
             longitude={resortLongitude}
-            resortName="Villa Azure Resort"
+            resortName="your-private-resort"
           />
         </div>
       </div>
@@ -146,7 +146,7 @@ export default async function Footer() {
       {/* Bottom bar */}
       <div className="footerBottom">
         <div className="footerBottomContainer">
-          <span className="footerCopyright">© {currentYear} Villa Azure Resort. All rights reserved.</span>
+          <span className="footerCopyright">© {currentYear} your-private-resort. All rights reserved.</span>
           {/* app/visitor/policies now exists, so both legal links go
               straight there instead of the old placeholder (#contact). */}
           <div className="footerLegalLinks">

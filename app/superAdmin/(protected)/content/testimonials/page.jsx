@@ -18,7 +18,7 @@ import "./Testimonials.css";
 import TestimonialsListClient from "./TestimonialsListClient";
 
 export const metadata = {
-  title: "Testimonials | Super-Admin | Villa Azure Resort",
+  title: "Testimonials | Super-Admin | your-private-resort",
 };
 
 export default function TestimonialsManagementPage() {

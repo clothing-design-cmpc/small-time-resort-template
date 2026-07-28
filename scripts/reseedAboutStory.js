@@ -27,13 +27,13 @@ const aboutContent = {
   aboutEyebrow: "Our Story",
   aboutTitle: "A Retreat, Not a Resort",
   aboutPageContent:
-    "Villa Azure Resort began in 2008 as a single beachfront cottage, built by hand by the founding family who wanted to share their piece of the coastline with travelers looking for quiet, unhurried days by the water. What started as three rooms and a small dining nipa hut has grown, over more than a decade, into the resort you see today — without losing the personal, family-run feel that guests kept coming back for.\n\nEvery villa and suite on the property was designed to feel like a private retreat rather than a hotel room, and every member of our team — from the kitchen to housekeeping to the boat crew — has been with us for years, not months. We believe hospitality is remembered in small details: a name remembered, a favorite table saved, a quiet recommendation for where to watch the sunset. That's the experience we still aim to give every guest who walks through our gate.",
+    "your-private-resort began as a single room on a quiet piece of farmland in the province. What started as one family's private escape has grown, slowly and deliberately, into the small resort you see today — never more than the land and the quiet can hold. We built it for people who want distance from the city, not another itinerary to keep.",
   aboutDifferentiator1Title: "True Privacy",
   aboutDifferentiator1Body:
-    "A handful of villas, never a crowd. Every stay is designed around distance from everything else.",
-  aboutDifferentiator2Title: "A Quiet Shoreline",
+    "Just one room, never a crowd. The whole stay is designed around distance from everything else.",
+  aboutDifferentiator2Title: "A Quiet Countryside Escape",
   aboutDifferentiator2Body:
-    "No boardwalks, no beach vendors — just open water and the sound of it.",
+    "No traffic, no crowds — just open fields, fresh air, and the sound of it.",
   aboutDifferentiator3Title: "Personal Attention",
   aboutDifferentiator3Body:
     "A small, attentive team who knows every guest by name, not by room number.",

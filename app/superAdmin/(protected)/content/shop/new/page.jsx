@@ -9,7 +9,7 @@
 import ShopProductForm from "../ShopProductForm";
 
 export const metadata = {
-  title: "Add Product | Super-Admin | Villa Azure Resort",
+  title: "Add Product | Super-Admin | your-private-resort",
 };
 
 export default function NewShopProductPage() {

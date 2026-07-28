@@ -32,53 +32,29 @@ const supabaseAdmin = createClient(
 
 /**
  * seedRooms
- * Upserts sample Rooms by slug so this script is safe to re-run.
+ * Clears and re-inserts the Room list on every run — this is a small
+ * private resort with exactly one room, so there's no need to upsert
+ * by slug. Clearing first also prevents stale/duplicate rows from
+ * lingering under old slugs whenever the room is renamed.
  */
 async function seedRooms() {
   const rooms = [
     {
-      name: "Room 1",
-      slug: "room-1",
+      name: "The Room",
+      slug: "the-room",
       description:
-        "A private room overlooking the rice paddies, with large windows, a wraparound porch, and a queen-size bed.",
+        "The resort's single room, spread across two floors — a sleeping area upstairs and a sitting area with an outdoor porch downstairs, with a view of the surrounding farmland.",
       pricePerNight: 4500.0,
-      capacity: 2,
-      imageUrl:
-        "https://images.unsplash.com/photo-1499696010180-025ef6e1a8f9?auto=format&fit=crop&w=1600&q=80",
-      sortOrder: 1,
-    },
-    {
-      name: "Room 2",
-      slug: "room-2",
-      description:
-        "A quiet room surrounded by fruit trees and vegetable beds, with a small porch and an outdoor sink.",
-      pricePerNight: 2800.0,
-      capacity: 2,
-      imageUrl:
-        "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1600&q=80",
-      sortOrder: 2,
-    },
-    {
-      name: "Room 3",
-      slug: "room-3",
-      description:
-        "A two-bedroom family room with a full kitchen, living area, and a short walk to the basketball court and playground — ideal for families.",
-      pricePerNight: 6800.0,
       capacity: 6,
       imageUrl:
         "https://images.unsplash.com/photo-1500076656116-558758c991c1?auto=format&fit=crop&w=1600&q=80",
-      sortOrder: 3,
+      sortOrder: 1,
     },
   ];
 
-  for (const room of rooms) {
-    await prisma.room.upsert({
-      where: { slug: room.slug },
-      update: room,
-      create: room,
-    });
-  }
-  console.log(`✓ Seeded ${rooms.length} rooms`);
+  await prisma.room.deleteMany();
+  await prisma.room.createMany({ data: rooms });
+  console.log(`✓ Seeded ${rooms.length} room`);
 }
 
 /**
@@ -340,12 +316,12 @@ async function clearStaleBookings() {
 }
 
 async function main() {
+  await clearStaleBookings();
   await seedRooms();
   await seedAmenities();
   await seedStoreProducts();
   await seedActivities();
   await seedSystemSettings();
-  await clearStaleBookings();
   await seedSuperAdmin();
 }
 

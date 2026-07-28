@@ -79,7 +79,7 @@ function formatCountdown(totalSeconds) {
 /* Add an entry here whenever a new admin page is built.
    Every route under app/superAdmin/(protected)/ must have a matching
    entry — a missing one silently falls back to the generic
-   "Villa Azure Admin" label below, which reads like a bug (the header
+   "your-private-resort Admin" label below, which reads like a bug (the header
    then shows the same text on every page instead of telling the admin
    where they are). */
 const PAGE_TITLES = {
@@ -122,12 +122,12 @@ const PAGE_TITLE_PREFIXES = [
  * resolvePageTitle
  * Looks up the exact pathname first, then falls back to the closest
  * matching prefix for dynamic routes, then finally to the generic
- * "Villa Azure Admin" label if nothing matches at all.
+ * "your-private-resort Admin" label if nothing matches at all.
  */
 function resolvePageTitle(pathname) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   const prefixMatch = PAGE_TITLE_PREFIXES.find((entry) => pathname.startsWith(entry.prefix));
-  return prefixMatch?.label ?? "Villa Azure Admin";
+  return prefixMatch?.label ?? "your-private-resort Admin";
 }
 
 export default function AdminHeader() {

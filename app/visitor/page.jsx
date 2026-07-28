@@ -1,57 +1,37 @@
 /**
- * FILE: app/visitor/page.jsx
- * ROLE: Visitor — public landing page
+ * FILE: app/visitor/directions/page.jsx
+ * ROLE: Visitor — public, no auth required
  *
  * PURPOSE:
- * Homepage that renders all visitor sections in sequence:
- * Hero → About → Featured Rooms → Amenities → Mini Store →
- * Testimonials → Activities → Gallery Preview → How to Book →
- * Booked Dates
- *
- * DATA FLOW:
- * 1. Visitor hits "/visitor"
- * 2. Hero, About, AmenitiesHighlightSection, TestimonialsSection,
- *    ActivitiesHighlightSection, and GalleryPreviewSection are all
- *    Server Components that read their data directly via Prisma —
- *    same pattern app/visitor/policies/page.jsx uses. MiniStoreSection
- *    is a Client Component that fetches from /api/shop.
- * 3. BookedDatesSection is a Client Component — it owns interactive
- *    calendar state locally, no SSR data needed
+ * "How to Get There" — thin Server Component shell around
+ * DirectionsClient (villa-azure-ai-insight-and-directions-plan.txt,
+ * Part 2). All interactivity (geolocation, reference code verification,
+ * gated directions widget) lives in the Client Component below, per
+ * Rule 31.1 — this file only renders the static intro copy and
+ * metadata.
  */
-import Hero from "@/components/Hero";
-import About from "@/components/About";
-import FeaturedRoomsSection from "@/components/sections/FeaturedRoomsSection";
-import AmenitiesHighlightSection from "@/components/sections/AmenitiesHighlightSection";
-import MiniStoreSection from "@/components/sections/MiniStoreSection";
-import TestimonialsSection from "@/components/sections/TestimonialsSection";
-import ActivitiesHighlightSection from "@/components/sections/ActivitiesHighlightSection";
-import GalleryPreviewSection from "@/components/sections/GalleryPreviewSection";
-import HowToBookSection from "@/components/sections/HowToBookSection";
-import BookedDatesSection from "@/components/sections/BookedDatesSection";
+import "./Directions.css";
+import DirectionsClient from "./DirectionsClient";
 
 export const metadata = {
-  title: "Villa Azure Resort | Home",
-  description: "A private resort offering an intimate escape — rooms, amenities, and a quiet shoreline.",
-  openGraph: {
-    title: "Villa Azure Resort",
-    description: "A private resort offering an intimate escape.",
-    images: ["/images/og-villa-azure.jpg"],
-  },
+  title: "How to Get There | your-private-resort",
+  description: "Get turn-by-turn directions to your-private-resort using your booking reference code.",
 };
 
-export default function VisitorHomePage() {
+export default function DirectionsPage() {
   return (
-    <main>
-      <Hero />
-      <About />
-      <FeaturedRoomsSection />
-      <AmenitiesHighlightSection />
-      <MiniStoreSection />
-      <TestimonialsSection />
-      <ActivitiesHighlightSection />
-      <GalleryPreviewSection />
-      <HowToBookSection />
-      <BookedDatesSection />
+    <main className="directionsPage">
+      <section className="directionsHero">
+        <span className="directionsEyebrow">FOR CONFIRMED GUESTS</span>
+        <h1 className="directionsTitle">How to Get There</h1>
+        <p className="directionsSubtitle">
+          Enter the reference code from your booking invoice to unlock turn-by-turn directions
+          to your-private-resort from your current location.
+        </p>
+        <div className="directionsContainer">
+          <DirectionsClient />
+        </div>
+      </section>
     </main>
   );
 }

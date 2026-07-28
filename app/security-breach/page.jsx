@@ -16,7 +16,7 @@
  */
 
 export const metadata = {
-  title: "Security Notice | Villa Azure Resort",
+  title: "Security Notice | your-private-resort",
   description: "This site is temporarily unavailable due to a security incident.",
 };
 

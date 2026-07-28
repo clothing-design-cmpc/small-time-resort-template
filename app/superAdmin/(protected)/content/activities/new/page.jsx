@@ -9,7 +9,7 @@
 import ActivityForm from "../ActivityForm";
 
 export const metadata = {
-  title: "Add Activity | Super-Admin | Villa Azure Resort",
+  title: "Add Activity | Super-Admin | your-private-resort",
 };
 
 export default function NewActivityPage() {

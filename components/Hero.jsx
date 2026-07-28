@@ -37,7 +37,7 @@ export default async function Hero() {
     <section className="heroSection">
       <Image
         src={heroImageUrl}
-        alt="Villa Azure Resort"
+        alt="your-private-resort"
         fill
         priority
         className="heroBackgroundImage"
@@ -47,14 +47,14 @@ export default async function Hero() {
 
       <div className="heroContainer">
         <span className="heroEyebrow">A Private Escape</span>
-        <h1 className="heroTitle">Villa Azure Resort</h1>
+        <h1 className="heroTitle">your-private-resort</h1>
         <p className="heroSubtitle">{heroTagline}</p>
         <div className="heroActions">
           <a className="heroCtaPrimary" href="#contact">
             {ctaButtonText}
           </a>
           <a className="heroCtaSecondary" href="#rooms">
-            Explore Rooms &amp; Villas
+            Explore Rooms
           </a>
         </div>
       </div>

@@ -19,7 +19,7 @@ export default function MaintenanceBanner({ message }) {
     <div className="maintenanceBanner" role="alert">
       <span className="maintenanceBannerIcon" aria-hidden="true">⚠</span>
       <div className="maintenanceBannerText">
-        <strong>Villa Azure Resort is currently under maintenance.</strong>
+        <strong>your-private-resort is currently under maintenance.</strong>
         <span>{message}</span>
       </div>
     </div>

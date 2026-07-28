@@ -22,8 +22,8 @@ import { prisma } from "@/services/prisma";
 import "./Activities.css";
 
 export const metadata = {
-  title: "Activities | Villa Azure Resort",
-  description: "Ways to spend your time at Villa Azure Resort, from quiet to active.",
+  title: "Activities | your-private-resort",
+  description: "Ways to spend your time at your-private-resort, from quiet to active.",
 };
 
 export default async function VisitorActivitiesPage() {

@@ -12,7 +12,7 @@
 import AccessDeniedScreen from "@/components/shared/AccessDeniedScreen";
 
 export const metadata = {
-  title: "Access Denied | Villa Azure Resort",
+  title: "Access Denied | your-private-resort",
   description: "This request has been blocked for security reasons.",
 };
 

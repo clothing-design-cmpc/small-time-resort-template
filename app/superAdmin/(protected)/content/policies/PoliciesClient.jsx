@@ -288,7 +288,7 @@ export default function PoliciesClient() {
               <input
                 id="bookingPoliciesIntro"
                 type="text"
-                placeholder="The following terms apply to all reservations made directly with Villa Azure Resort…"
+                placeholder="The following terms apply to all reservations made directly with your-private-resort…"
                 value={formValues.bookingPoliciesIntro}
                 onChange={(event) => handleFieldChange("bookingPoliciesIntro", event.target.value)}
               />

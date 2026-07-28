@@ -40,9 +40,9 @@ export default function FeaturedRoomsSection() {
         {/* Section header */}
         <div className="featuredRoomsHeader">
           <span className="featuredRoomsEyebrow">Accommodations</span>
-          <h2 className="featuredRoomsTitle">Rooms & Villas</h2>
+          <h2 className="featuredRoomsTitle">Rooms</h2>
           <p className="featuredRoomsSubtitle">
-            A small collection — every villa chosen for its setting, its quiet, and what it keeps out.
+            A single room, with everything you need for a quiet family stay in the province.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export default function FeaturedRoomsSection() {
           <div className="featuredRoomsEmptyState">
             <p className="featuredRoomsEmptyTitle">No featured rooms yet.</p>
             <p className="featuredRoomsEmptySubtitle">
-              Check back soon — new villas are added regularly.
+              Check back soon — new rooms are added regularly.
             </p>
           </div>
         )}
@@ -129,7 +129,7 @@ export default function FeaturedRoomsSection() {
         {/* See all rooms link */}
         <div className="featuredRoomsViewAll">
           <Link href="/visitor/rooms" className="featuredRoomsViewAllLink">
-            View all rooms & villas →
+            View all rooms →
           </Link>
         </div>
       </div>

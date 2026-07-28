@@ -11,7 +11,7 @@ import { prisma } from "@/services/prisma";
 import RoomForm from "../RoomForm";
 
 export const metadata = {
-  title: "Add Room | Super-Admin | Villa Azure Resort",
+  title: "Add Room | Super-Admin | your-private-resort",
 };
 
 export default async function NewRoomPage() {

@@ -58,15 +58,15 @@ export async function generateMetadata({ params }) {
   const room = await getRoom(slug).catch(() => null);
 
   if (!room) {
-    return { title: "Room Not Found | Villa Azure Resort" };
+    return { title: "Room Not Found | your-private-resort" };
   }
 
   return {
-    title: `${room.name} | Villa Azure Resort`,
-    description: room.description || `Book ${room.name} at Villa Azure Resort.`,
+    title: `${room.name} | your-private-resort`,
+    description: room.description || `Book ${room.name} at your-private-resort.`,
     openGraph: {
       title: room.name,
-      description: room.description || `Book ${room.name} at Villa Azure Resort.`,
+      description: room.description || `Book ${room.name} at your-private-resort.`,
       images: room.imageUrl ? [room.imageUrl] : [],
     },
   };
@@ -101,7 +101,7 @@ export default async function RoomDetailPage({ params }) {
     <main className="roomDetailMain">
       <div className="roomDetailContainer">
         <Link href="/visitor/#rooms" className="roomDetailBackLink">
-          ← Back to Rooms & Villas
+          ← Back to Rooms
         </Link>
 
         <RoomDetailClient images={galleryImages} roomName={room.name} />

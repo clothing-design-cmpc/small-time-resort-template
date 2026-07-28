@@ -20,7 +20,7 @@ import "./ActivityFeed.css";
 import ActivityFeedClient from "./ActivityFeedClient";
 
 export const metadata = {
-  title: "Activity Feed | Super-Admin | Villa Azure Resort",
+  title: "Activity Feed | Super-Admin | your-private-resort",
 };
 
 export default function ActivityFeedPage() {

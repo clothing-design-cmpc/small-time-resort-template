@@ -117,7 +117,7 @@ function getDateRangeKeys(keyA, keyB) {
 
 const STEPS = [
   { number: 1, title: "Pick your dates", body: "Tap one or more open days on the calendar below." },
-  { number: 2, title: "Choose your villa", body: "See what's available and pick the one that fits your group." },
+  { number: 2, title: "Choose your room", body: "See what's available and pick the one that fits your group." },
   { number: 3, title: "Confirm & pay", body: "Fill in your details and secure your stay online." },
 ];
 

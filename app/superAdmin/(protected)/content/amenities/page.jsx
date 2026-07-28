@@ -18,7 +18,7 @@ import "./Amenities.css";
 import AmenitiesListClient from "./AmenitiesListClient";
 
 export const metadata = {
-  title: "Amenities | Super-Admin | Villa Azure Resort",
+  title: "Amenities | Super-Admin | your-private-resort",
 };
 
 export default function AmenitiesManagementPage() {

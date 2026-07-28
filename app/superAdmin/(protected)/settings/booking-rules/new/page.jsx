@@ -14,7 +14,7 @@ import { prisma } from "@/services/prisma";
 import BookingRuleForm from "../BookingRuleForm";
 
 export const metadata = {
-  title: "Create Booking Rule Set | Super-Admin | Villa Azure Resort",
+  title: "Create Booking Rule Set | Super-Admin | your-private-resort",
 };
 
 export default async function NewBookingRulePage() {

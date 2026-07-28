@@ -53,7 +53,7 @@ export default async function GalleryPreviewSection() {
             <div key={image.id} className="galleryPreviewImageWrapper">
               <Image
                 src={image.imageUrl}
-                alt={image.caption || "Villa Azure Resort"}
+                alt={image.caption || "your-private-resort"}
                 fill
                 sizes="(max-width: 640px) 50vw, 25vw"
                 className="galleryPreviewImage"

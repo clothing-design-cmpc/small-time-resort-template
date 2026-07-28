@@ -32,7 +32,7 @@ const OPTIONS = [
   {
     value: "overnight",
     label: "Overnight Stay",
-    description: "Keep the villa you just picked for the night.",
+    description: "Keep the room you just picked for the night.",
   },
   {
     value: "day_tour",

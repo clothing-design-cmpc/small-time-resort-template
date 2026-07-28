@@ -98,7 +98,7 @@ async function callGeminiForInsight({ salesSummaryText, weatherSummary, hasEnoug
     : "\n\nIMPORTANT: There are very few recent bookings on record. Do NOT invent a confident-sounding cause or trend from this little data — instead set status to \"insufficient_data\" and say so plainly in the observation.";
 
   const prompt =
-    `You are a sales analyst for Villa Azure Resort, a Philippine beach resort. ` +
+    `You are a sales analyst for your-private-resort, a small private farm resort in the Philippine province. ` +
     `Correlate the resort's own sales data below with the current weather forecast, and produce a short, ` +
     `actionable insight for the owner.\n\n` +
     `SALES DATA (last 30 days):\n${salesSummaryText}\n\n` +

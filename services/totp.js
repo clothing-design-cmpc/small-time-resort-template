@@ -28,7 +28,7 @@ export function generateTotpSecret() {
  * Produces a QR code data URL the owner scans once with an authenticator
  * app (Google Authenticator, Authy, etc.) during vault setup.
  */
-export async function generateTotpQrCode(secret, ownerLabel = "Villa Azure Owner Vault") {
+export async function generateTotpQrCode(secret, ownerLabel = "your-private-resort Owner Vault") {
   const otpauthUrl = authenticator.keyuri(ownerLabel, "VillaAzureVault", secret);
   return QRCode.toDataURL(otpauthUrl);
 }

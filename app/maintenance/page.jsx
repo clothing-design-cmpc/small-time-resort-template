@@ -55,7 +55,7 @@ import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownSc
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Under Maintenance | Villa Azure Resort",
+  title: "Under Maintenance | your-private-resort",
   description: "This website is currently under maintenance.",
 };
 

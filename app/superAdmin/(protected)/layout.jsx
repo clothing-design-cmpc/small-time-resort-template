@@ -39,8 +39,8 @@ import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
 import DatabaseWipeGraceModal from "@/components/superAdmin/DatabaseWipeGraceModal";
 
 export const metadata = {
-  title: "Super-Admin | Villa Azure Resort",
-  description: "Enterprise control center for managing Villa Azure Resort.",
+  title: "Super-Admin | your-private-resort",
+  description: "Enterprise control center for managing your-private-resort.",
 };
 
 export default async function SuperAdminLayout({ children }) {

@@ -157,7 +157,7 @@ export async function archiveActivityFeedIfThresholdReached() {
   );
 
   const header =
-    `-- Villa Azure Resort — Activity Feed Archive\n` +
+    `-- your-private-resort — Activity Feed Archive\n` +
     `-- Generated: ${new Date().toISOString()}\n` +
     `-- Range: ${oldestDate.toISOString()} to ${newestDate.toISOString()}\n` +
     `-- Rows: ${visitorRows.length} visitor_logs, ${staffRows.length} account_activity_logs\n\n`;

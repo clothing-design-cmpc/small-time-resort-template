@@ -36,7 +36,7 @@ const navGroups = [
   {
     label: "Content",
     links: [
-      { label: "Rooms & Villas", href: "/superAdmin/content/rooms" },
+      { label: "Rooms", href: "/superAdmin/content/rooms" },
       { label: "Amenities", href: "/superAdmin/content/amenities" },
       { label: "Resort Shop", href: "/superAdmin/content/shop" },
       { label: "Activities", href: "/superAdmin/content/activities" },
@@ -82,7 +82,7 @@ export default function Sidebar({ isOwner = false }) {
 
   return (
     <nav className="adminSidebar" aria-label="Super-admin navigation">
-      <div className="adminSidebarLogo">Villa Azure Admin</div>
+      <div className="adminSidebarLogo">your-private-resort Admin</div>
 
       {visibleNavGroups.map((group) => (
         <div key={group.label} className="adminSidebarGroup">

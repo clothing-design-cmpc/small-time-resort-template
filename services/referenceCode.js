@@ -9,7 +9,7 @@
  * even with the verify endpoint's rate limit (services/rateLimit.js).
  *
  * FORMAT: "VAR-YYYYMMDD-XXXXX"
- *   VAR      - fixed prefix (Villa Azure Resort)
+ *   VAR      - fixed prefix (your-private-resort)
  *   YYYYMMDD - the booking's creation date, useful at a glance for staff
  *   XXXXX    - 5 random uppercase alphanumeric characters (Crockford-ish
  *              alphabet, excludes 0/O/1/I to avoid guest transcription

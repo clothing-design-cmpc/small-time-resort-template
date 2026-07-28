@@ -230,7 +230,7 @@ export default function HomepageSettingsClient() {
               </label>
             );
           })}
-          {rooms.length === 0 && <p className="homepageFormHint">No rooms yet — add rooms under Rooms &amp; Villas first.</p>}
+          {rooms.length === 0 && <p className="homepageFormHint">No rooms yet — add rooms under Rooms first.</p>}
         </div>
       </div>
 

@@ -28,7 +28,7 @@ import "./MiniStoreSection.css";
 
 const DEFAULT_FOOTNOTE =
   "All drinks are available at the gazebo bar, pool bar, or via " +
-  "in-villa delivery. Ask our team about pairings or custom orders.";
+  "in-room delivery. Ask our team about pairings or custom orders.";
 
 /* Formats a number as Philippine Peso */
 function formatPrice(amount) {
@@ -57,7 +57,7 @@ export default function MiniStoreSection() {
           <h2 className="miniStoreTitle">Drinks at the Bar</h2>
           <p className="miniStoreSubtitle">
             Cold drinks, local brews, and classic pours — available at the
-            gazebo bar, pool bar, or delivered to your villa anytime.
+            picnic pavilion, or delivered to your room anytime.
           </p>
         </div>
 

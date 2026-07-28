@@ -24,8 +24,8 @@ import GalleryVisitorClient from "./GalleryVisitorClient";
 import "./Gallery.css";
 
 export const metadata = {
-  title: "Gallery | Villa Azure Resort",
-  description: "Browse photos of our villas, common areas, and grounds.",
+  title: "Gallery | your-private-resort",
+  description: "Browse photos of our room, common areas, and grounds.",
 };
 
 export default async function VisitorGalleryPage() {
@@ -40,9 +40,9 @@ export default async function VisitorGalleryPage() {
     <main className="galleryPageMain">
       <div className="galleryPageHeader">
         <span className="galleryPageEyebrow">Photo Gallery</span>
-        <h1 className="galleryPageTitle">Around Villa Azure</h1>
+        <h1 className="galleryPageTitle">Around your-private-resort</h1>
         <p className="galleryPageSubtitle">
-          A closer look at the villas, common areas, and grounds — before you arrive.
+          A closer look at the room, common areas, and grounds — before you arrive.
         </p>
       </div>
 

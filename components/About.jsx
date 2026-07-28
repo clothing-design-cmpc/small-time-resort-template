@@ -27,13 +27,13 @@ const DEFAULT_DIFFERENTIATORS = [
     id: "diff-privacy",
     title: "True Privacy",
     description:
-      "A handful of villas, never a crowd. Every stay is designed around distance from everything else.",
+      "Just one room, never a crowd. The whole stay is designed around distance from everything else.",
   },
   {
     id: "diff-setting",
-    title: "A Quiet Shoreline",
+    title: "A Quiet Countryside Escape",
     description:
-      "No boardwalks, no beach vendors — just open water and the sound of it.",
+      "No traffic, no crowds — just open fields, fresh air, and the sound of it.",
   },
   {
     id: "diff-care",
@@ -46,11 +46,12 @@ const DEFAULT_DIFFERENTIATORS = [
 const DEFAULT_ABOUT_TITLE = "A Retreat, Not a Resort";
 
 const DEFAULT_ABOUT_BODY =
-  "Villa Azure Resort began as a single villa on an otherwise untouched " +
-  "shoreline. What started as one family's private escape has grown, " +
-  "slowly and deliberately, into a handful of villas — never more than " +
-  "the land and the quiet can hold. We built it for people who want " +
-  "distance from everything else, not another itinerary to keep.";
+  "your-private-resort began as a single room on a quiet piece of " +
+  "farmland in the province. What started as one family's private " +
+  "escape has grown, slowly and deliberately, into the small resort " +
+  "you see today — never more than the land and the quiet can hold. " +
+  "We built it for people who want distance from the city, not " +
+  "another itinerary to keep.";
 
 export default async function About() {
   // Read-only fetch of the singleton settings row the super-admin edits.

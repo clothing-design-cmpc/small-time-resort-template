@@ -25,6 +25,14 @@ import { useEffect, useRef, useState } from "react";
 import RebookCalendarModal from "./RebookCalendarModal";
 import "./ManageBookingWidget.css";
 
+const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
+
+const BOOKING_TYPE_LABELS = {
+  overnight: "Overnight Stay",
+  day_tour: "Day Tour",
+  night_tour: "Night Tour",
+};
+
 const STEP_CODE = "code";
 const STEP_SUMMARY = "summary";
 const STEP_CONFIRM_CANCEL = "confirmCancel";
@@ -217,12 +225,44 @@ export default function ManageBookingWidget() {
               <div>
                 <h2 id="manageBookingTitle" className="manageBookingTitle">Hi, {booking.guestFirstName}!</h2>
                 <dl className="manageBookingSummary">
+                  <dt>Package</dt>
+                  <dd>{BOOKING_TYPE_LABELS[booking.bookingType] ?? booking.bookingType}</dd>
+
                   <dt>Room</dt>
-                  <dd>{booking.roomName ?? "—"}</dd>
+                  <dd>{booking.roomName ?? "—"}{booking.roomBedType ? ` — ${booking.roomBedType} bed` : ""}</dd>
+
                   <dt>Check-in</dt>
                   <dd>{booking.checkInDate}</dd>
+
                   <dt>Check-out</dt>
                   <dd>{booking.checkOutDate}</dd>
+
+                  <dt>Guests</dt>
+                  <dd>{booking.numberOfGuests}</dd>
+
+                  <dt>Included</dt>
+                  <dd>
+                    {booking.includedAmenities.length > 0
+                      ? booking.includedAmenities.join(", ")
+                      : "No additional amenities listed for this room."}
+                  </dd>
+
+                  <dt>Total</dt>
+                  <dd>{PESO.format(booking.totalAmount)}</dd>
+
+                  {booking.depositAmount > 0 && (
+                    <>
+                      <dt>Deposit due</dt>
+                      <dd>{PESO.format(booking.depositAmount)}</dd>
+                    </>
+                  )}
+
+                  {booking.notes && (
+                    <>
+                      <dt>Notes</dt>
+                      <dd>{booking.notes}</dd>
+                    </>
+                  )}
                 </dl>
 
                 {errorMessage && <p className="manageBookingError" role="alert">{errorMessage}</p>}

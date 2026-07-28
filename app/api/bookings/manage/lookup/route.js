@@ -70,8 +70,12 @@ export async function POST(request) {
       bookingType: true,
       checkInDate: true,
       checkOutDate: true,
+      numberOfGuests: true,
+      totalAmount: true,
+      depositAmount: true,
+      notes: true,
       roomId: true,
-      room: { select: { name: true } },
+      room: { select: { name: true, bedType: true, amenityIds: true } },
     },
   });
 
@@ -85,6 +89,17 @@ export async function POST(request) {
     });
   }
 
+  // Resolves the room's amenityIds into display names — same pattern
+  // app/api/rooms/[roomId]/route.js already uses for the "included
+  // packages" list on the pre-booking reservation summary, so a guest
+  // sees the same inclusion info here as they did when they first booked.
+  const includedAmenities = booking.room?.amenityIds?.length
+    ? await prisma.amenity.findMany({
+        where: { id: { in: booking.room.amenityIds } },
+        select: { name: true },
+      })
+    : [];
+
   return NextResponse.json({
     success: true,
     data: {
@@ -95,8 +110,14 @@ export async function POST(request) {
         bookingType: booking.bookingType,
         checkInDate: booking.checkInDate.toISOString().slice(0, 10),
         checkOutDate: booking.checkOutDate.toISOString().slice(0, 10),
+        numberOfGuests: booking.numberOfGuests,
+        totalAmount: Number(booking.totalAmount),
+        depositAmount: Number(booking.depositAmount),
+        notes: booking.notes,
         roomId: booking.roomId,
         roomName: booking.room?.name ?? null,
+        roomBedType: booking.room?.bedType ?? null,
+        includedAmenities: includedAmenities.map((amenity) => amenity.name),
       },
     },
     message: "Booking found.",

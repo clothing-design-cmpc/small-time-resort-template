@@ -166,26 +166,36 @@
 
 /*
  * .manageBookingSummary
- * Read-only key/value pairs — room + dates — shown once a reference
- * code resolves to a real, still-confirmed booking.
+ * Read-only key/value pairs for the full package — room, dates,
+ * guests, included amenities, pricing, notes — shown once a reference
+ * code resolves to a real, still-confirmed booking. Left-aligned
+ * values (not right-aligned) so longer content like the amenities
+ * list and notes wraps naturally instead of being squeezed to an edge.
  */
 .manageBookingSummary {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(90px, 120px) 1fr;
   gap: var(--space-xs) var(--space-md);
-  font-size: 0.9rem;
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+  font-size: 0.88rem;
   margin: 0 0 var(--space-lg) 0;
 }
 
 .manageBookingSummary dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--color-text-muted);
+  text-transform: uppercase;
 }
 
 .manageBookingSummary dd {
   color: var(--color-text-primary);
   font-weight: 600;
   margin: 0;
-  text-align: right;
 }
 
 .manageBookingActions {

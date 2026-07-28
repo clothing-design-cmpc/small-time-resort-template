@@ -1,0 +1,60 @@
+/*
+ * .roomsPageMain
+ * Standalone page wrapper (same tier as the Activities page) — not a
+ * homepage section, so it gets its own top-level padding instead of
+ * FeaturedRoomsSection's section band styling.
+ */
+.roomsPageMain {
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+}
+
+/*
+ * .roomsPageHeader
+ * Centered eyebrow + title + subtitle block, matching the Activities
+ * page header pattern for visual consistency across visitor listing pages.
+ */
+.roomsPageHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.roomsPageEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.roomsPageTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.roomsPageSubtitle {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  max-width: 55ch;
+}
+
+/*
+ * .roomsPageGrid
+ * Reuses .featuredRoomsGrid's flex-wrap layout; padding added here so
+ * cards never touch the page edge on this standalone page (Rule 23.10).
+ */
+.roomsPageGrid {
+  padding: var(--space-lg) 0;
+}

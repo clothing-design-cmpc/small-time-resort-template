@@ -36,6 +36,25 @@ function parseDateKey(key) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/**
+ * toLocalMidnight
+ * Reconstructs a Date using only its LOCAL calendar-day components
+ * (year/month/day), discarding whatever time-of-day or timezone
+ * representation it originally carried. Required before comparing a
+ * Prisma-returned @db.Date value (which comes back as a UTC-midnight
+ * Date object) against a locally-constructed Date like the ones from
+ * parseDateKey() above — comparing those directly, without both sides
+ * going through this first, silently introduces a several-hour skew on
+ * any server whose local timezone isn't UTC, which flips exact-day
+ * boundaries like a checkout-day check-in into a false overlap. Same
+ * technique app/api/rooms/[roomId]/availability/route.js already uses
+ * (there, inside expandRange) — applied here explicitly since this
+ * route compares dates directly instead of expanding them into keys.
+ */
+function toLocalMidnight(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -94,16 +113,27 @@ export async function GET(request) {
     // existingStart < requestedEnd AND existingEnd > requestedStart —
     // the standard half-open interval overlap test, matching how
     // Booking.checkOutDate is already treated as exclusive elsewhere.
+    // Every date on both sides is normalized to local midnight first
+    // (see toLocalMidnight above) — comparing checkInDate/checkOutDate
+    // straight from Prisma against checkInDate/checkOutDate from
+    // parseDateKey() without that step was the actual bug: on a non-UTC
+    // server the two sides silently disagreed by several hours, which
+    // showed up as every room reporting unavailable for a check-in
+    // that lands exactly on another booking's checkout day.
     const availableRooms = rooms
       .filter((room) => {
-        const hasBookingOverlap = room.bookings.some(
-          (booking) => booking.checkInDate < checkOutDate && booking.checkOutDate > checkInDate
-        );
+        const hasBookingOverlap = room.bookings.some((booking) => {
+          const existingCheckIn = toLocalMidnight(booking.checkInDate);
+          const existingCheckOut = toLocalMidnight(booking.checkOutDate);
+          return existingCheckIn < checkOutDate && existingCheckOut > checkInDate;
+        });
         if (hasBookingOverlap) return false;
 
-        const hasBlackoutOverlap = room.blackoutDates.some(
-          (blackout) => blackout.startDate <= checkOutDate && blackout.endDate >= checkInDate
-        );
+        const hasBlackoutOverlap = room.blackoutDates.some((blackout) => {
+          const blackoutStart = toLocalMidnight(blackout.startDate);
+          const blackoutEnd = toLocalMidnight(blackout.endDate);
+          return blackoutStart <= checkOutDate && blackoutEnd >= checkInDate;
+        });
         return !hasBlackoutOverlap;
       })
       .map((room) => ({

@@ -17,14 +17,12 @@
  *    it directly and needs this endpoint instead
  * 4. Clicking "Sign Out" calls POST /api/auth/logout to clear the
  *    session cookie, then redirects to the login page
- * 5. The "Session expires in mm:ss" badge reads secondsRemaining from
- *    useIdleSessionCountdown() (components/superAdmin/
- *    IdleSessionProvider.jsx, mounted once in the layout) — the exact
- *    same live value driving the real 30-minute idle logout, not a
- *    second, independently-computed timer. This used to be its own
- *    separate useIdleTimeout() mount; that let the badge drift out of
- *    sync with the real logout timer under React Fast Refresh/
- *    StrictMode, so it was replaced with this single shared source.
+ * 5. The 30-minute idle auto-logout itself still runs via
+ *    components/superAdmin/IdleSessionProvider.jsx (mounted once in the
+ *    layout) — only the visible "Session expires in mm:ss" badge was
+ *    removed from this header; the admin still gets signed out after
+ *    30 minutes of no mouse/keyboard/scroll/touch activity, just
+ *    without a running countdown on screen.
  * 6. Date/Time: a plain client-side clock (Asia/Manila), ticking every
  *    second via setInterval — no server round-trip needed since it's
  *    just the current moment.
@@ -41,13 +39,7 @@ import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { LogOut, ChevronDown, Clock, Calendar, Sparkles, Sun } from "lucide-react";
 import { clearIdleDeadline } from "@/hooks/useIdleTimeout";
-import { useIdleSessionCountdown } from "@/components/superAdmin/IdleSessionProvider";
 import "./AdminHeader.css";
-
-// Badge switches to its warning color once this few seconds are left —
-// gives the admin a clear heads-up before the countdown actually hits
-// zero, instead of the number just quietly turning red at 0:00.
-const IDLE_WARNING_THRESHOLD_SECONDS = 120;
 
 // Season/event rarely change within a session, so this only re-fetches
 // every 5 minutes rather than polling constantly like the idle timer.
@@ -66,16 +58,6 @@ const TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
   second: "2-digit",
   hour12: true,
 });
-
-/**
- * formatCountdown
- * Turns a whole-second count into an "m:ss" display string, e.g. 65 -> "1:05".
- */
-function formatCountdown(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
 
 /* Add an entry here whenever a new admin page is built.
    Every route under app/superAdmin/(protected)/ must have a matching
@@ -141,13 +123,6 @@ export default function AdminHeader() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const pageTitle = resolvePageTitle(pathname);
-
-  // Reads the SAME secondsRemaining value the real logout timer in
-  // IdleSessionProvider (mounted once in the layout) is counting down —
-  // not a second, independently-computed timer, so this badge can
-  // never drift from the moment the admin actually gets signed out.
-  const secondsRemaining = useIdleSessionCountdown();
-  const isNearExpiry = secondsRemaining <= IDLE_WARNING_THRESHOLD_SECONDS;
 
   // Live clock — ticks every second, purely client-side (no server
   // round-trip needed for "what time is it right now").
@@ -277,17 +252,6 @@ export default function AdminHeader() {
             {seasonInfo.season?.label ?? "No season set"}
           </span>
         </div>
-
-        {/* Live countdown reading the exact secondsRemaining value
-            IdleSessionProvider is counting down for the real 30-minute
-            idle logout — see this file's header comment above. */}
-        <span
-          className={`adminSessionTimer${isNearExpiry ? " adminSessionTimer--warning" : ""}`}
-          title="Time until you're automatically signed out from inactivity"
-        >
-          <Clock size={14} aria-hidden="true" />
-          Session expires in {formatCountdown(secondsRemaining)}
-        </span>
 
         <div className="adminUserMenu" ref={menuRef}>
           <button

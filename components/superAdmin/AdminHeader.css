@@ -71,39 +71,10 @@
 }
 
 /*
- * .adminSessionTimer
- * Live "Session expires in mm:ss" badge — quiet/muted by default so it
- * doesn't compete with the page title, shifts to the warning color
- * once IDLE_WARNING_THRESHOLD_SECONDS is reached so the countdown
- * actually running out is impossible to miss.
- */
-.adminSessionTimer {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: 6px;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
-}
-
-.adminSessionTimer--warning {
-  color: var(--color-warning);
-  border-color: var(--color-warning);
-  background-color: rgba(217, 138, 36, 0.08);
-}
-
-/*
  * .adminHeaderInfoGroup / .adminHeaderInfoBadge
- * Date/Time/Event/Season badges — same quiet/muted visual language as
- * .adminSessionTimer (small, mono, bordered pill) so the whole right
- * side of the header reads as one consistent family of status chips
- * rather than two different styles competing for attention.
+ * Date/Time/Event/Season badges — small, mono, bordered pill style so
+ * the right side of the header reads as one consistent family of
+ * status chips.
  */
 .adminHeaderInfoGroup {
   display: flex;

@@ -3,15 +3,14 @@
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Displays Rule 41 aggregate traffic analytics: total views (last 30
- * days), a daily trend bar chart, top pages, top traffic sources, and
- * device/country breakdowns. Every number here is a pre-aggregated
- * counter from PageViewDaily — there is no per-visitor data behind any
- * of these views, by design (see services/analytics.js).
- * Also displays Sales Summary (revenue, bookings, average order value)
- * and Conversion Rate (share of visits that turned into a confirmed
- * booking) — both sourced from real Booking rows, so an owner can see
- * traffic and sales side by side on one page.
+ * Displays Rule 41 aggregate traffic analytics (Daily Views trend, Top
+ * Pages, Top Traffic Sources, Device Breakdown, and a specific
+ * city-level Location breakdown) alongside five Booking-sourced sales
+ * metrics — Total Revenue, Lost Revenue, Rebookings, Cancelled
+ * Bookings, and Conversion Rate. Each sales metric is laid out as a
+ * single row: its headline card on the left, its own 30-day trend
+ * chart on the right — so an admin reads the number and its trend
+ * together instead of hunting across the page for a matching chart.
  *
  * DATA FLOW:
  * 1. On mount, fetches GET /api/admin/analytics
@@ -24,6 +23,63 @@ import { useCallback, useEffect, useState } from "react";
 import "./Analytics.css";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+const PESO_FORMATTER = (value) => `₱${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+
+/**
+ * buildSmoothAreaPath
+ * Turns a [{date, value}] series into an SVG line + filled-area path
+ * using simple quadratic midpoint smoothing, so the Daily Views trend
+ * reads as a clean curve instead of the old cramped vertical bars.
+ * Returns null when there's fewer than 2 points (nothing to draw a
+ * line between).
+ */
+function buildSmoothAreaPath(series, width, height, paddingY = 10) {
+  if (!series || series.length < 2) return null;
+
+  const maxValue = Math.max(1, ...series.map((point) => point.value));
+  const stepX = width / (series.length - 1);
+  const points = series.map((point, index) => ({
+    x: index * stepX,
+    y: height - paddingY - (point.value / maxValue) * (height - paddingY * 2),
+  }));
+
+  let linePath = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i += 1) {
+    const midX = (points[i - 1].x + points[i].x) / 2;
+    linePath += ` Q ${points[i - 1].x} ${points[i - 1].y} ${midX} ${(points[i - 1].y + points[i].y) / 2}`;
+    linePath += ` T ${points[i].x} ${points[i].y}`;
+  }
+
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+
+  return { linePath, areaPath, points, maxValue };
+}
+
+/**
+ * MetricTrendChart
+ * The small right-hand-side chart paired with each headline metric
+ * card (Rule: chart always sits beside its card, on the right). A
+ * plain CSS bar sparkline — compact, no axis labels, just the shape
+ * of the last 30 days with a tooltip per bar for the exact value.
+ */
+function MetricTrendChart({ series, formatValue = (v) => v.toLocaleString() }) {
+  const maxValue = Math.max(1, ...series.map((point) => point.value));
+
+  return (
+    <div className="analyticsMetricChartPanel">
+      <div className="analyticsMetricSparkline">
+        {series.map((point) => (
+          <div
+            key={point.date}
+            className="analyticsMetricSparkBar"
+            style={{ height: `${Math.max(3, (point.value / maxValue) * 100)}%` }}
+            title={`${DATE_FORMATTER.format(new Date(point.date))}: ${formatValue(point.value)}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function AnalyticsClient() {
   const [data, setData] = useState(null);
@@ -55,10 +111,9 @@ export default function AnalyticsClient() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  // Highest single-day view count, used to scale the daily trend bars proportionally.
-  const maxDailyViews = data ? Math.max(1, ...data.dailyTotals.map((day) => day.views)) : 1;
   const maxTopPageViews = data ? Math.max(1, ...data.topPages.map((row) => row.views)) : 1;
   const maxReferrerViews = data ? Math.max(1, ...data.topReferrers.map((row) => row.views)) : 1;
+  const maxLocationViews = data ? Math.max(1, ...data.locationBreakdown.map((row) => row.views)) : 1;
 
   /**
    * buildDonutSegments
@@ -88,7 +143,16 @@ export default function AnalyticsClient() {
   }
 
   const deviceDonut = data ? buildDonutSegments(data.deviceBreakdown, "deviceType") : null;
-  const countryDonut = data ? buildDonutSegments(data.countryBreakdown, "countryCode") : null;
+
+  // Redesigned Daily Views chart — smooth filled area instead of the
+  // old cramped vertical bars.
+  const dailyViewsChart = data
+    ? buildSmoothAreaPath(
+        data.dailyTotals.map((d) => ({ date: d.date, value: d.views })),
+        600,
+        160
+      )
+    : null;
 
   return (
     <section className="analyticsSection">
@@ -96,8 +160,8 @@ export default function AnalyticsClient() {
         <span className="analyticsEyebrow">Traffic Overview</span>
         <h1 className="analyticsTitle">Analytics</h1>
         <p className="analyticsSubtitle">
-          Aggregate visitor traffic — page views, sources, and device/country trends over the last 30 days.
-          This data is anonymized: no individual visitor is ever tracked or identifiable here.
+          Aggregate visitor traffic and sales performance over the last 30 days. Traffic data is anonymized: no
+          individual visitor is ever tracked or identifiable here.
         </p>
       </div>
 
@@ -119,20 +183,57 @@ export default function AnalyticsClient() {
             <span className="analyticsTotalValue">{data.totalViews.toLocaleString()}</span>
           </div>
 
-          {/* Sales Summary + Conversion Rate — revenue and "visits that became a booking" side by side */}
-          <div className="analyticsSummaryRow">
-            <div className="analyticsSummaryCard">
-              <span className="analyticsSummaryLabel">Total Revenue (Last 30 Days)</span>
-              <span className="analyticsSummaryValue">
-                ₱{data.salesSummary.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0 })}
-              </span>
+          {/* --- Metric rows: card on the left, its own 30-day chart on the right --- */}
+
+          <div className="analyticsMetricRow">
+            <div className="analyticsMetricCard">
+              <span className="analyticsSummaryLabel">Total Revenue</span>
+              <span className="analyticsSummaryValue">{PESO_FORMATTER(data.salesSummary.totalRevenue)}</span>
               <span className="analyticsSummarySubtext">
-                {data.salesSummary.bookingsCount.toLocaleString()} confirmed bookings · avg ₱
-                {data.salesSummary.averageOrderValue.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                {data.salesSummary.bookingsCount.toLocaleString()} confirmed bookings · avg{" "}
+                {PESO_FORMATTER(data.salesSummary.averageOrderValue)}
               </span>
             </div>
+            <MetricTrendChart series={data.salesSummary.dailySeries} formatValue={PESO_FORMATTER} />
+          </div>
 
-            <div className="analyticsSummaryCard">
+          <div className="analyticsMetricRow">
+            <div className="analyticsMetricCard">
+              <span className="analyticsSummaryLabel">Lost Revenue</span>
+              <span className="analyticsSummaryValue analyticsSummaryValueNegative">
+                {PESO_FORMATTER(data.lostRevenueSummary.lostRevenue)}
+              </span>
+              <span className="analyticsSummarySubtext">
+                {data.lostRevenueSummary.cancelBookingsCount.toLocaleString()} cancelled bookings
+              </span>
+            </div>
+            <MetricTrendChart series={data.lostRevenueSummary.dailySeries} formatValue={PESO_FORMATTER} />
+          </div>
+
+          <div className="analyticsMetricRow">
+            <div className="analyticsMetricCard">
+              <span className="analyticsSummaryLabel">Rebookings</span>
+              <span className="analyticsSummaryValue">{data.rebookingSummary.rebookingsCount.toLocaleString()}</span>
+              <span className="analyticsSummarySubtext">
+                from {data.rebookingSummary.repeatGuestCount.toLocaleString()} repeat guests
+              </span>
+            </div>
+            <MetricTrendChart series={data.rebookingSummary.dailySeries} />
+          </div>
+
+          <div className="analyticsMetricRow">
+            <div className="analyticsMetricCard">
+              <span className="analyticsSummaryLabel">Cancelled Bookings</span>
+              <span className="analyticsSummaryValue analyticsSummaryValueNegative">
+                {data.cancelSummary.cancelBookingsCount.toLocaleString()}
+              </span>
+              <span className="analyticsSummarySubtext">last 30 days</span>
+            </div>
+            <MetricTrendChart series={data.cancelSummary.dailySeries} />
+          </div>
+
+          <div className="analyticsMetricRow">
+            <div className="analyticsMetricCard">
               <span className="analyticsSummaryLabel">Conversion Rate</span>
               <span className="analyticsSummaryValue">{data.conversion.conversionRatePercent}%</span>
               <span className="analyticsSummarySubtext">
@@ -140,25 +241,44 @@ export default function AnalyticsClient() {
                 {data.conversion.totalViews.toLocaleString()} visits
               </span>
             </div>
+            <MetricTrendChart series={data.conversion.dailySeries} formatValue={(v) => `${v}%`} />
           </div>
 
-          {/* Daily trend — simple CSS bar chart, no data-viz dependency needed */}
+          {/* --- Daily Views — redesigned as a smooth filled-area chart --- */}
           <div className="analyticsPanel">
             <h2 className="analyticsPanelTitle">Daily Views</h2>
-            {data.dailyTotals.length === 0 ? (
+            {!dailyViewsChart ? (
               <p className="analyticsEmptyMessage">No views recorded yet.</p>
             ) : (
-              <div className="analyticsBarChart">
-                {data.dailyTotals.map((day) => (
-                  <div key={day.date} className="analyticsBarColumn">
-                    <div
-                      className="analyticsBar"
-                      style={{ height: `${(day.views / maxDailyViews) * 100}%` }}
-                      title={`${day.views} views`}
-                    />
-                    <span className="analyticsBarLabel">{DATE_FORMATTER.format(new Date(day.date))}</span>
-                  </div>
-                ))}
+              <div className="analyticsTrendChartWrap">
+                <svg
+                  className="analyticsTrendChart"
+                  viewBox="0 0 600 160"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label="Daily page views over the last 30 days"
+                >
+                  <defs>
+                    <linearGradient id="dailyViewsFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={dailyViewsChart.areaPath} fill="url(#dailyViewsFill)" stroke="none" />
+                  <path d={dailyViewsChart.linePath} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" />
+                  {dailyViewsChart.points.map((point, index) => (
+                    <circle key={data.dailyTotals[index].date} cx={point.x} cy={point.y} r="3" fill="var(--color-accent)">
+                      <title>
+                        {DATE_FORMATTER.format(new Date(data.dailyTotals[index].date))}: {data.dailyTotals[index].views}{" "}
+                        views
+                      </title>
+                    </circle>
+                  ))}
+                </svg>
+                <div className="analyticsTrendChartAxis">
+                  <span>{DATE_FORMATTER.format(new Date(data.dailyTotals[0].date))}</span>
+                  <span>{DATE_FORMATTER.format(new Date(data.dailyTotals[data.dailyTotals.length - 1].date))}</span>
+                </div>
               </div>
             )}
           </div>
@@ -241,32 +361,29 @@ export default function AnalyticsClient() {
               )}
             </div>
 
-            {/* Country breakdown — donut chart */}
+            {/* Location breakdown — specific city + country list, sorted, fast to scan */}
             <div className="analyticsPanel">
-              <h2 className="analyticsPanelTitle">Top Countries</h2>
-              {data.countryBreakdown.length === 0 ? (
+              <h2 className="analyticsPanelTitle">Top Locations</h2>
+              {data.locationBreakdown.length === 0 ? (
                 <p className="analyticsEmptyMessage">No location data yet.</p>
               ) : (
-                <div className="analyticsDonutWrap">
-                  <div
-                    className="analyticsDonut"
-                    style={{ background: `conic-gradient(${countryDonut.gradientStops})` }}
-                  >
-                    <div className="analyticsDonutCenter">
-                      <span className="analyticsDonutCenterValue">{countryDonut.total.toLocaleString()}</span>
-                      <span className="analyticsDonutCenterLabel">views</span>
-                    </div>
-                  </div>
-                  <ul className="analyticsDonutLegend">
-                    {countryDonut.legend.map((segment) => (
-                      <li key={segment.label} className="analyticsDonutLegendRow">
-                        <span className="analyticsDonutSwatch" style={{ backgroundColor: segment.color }} />
-                        <span className="analyticsDonutLegendLabel">{segment.label}</span>
-                        <span className="analyticsDonutLegendValue">{segment.percent.toFixed(0)}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <ul className="analyticsBarList">
+                  {data.locationBreakdown.map((row) => (
+                    <li key={`${row.city}-${row.countryCode}`} className="analyticsBarListRow">
+                      <span className="analyticsBarListLabel">
+                        {row.city}
+                        {row.countryCode && row.countryCode !== "Unknown" ? `, ${row.countryCode}` : ""}
+                      </span>
+                      <div className="analyticsBarListTrack">
+                        <div
+                          className="analyticsBarListFill"
+                          style={{ width: `${(row.views / maxLocationViews) * 100}%` }}
+                        />
+                      </div>
+                      <span className="analyticsBarListValue">{row.views.toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
           </div>

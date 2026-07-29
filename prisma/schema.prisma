@@ -1040,9 +1040,15 @@ model PageViewDaily {
   referrerHost String?  @map("referrer_host")
   deviceType   String?  @map("device_type")
   countryCode  String?  @map("country_code")
+  // City-level location, added for specific/accurate Analytics location
+  // tracking (super-admin Analytics page) — still aggregate/anonymized:
+  // resolved in-memory from the request IP per view (services/analytics.js),
+  // the IP itself is never stored, only the resulting city name. Rule 41
+  // still applies: city/country granularity only, never precise coordinates.
+  geoCity      String?  @map("geo_city")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  @@unique([date, path, referrerHost, deviceType, countryCode])
+  @@unique([date, path, referrerHost, deviceType, countryCode, geoCity])
   @@map("page_views_daily")
 }
 

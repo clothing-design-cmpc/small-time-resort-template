@@ -28,22 +28,28 @@ import { lookupGeoLocation } from "@/services/geoip";
 import { prisma } from "@/services/prisma";
 
 /**
- * resolveCountryCode
+ * resolveLocation
  * Looks up the request's IP against the self-hosted MaxMind DB and
- * returns only the 2-letter country code. The IP itself is read once
- * into this function's local variable and discarded — it is never
- * passed to logSecurityEvent, never written to any table, and never
- * returned to the caller.
+ * returns only the 2-letter country code plus the city name — city
+ * added so the Analytics "Top Locations" panel can show specific,
+ * accurate locations instead of country-only buckets. The IP itself
+ * is read once into this function's local variable and discarded —
+ * it is never passed to logSecurityEvent, never written to any
+ * table, and never returned to the caller. Still Rule 41-compliant:
+ * city/country granularity only, no coordinates, no per-visitor row.
  */
-async function resolveCountryCode(request) {
+async function resolveLocation(request) {
   const ipAddress = request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim();
-  if (!ipAddress) return null;
+  if (!ipAddress) return { countryCode: null, city: null };
 
   try {
     const location = await lookupGeoLocation(ipAddress);
-    return location.countryCode ?? null; // ISO 3166-1 alpha-2, e.g. "PH"
+    return {
+      countryCode: location.countryCode ?? null, // ISO 3166-1 alpha-2, e.g. "PH"
+      city: location.city ?? null,
+    };
   } catch {
-    return null;
+    return { countryCode: null, city: null };
   }
 }
 
@@ -80,7 +86,9 @@ export async function recordPageView({ request, path, referrerHost = null }) {
     // values the admin analytics reader already falls back to display
     // (app/api/admin/analytics/route.js: "Direct" / "Unknown"), so read and
     // write sides agree on what a missing value looks like.
-    const countryCode = (await resolveCountryCode(request)) ?? "Unknown";
+    const { countryCode: resolvedCountryCode, city: resolvedCity } = await resolveLocation(request);
+    const countryCode = resolvedCountryCode ?? "Unknown";
+    const geoCity = resolvedCity ?? "Unknown";
     const resolvedReferrerHost = referrerHost ?? "Direct";
     const deviceType = resolveDeviceType(request);
 
@@ -91,16 +99,17 @@ export async function recordPageView({ request, path, referrerHost = null }) {
 
     await prisma.pageViewDaily.upsert({
       where: {
-        date_path_referrerHost_deviceType_countryCode: {
+        date_path_referrerHost_deviceType_countryCode_geoCity: {
           date,
           path,
           referrerHost: resolvedReferrerHost,
           deviceType,
           countryCode,
+          geoCity,
         },
       },
       update: { viewCount: { increment: 1 } },
-      create: { date, path, referrerHost: resolvedReferrerHost, deviceType, countryCode, viewCount: 1 },
+      create: { date, path, referrerHost: resolvedReferrerHost, deviceType, countryCode, geoCity, viewCount: 1 },
     });
   } catch (error) {
     // Analytics must never break the visitor's request — surface it server-side only.

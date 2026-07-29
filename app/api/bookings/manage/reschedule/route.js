@@ -40,6 +40,7 @@ import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
+import { sendGeneralEmail } from "@/services/emailjs";
 
 const RESCHEDULE_MAX_ATTEMPTS = 10;
 const RESCHEDULE_WINDOW_MS = 15 * 60 * 1000;
@@ -176,6 +177,40 @@ export async function POST(request) {
       data: { checkInDate: newCheckIn, checkOutDate: newCheckOut, rebookedAt: new Date() },
     });
 
+    // Same permanent, live-generated invoice link pattern as the booking
+    // creation route (app/api/bookings/route.js) — keyed by booking.id,
+    // which never changes across a reschedule, so services/invoicePdf.js
+    // picks up the NEW dates and swaps the watermark to REBOOK
+    // automatically (drawWatermark's rebookedAt check) the moment it's
+    // requested. The gap this closes: nothing previously told the guest
+    // a new invoice reflecting the move existed, so the ONLY invoice
+    // link they had was the original "Booking Confirmed" email — which,
+    // while technically still live, was never re-surfaced after this
+    // reschedule, and this route never sent any notice of its own.
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+    const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${updatedBooking.id}/invoice` : null;
+
+    try {
+      // Best-effort notice — a failed send must never fail an already-
+      // moved booking. Mirrors the confirmation email sent at booking
+      // creation, but calls out that this is an updated invoice for
+      // rebooked dates.
+      await sendGeneralEmail({
+        toEmail: updatedBooking.guestEmail,
+        subject: `your-private-resort — Booking Rebooked (${updatedBooking.referenceCode})`,
+        eyebrow: "BOOKING REBOOKED",
+        heading: `Your dates have been updated, ${updatedBooking.guestName}!`,
+        intro: "Your stay at your-private-resort has been moved to the new dates below. Your reference code stays the same.",
+        highlightLine1: `Reference code: ${updatedBooking.referenceCode}`,
+        highlightLine2: `${payload.checkInDate} → ${payload.checkOutDate}`,
+        bodyMessage: invoiceUrl
+          ? `Download your updated invoice here: ${invoiceUrl}`
+          : "Your updated invoice with the reference code above is also available on the booking confirmation page.",
+      });
+    } catch (error) {
+      console.error("[api/bookings/manage/reschedule] Failed to send rebooked confirmation email:", error.message);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -184,6 +219,7 @@ export async function POST(request) {
           checkInDate: updatedBooking.checkInDate.toISOString().slice(0, 10),
           checkOutDate: updatedBooking.checkOutDate.toISOString().slice(0, 10),
         },
+        invoiceUrl,
       },
       message: "Your booking has been moved to the new dates.",
     });

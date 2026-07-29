@@ -191,7 +191,11 @@ export default function RebookCalendarModal({ booking, onClose, onRescheduled })
         setErrorMessage(result.message);
         return;
       }
-      onRescheduled();
+      // Pass the new dates + the live invoice link up so
+      // ManageBookingWidget can show the guest a confirmation with a
+      // download link for the updated (REBOOK-watermarked) PDF, instead
+      // of just closing the modal with no acknowledgment of the change.
+      onRescheduled(result.data);
     } catch {
       setErrorMessage("We couldn't reach the server. Check your connection and try again.");
     } finally {

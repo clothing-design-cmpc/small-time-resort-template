@@ -37,6 +37,7 @@ const STEP_CODE = "code";
 const STEP_SUMMARY = "summary";
 const STEP_CONFIRM_CANCEL = "confirmCancel";
 const STEP_CANCELLED = "cancelled";
+const STEP_REBOOKED = "rebooked";
 
 export default function ManageBookingWidget() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +47,10 @@ export default function ManageBookingWidget() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [isRebookModalOpen, setIsRebookModalOpen] = useState(false);
+  // Populated from POST /api/bookings/manage/reschedule's response so the
+  // STEP_REBOOKED success screen can show the guest their new dates and a
+  // link to the updated (REBOOK-watermarked) invoice PDF.
+  const [rebookedInfo, setRebookedInfo] = useState(null);
 
   const codeInputRef = useRef(null);
 
@@ -152,9 +157,22 @@ export default function ManageBookingWidget() {
     resetAndClose();
   }
 
-  function handleRescheduled() {
+  function handleRescheduled(data) {
     setIsRebookModalOpen(false);
-    resetAndClose();
+    setRebookedInfo(data ?? null);
+    setIsModalOpen(true);
+    setStep(STEP_REBOOKED);
+  }
+
+  /**
+   * handleRebookedClose
+   * Same reasoning as handleCancelledClose above — reloads the page so
+   * the homepage calendars (HowToBookSection, BookedDatesSection) pick
+   * up the moved dates immediately instead of showing stale
+   * availability from their mount-only fetch.
+   */
+  function handleRebookedClose() {
+    window.location.reload();
   }
 
   return (
@@ -305,6 +323,29 @@ export default function ManageBookingWidget() {
                   Your reservation has been cancelled and those dates are now free.
                 </p>
                 <button type="button" className="manageBookingSubmitButton" onClick={handleCancelledClose}>
+                  Close
+                </button>
+              </div>
+            )}
+
+            {step === STEP_REBOOKED && rebookedInfo && (
+              <div className="manageBookingSuccess">
+                <p className="manageBookingSuccessTitle">Booking rebooked</p>
+                <p className="manageBookingSuccessSubtitle">
+                  Your reservation is now {rebookedInfo.booking.checkInDate} → {rebookedInfo.booking.checkOutDate}.
+                  Your reference code stays the same: {rebookedInfo.booking.referenceCode}.
+                </p>
+                {rebookedInfo.invoiceUrl && (
+                  <a
+                    href={rebookedInfo.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="manageBookingRebookButton"
+                  >
+                    Download updated invoice
+                  </a>
+                )}
+                <button type="button" className="manageBookingSubmitButton" onClick={handleRebookedClose}>
                   Close
                 </button>
               </div>

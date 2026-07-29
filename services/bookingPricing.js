@@ -35,6 +35,33 @@ function startOfDay(date) {
   return d;
 }
 
+/**
+ * toUtcMidnight
+ * Converts a local-midnight calendar-day Date (what startOfDay() above
+ * produces) into a UTC-midnight Date for that SAME calendar day.
+ *
+ * BUG THIS FIXES: Booking.checkInDate/checkOutDate are @db.Date columns
+ * — Prisma always round-trips these as UTC midnight of the stored
+ * calendar day, regardless of server timezone. But checkIn/checkOut in
+ * this file are built via startOfDay(), which zeroes in LOCAL time. On
+ * a server running UTC+8 (this resort's timezone), a Day Tour checkIn
+ * of "2026-07-31" becomes local midnight = 2026-07-30T16:00:00Z, which
+ * Prisma then truncates down to DATE '2026-07-30' when comparing — one
+ * day EARLIER than intended. That made a July 31 Day Tour request
+ * falsely match an existing booking that checked out July 30, throwing
+ * "already booked for an overnight stay" for a date with no real
+ * conflict at all.
+ * Use this wrapper on checkIn/checkOut ONLY where they're compared
+ * against a Prisma checkInDate/checkOutDate field. Local-time-based
+ * comparisons elsewhere in this file (Same-Day Policy, nights math,
+ * daysBetween) are unaffected and must keep using the original
+ * local-midnight checkIn/checkOut — they're comparing against real
+ * wall-clock time, not a stored DATE column.
+ */
+function toUtcMidnight(date) {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
 function daysBetween(a, b) {
   return Math.round((startOfDay(b) - startOfDay(a)) / 86400000);
 }
@@ -286,12 +313,14 @@ export async function validateAndQuoteBooking({
     // (checkInDate === checkOutDate) — treat that single date as
     // occupying [date, date+1) for the same half-open range comparison
     // used for Overnight-vs-Overnight overlap below.
+    const requestedCheckInUtc = toUtcMidnight(checkIn);
+    const requestedCheckOutUtc = toUtcMidnight(checkOut);
     const requestedOverlaps = existingBookings.some((existing) => {
       const existingCheckOut =
         existing.bookingType === "overnight"
           ? existing.checkOutDate
           : new Date(existing.checkInDate.getTime() + 86400000);
-      return checkIn < existingCheckOut && checkOut > existing.checkInDate;
+      return requestedCheckInUtc < existingCheckOut && requestedCheckOutUtc > existing.checkInDate;
     });
     if (requestedOverlaps) {
       throw new Error("Those dates were just booked. Please pick a different date.");
@@ -302,7 +331,7 @@ export async function validateAndQuoteBooking({
       select: { startDate: true, endDate: true, reason: true },
     });
     const hitsBlackout = blackoutRanges.some(
-      (blackout) => checkIn < blackout.endDate && checkOut > blackout.startDate
+      (blackout) => requestedCheckInUtc < blackout.endDate && requestedCheckOutUtc > blackout.startDate
     );
     if (hitsBlackout) {
       throw new Error("This room is closed for part of your selected date range. Please pick a different date.");
@@ -325,12 +354,19 @@ export async function validateAndQuoteBooking({
     // bug: it hid Night Tour on a date where nothing actually conflicts
     // with it.
     const checkoutDateOperator = bookingType === "day_tour" ? "gte" : "gt";
+    // Must use the UTC-anchored checkIn (see toUtcMidnight() above) —
+    // this is the query that produced the reported false positive:
+    // comparing local-midnight checkIn directly against the @db.Date
+    // checkOutDate column shifted a July 31 request back to July 30 on
+    // a UTC+8 server, wrongly matching a booking that checked out
+    // July 30 and throwing "already booked for an overnight stay" for
+    // a date with no real conflict.
     const conflictingOvernightStay = await client.booking.findFirst({
       where: {
         status: "confirmed",
         bookingType: "overnight",
-        checkInDate: { lte: checkIn },
-        checkOutDate: { [checkoutDateOperator]: checkIn },
+        checkInDate: { lte: toUtcMidnight(checkIn) },
+        checkOutDate: { [checkoutDateOperator]: toUtcMidnight(checkIn) },
       },
       select: { id: true },
     });

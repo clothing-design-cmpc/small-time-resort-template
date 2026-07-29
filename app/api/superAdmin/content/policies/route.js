@@ -70,6 +70,9 @@ export async function PUT(request) {
         resortPhone: body.resortPhone ?? null,
         resortEmail: body.resortEmail ?? null,
         resortAddress: body.resortAddress ?? null,
+        resortWhatsapp: body.resortWhatsapp ?? null,
+        resortViber: body.resortViber ?? null,
+        resortMessengerUsername: body.resortMessengerUsername ?? null,
         resortLatitude: body.resortLatitude === "" || body.resortLatitude == null ? null : Number(body.resortLatitude),
         resortLongitude:
           body.resortLongitude === "" || body.resortLongitude == null ? null : Number(body.resortLongitude),
@@ -96,6 +99,9 @@ export async function PUT(request) {
         resortPhone: body.resortPhone ?? null,
         resortEmail: body.resortEmail ?? null,
         resortAddress: body.resortAddress ?? null,
+        resortWhatsapp: body.resortWhatsapp ?? null,
+        resortViber: body.resortViber ?? null,
+        resortMessengerUsername: body.resortMessengerUsername ?? null,
         resortLatitude: body.resortLatitude === "" || body.resortLatitude == null ? null : Number(body.resortLatitude),
         resortLongitude:
           body.resortLongitude === "" || body.resortLongitude == null ? null : Number(body.resortLongitude),

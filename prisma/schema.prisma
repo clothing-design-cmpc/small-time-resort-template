@@ -901,6 +901,16 @@ model SystemSettings {
   resortEmail   String? @map("resort_email")
   resortAddress String? @map("resort_address")
 
+  // --- Message Us channels (floating "Request a callback" widget) ---
+  // Each is independently optional — the widget only shows a button for
+  // a channel once its field is filled in. Numbers are stored exactly
+  // as the admin types them (digits only recommended, e.g. 639171234567
+  // with no "+" or spaces) since utils/messagingLinks.js strips
+  // non-digits before building the wa.me/viber:// link anyway.
+  resortWhatsapp          String? @map("resort_whatsapp")
+  resortViber             String? @map("resort_viber")
+  resortMessengerUsername String? @map("resort_messenger_username")
+
   // --- Location Map Pin (visitor Footer) ---
   // Placeholder default (Metro Manila) so the map always has something
   // to render before the admin sets the resort's real coordinates from

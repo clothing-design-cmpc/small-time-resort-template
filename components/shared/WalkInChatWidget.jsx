@@ -4,17 +4,26 @@
  *
  * PURPOSE:
  * Floating "Chat with us" icon fixed to the bottom-right corner of the
- * screen. Clicking it opens a small modal with a 2-field form (name,
- * phone) — IP address is captured automatically server-side, never
- * asked from the guest. Built for walk-in/phone-in guests who want a
- * callback instead of using the full booking form (item #11/#12 audit
- * follow-up: the fastest path is a direct ask-to-be-called, not a
- * gated contact form).
+ * screen. Clicking it opens a small modal with two ways to reach the
+ * resort:
+ *   1. Message Us row — WhatsApp / Viber / Facebook Messenger buttons,
+ *      one per channel the admin has configured (Super-Admin > Policies
+ *      & Content > Contact Info) — each opens the guest's own
+ *      messaging app directly via a deep link, no widget/SDK embedded.
+ *   2. The original 2-field callback form (name, phone) — IP address is
+ *      captured automatically server-side, never asked from the guest.
+ *      Built for walk-in/phone-in guests who want a callback instead of
+ *      using the full booking form (item #11/#12 audit follow-up).
  *
  * DATA FLOW:
- * 1. Click the floating button -> isModalOpen = true
- * 2. useWalkInInquiry().submitInquiry() POSTs to /api/walkin-inquiry
- * 3. On success, modal switches to a thank-you state and auto-closes
+ * 1. Rendered from app/visitor/layout.jsx (Server Component), which
+ *    passes whatsapp/viber/messengerUsername as props — read once from
+ *    the singleton SystemSettings row, no client-side fetch needed
+ * 2. Click the floating button -> isModalOpen = true
+ * 3. Message Us buttons are plain <a> deep links (utils/messagingLinks.js)
+ *    — clicking one just navigates, no form submission involved
+ * 4. useWalkInInquiry().submitInquiry() POSTs to /api/walkin-inquiry
+ * 5. On success, modal switches to a thank-you state and auto-closes
  *    after a short delay; the guest's IP was captured server-side from
  *    the request, not from anything sent by this component
  */
@@ -23,15 +32,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useWalkInInquiry } from "@/hooks/useWalkInInquiry";
 import { sanitizeTextInput } from "@/utils/sanitizeInput";
+import { buildWhatsappLink, buildViberLink, buildMessengerLink } from "@/utils/messagingLinks";
 import "./WalkInChatWidget.css";
 
-export default function WalkInChatWidget() {
+export default function WalkInChatWidget({ whatsapp = null, viber = null, messengerUsername = null }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const nameInputRef = useRef(null);
 
   const { submitInquiry, isSubmitting, submitError, isSubmitted, reset } = useWalkInInquiry();
+
+  // Each is null when that channel isn't configured — the button for it
+  // simply isn't rendered below (never a broken/dead link).
+  const whatsappLink = buildWhatsappLink(whatsapp, "Hi! I'd like to ask about a booking.");
+  const viberLink = buildViberLink(viber);
+  const messengerLink = buildMessengerLink(messengerUsername);
+  const hasAnyMessageChannel = Boolean(whatsappLink || viberLink || messengerLink);
 
   // Autofocus the first field the moment the modal opens (Rule 34.3)
   useEffect(() => {
@@ -102,7 +119,55 @@ export default function WalkInChatWidget() {
                 <p className="walkInChatSuccessSubtitle">We'll call you back shortly at {guestPhone}.</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} noValidate>
+              <>
+                {hasAnyMessageChannel && (
+                  <div className="walkInChatMessageUs">
+                    <p className="walkInChatMessageUsLabel">Message us instantly:</p>
+                    <div className="walkInChatMessageUsRow">
+                      {whatsappLink && (
+                        <a
+                          href={whatsappLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="walkInChatMessageUsButton walkInChatMessageUsButton--whatsapp"
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                          </svg>
+                          WhatsApp
+                        </a>
+                      )}
+                      {viberLink && (
+                        <a
+                          href={viberLink}
+                          className="walkInChatMessageUsButton walkInChatMessageUsButton--viber"
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                          </svg>
+                          Viber
+                        </a>
+                      )}
+                      {messengerLink && (
+                        <a
+                          href={messengerLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="walkInChatMessageUsButton walkInChatMessageUsButton--messenger"
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                          </svg>
+                          Messenger
+                        </a>
+                      )}
+                    </div>
+                    <div className="walkInChatDivider">
+                      <span>or leave your number</span>
+                    </div>
+                  </div>
+                )}
+                <form onSubmit={handleSubmit} noValidate>
                 <h2 id="walkInChatTitle" className="walkInChatTitle">Request a callback</h2>
                 <p className="walkInChatSubtitle">
                   Leave your name and number — we'll call you to help set up your reservation.
@@ -146,6 +211,7 @@ export default function WalkInChatWidget() {
                   {isSubmitting ? "Sending…" : "Request callback"}
                 </button>
               </form>
+              </>
             )}
           </div>
         </div>

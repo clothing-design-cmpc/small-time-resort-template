@@ -87,9 +87,35 @@ async function getMaintenanceStatus() {
   }
 }
 
+/**
+ * getMessageUsChannels
+ * Reads only the 3 optional Message Us fields off the singleton
+ * SystemSettings row (Super-Admin > Policies & Content > Contact Info)
+ * so WalkInChatWidget can show a WhatsApp/Viber/Messenger button for
+ * each one the admin has filled in. Fails to all-null on any DB error
+ * — WalkInChatWidget already treats "no channels configured" as normal
+ * (the callback form still renders on its own either way).
+ */
+async function getMessageUsChannels() {
+  try {
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: "singleton" },
+      select: { resortWhatsapp: true, resortViber: true, resortMessengerUsername: true },
+    });
+    return {
+      whatsapp: settings?.resortWhatsapp ?? null,
+      viber: settings?.resortViber ?? null,
+      messengerUsername: settings?.resortMessengerUsername ?? null,
+    };
+  } catch {
+    return { whatsapp: null, viber: null, messengerUsername: null };
+  }
+}
+
 export default async function VisitorLayout({ children }) {
   const { maintenanceMode, maintenanceMessage, breachLockdown, postWipeLockdown, activeGatekeeper } =
     await getMaintenanceStatus();
+  const messageUsChannels = await getMessageUsChannels();
 
   // A completed database wipe (Task 2) is the most severe case of all —
   // proxy.js already redirects every visitor request to /maintenance
@@ -128,7 +154,11 @@ export default async function VisitorLayout({ children }) {
       </div>
       <Footer />
       {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
-      <WalkInChatWidget />
+      <WalkInChatWidget
+        whatsapp={messageUsChannels.whatsapp}
+        viber={messageUsChannels.viber}
+        messengerUsername={messageUsChannels.messengerUsername}
+      />
       {/* Floating "manage/cancel my booking" icon — stacked directly above WalkInChatWidget's button */}
       <ManageBookingWidget />
       {/* Floating "resort location" icon — stacked directly above ManageBookingWidget's button */}

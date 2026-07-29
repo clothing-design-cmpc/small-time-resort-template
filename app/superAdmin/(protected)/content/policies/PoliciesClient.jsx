@@ -56,6 +56,9 @@ const EMPTY_FORM = {
   resortPhone: "",
   resortEmail: "",
   resortAddress: "",
+  resortWhatsapp: "",
+  resortViber: "",
+  resortMessengerUsername: "",
   resortLatitude: "",
   resortLongitude: "",
 };
@@ -93,6 +96,9 @@ export default function PoliciesClient() {
       resortPhone: policies.resortPhone ?? "",
       resortEmail: policies.resortEmail ?? "",
       resortAddress: policies.resortAddress ?? "",
+      resortWhatsapp: policies.resortWhatsapp ?? "",
+      resortViber: policies.resortViber ?? "",
+      resortMessengerUsername: policies.resortMessengerUsername ?? "",
       resortLatitude: policies.resortLatitude ?? "",
       resortLongitude: policies.resortLongitude ?? "",
     });
@@ -249,6 +255,40 @@ export default function PoliciesClient() {
               rows={3}
               value={formValues.resortAddress}
               onChange={(event) => handleFieldChange("resortAddress", event.target.value)}
+            />
+          </div>
+          <p className="policiesMapHint">
+            Message Us channels — the floating &quot;Request a callback&quot; button on the visitor site shows
+            a button for each one filled in below. Leave any of these blank to hide that channel.
+          </p>
+          <div className="policiesFormField">
+            <label htmlFor="resortWhatsapp">WhatsApp Number</label>
+            <input
+              id="resortWhatsapp"
+              type="tel"
+              placeholder="e.g. +63 917 123 4567"
+              value={formValues.resortWhatsapp}
+              onChange={(event) => handleFieldChange("resortWhatsapp", event.target.value)}
+            />
+          </div>
+          <div className="policiesFormField">
+            <label htmlFor="resortViber">Viber Number</label>
+            <input
+              id="resortViber"
+              type="tel"
+              placeholder="e.g. +63 917 123 4567"
+              value={formValues.resortViber}
+              onChange={(event) => handleFieldChange("resortViber", event.target.value)}
+            />
+          </div>
+          <div className="policiesFormField">
+            <label htmlFor="resortMessengerUsername">Facebook Messenger Username</label>
+            <input
+              id="resortMessengerUsername"
+              type="text"
+              placeholder="e.g. yourprivateresort (from facebook.com/yourprivateresort)"
+              value={formValues.resortMessengerUsername}
+              onChange={(event) => handleFieldChange("resortMessengerUsername", event.target.value)}
             />
           </div>
           <div className="policiesFormFieldRow">

@@ -68,7 +68,7 @@ export async function POST(request) {
 
   const booking = await prisma.booking.findUnique({
     where: { referenceCode: payload.referenceCode.toUpperCase() },
-    select: { id: true, guestName: true, status: true, checkInDate: true, directionsAccessedAt: true },
+    select: { id: true, guestName: true, status: true, checkInDate: true, directionsAccessedAt: true, directionsRouteData: true },
   });
 
   const isValid = !!booking && booking.status === "confirmed";
@@ -81,23 +81,31 @@ export async function POST(request) {
     });
   }
 
-  // Single-use gate — directions were already retrieved for this
-  // booking at some earlier point (any device), so the widget stays
-  // locked from here on. The map already embedded in the invoice
-  // (services/invoicePdf.js) is the guest's reference from now on —
-  // this is exactly why that map matters, since this is the only
-  // place a route image gets shown after the one-time unlock.
-  if (booking.directionsAccessedAt) {
+  // Directions were already computed once for this booking — verify
+  // still SUCCEEDS (the widget unlocks) so the guest can view their
+  // directions again any number of times, but a note flags that
+  // /api/directions/compute will serve the cached snapshot from their
+  // first request rather than spending another Geocoding/Routes/Static
+  // Maps API call. This intentionally skips the availability-window
+  // check below too — that window only exists to bound API spend
+  // before a guest has ever accessed directions; once paid for once,
+  // there's no cost reason left to keep re-gating by date.
+  if (booking.directionsAccessedAt && booking.directionsRouteData) {
     await logSecurityEvent({
-      eventType: "directions_reuse_blocked",
+      eventType: "directions_reaccessed",
       actor: booking.guestName,
       request,
-      details: `Reference code reused after directions already accessed at ${booking.directionsAccessedAt.toISOString()}.`,
+      details: `Reference code re-verified — directions already cached since ${booking.directionsAccessedAt.toISOString()}.`,
     });
     return NextResponse.json({
       success: true,
-      data: { valid: false, alreadyUsed: true },
-      message: "Directions for this booking were already retrieved. Please check the map on your invoice, or contact us if you need help.",
+      data: {
+        valid: true,
+        cached: true,
+        bookingId: booking.id,
+        guestFirstName: booking.guestName.split(" ")[0],
+      },
+      message: "Reference code verified. Showing your saved directions.",
     });
   }
 

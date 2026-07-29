@@ -184,14 +184,29 @@ model Booking {
   referenceCode  String   @unique @map("reference_code")
 
   // Set the FIRST time this booking's directions were actually
-  // retrieved (app/api/directions/compute/route.js — the call that
-  // spends the Routes/Static Maps API budget), never on verify-
-  // reference alone. Once set, the widget is single-use: any further
-  // verify or compute attempt for this booking is denied regardless
-  // of device, and the guest is pointed to the map already embedded
-  // in their invoice (services/invoicePdf.js) instead. Null = not yet
-  // used.
+  // computed (app/api/directions/compute/route.js — the ONE call that
+  // spends the Geocoding/Routes/Static Maps API budget for this
+  // booking). Null = never computed yet. Once set, every later
+  // compute request for this reference code is served from
+  // directionsRouteData/directionsMapImage* below instead of calling
+  // Google Maps again — the guest can still view their directions any
+  // number of times, it just never costs another API call after the
+  // first.
   directionsAccessedAt DateTime? @map("directions_accessed_at")
+
+  // Cached result of the one paid compute — { distanceMeters,
+  // durationSeconds, steps, originLatitude, originLongitude }. Written
+  // once alongside directionsAccessedAt, then read-only forever after.
+  // Never recomputed from this JSON — it's a snapshot of that one
+  // route, not live data.
+  directionsRouteData   Json?   @map("directions_route_data")
+
+  // Cloudflare R2 public CDN URL + object key for the Static Maps PNG
+  // rendered on that same first compute (Rule 35.6/35.8 — key kept for
+  // deleteFromR2() if this booking is ever purged). Served directly by
+  // R2's CDN on every later view — never re-requested from Google.
+  directionsMapImageUrl String? @map("directions_map_image_url")
+  directionsMapImageKey String? @map("directions_map_image_key")
 
   // --- Multi-date rule matching (Section 1 Rule 2 on Booking Rules) ---
   // NIGHTS actually selected by the guest (checkOutDate - checkInDate in

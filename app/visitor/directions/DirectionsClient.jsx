@@ -53,6 +53,10 @@ export default function DirectionsClient() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [guestFirstName, setGuestFirstName] = useState("");
+  // True once verify-reference reports this booking's directions were
+  // already computed once before — /api/directions/compute will then
+  // serve the saved snapshot instead of spending another Maps API call.
+  const [isCached, setIsCached] = useState(false);
 
   const [locationMode, setLocationMode] = useState("auto"); // "auto" | "manual"
   const [manualAddress, setManualAddress] = useState("");
@@ -107,12 +111,13 @@ export default function DirectionsClient() {
     setIsVerifying(true);
     try {
       const response = await axios.post("/api/bookings/verify-reference", { referenceCode: referenceCode.trim() });
-      const { valid, guestFirstName: name, availableFrom } = response.data.data;
+      const { valid, guestFirstName: name, cached, availableFrom } = response.data.data;
 
       if (valid) {
         setIsVerified(true);
+        setIsCached(!!cached);
         setGuestFirstName(name || "");
-        showToast("✓ Reference code verified.", "success");
+        showToast(cached ? "✓ Verified — showing your saved directions." : "✓ Reference code verified.", "success");
       } else if (availableFrom) {
         // Real, confirmed booking — just too early. Show the exact date
         // instead of the generic "not found" message, per the raw ISO
@@ -141,13 +146,22 @@ export default function DirectionsClient() {
    * local isVerified state.
    */
   async function handleGetDirections() {
-    const origin = locationMode === "auto" && autoCoords ? autoCoords : { address: manualAddress.trim() };
+    // On a cache hit, /api/directions/compute ignores whatever origin
+    // is sent and returns the saved snapshot from the first request —
+    // so a cached guest isn't required to grant location/type an
+    // address again. A placeholder address still satisfies the API's
+    // required-origin schema.
+    const origin = isCached
+      ? { address: manualAddress.trim() || "cached" }
+      : locationMode === "auto" && autoCoords
+        ? autoCoords
+        : { address: manualAddress.trim() };
 
-    if (locationMode === "manual" && !manualAddress.trim()) {
+    if (!isCached && locationMode === "manual" && !manualAddress.trim()) {
       showToast("Please enter your address.", "error");
       return;
     }
-    if (locationMode === "auto" && !autoCoords) {
+    if (!isCached && locationMode === "auto" && !autoCoords) {
       showToast("Please share your location first.", "error");
       return;
     }
@@ -167,36 +181,40 @@ export default function DirectionsClient() {
     <div className="directionsWidget">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Step A — Location */}
-      <div className="directionsField">
-        <label className="directionsLabel">Your Location</label>
-        <div className="directionsLocationToggle">
-          <button
-            type="button"
-            className={`directionsLocationOption${locationMode === "auto" ? " directionsLocationOptionActive" : ""}`}
-            onClick={handleUseMyLocation}
-            disabled={isLocating}
-          >
-            {isLocating ? "Detecting…" : autoCoords ? "✓ Using my location" : "Use my location"}
-          </button>
-          <button
-            type="button"
-            className={`directionsLocationOption${locationMode === "manual" ? " directionsLocationOptionActive" : ""}`}
-            onClick={() => setLocationMode("manual")}
-          >
-            Enter address manually
-          </button>
+      {/* Step A — Location. Skipped once verified as cached, since the
+          compute route ignores origin on a cache hit and returns the
+          snapshot from the guest's very first request instead. */}
+      {!isCached && (
+        <div className="directionsField">
+          <label className="directionsLabel">Your Location</label>
+          <div className="directionsLocationToggle">
+            <button
+              type="button"
+              className={`directionsLocationOption${locationMode === "auto" ? " directionsLocationOptionActive" : ""}`}
+              onClick={handleUseMyLocation}
+              disabled={isLocating}
+            >
+              {isLocating ? "Detecting…" : autoCoords ? "✓ Using my location" : "Use my location"}
+            </button>
+            <button
+              type="button"
+              className={`directionsLocationOption${locationMode === "manual" ? " directionsLocationOptionActive" : ""}`}
+              onClick={() => setLocationMode("manual")}
+            >
+              Enter address manually
+            </button>
+          </div>
+          {locationMode === "manual" && (
+            <input
+              type="text"
+              className="directionsInput"
+              placeholder="e.g. 123 Rizal St, Batangas City"
+              value={manualAddress}
+              onChange={(event) => setManualAddress(event.target.value)}
+            />
+          )}
         </div>
-        {locationMode === "manual" && (
-          <input
-            type="text"
-            className="directionsInput"
-            placeholder="e.g. 123 Rizal St, Batangas City"
-            value={manualAddress}
-            onChange={(event) => setManualAddress(event.target.value)}
-          />
-        )}
-      </div>
+      )}
 
       {/* Step B — Reference code */}
       {!isVerified && (
@@ -223,7 +241,10 @@ export default function DirectionsClient() {
       {isVerified && (
         <div className="directionsGatedSection">
           <p className="directionsWelcome">
-            {guestFirstName ? `Welcome back, ${guestFirstName}! ` : ""}You&apos;re verified — get your directions below.
+            {guestFirstName ? `Welcome back, ${guestFirstName}! ` : ""}
+            {isCached
+              ? "Here are the directions from your first request — saved so you can view them anytime."
+              : "You're verified — get your directions below."}
           </p>
           <button
             type="button"
@@ -231,16 +252,17 @@ export default function DirectionsClient() {
             onClick={handleGetDirections}
             disabled={isComputing}
           >
-            {isComputing ? "Calculating…" : "Get Directions"}
+            {isComputing ? "Loading…" : isCached ? "View My Directions" : "Get Directions"}
           </button>
 
           {route && (
             <div className="directionsResult">
-              {/* mapImageDataUrl can be null if the Static Maps call failed server-side —
-                  the turn-by-turn list below still works without it, so this never blocks. */}
-              {route.mapImageDataUrl && (
+              {/* mapImageUrl can be null if the Static Maps call/R2 upload failed
+                  server-side — the turn-by-turn list below still works without it,
+                  so this never blocks. */}
+              {route.mapImageUrl && (
                 <img
-                  src={route.mapImageDataUrl}
+                  src={route.mapImageUrl}
                   alt="Map showing your route to your-private-resort"
                   className="directionsMapImage"
                 />

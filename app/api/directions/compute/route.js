@@ -19,21 +19,26 @@
  *    either { latitude, longitude } (from browser geolocation) or
  *    { address } (manual text input)
  * 2. Rate limited same as verify-reference — this endpoint is the
- *    expensive one (each call may spend a Geocoding + Routes API call)
+ *    expensive one on a cache miss (each call may spend a Geocoding +
+ *    Routes + Static Maps API call)
  * 3. referenceCode re-verified against Booking (status must be
  *    "confirmed") — a mismatch or cancelled booking returns 403, no
  *    API calls spent
- * 4. checkInDate is also re-checked against getDirectionsAvailability()
- *    on every call — the widget's own "isVerified" state is a UX
- *    convenience only, so a request replayed after verify-reference
- *    passed but before the availability window opened must still be
- *    blocked here, no API calls spent
- * 5. If origin.address was given instead of coordinates, geocode it
- *    first (services/directions.js)
- * 6. Destination is read from SystemSettings.resortLatitude/Longitude
- *    (fixed, set once by the super-admin — never retyped per request)
- * 7. computeDrivingRoute() calls the Routes API and returns distance,
- *    ETA, and turn-by-turn steps
+ * 4. CACHE CHECK — if directionsRouteData is already saved on this
+ *    booking (i.e. a previous call already paid for the Geocoding/
+ *    Routes/Static Maps calls), that saved JSON + the R2 map image URL
+ *    are returned immediately. No Google Maps API of any kind is
+ *    called on a cache hit — the guest can reopen this page and click
+ *    "Get Directions" as many times as they want after the first
+ *    successful compute, at zero additional API cost.
+ * 5. CACHE MISS (first time only) — checkInDate is checked against
+ *    getDirectionsAvailability(); if origin.address was given instead
+ *    of coordinates, it's geocoded; computeDrivingRoute() calls the
+ *    Routes API; getRouteMapImage() calls Static Maps and the PNG is
+ *    uploaded to Cloudflare R2 (Rule 35.6) instead of being streamed
+ *    back as base64 — both the route JSON and the R2 URL are saved to
+ *    the Booking row so every future call for this reference code is
+ *    a cache hit (step 4)
  */
 export const dynamic = "force-dynamic";
 
@@ -42,6 +47,7 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
+import { uploadToR2 } from "@/services/r2";
 import { geocodeAddress, computeDrivingRoute, getRouteMapImage, getDirectionsAvailability } from "@/services/directions";
 
 const COMPUTE_MAX_ATTEMPTS = 10;
@@ -85,7 +91,15 @@ export async function POST(request) {
   // "already verified" flag (see file header).
   const booking = await prisma.booking.findUnique({
     where: { referenceCode: payload.referenceCode.toUpperCase() },
-    select: { id: true, guestName: true, status: true, checkInDate: true, directionsAccessedAt: true },
+    select: {
+      id: true,
+      guestName: true,
+      status: true,
+      checkInDate: true,
+      directionsAccessedAt: true,
+      directionsRouteData: true,
+      directionsMapImageUrl: true,
+    },
   });
   if (!booking || booking.status !== "confirmed") {
     return NextResponse.json(
@@ -94,25 +108,27 @@ export async function POST(request) {
     );
   }
 
-  // Single-use gate, re-checked here for the same reason the
-  // availability window is re-checked below: verify-reference passing
-  // is a UX convenience only, a request can be replayed straight at
-  // this route. Blocks BEFORE any Geocoding/Routes/Static Maps spend.
-  if (booking.directionsAccessedAt) {
+  // CACHE HIT — directions were already computed once for this
+  // booking. Serve the saved snapshot straight from the DB + R2's CDN;
+  // no Geocoding/Routes/Static Maps call is made, so this costs
+  // nothing no matter how many times (or from how many devices) the
+  // guest reopens this page. The guest's freshly-submitted origin is
+  // intentionally ignored here — the cached route is a snapshot of
+  // wherever they were on first use, not a live re-route.
+  if (booking.directionsAccessedAt && booking.directionsRouteData) {
     await logSecurityEvent({
-      eventType: "directions_reuse_blocked",
+      eventType: "directions_reaccessed",
       actor: booking.guestName,
       request,
-      details: `Directions compute blocked — already accessed at ${booking.directionsAccessedAt.toISOString()}.`,
+      details: `Served cached directions (first computed ${booking.directionsAccessedAt.toISOString()}) — no API call made.`,
     });
-    return NextResponse.json(
-      {
-        success: false,
-        data: null,
-        message: "Directions for this booking were already retrieved. Please check the map on your invoice, or contact us if you need help.",
+    return NextResponse.json({
+      success: true,
+      data: {
+        route: { ...booking.directionsRouteData, mapImageUrl: booking.directionsMapImageUrl ?? null, cached: true },
       },
-      { status: 403 }
-    );
+      message: "Directions retrieved from your first request.",
+    });
   }
 
   // Same availability window as verify-reference, re-checked here since
@@ -171,38 +187,70 @@ export async function POST(request) {
     );
   }
 
+  // Render a Static Maps image of the actual route — a missing/failed
+  // image should never block the turn-by-turn directions that already
+  // succeeded above, so this degrades to null (no map, list still shows).
+  const mapImageBuffer = await getRouteMapImage(originCoords, destination, route.encodedPolyline);
+
+  // Upload once to Cloudflare R2 (Rule 35.6/35.8 — "directions/" folder)
+  // instead of streaming base64 back on every request. Every future
+  // view of this booking's directions loads this same CDN URL directly
+  // — no Static Maps call is ever repeated for this booking.
+  let mapImageUrl = null;
+  let mapImageKey = null;
+  if (mapImageBuffer) {
+    try {
+      mapImageKey = `directions/${booking.id}.png`;
+      mapImageUrl = await uploadToR2(mapImageKey, mapImageBuffer, "image/png");
+    } catch (error) {
+      // A failed R2 upload should never block the turn-by-turn list
+      // that already succeeded above — degrade to no map, same as a
+      // failed Static Maps call would.
+      console.error("[directions/compute] R2 upload failed:", error.message);
+      mapImageKey = null;
+    }
+  }
+
+  // Snapshot saved once — never recomputed from this JSON later, it's
+  // read-only from here on (see schema.prisma field comments).
+  const routeSnapshot = {
+    distanceMeters: route.distanceMeters,
+    durationSeconds: route.durationSeconds,
+    steps: route.steps,
+    originLatitude: originCoords.latitude,
+    originLongitude: originCoords.longitude,
+  };
+
   // Route successfully computed — mark this booking's directions as
-  // used (single-use gate above checks this on every future attempt,
-  // any device) and log this device's IP/location/fingerprint against
-  // the booking, same reasoning as verify-reference's success log: an
-  // admin should be able to see WHO actually pulled turn-by-turn
-  // directions to the resort, not just who got rate-limited or denied.
+  // used and save the snapshot so every later call is a cache hit
+  // (see the CACHE HIT branch above), and log this device's IP/
+  // location/fingerprint against the booking, same reasoning as
+  // verify-reference's success log: an admin should be able to see WHO
+  // actually pulled turn-by-turn directions to the resort, not just
+  // who got rate-limited or denied.
   await prisma.booking.update({
     where: { id: booking.id },
-    data: { directionsAccessedAt: new Date() },
+    data: {
+      directionsAccessedAt: new Date(),
+      directionsRouteData: routeSnapshot,
+      directionsMapImageUrl: mapImageUrl,
+      directionsMapImageKey: mapImageKey,
+    },
   });
   await logSecurityEvent({
     eventType: "directions_accessed",
     actor: booking.guestName,
     request,
-    details: `Directions computed (${(route.distanceMeters / 1000).toFixed(1)}km, ${Math.round(route.durationSeconds / 60)}min).`,
+    details: `Directions computed (${(route.distanceMeters / 1000).toFixed(1)}km, ${Math.round(route.durationSeconds / 60)}min) — cached for future views.`,
   });
-
-  // Render a Static Maps image of the actual route — a missing/failed
-  // image should never block the turn-by-turn directions that already
-  // succeeded above, so this degrades to null (no map, list still shows).
-  const mapImageBuffer = await getRouteMapImage(originCoords, destination, route.encodedPolyline);
-  const mapImageDataUrl = mapImageBuffer ? `data:image/png;base64,${mapImageBuffer.toString("base64")}` : null;
 
   return NextResponse.json({
     success: true,
     data: {
       // encodedPolyline is only ever consumed server-side (by
-      // getRouteMapImage() above) — never send it to the client, which
-      // gets the already-rendered mapImageDataUrl instead.
-      route: { distanceMeters: route.distanceMeters, durationSeconds: route.durationSeconds, steps: route.steps, mapImageDataUrl },
-      origin: originCoords,
-      destination,
+      // getRouteMapImage() above) — never sent to the client, which
+      // gets the R2 CDN URL instead.
+      route: { ...routeSnapshot, mapImageUrl, cached: false },
     },
     message: "Directions calculated.",
   });

@@ -164,30 +164,31 @@
 }
 
 /*
- * .analyticsMetricSparkline
- * Compact bar sparkline — 30 daily bars, no axis labels (the card
- * beside it already states the headline number), hover/tap each bar
- * for its exact value via the title tooltip.
+ * .analyticsChartTooltip
+ * Shared Recharts custom tooltip content — dark card chrome matching
+ * the rest of the page, replaces Recharts' default white tooltip box.
  */
-.analyticsMetricSparkline {
+.analyticsChartTooltip {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 2px;
-  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.analyticsMetricSparkBar {
-  flex: 1 1 0;
-  min-height: 3px;
-  max-width: 10px;
-  border-radius: 2px 2px 0 0;
-  background-color: var(--color-accent);
-  opacity: 0.85;
-  transition: opacity var(--transition-fast, 0.15s ease);
+.analyticsChartTooltipLabel {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
 }
 
-.analyticsMetricSparkBar:hover {
-  opacity: 1;
+.analyticsChartTooltipValue {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 @media (max-width: 768px) {
@@ -197,27 +198,13 @@
 }
 
 /*
- * .analyticsTrendChartWrap / .analyticsTrendChart
- * Redesigned Daily Views chart — a smooth filled-area SVG line
- * instead of the old cramped vertical bar chart, which read as messy
- * at 30 days of data. Height is fixed via CSS, width fills the panel.
+ * .analyticsHeatmapWrap
+ * Fixed-height container for the Nivo ResponsiveCalendar heatmap —
+ * Nivo's Responsive* components size to their parent, so a parent
+ * with a set height is required.
  */
-.analyticsTrendChartWrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.analyticsTrendChart {
-  width: 100%;
-  height: 200px;
-}
-
-.analyticsTrendChartAxis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.7rem;
-  color: var(--color-text-muted);
+.analyticsHeatmapWrap {
+  height: 180px;
 }
 
 /*
@@ -257,91 +244,9 @@
 }
 
 /*
- * .analyticsBarChart
- * Simple CSS-only bar chart for the daily trend — no charting
- * dependency needed for this scope.
+ * .analyticsSimpleList
+ * Plain value-list rows — kept for any future non-charted breakdown.
  */
-.analyticsBarChart {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-xs);
-  height: 160px;
-  overflow-x: auto;
-  padding-top: var(--space-md);
-}
-
-.analyticsBarColumn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-xs);
-  min-width: 28px;
-  height: 100%;
-}
-
-.analyticsBar {
-  width: 100%;
-  min-height: 2px;
-  border-radius: 3px 3px 0 0;
-  background-color: var(--color-accent);
-  transition: background-color var(--transition-fast, 0.15s ease);
-}
-
-.analyticsBarLabel {
-  font-size: 0.6rem;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
-
-/*
- * .analyticsBarList / .analyticsSimpleList
- * Horizontal bar-list rows for Top Pages, and plain value-list rows
- * for referrers/device/country breakdowns.
- */
-.analyticsBarList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.analyticsBarListRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 2fr auto;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.analyticsBarListLabel {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.analyticsBarListTrack {
-  height: 8px;
-  border-radius: 4px;
-  background-color: var(--color-surface-hover);
-  overflow: hidden;
-}
-
-.analyticsBarListFill {
-  height: 100%;
-  border-radius: 4px;
-  background-color: var(--color-accent);
-}
-
-.analyticsBarListValue {
-  font-family: var(--font-admin-mono), monospace;
-  font-size: 0.8rem;
-  color: var(--color-text-primary);
-  text-align: right;
-}
-
 .analyticsSimpleList {
   display: flex;
   flex-direction: column;
@@ -434,17 +339,14 @@
 }
 
 /*
- * .analyticsDonut
- * A CSS conic-gradient ring (drawn via inline style per segment) with
- * a solid center cutout, simulating a donut chart with no chart
- * library dependency. Monochrome accent-green palette only — see
- * buildDonutSegments() in AnalyticsClient.jsx.
+ * .analyticsDonutChartWrap
+ * Positions the Recharts donut (PieChart) so the value/label overlay
+ * in .analyticsDonutCenter can sit centered on top of it.
  */
-.analyticsDonut {
+.analyticsDonutChartWrap {
   position: relative;
   width: 140px;
   height: 140px;
-  border-radius: 50%;
   flex-shrink: 0;
 }
 

@@ -4,13 +4,22 @@
  *
  * PURPOSE:
  * Displays Rule 41 aggregate traffic analytics (Daily Views trend, Top
- * Pages, Top Traffic Sources, Device Breakdown, and a specific
- * city-level Location breakdown) alongside five Booking-sourced sales
- * metrics — Total Revenue, Lost Revenue, Rebookings, Cancelled
- * Bookings, and Conversion Rate. Each sales metric is laid out as a
- * single row: its headline card on the left, its own 30-day trend
- * chart on the right — so an admin reads the number and its trend
- * together instead of hunting across the page for a matching chart.
+ * Pages, Top Traffic Sources, Device Breakdown, a specific city-level
+ * Location breakdown, and a 30-day activity Heatmap) alongside five
+ * Booking-sourced sales metrics — Total Revenue, Lost Revenue,
+ * Rebookings, Cancelled Bookings, and Conversion Rate. Each sales
+ * metric is laid out as a single row: its headline card on the left,
+ * its own 30-day trend chart on the right — so an admin reads the
+ * number and its trend together instead of hunting across the page
+ * for a matching chart.
+ *
+ * CHARTING:
+ * Charts are rendered with Recharts (area/bar/pie) and a Nivo Calendar
+ * heatmap — swapped in for the old hand-rolled SVG/CSS charts so the
+ * page reads as a polished dashboard instead of custom-drawn shapes.
+ * All chart colors reference the page's existing CSS custom
+ * properties so the charts stay in lockstep with the rest of the
+ * design system (Rule 33) with no separate color palette to maintain.
  *
  * DATA FLOW:
  * 1. On mount, fetches GET /api/admin/analytics
@@ -20,64 +29,114 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+} from "recharts";
+import { ResponsiveCalendar } from "@nivo/calendar";
 import "./Analytics.css";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 const PESO_FORMATTER = (value) => `₱${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
+// Single accent-green palette (varying shade per rank) — matches Rule
+// 17.2 ("no rainbow/multicolor, one accent family only").
+const CHART_PALETTE = ["#22c55e", "#4ade80", "#86efac", "#166534", "#0f766e", "#64748b"];
+
 /**
- * buildSmoothAreaPath
- * Turns a [{date, value}] series into an SVG line + filled-area path
- * using simple quadratic midpoint smoothing, so the Daily Views trend
- * reads as a clean curve instead of the old cramped vertical bars.
- * Returns null when there's fewer than 2 points (nothing to draw a
- * line between).
+ * ChartTooltip
+ * Shared Recharts tooltip content — styled to match the page's dark
+ * card chrome instead of Recharts' default white box.
  */
-function buildSmoothAreaPath(series, width, height, paddingY = 10) {
-  if (!series || series.length < 2) return null;
-
-  const maxValue = Math.max(1, ...series.map((point) => point.value));
-  const stepX = width / (series.length - 1);
-  const points = series.map((point, index) => ({
-    x: index * stepX,
-    y: height - paddingY - (point.value / maxValue) * (height - paddingY * 2),
-  }));
-
-  let linePath = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i += 1) {
-    const midX = (points[i - 1].x + points[i].x) / 2;
-    linePath += ` Q ${points[i - 1].x} ${points[i - 1].y} ${midX} ${(points[i - 1].y + points[i].y) / 2}`;
-    linePath += ` T ${points[i].x} ${points[i].y}`;
-  }
-
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
-
-  return { linePath, areaPath, points, maxValue };
+function ChartTooltip({ active, payload, label, formatValue = (v) => v.toLocaleString() }) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="analyticsChartTooltip">
+      {label && <span className="analyticsChartTooltipLabel">{label}</span>}
+      <span className="analyticsChartTooltipValue">{formatValue(payload[0].value)}</span>
+    </div>
+  );
 }
 
 /**
  * MetricTrendChart
  * The small right-hand-side chart paired with each headline metric
  * card (Rule: chart always sits beside its card, on the right). A
- * plain CSS bar sparkline — compact, no axis labels, just the shape
- * of the last 30 days with a tooltip per bar for the exact value.
+ * compact Recharts area sparkline — no axes, just the shape of the
+ * last 30 days with a tooltip for the exact value on hover.
  */
 function MetricTrendChart({ series, formatValue = (v) => v.toLocaleString() }) {
-  const maxValue = Math.max(1, ...series.map((point) => point.value));
-
   return (
     <div className="analyticsMetricChartPanel">
-      <div className="analyticsMetricSparkline">
-        {series.map((point) => (
-          <div
-            key={point.date}
-            className="analyticsMetricSparkBar"
-            style={{ height: `${Math.max(3, (point.value / maxValue) * 100)}%` }}
-            title={`${DATE_FORMATTER.format(new Date(point.date))}: ${formatValue(point.value)}`}
+      <ResponsiveContainer width="100%" height="100%" minHeight={64}>
+        <AreaChart data={series} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+          <defs>
+            <linearGradient id="metricSparklineFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <Tooltip
+            content={<ChartTooltip formatValue={formatValue} />}
+            labelFormatter={(date) => DATE_FORMATTER.format(new Date(date))}
           />
-        ))}
-      </div>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke="var(--color-accent)"
+            strokeWidth={2}
+            fill="url(#metricSparklineFill)"
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
+  );
+}
+
+/**
+ * HorizontalBarChart
+ * Shared Recharts horizontal bar chart for Top Pages, Top Traffic
+ * Sources, and Top Locations — replaces the old plain CSS bar-list
+ * rows with a proper chart (gridlines, aligned bars, hover tooltip).
+ */
+function HorizontalBarChart({ rows, labelKey, formatValue = (v) => v.toLocaleString() }) {
+  // Recharts draws vertical-layout bar charts top-to-bottom in array
+  // order — reverse so the highest value still renders at the top,
+  // matching how the old bar list read (biggest first, top to bottom).
+  const chartData = [...rows].reverse();
+  const rowHeight = 34;
+
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(120, chartData.length * rowHeight)}>
+      <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }}>
+        <CartesianGrid horizontal={false} stroke="var(--color-border)" />
+        <XAxis type="number" hide />
+        <YAxis
+          type="category"
+          dataKey={labelKey}
+          width={140}
+          tick={{ fill: "var(--color-text-secondary)", fontSize: 12 }}
+          tickLine={false}
+          axisLine={false}
+          interval={0}
+        />
+        <Tooltip
+          cursor={{ fill: "var(--color-surface-hover)" }}
+          content={<ChartTooltip formatValue={formatValue} />}
+        />
+        <Bar dataKey="views" fill="var(--color-accent)" radius={[0, 4, 4, 0]} barSize={14} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -111,48 +170,30 @@ export default function AnalyticsClient() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  const maxTopPageViews = data ? Math.max(1, ...data.topPages.map((row) => row.views)) : 1;
-  const maxReferrerViews = data ? Math.max(1, ...data.topReferrers.map((row) => row.views)) : 1;
-  const maxLocationViews = data ? Math.max(1, ...data.locationBreakdown.map((row) => row.views)) : 1;
-
   /**
-   * buildDonutSegments
-   * Turns a [{ label, views }] list into conic-gradient stops plus a
-   * legend array. Uses a single monochrome accent-green palette
-   * (varying shade per rank) instead of a rainbow — matches Rule 17.2
-   * ("no rainbow/multicolor, one accent family only").
+   * buildDonutLegend
+   * Turns a [{ label, views }] list into legend rows with a percent
+   * and an assigned palette color — feeds both the Recharts Pie
+   * (colors) and the legend list beside it (labels + percentages).
    */
-  function buildDonutSegments(rows, labelKey) {
-    const palette = ["#22c55e", "#4ade80", "#86efac", "#166534", "#0f766e", "#64748b"];
+  function buildDonutLegend(rows, labelKey) {
     const total = rows.reduce((sum, row) => sum + row.views, 0);
-    let cumulativePercent = 0;
-
-    const legend = rows.map((row, index) => {
-      const percent = total === 0 ? 0 : (row.views / total) * 100;
-      const color = palette[index % palette.length];
-      const stopStart = cumulativePercent;
-      cumulativePercent += percent;
-      return { label: row[labelKey], views: row.views, percent, color, stopStart, stopEnd: cumulativePercent };
-    });
-
-    const gradientStops = legend
-      .map((segment) => `${segment.color} ${segment.stopStart}% ${segment.stopEnd}%`)
-      .join(", ");
-
-    return { legend, gradientStops: total === 0 ? "var(--color-border) 0% 100%" : gradientStops, total };
+    return rows.map((row, index) => ({
+      label: row[labelKey],
+      views: row.views,
+      percent: total === 0 ? 0 : (row.views / total) * 100,
+      color: CHART_PALETTE[index % CHART_PALETTE.length],
+    }));
   }
 
-  const deviceDonut = data ? buildDonutSegments(data.deviceBreakdown, "deviceType") : null;
+  const deviceLegend = data ? buildDonutLegend(data.deviceBreakdown, "deviceType") : null;
+  const deviceTotal = deviceLegend ? deviceLegend.reduce((sum, row) => sum + row.views, 0) : 0;
 
-  // Redesigned Daily Views chart — smooth filled area instead of the
-  // old cramped vertical bars.
-  const dailyViewsChart = data
-    ? buildSmoothAreaPath(
-        data.dailyTotals.map((d) => ({ date: d.date, value: d.views })),
-        600,
-        160
-      )
-    : null;
+  // Nivo Calendar expects [{ day: "YYYY-MM-DD", value }] and an
+  // explicit from/to date range covering every point.
+  const heatmapData = data ? data.dailyTotals.map((row) => ({ day: row.date, value: row.views })) : null;
+  const heatmapFrom = data?.dailyTotals[0]?.date;
+  const heatmapTo = data?.dailyTotals[data.dailyTotals.length - 1]?.date;
 
   return (
     <section className="analyticsSection">
@@ -244,41 +285,82 @@ export default function AnalyticsClient() {
             <MetricTrendChart series={data.conversion.dailySeries} formatValue={(v) => `${v}%`} />
           </div>
 
-          {/* --- Daily Views — redesigned as a smooth filled-area chart --- */}
+          {/* --- Daily Views — Recharts smooth filled-area chart --- */}
           <div className="analyticsPanel">
             <h2 className="analyticsPanelTitle">Daily Views</h2>
-            {!dailyViewsChart ? (
+            {data.dailyTotals.length < 2 ? (
               <p className="analyticsEmptyMessage">No views recorded yet.</p>
             ) : (
-              <div className="analyticsTrendChartWrap">
-                <svg
-                  className="analyticsTrendChart"
-                  viewBox="0 0 600 160"
-                  preserveAspectRatio="none"
-                  role="img"
-                  aria-label="Daily page views over the last 30 days"
-                >
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={data.dailyTotals} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
                   <defs>
                     <linearGradient id="dailyViewsFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0.35" />
                       <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
                     </linearGradient>
                   </defs>
-                  <path d={dailyViewsChart.areaPath} fill="url(#dailyViewsFill)" stroke="none" />
-                  <path d={dailyViewsChart.linePath} fill="none" stroke="var(--color-accent)" strokeWidth="2.5" />
-                  {dailyViewsChart.points.map((point, index) => (
-                    <circle key={data.dailyTotals[index].date} cx={point.x} cy={point.y} r="3" fill="var(--color-accent)">
-                      <title>
-                        {DATE_FORMATTER.format(new Date(data.dailyTotals[index].date))}: {data.dailyTotals[index].views}{" "}
-                        views
-                      </title>
-                    </circle>
-                  ))}
-                </svg>
-                <div className="analyticsTrendChartAxis">
-                  <span>{DATE_FORMATTER.format(new Date(data.dailyTotals[0].date))}</span>
-                  <span>{DATE_FORMATTER.format(new Date(data.dailyTotals[data.dailyTotals.length - 1].date))}</span>
-                </div>
+                  <CartesianGrid vertical={false} stroke="var(--color-border)" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(date) => DATE_FORMATTER.format(new Date(date))}
+                    tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--color-border)" }}
+                    minTickGap={32}
+                  />
+                  <YAxis
+                    tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={36}
+                  />
+                  <Tooltip
+                    content={<ChartTooltip />}
+                    labelFormatter={(date) => DATE_FORMATTER.format(new Date(date))}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="views"
+                    stroke="var(--color-accent)"
+                    strokeWidth={2.5}
+                    fill="url(#dailyViewsFill)"
+                    activeDot={{ r: 4, fill: "var(--color-accent)" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* --- Traffic Heatmap — Nivo calendar of daily views over the window --- */}
+          <div className="analyticsPanel">
+            <h2 className="analyticsPanelTitle">Traffic Heatmap</h2>
+            {!heatmapData || heatmapData.length < 2 ? (
+              <p className="analyticsEmptyMessage">No views recorded yet.</p>
+            ) : (
+              <div className="analyticsHeatmapWrap">
+                <ResponsiveCalendar
+                  data={heatmapData}
+                  from={heatmapFrom}
+                  to={heatmapTo}
+                  emptyColor="var(--color-surface-hover)"
+                  colors={["#14532d", "#166534", "#22c55e", "#4ade80", "#86efac"]}
+                  margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                  yearSpacing={0}
+                  monthBorderColor="var(--color-bg)"
+                  dayBorderWidth={2}
+                  dayBorderColor="var(--color-bg)"
+                  theme={{
+                    text: { fill: "var(--color-text-muted)", fontSize: 11 },
+                    tooltip: {
+                      container: {
+                        background: "var(--color-surface)",
+                        color: "var(--color-text-primary)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 8,
+                      },
+                    },
+                  }}
+                />
               </div>
             )}
           </div>
@@ -290,20 +372,7 @@ export default function AnalyticsClient() {
               {data.topPages.length === 0 ? (
                 <p className="analyticsEmptyMessage">No page views yet.</p>
               ) : (
-                <ul className="analyticsBarList">
-                  {data.topPages.map((row) => (
-                    <li key={row.path} className="analyticsBarListRow">
-                      <span className="analyticsBarListLabel">{row.path}</span>
-                      <div className="analyticsBarListTrack">
-                        <div
-                          className="analyticsBarListFill"
-                          style={{ width: `${(row.views / maxTopPageViews) * 100}%` }}
-                        />
-                      </div>
-                      <span className="analyticsBarListValue">{row.views.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
+                <HorizontalBarChart rows={data.topPages} labelKey="path" />
               )}
             </div>
 
@@ -313,41 +382,43 @@ export default function AnalyticsClient() {
               {data.topReferrers.length === 0 ? (
                 <p className="analyticsEmptyMessage">No referrer data yet.</p>
               ) : (
-                <ul className="analyticsBarList">
-                  {data.topReferrers.map((row) => (
-                    <li key={row.referrerHost} className="analyticsBarListRow">
-                      <span className="analyticsBarListLabel">{row.referrerHost}</span>
-                      <div className="analyticsBarListTrack">
-                        <div
-                          className="analyticsBarListFill"
-                          style={{ width: `${(row.views / maxReferrerViews) * 100}%` }}
-                        />
-                      </div>
-                      <span className="analyticsBarListValue">{row.views.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
+                <HorizontalBarChart rows={data.topReferrers} labelKey="referrerHost" />
               )}
             </div>
 
-            {/* Device breakdown — donut chart */}
+            {/* Device breakdown — Recharts donut chart */}
             <div className="analyticsPanel">
               <h2 className="analyticsPanelTitle">Device Breakdown</h2>
               {data.deviceBreakdown.length === 0 ? (
                 <p className="analyticsEmptyMessage">No device data yet.</p>
               ) : (
                 <div className="analyticsDonutWrap">
-                  <div
-                    className="analyticsDonut"
-                    style={{ background: `conic-gradient(${deviceDonut.gradientStops})` }}
-                  >
+                  <div className="analyticsDonutChartWrap">
+                    <ResponsiveContainer width={140} height={140}>
+                      <PieChart>
+                        <Pie
+                          data={deviceLegend}
+                          dataKey="views"
+                          nameKey="label"
+                          innerRadius={45}
+                          outerRadius={68}
+                          paddingAngle={2}
+                          stroke="none"
+                        >
+                          {deviceLegend.map((segment) => (
+                            <Cell key={segment.label} fill={segment.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<ChartTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
                     <div className="analyticsDonutCenter">
-                      <span className="analyticsDonutCenterValue">{deviceDonut.total.toLocaleString()}</span>
+                      <span className="analyticsDonutCenterValue">{deviceTotal.toLocaleString()}</span>
                       <span className="analyticsDonutCenterLabel">views</span>
                     </div>
                   </div>
                   <ul className="analyticsDonutLegend">
-                    {deviceDonut.legend.map((segment) => (
+                    {deviceLegend.map((segment) => (
                       <li key={segment.label} className="analyticsDonutLegendRow">
                         <span className="analyticsDonutSwatch" style={{ backgroundColor: segment.color }} />
                         <span className="analyticsDonutLegendLabel" style={{ textTransform: "capitalize" }}>
@@ -361,29 +432,19 @@ export default function AnalyticsClient() {
               )}
             </div>
 
-            {/* Location breakdown — specific city + country list, sorted, fast to scan */}
+            {/* Location breakdown — specific city + country, sorted, fast to scan */}
             <div className="analyticsPanel">
               <h2 className="analyticsPanelTitle">Top Locations</h2>
               {data.locationBreakdown.length === 0 ? (
                 <p className="analyticsEmptyMessage">No location data yet.</p>
               ) : (
-                <ul className="analyticsBarList">
-                  {data.locationBreakdown.map((row) => (
-                    <li key={`${row.city}-${row.countryCode}`} className="analyticsBarListRow">
-                      <span className="analyticsBarListLabel">
-                        {row.city}
-                        {row.countryCode && row.countryCode !== "Unknown" ? `, ${row.countryCode}` : ""}
-                      </span>
-                      <div className="analyticsBarListTrack">
-                        <div
-                          className="analyticsBarListFill"
-                          style={{ width: `${(row.views / maxLocationViews) * 100}%` }}
-                        />
-                      </div>
-                      <span className="analyticsBarListValue">{row.views.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
+                <HorizontalBarChart
+                  rows={data.locationBreakdown.map((row) => ({
+                    ...row,
+                    locationLabel: `${row.city}${row.countryCode && row.countryCode !== "Unknown" ? `, ${row.countryCode}` : ""}`,
+                  }))}
+                  labelKey="locationLabel"
+                />
               )}
             </div>
           </div>

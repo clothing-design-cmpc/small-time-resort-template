@@ -913,6 +913,15 @@ model SystemSettings {
   resortEmail   String? @map("resort_email")
   resortAddress String? @map("resort_address")
 
+  // --- Message Us channels (floating "Request a callback" widget) ---
+  // Consumed by utils/messagingLinks.js to build click-to-chat deep
+  // links (wa.me, viber://chat, m.me) — see app/visitor/layout.jsx's
+  // getMessageUsChannels() and the Contact Info section of
+  // Super-Admin > Policies & Content.
+  resortWhatsapp          String? @map("resort_whatsapp")
+  resortViber             String? @map("resort_viber")
+  resortMessengerUsername String? @map("resort_messenger_username")
+
   // --- Location Map Pin (visitor Footer) ---
   // Placeholder default (Metro Manila) so the map always has something
   // to render before the admin sets the resort's real coordinates from

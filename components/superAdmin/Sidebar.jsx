@@ -64,6 +64,7 @@ const navGroups = [
     label: "Insights",
     links: [
       { label: "Analytics", href: "/superAdmin/analytics" },
+      { label: "Reports", href: "/superAdmin/reports" },
       { label: "Activity Feed", href: "/superAdmin/activity-feed" },
       { label: "Visitor Logs", href: "/superAdmin/visitor-logs" },
       { label: "Account Activity", href: "/superAdmin/account-activity" },

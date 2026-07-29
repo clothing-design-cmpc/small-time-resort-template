@@ -47,6 +47,8 @@
  * Server-side only — never import this in a "use client" file.
  */
 
+import { recordApiCall } from "@/services/apiUsageTracker";
+
 const EMAILJS_SEND_URL = "https://api.emailjs.com/api/v1.0/email/send";
 
 /**
@@ -114,6 +116,8 @@ export async function sendGeneralEmail({
         },
       }),
     });
+
+    recordApiCall("emailjs", "send", response.ok);
 
     if (!response.ok) {
       const bodyText = await response.text().catch(() => "");

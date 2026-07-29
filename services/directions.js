@@ -38,6 +38,8 @@
  * Server-side only — never import this in a "use client" file.
  */
 
+import { recordApiCall } from "@/services/apiUsageTracker";
+
 const GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
@@ -89,6 +91,8 @@ export async function geocodeAddress(address) {
   try {
     const response = await fetch(url);
     const data = await response.json();
+
+    recordApiCall("google_maps", "geocode", response.ok && data.status === "OK");
 
     if (data.status !== "OK" || !data.results?.[0]) {
       return null;
@@ -145,6 +149,8 @@ export async function computeDrivingRoute(origin, destination) {
     });
 
     const data = await response.json();
+
+    recordApiCall("google_maps", "routes", response.ok && !data.error);
 
     // Google returns HTTP 200 with an `error` object on failure sometimes,
     // and non-2xx with an error body other times — check both so the real
@@ -224,6 +230,7 @@ export async function getRouteMapImage(origin, destination, encodedPolyline) {
 
   try {
     const response = await fetch(`${STATIC_MAP_URL}?${params.toString()}`);
+    recordApiCall("google_maps", "static_map_route", response.ok);
     if (!response.ok) {
       const errorText = await response.text();
       console.error(
@@ -272,6 +279,7 @@ export async function getResortLocationMapImage(latitude, longitude) {
 
   try {
     const response = await fetch(`${STATIC_MAP_URL}?${params.toString()}`);
+    recordApiCall("google_maps", "static_map_resort_pin", response.ok);
     if (!response.ok) {
       const errorText = await response.text();
       console.error(

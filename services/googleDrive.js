@@ -37,6 +37,7 @@
  */
 import { google } from "googleapis";
 import { Readable } from "stream";
+import { recordApiCall } from "@/services/apiUsageTracker";
 
 /**
  * normalizeFolderId
@@ -143,8 +144,11 @@ export async function uploadToDrive(fileName, buffer, mimeType) {
   const folderId = normalizeFolderId(process.env.GOOGLE_DRIVE_FOLDER_ID);
 
   try {
-    return await uploadFileToFolder(drive, folderId, fileName, buffer, mimeType);
+    const result = await uploadFileToFolder(drive, folderId, fileName, buffer, mimeType);
+    recordApiCall("google_drive", "upload", true);
+    return result;
   } catch (error) {
+    recordApiCall("google_drive", "upload", false);
     // googleapis (Gaxios) errors carry the real reason under
     // error.response.data.error — e.g. { message, errors, code } for
     // Drive API errors, or { error: "invalid_grant", error_description }

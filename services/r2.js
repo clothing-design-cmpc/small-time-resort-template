@@ -8,6 +8,7 @@
  */
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { recordApiCall } from "@/services/apiUsageTracker";
 
 /**
  * assertR2Configured
@@ -64,14 +65,20 @@ export const r2Client = new S3Client({
  */
 export async function uploadToR2(key, buffer, contentType) {
   assertR2Configured();
-  await r2Client.send(
-    new PutObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-    })
-  );
+  try {
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+      })
+    );
+    recordApiCall("cloudflare_r2", "upload", true);
+  } catch (error) {
+    recordApiCall("cloudflare_r2", "upload", false);
+    throw error;
+  }
 
   return `${process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL}/${key}`;
 }

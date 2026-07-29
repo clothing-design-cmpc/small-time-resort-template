@@ -28,6 +28,7 @@
  */
 import { prisma } from "@/services/prisma";
 import { getResortWeatherForecast } from "@/services/weather";
+import { recordApiCall } from "@/services/apiUsageTracker";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -122,6 +123,8 @@ async function callGeminiForInsight({ salesSummaryText, weatherSummary, hasEnoug
         generationConfig: { responseMimeType: "application/json" },
       }),
     });
+
+    recordApiCall("gemini", "generate_content", response.ok);
 
     if (!response.ok) {
       const bodyText = await response.text().catch(() => "");

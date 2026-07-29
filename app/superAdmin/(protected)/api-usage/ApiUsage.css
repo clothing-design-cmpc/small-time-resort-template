@@ -1,0 +1,200 @@
+/*
+ * .apiUsageHeaderRow
+ * Matches the Backups / Security Logs / Analytics page header pattern
+ * (eyebrow -> title -> subtitle) for visual consistency across
+ * super-admin pages.
+ */
+.apiUsageSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.apiUsageHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.apiUsageEyebrow {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.apiUsageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.apiUsageSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  max-width: 70ch;
+}
+
+/*
+ * .apiUsageGrid
+ * Auto-fill card grid — column count reflows with viewport width, no
+ * breakpoints needed (Rule 23.2).
+ */
+.apiUsageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+
+.apiUsageCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.apiUsageCard:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.apiUsageCardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.apiUsageCardLabel {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.apiUsageDashboardLink {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.apiUsageDashboardLink:hover,
+.apiUsageDashboardLink:focus-visible {
+  color: var(--color-primary-hover);
+}
+
+.apiUsageQuotaNote {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+/*
+ * .apiUsageCounters
+ * Three (or four, when a failure count exists) equal-width columns of
+ * big-number / small-label pairs — same visual language as .statCard.
+ */
+.apiUsageCounters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.apiUsageCounter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 70px;
+}
+
+.apiUsageCounterValue {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.apiUsageCounter--failed .apiUsageCounterValue {
+  color: var(--color-error);
+}
+
+.apiUsageCounterLabel {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.apiUsageFooterRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.apiUsageUsedBy {
+  font-family: var(--font-admin-mono), monospace;
+}
+
+/* --- Skeleton loading state (Rule 25.2) --- */
+.apiUsageCard--skeleton {
+  gap: var(--space-md);
+}
+
+.apiUsageSkeletonBlock {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base) 25%,
+    var(--color-skeleton-shine) 50%,
+    var(--color-skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: apiUsageSkeletonPulse 1.5s infinite;
+}
+
+@keyframes apiUsageSkeletonPulse {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* --- Error state (Rule 25.4) --- */
+.apiUsageErrorState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+}
+
+.apiUsageRetryButton {
+  padding: var(--space-xs) var(--space-md);
+  background-color: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.apiUsageRetryButton:hover,
+.apiUsageRetryButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}

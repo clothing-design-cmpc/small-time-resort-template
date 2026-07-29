@@ -502,6 +502,37 @@ model BackupLog {
 }
 
 // ============================================================
+// MODEL: ApiCallLog  (Super-Admin "API Usage" page)
+// ============================================================
+// One row per outbound call this app makes to a metered third-party
+// API (Google Weather, Google Maps, Gemini, GitHub, EmailJS, Google
+// Drive, Cloudflare R2). Written by services/apiUsageTracker.js from
+// inside each of those services' own call sites — never inferred
+// after the fact from application logs, since those get purged and
+// don't carry a consistent shape. Read-only from the app's own
+// perspective; there is no UI that lets an admin edit or delete a row.
+model ApiCallLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // Which provider/API this call went to — one of the keys defined in
+  // services/apiUsageTracker.js's API_CATALOG, e.g. "google_weather",
+  // "google_maps", "gemini", "github", "emailjs", "google_drive",
+  // "cloudflare_r2". Never free-text — always one of the catalog keys
+  // so the usage page can group reliably.
+  service   String
+  // Short label for which specific call this was within that service,
+  // e.g. "forecast_lookup", "geocode", "routes", "static_map",
+  // "generate_content", "workflow_dispatch", "send", "upload".
+  // Optional — some services only ever make one kind of call.
+  endpoint  String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([service])
+  @@index([createdAt])
+  @@map("api_call_logs")
+}
+
+// ============================================================
 // MODEL: SqlImportLog  (Backups page — "Import SQL to Fix Database")
 // ============================================================
 // One row per SQL restore triggered by a super-admin. The row is

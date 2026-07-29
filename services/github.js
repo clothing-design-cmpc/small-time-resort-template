@@ -13,6 +13,7 @@
  * Never import this in a "use client" file — GITHUB_ACTIONS_TOKEN is a
  * secret with repo + workflow scope.
  */
+import { recordApiCall } from "@/services/apiUsageTracker";
 
 /**
  * triggerWorkflowDispatch
@@ -48,6 +49,8 @@ export async function triggerWorkflowDispatch(workflowFileName, inputs = {}) {
       body: JSON.stringify({ ref, inputs }),
     }
   );
+
+  recordApiCall("github", "workflow_dispatch", response.ok);
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => "");

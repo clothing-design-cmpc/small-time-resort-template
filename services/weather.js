@@ -16,6 +16,8 @@
  * Server-side only — never import this in a "use client" file.
  */
 
+import { recordApiCall } from "@/services/apiUsageTracker";
+
 const WEATHER_FORECAST_URL = "https://weather.googleapis.com/v1/forecast/days:lookup";
 
 /**
@@ -46,6 +48,11 @@ export async function getResortWeatherForecast(latitude, longitude, days = 3) {
 
   try {
     const response = await fetch(url);
+
+    // Fire-and-forget usage tracking — never awaited into the critical
+    // path, a slow/failed log write must never delay the forecast itself.
+    recordApiCall("google_weather", "forecast_lookup", response.ok);
+
     if (!response.ok) {
       console.error(`[weather] Google Weather API responded ${response.status}`);
       return null;

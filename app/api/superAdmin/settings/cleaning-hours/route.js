@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { getActiveBookingRule } from "@/services/bookingRules";
+import { findCleaningBufferConflict } from "@/services/cleaningBuffer";
 
 export async function GET() {
   try {
@@ -61,6 +62,15 @@ export async function PUT(request) {
     // so the value actually affects services/roomStatus.js's computation,
     // which always reads cleaningHours off getActiveBookingRule().
     const activeRule = await getActiveBookingRule();
+
+    // Cleaning-buffer conflict check — this is the field most likely to
+    // create the overlap, since it's edited on its own here without the
+    // admin re-seeing the rule's Check-in/Check-out times side by side.
+    const bufferConflict = findCleaningBufferConflict(activeRule.checkInTime, activeRule.checkOutTime, cleaningHours);
+    if (bufferConflict) {
+      return NextResponse.json({ success: false, data: null, message: bufferConflict }, { status: 400 });
+    }
+
     const updatedRule = await prisma.bookingRule.update({
       where: { id: activeRule.id },
       data: { cleaningHours },

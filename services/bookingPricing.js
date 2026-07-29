@@ -18,6 +18,7 @@
  */
 import { prisma } from "@/services/prisma";
 import { getActiveBookingRule, getActiveBookingRuleForDateCount } from "@/services/bookingRules";
+import { getCleaningEndsAt } from "@/services/cleaningBuffer";
 
 const LAST_MINUTE_WINDOW_DAYS = 3;
 
@@ -60,6 +61,23 @@ function startOfDay(date) {
  */
 function toUtcMidnight(date) {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
+/**
+ * utcDateToLocalCalendarDay
+ * The inverse direction of toUtcMidnight() above: takes a raw Prisma
+ * @db.Date value (always UTC midnight for its stored calendar day,
+ * regardless of server timezone) and returns a LOCAL-midnight Date for
+ * that same calendar day. Needed anywhere this file does real wall-
+ * clock math (combineDateAndTime, direct Date comparisons) against a
+ * value that came straight from a checkInDate/checkOutDate column —
+ * calling date.getFullYear()/getMonth()/getDate() (local methods)
+ * directly on the raw UTC-midnight value is exactly the "one day off"
+ * bug toUtcMidnight() above was written to fix, just in the opposite
+ * direction.
+ */
+function utcDateToLocalCalendarDay(utcDate) {
+  return new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate());
 }
 
 function daysBetween(a, b) {
@@ -306,7 +324,7 @@ export async function validateAndQuoteBooking({
   if (bookingType === "overnight" && roomId) {
     const existingBookings = await client.booking.findMany({
       where: { status: "confirmed" },
-      select: { checkInDate: true, checkOutDate: true, bookingType: true },
+      select: { checkInDate: true, checkOutDate: true, bookingType: true, effectiveCheckOutAt: true },
     });
 
     // Day Tour / Night Tour bookings occupy exactly one date
@@ -335,6 +353,39 @@ export async function validateAndQuoteBooking({
     );
     if (hitsBlackout) {
       throw new Error("This room is closed for part of your selected date range. Please pick a different date.");
+    }
+
+    // --- Cleaning-buffer conflict check ---
+    // The date-only overlap check above deliberately ALLOWS a same-day
+    // turnover (existing booking's checkout date === this request's
+    // check-in date) — that's the normal, expected case for back-to-
+    // back stays. But if that specific existing stay's actual checkout
+    // moment + this rule's cleaningHours runs past the requested
+    // check-in moment on that same calendar day, the incoming guest
+    // would arrive before the room is actually ready. Catch that here
+    // instead of relying on the admin having configured Check-in/
+    // Check-out/Cleaning Hours to always leave enough of a gap.
+    const requestedCheckInMoment = effectiveCheckInAt ?? combineDateAndTime(checkIn, rules.checkInTime);
+    const turnoverConflict = existingBookings.some((existing) => {
+      if (existing.bookingType !== "overnight") return false;
+
+      const existingCheckOutLocalDay = utcDateToLocalCalendarDay(existing.checkOutDate);
+      const isBackToBackTurnover = toDateKey(existingCheckOutLocalDay) === toDateKey(checkIn);
+      if (!isBackToBackTurnover) return false;
+
+      // Prefer the exact recorded moment (set only when that earlier
+      // booking's own Same-Day Auto-Adjust actually fired); otherwise
+      // fall back to this rule's standard checkOutTime for that day.
+      const existingCheckoutMoment =
+        existing.effectiveCheckOutAt ?? combineDateAndTime(existingCheckOutLocalDay, rules.checkOutTime);
+      const cleaningEndsAt = getCleaningEndsAt(existingCheckoutMoment, rules.cleaningHours);
+
+      return requestedCheckInMoment < cleaningEndsAt;
+    });
+    if (turnoverConflict) {
+      throw new Error(
+        "This room isn't ready yet for that check-in time — the previous guest's checkout and cleaning haven't finished. Please choose a later check-in time or a different date."
+      );
     }
   }
 

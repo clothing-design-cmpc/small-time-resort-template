@@ -21,6 +21,7 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
+import { findCleaningBufferConflict } from "@/services/cleaningBuffer";
 
 export async function GET(request, { params }) {
   const { ruleId } = await params;
@@ -69,6 +70,21 @@ export async function PUT(request, { params }) {
     // forever was the actual root cause of a real mismatched-package
     // bug in production).
     const bookingTypeFlags = normalizeBookingTypeFlags(body);
+
+    // Cleaning-buffer conflict check — the form only sends
+    // checkInTime/checkOutTime (cleaningHours is edited separately via
+    // the Room Status section), so fall back to this rule's existing
+    // saved values for whichever fields weren't resent, and check the
+    // combination that will actually be in effect after this save.
+    const checkInTimeForCheck = body.checkInTime || existingRule.checkInTime;
+    const checkOutTimeForCheck = body.checkOutTime || existingRule.checkOutTime;
+    const cleaningHoursForCheck = Number.isFinite(Number(body.cleaningHours))
+      ? Number(body.cleaningHours)
+      : existingRule.cleaningHours;
+    const bufferConflict = findCleaningBufferConflict(checkInTimeForCheck, checkOutTimeForCheck, cleaningHoursForCheck);
+    if (bufferConflict) {
+      return NextResponse.json({ success: false, data: null, message: bufferConflict }, { status: 400 });
+    }
 
     const updatedRule = await prisma.bookingRule.update({
       where: { id: ruleId },

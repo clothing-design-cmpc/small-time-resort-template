@@ -17,6 +17,7 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
+import { findCleaningBufferConflict } from "@/services/cleaningBuffer";
 
 export async function GET(request) {
   try {
@@ -57,6 +58,17 @@ export async function POST(request) {
     // Enforce mutual exclusivity server-side regardless of what the
     // client sent — see services/bookingTypeFlags.js.
     const bookingTypeFlags = normalizeBookingTypeFlags(body);
+
+    // Cleaning-buffer conflict check — the form doesn't expose
+    // cleaningHours yet (it's edited separately from the Room Status
+    // section), so a brand-new rule always starts at the schema
+    // default of 2 hours; mirror that same default here so this
+    // pre-check matches what will actually be saved.
+    const cleaningHoursForCheck = Number.isFinite(Number(body.cleaningHours)) ? Number(body.cleaningHours) : 2;
+    const bufferConflict = findCleaningBufferConflict(body.checkInTime, body.checkOutTime, cleaningHoursForCheck);
+    if (bufferConflict) {
+      return NextResponse.json({ success: false, data: null, message: bufferConflict }, { status: 400 });
+    }
 
     const createdRule = await prisma.bookingRule.create({
       data: {

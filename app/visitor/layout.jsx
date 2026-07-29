@@ -107,7 +107,11 @@ async function getMessageUsChannels() {
       viber: settings?.resortViber ?? null,
       messengerUsername: settings?.resortMessengerUsername ?? null,
     };
-  } catch {
+  } catch (error) {
+    // Logged (not silent) so a schema mismatch or DB hiccup here is
+    // visible in the dev server terminal instead of just quietly
+    // showing zero Message Us buttons with no clue why.
+    console.error("[VisitorLayout] Failed to read Message Us channels:", error.message);
     return { whatsapp: null, viber: null, messengerUsername: null };
   }
 }

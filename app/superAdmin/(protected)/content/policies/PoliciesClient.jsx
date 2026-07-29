@@ -23,6 +23,7 @@ import { useEffect, useState } from "react";
 import { usePolicies } from "@/hooks/usePolicies";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
+import LocationPickerMap from "@/components/superAdmin/LocationPickerMap";
 import "./Policies.css";
 
 const TABS = [
@@ -106,6 +107,24 @@ export default function PoliciesClient() {
 
   function handleFieldChange(field, value) {
     setFormValues((previous) => ({ ...previous, [field]: value }));
+  }
+
+  /**
+   * handleLocationChange
+   * Called by LocationPickerMap on click/drag/search/geolocate — sets
+   * both resortLatitude and resortLongitude together in one state
+   * update (rather than two separate handleFieldChange calls) so the
+   * map, the number inputs below it, and the eventual saved row always
+   * agree on the same pair. Rounds to 6 decimals — sub-meter precision,
+   * plenty for a resort location, and avoids storing Leaflet's raw
+   * floating-point noise verbatim.
+   */
+  function handleLocationChange(latitude, longitude) {
+    setFormValues((previous) => ({
+      ...previous,
+      resortLatitude: Number(latitude.toFixed(6)),
+      resortLongitude: Number(longitude.toFixed(6)),
+    }));
   }
 
   async function handleSaveAll() {
@@ -291,6 +310,14 @@ export default function PoliciesClient() {
               onChange={(event) => handleFieldChange("resortMessengerUsername", event.target.value)}
             />
           </div>
+          <div className="policiesFormField">
+            <label>Pick Location on Map</label>
+            <LocationPickerMap
+              latitude={formValues.resortLatitude === "" ? null : formValues.resortLatitude}
+              longitude={formValues.resortLongitude === "" ? null : formValues.resortLongitude}
+              onLocationChange={handleLocationChange}
+            />
+          </div>
           <div className="policiesFormFieldRow">
             <div className="policiesFormField">
               <label htmlFor="resortLatitude">Map Latitude</label>
@@ -316,8 +343,9 @@ export default function PoliciesClient() {
             </div>
           </div>
           <p className="policiesMapHint">
-            Pin location shown on the visitor site&apos;s Contact footer. Get exact coordinates by
-            right-clicking the spot on Google Maps and copying the numbers shown at the top.
+            Pin location shown on the visitor site&apos;s Contact footer. Use the map above (click,
+            drag the pin, search, or &quot;Use my location&quot;) to set this automatically, or type exact
+            coordinates below by right-clicking the spot on Google Maps and copying the numbers shown at the top.
           </p>
         </div>
       ) : (

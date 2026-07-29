@@ -41,6 +41,19 @@ import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { getActiveBookingRule } from "@/services/bookingRules";
+
+// Same per-type start/end time fields the manage lookup route reads.
+const START_TIME_FIELD_BY_TYPE = {
+  overnight: "checkInTime",
+  day_tour: "dayTourStartTime",
+  night_tour: "nightTourStartTime",
+};
+const END_TIME_FIELD_BY_TYPE = {
+  overnight: "checkOutTime",
+  day_tour: "dayTourEndTime",
+  night_tour: "nightTourEndTime",
+};
 
 const RESCHEDULE_MAX_ATTEMPTS = 10;
 const RESCHEDULE_WINDOW_MS = 15 * 60 * 1000;
@@ -106,6 +119,33 @@ export async function POST(request) {
     if (Number.isNaN(newCheckIn.getTime()) || Number.isNaN(newCheckOut.getTime()) || newCheckIn < today) {
       return NextResponse.json(
         { success: false, data: null, message: "Please select a valid, upcoming date." },
+        { status: 400 }
+      );
+    }
+
+    // Guard against a silent no-op reschedule: RebookCalendarModal's
+    // calendar restarts its range on EVERY click once a full range is
+    // already picked — including the very first click, since the modal
+    // pre-fills the calendar with the booking's CURRENT dates before
+    // the guest has touched anything (see that component's
+    // handleSelectRange comment). If the guest's last tap before
+    // hitting Confirm lands back on their original check-in day (e.g.
+    // scrolling back to double-check something), the calendar silently
+    // re-selects the ORIGINAL dates with no visual warning, and Confirm
+    // would otherwise still "succeed" — stamping rebookedAt and sending
+    // a "Booking Rebooked" email/invoice while checkInDate/checkOutDate
+    // never actually moved. That is precisely what the confirmed
+    // bd49cbd3 / 5a483bc9 rows show: rebookedAt set, dates unchanged.
+    const isUnchanged =
+      newCheckIn.getTime() === startOfDay(booking.checkInDate).getTime() &&
+      newCheckOut.getTime() === startOfDay(booking.checkOutDate).getTime();
+    if (isUnchanged) {
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          message: "Those are your current dates — please pick different ones, or close this if you didn't mean to change anything.",
+        },
         { status: 400 }
       );
     }
@@ -211,6 +251,10 @@ export async function POST(request) {
       console.error("[api/bookings/manage/reschedule] Failed to send rebooked confirmation email:", error.message);
     }
 
+    const rules = await getActiveBookingRule(updatedBooking.bookingType);
+    const checkInTime = rules[START_TIME_FIELD_BY_TYPE[updatedBooking.bookingType]] ?? null;
+    const checkOutTime = rules[END_TIME_FIELD_BY_TYPE[updatedBooking.bookingType]] ?? null;
+
     return NextResponse.json({
       success: true,
       data: {
@@ -218,6 +262,8 @@ export async function POST(request) {
           referenceCode: updatedBooking.referenceCode,
           checkInDate: updatedBooking.checkInDate.toISOString().slice(0, 10),
           checkOutDate: updatedBooking.checkOutDate.toISOString().slice(0, 10),
+          checkInTime,
+          checkOutTime,
         },
         invoiceUrl,
       },

@@ -166,9 +166,21 @@ export default function RebookCalendarModal({ booking, onClose, onRescheduled })
   // checkout blank — distinct from nightsMismatch, which only applies
   // once both ends of a range are actually set.
   const needsManualCheckout = isOvernight && Boolean(selectedCheckIn) && !selectedCheckOut;
+  // Guards a silent no-op: the calendar restarts its range on EVERY
+  // click once a full range is picked — including the very first
+  // click, since the modal opens pre-filled with the booking's CURRENT
+  // dates (see handleSelectRange above). A stray tap that lands back on
+  // the original check-in day (e.g. re-checking something before
+  // hitting Confirm) silently re-selects the ORIGINAL dates with no
+  // visual cue that anything changed. Without this, Confirm would
+  // submit successfully but the booking's dates would never actually
+  // move — reading to the guest as "my new dates didn't save," which is
+  // exactly what the confirmed bd49cbd3/5a483bc9 rows showed.
+  const isUnchangedFromOriginal =
+    selectedCheckIn === booking.checkInDate && selectedCheckOut === booking.checkOutDate;
   const canConfirm = isOvernight
-    ? Boolean(selectedCheckIn && selectedCheckOut && !nightsMismatch)
-    : Boolean(selectedCheckIn);
+    ? Boolean(selectedCheckIn && selectedCheckOut && !nightsMismatch && !isUnchangedFromOriginal)
+    : Boolean(selectedCheckIn && !isUnchangedFromOriginal);
 
   async function handleConfirm() {
     if (!canConfirm || isSubmitting) return;
@@ -242,6 +254,11 @@ export default function RebookCalendarModal({ booking, onClose, onRescheduled })
         {needsManualCheckout && (
           <p className="manageBookingError" role="alert">
             We couldn't fit {originalNights} consecutive night(s) starting here — tap an end date to complete a different range.
+          </p>
+        )}
+        {isUnchangedFromOriginal && !needsManualCheckout && (
+          <p className="manageBookingError" role="alert">
+            That's your current booking's date — tap a different day to pick new dates.
           </p>
         )}
         {errorMessage && <p className="manageBookingError" role="alert">{errorMessage}</p>}

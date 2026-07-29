@@ -27,6 +27,22 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
+import { getActiveBookingRule } from "@/services/bookingRules";
+
+// Same per-type start/end time fields services/bookingPricing.js already
+// reads off the active BookingRule — kept in one place so this route and
+// that engine can never disagree about which field means "check-in" for
+// a given booking type.
+const START_TIME_FIELD_BY_TYPE = {
+  overnight: "checkInTime",
+  day_tour: "dayTourStartTime",
+  night_tour: "nightTourStartTime",
+};
+const END_TIME_FIELD_BY_TYPE = {
+  overnight: "checkOutTime",
+  day_tour: "dayTourEndTime",
+  night_tour: "nightTourEndTime",
+};
 
 const LOOKUP_MAX_ATTEMPTS = 10;
 const LOOKUP_WINDOW_MS = 15 * 60 * 1000;
@@ -100,6 +116,10 @@ export async function POST(request) {
       })
     : [];
 
+  const rules = await getActiveBookingRule(booking.bookingType);
+  const checkInTime = rules[START_TIME_FIELD_BY_TYPE[booking.bookingType]] ?? null;
+  const checkOutTime = rules[END_TIME_FIELD_BY_TYPE[booking.bookingType]] ?? null;
+
   return NextResponse.json({
     success: true,
     data: {
@@ -110,6 +130,8 @@ export async function POST(request) {
         bookingType: booking.bookingType,
         checkInDate: booking.checkInDate.toISOString().slice(0, 10),
         checkOutDate: booking.checkOutDate.toISOString().slice(0, 10),
+        checkInTime,
+        checkOutTime,
         numberOfGuests: booking.numberOfGuests,
         totalAmount: Number(booking.totalAmount),
         depositAmount: Number(booking.depositAmount),

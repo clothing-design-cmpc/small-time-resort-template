@@ -276,10 +276,10 @@ export default function ManageBookingWidget() {
                   <dd>{booking.roomName ?? "—"}{booking.roomBedType ? ` — ${booking.roomBedType} bed` : ""}</dd>
 
                   <dt>Check-in</dt>
-                  <dd>{booking.checkInDate}</dd>
+                  <dd>{booking.checkInDate}{booking.checkInTime ? ` at ${booking.checkInTime}` : ""}</dd>
 
                   <dt>Check-out</dt>
-                  <dd>{booking.checkOutDate}</dd>
+                  <dd>{booking.checkOutDate}{booking.checkOutTime ? ` at ${booking.checkOutTime}` : ""}</dd>
 
                   <dt>Guests</dt>
                   <dd>{booking.numberOfGuests}</dd>
@@ -373,10 +373,10 @@ export default function ManageBookingWidget() {
                     <dd>{booking.roomName ?? "—"}{booking.roomBedType ? ` — ${booking.roomBedType} bed` : ""}</dd>
 
                     <dt>Check-in</dt>
-                    <dd>{rebookedInfo.booking.checkInDate}</dd>
+                    <dd>{rebookedInfo.booking.checkInDate}{rebookedInfo.booking.checkInTime ? ` at ${rebookedInfo.booking.checkInTime}` : ""}</dd>
 
                     <dt>Check-out</dt>
-                    <dd>{rebookedInfo.booking.checkOutDate}</dd>
+                    <dd>{rebookedInfo.booking.checkOutDate}{rebookedInfo.booking.checkOutTime ? ` at ${rebookedInfo.booking.checkOutTime}` : ""}</dd>
 
                     <dt>Guests</dt>
                     <dd>{booking.numberOfGuests}</dd>

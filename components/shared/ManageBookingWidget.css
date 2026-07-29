@@ -285,3 +285,31 @@
   color: var(--color-text-secondary);
   margin: 0 0 var(--space-lg) 0;
 }
+
+/*
+ * .manageBookingSuccess .manageBookingSummary
+ * The rebooked success screen reuses .manageBookingSummary (package
+ * details grid) inside .manageBookingSuccess, which centers text for
+ * the title/subtitle above it — override back to left-aligned here so
+ * the dt/dd grid reads naturally instead of every value centering.
+ */
+.manageBookingSuccess .manageBookingSummary {
+  text-align: left;
+}
+
+/*
+ * .manageBookingRedownloadHint
+ * Small fallback link shown under the package details on the rebooked
+ * screen — the invoice already auto-downloads, so this is only a
+ * backup for guests whose browser blocked the automatic download.
+ */
+.manageBookingRedownloadHint {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.manageBookingRedownloadHint a {
+  color: var(--color-accent);
+  font-weight: 600;
+}

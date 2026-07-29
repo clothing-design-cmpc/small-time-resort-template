@@ -53,6 +53,11 @@ export default function ManageBookingWidget() {
   const [rebookedInfo, setRebookedInfo] = useState(null);
 
   const codeInputRef = useRef(null);
+  // Guards the auto-download effect below from firing a second time on a
+  // re-render (StrictMode double-invoke, or the parent re-rendering while
+  // this step is still showing) — the browser should only ever trigger
+  // one download per successful reschedule.
+  const hasAutoDownloadedRef = useRef(false);
 
   // Autofocus the reference code field the moment the modal opens (Rule 34.3)
   useEffect(() => {
@@ -60,6 +65,26 @@ export default function ManageBookingWidget() {
       codeInputRef.current?.focus();
     }
   }, [isModalOpen, step]);
+
+  /**
+   * Auto-download the updated invoice the moment the rebooked success
+   * screen shows — the guest asked not to have to click anything.
+   * Triggered via a hidden, programmatically-clicked <a>: the invoice
+   * route responds with Content-Disposition: attachment, so a normal
+   * anchor click downloads the file without ever navigating the page
+   * away, and without the popup-blocker risk of window.open().
+   */
+  useEffect(() => {
+    if (step !== STEP_REBOOKED || !rebookedInfo?.invoiceUrl || hasAutoDownloadedRef.current) return;
+    hasAutoDownloadedRef.current = true;
+
+    const downloadLink = document.createElement("a");
+    downloadLink.href = rebookedInfo.invoiceUrl;
+    downloadLink.rel = "noopener";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  }, [step, rebookedInfo]);
 
   function resetAndClose() {
     setIsModalOpen(false);
@@ -159,6 +184,7 @@ export default function ManageBookingWidget() {
 
   function handleRescheduled(data) {
     setIsRebookModalOpen(false);
+    hasAutoDownloadedRef.current = false;
     setRebookedInfo(data ?? null);
     setIsModalOpen(true);
     setStep(STEP_REBOOKED);
@@ -332,19 +358,55 @@ export default function ManageBookingWidget() {
               <div className="manageBookingSuccess">
                 <p className="manageBookingSuccessTitle">Booking rebooked</p>
                 <p className="manageBookingSuccessSubtitle">
-                  Your reservation is now {rebookedInfo.booking.checkInDate} → {rebookedInfo.booking.checkOutDate}.
-                  Your reference code stays the same: {rebookedInfo.booking.referenceCode}.
+                  Your updated invoice is downloading now. Your reference code stays the same.
                 </p>
-                {rebookedInfo.invoiceUrl && (
-                  <a
-                    href={rebookedInfo.invoiceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="manageBookingRebookButton"
-                  >
-                    Download updated invoice
-                  </a>
+
+                {booking && (
+                  <dl className="manageBookingSummary">
+                    <dt>Reference code</dt>
+                    <dd>{rebookedInfo.booking.referenceCode}</dd>
+
+                    <dt>Package</dt>
+                    <dd>{BOOKING_TYPE_LABELS[booking.bookingType] ?? booking.bookingType}</dd>
+
+                    <dt>Room</dt>
+                    <dd>{booking.roomName ?? "—"}{booking.roomBedType ? ` — ${booking.roomBedType} bed` : ""}</dd>
+
+                    <dt>Check-in</dt>
+                    <dd>{rebookedInfo.booking.checkInDate}</dd>
+
+                    <dt>Check-out</dt>
+                    <dd>{rebookedInfo.booking.checkOutDate}</dd>
+
+                    <dt>Guests</dt>
+                    <dd>{booking.numberOfGuests}</dd>
+
+                    <dt>Included</dt>
+                    <dd>
+                      {booking.includedAmenities.length > 0
+                        ? booking.includedAmenities.join(", ")
+                        : "No additional amenities listed for this room."}
+                    </dd>
+
+                    <dt>Total</dt>
+                    <dd>{PESO.format(booking.totalAmount)}</dd>
+
+                    {booking.depositAmount > 0 && (
+                      <>
+                        <dt>Deposit due</dt>
+                        <dd>{PESO.format(booking.depositAmount)}</dd>
+                      </>
+                    )}
+                  </dl>
                 )}
+
+                {rebookedInfo.invoiceUrl && (
+                  <p className="manageBookingRedownloadHint">
+                    Download didn't start?{" "}
+                    <a href={rebookedInfo.invoiceUrl} rel="noopener">Get the invoice here</a>.
+                  </p>
+                )}
+
                 <button type="button" className="manageBookingSubmitButton" onClick={handleRebookedClose}>
                   Close
                 </button>

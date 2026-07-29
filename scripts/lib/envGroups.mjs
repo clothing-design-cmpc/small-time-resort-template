@@ -146,7 +146,7 @@ export const ENV_FIX_INSTRUCTIONS = {
   vaultSecurity:
     "Check VAULT_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs",
   aiInsightAndDirections:
-    "Gemini: aistudio.google.com → Get API key → Create API key, into GEMINI_API_KEY. Google Maps/Weather: console.cloud.google.com → APIs & Services → Library, enable Geocoding API + Routes API + Weather API on one project, then Credentials → Create API Key (restrict it to those three APIs) — same key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY.",
+    "Gemini: aistudio.google.com → Get API key → Create API key, into GEMINI_API_KEY. Google Maps/Weather: console.cloud.google.com → APIs & Services → Library, enable Geocoding API + Routes API + Maps Static API + Weather API on one project, then Credentials → Create API Key (restrict it to those four APIs) — same key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY. Maps Static API is easy to miss since it's not called directly by name in code (services/directions.js's getRouteMapImage()/getResortLocationMapImage() hit its REST endpoint) — skipping it doesn't error loudly, it just makes the route map image silently never appear on /visitor/directions.",
   siteConfig:
     "Set NEXT_PUBLIC_SITE_URL to this site's live production URL in .env.local and GitHub repo secrets.",
 };

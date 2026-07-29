@@ -85,11 +85,32 @@ export async function POST(request) {
   // "already verified" flag (see file header).
   const booking = await prisma.booking.findUnique({
     where: { referenceCode: payload.referenceCode.toUpperCase() },
-    select: { status: true, checkInDate: true },
+    select: { id: true, guestName: true, status: true, checkInDate: true, directionsAccessedAt: true },
   });
   if (!booking || booking.status !== "confirmed") {
     return NextResponse.json(
       { success: false, data: null, message: "Invalid or expired reference code." },
+      { status: 403 }
+    );
+  }
+
+  // Single-use gate, re-checked here for the same reason the
+  // availability window is re-checked below: verify-reference passing
+  // is a UX convenience only, a request can be replayed straight at
+  // this route. Blocks BEFORE any Geocoding/Routes/Static Maps spend.
+  if (booking.directionsAccessedAt) {
+    await logSecurityEvent({
+      eventType: "directions_reuse_blocked",
+      actor: booking.guestName,
+      request,
+      details: `Directions compute blocked — already accessed at ${booking.directionsAccessedAt.toISOString()}.`,
+    });
+    return NextResponse.json(
+      {
+        success: false,
+        data: null,
+        message: "Directions for this booking were already retrieved. Please check the map on your invoice, or contact us if you need help.",
+      },
       { status: 403 }
     );
   }
@@ -149,6 +170,23 @@ export async function POST(request) {
       { status: 502 }
     );
   }
+
+  // Route successfully computed — mark this booking's directions as
+  // used (single-use gate above checks this on every future attempt,
+  // any device) and log this device's IP/location/fingerprint against
+  // the booking, same reasoning as verify-reference's success log: an
+  // admin should be able to see WHO actually pulled turn-by-turn
+  // directions to the resort, not just who got rate-limited or denied.
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: { directionsAccessedAt: new Date() },
+  });
+  await logSecurityEvent({
+    eventType: "directions_accessed",
+    actor: booking.guestName,
+    request,
+    details: `Directions computed (${(route.distanceMeters / 1000).toFixed(1)}km, ${Math.round(route.durationSeconds / 60)}min).`,
+  });
 
   // Render a Static Maps image of the actual route — a missing/failed
   // image should never block the turn-by-turn directions that already

@@ -226,7 +226,12 @@ export async function getRouteMapImage(origin, destination, encodedPolyline) {
     const response = await fetch(`${STATIC_MAP_URL}?${params.toString()}`);
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[directions] Static Maps API returned an error:", response.status, errorText);
+      console.error(
+        "[directions] Static Maps API returned an error:",
+        response.status,
+        errorText,
+        "— if this says REQUEST_DENIED or API not enabled, check that 'Maps Static API' (not just Geocoding/Routes) is enabled AND included in this key's API restrictions in Google Cloud Console."
+      );
       return null;
     }
     return Buffer.from(await response.arrayBuffer());
@@ -269,7 +274,12 @@ export async function getResortLocationMapImage(latitude, longitude) {
     const response = await fetch(`${STATIC_MAP_URL}?${params.toString()}`);
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[directions] Static Maps API returned an error:", response.status, errorText);
+      console.error(
+        "[directions] Static Maps API returned an error:",
+        response.status,
+        errorText,
+        "— if this says REQUEST_DENIED or API not enabled, check that 'Maps Static API' (not just Geocoding/Routes) is enabled AND included in this key's API restrictions in Google Cloud Console."
+      );
       return null;
     }
     return Buffer.from(await response.arrayBuffer());

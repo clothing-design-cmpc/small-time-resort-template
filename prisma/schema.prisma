@@ -183,6 +183,16 @@ model Booking {
   // the "How to Get There" widget will reveal turn-by-turn directions.
   referenceCode  String   @unique @map("reference_code")
 
+  // Set the FIRST time this booking's directions were actually
+  // retrieved (app/api/directions/compute/route.js — the call that
+  // spends the Routes/Static Maps API budget), never on verify-
+  // reference alone. Once set, the widget is single-use: any further
+  // verify or compute attempt for this booking is denied regardless
+  // of device, and the guest is pointed to the map already embedded
+  // in their invoice (services/invoicePdf.js) instead. Null = not yet
+  // used.
+  directionsAccessedAt DateTime? @map("directions_accessed_at")
+
   // --- Multi-date rule matching (Section 1 Rule 2 on Booking Rules) ---
   // NIGHTS actually selected by the guest (checkOutDate - checkInDate in
   // days) — 0 for Day Tour/Night Tour. Named to match BookingRule's own
@@ -296,7 +306,7 @@ model AdminProfile {
 // reviews after the fact to answer "what happened and who did it."
 model SecurityLog {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set | setup_key_verified | setup_key_rejected | setup_admin_created
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | directions_verified | directions_accessed | directions_denied_early | directions_reuse_blocked | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set | setup_key_verified | setup_key_rejected | setup_admin_created
   actor     String?  // email attempted/used, or the admin's full name for admin_action rows
   ipAddress String?  @map("ip_address")
   userAgent String?  @map("user_agent") @db.Text

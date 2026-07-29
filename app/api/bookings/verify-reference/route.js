@@ -68,7 +68,7 @@ export async function POST(request) {
 
   const booking = await prisma.booking.findUnique({
     where: { referenceCode: payload.referenceCode.toUpperCase() },
-    select: { id: true, guestName: true, status: true, checkInDate: true },
+    select: { id: true, guestName: true, status: true, checkInDate: true, directionsAccessedAt: true },
   });
 
   const isValid = !!booking && booking.status === "confirmed";
@@ -78,6 +78,26 @@ export async function POST(request) {
       success: true,
       data: { valid: false },
       message: "That reference code wasn't found. Please check your invoice and try again.",
+    });
+  }
+
+  // Single-use gate — directions were already retrieved for this
+  // booking at some earlier point (any device), so the widget stays
+  // locked from here on. The map already embedded in the invoice
+  // (services/invoicePdf.js) is the guest's reference from now on —
+  // this is exactly why that map matters, since this is the only
+  // place a route image gets shown after the one-time unlock.
+  if (booking.directionsAccessedAt) {
+    await logSecurityEvent({
+      eventType: "directions_reuse_blocked",
+      actor: booking.guestName,
+      request,
+      details: `Reference code reused after directions already accessed at ${booking.directionsAccessedAt.toISOString()}.`,
+    });
+    return NextResponse.json({
+      success: true,
+      data: { valid: false, alreadyUsed: true },
+      message: "Directions for this booking were already retrieved. Please check the map on your invoice, or contact us if you need help.",
     });
   }
 
@@ -99,6 +119,18 @@ export async function POST(request) {
       message: `Directions open starting ${availableFrom.toISOString().slice(0, 10)} — please check back closer to your visit.`,
     });
   }
+
+  // Real, confirmed booking, and inside the availability window — log
+  // the SUCCESSFUL verification itself (not just the denial branch
+  // above), so the super-admin actually sees that this device's IP/
+  // location/fingerprint was captured for a real directions access,
+  // instead of Security Logs only ever showing the failure cases.
+  await logSecurityEvent({
+    eventType: "directions_verified",
+    actor: booking.guestName,
+    request,
+    details: `Reference code verified for directions (check-in ${booking.checkInDate.toISOString().slice(0, 10)}).`,
+  });
 
   return NextResponse.json({
     success: true,

@@ -58,6 +58,37 @@ export default function AnalyticsClient() {
   // Highest single-day view count, used to scale the daily trend bars proportionally.
   const maxDailyViews = data ? Math.max(1, ...data.dailyTotals.map((day) => day.views)) : 1;
   const maxTopPageViews = data ? Math.max(1, ...data.topPages.map((row) => row.views)) : 1;
+  const maxReferrerViews = data ? Math.max(1, ...data.topReferrers.map((row) => row.views)) : 1;
+
+  /**
+   * buildDonutSegments
+   * Turns a [{ label, views }] list into conic-gradient stops plus a
+   * legend array. Uses a single monochrome accent-green palette
+   * (varying shade per rank) instead of a rainbow — matches Rule 17.2
+   * ("no rainbow/multicolor, one accent family only").
+   */
+  function buildDonutSegments(rows, labelKey) {
+    const palette = ["#22c55e", "#4ade80", "#86efac", "#166534", "#0f766e", "#64748b"];
+    const total = rows.reduce((sum, row) => sum + row.views, 0);
+    let cumulativePercent = 0;
+
+    const legend = rows.map((row, index) => {
+      const percent = total === 0 ? 0 : (row.views / total) * 100;
+      const color = palette[index % palette.length];
+      const stopStart = cumulativePercent;
+      cumulativePercent += percent;
+      return { label: row[labelKey], views: row.views, percent, color, stopStart, stopEnd: cumulativePercent };
+    });
+
+    const gradientStops = legend
+      .map((segment) => `${segment.color} ${segment.stopStart}% ${segment.stopEnd}%`)
+      .join(", ");
+
+    return { legend, gradientStops: total === 0 ? "var(--color-border) 0% 100%" : gradientStops, total };
+  }
+
+  const deviceDonut = data ? buildDonutSegments(data.deviceBreakdown, "deviceType") : null;
+  const countryDonut = data ? buildDonutSegments(data.countryBreakdown, "countryCode") : null;
 
   return (
     <section className="analyticsSection">
@@ -162,48 +193,80 @@ export default function AnalyticsClient() {
               {data.topReferrers.length === 0 ? (
                 <p className="analyticsEmptyMessage">No referrer data yet.</p>
               ) : (
-                <ul className="analyticsSimpleList">
+                <ul className="analyticsBarList">
                   {data.topReferrers.map((row) => (
-                    <li key={row.referrerHost} className="analyticsSimpleListRow">
-                      <span>{row.referrerHost}</span>
-                      <span className="analyticsSimpleListValue">{row.views.toLocaleString()}</span>
+                    <li key={row.referrerHost} className="analyticsBarListRow">
+                      <span className="analyticsBarListLabel">{row.referrerHost}</span>
+                      <div className="analyticsBarListTrack">
+                        <div
+                          className="analyticsBarListFill"
+                          style={{ width: `${(row.views / maxReferrerViews) * 100}%` }}
+                        />
+                      </div>
+                      <span className="analyticsBarListValue">{row.views.toLocaleString()}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
 
-            {/* Device breakdown */}
+            {/* Device breakdown — donut chart */}
             <div className="analyticsPanel">
               <h2 className="analyticsPanelTitle">Device Breakdown</h2>
               {data.deviceBreakdown.length === 0 ? (
                 <p className="analyticsEmptyMessage">No device data yet.</p>
               ) : (
-                <ul className="analyticsSimpleList">
-                  {data.deviceBreakdown.map((row) => (
-                    <li key={row.deviceType} className="analyticsSimpleListRow">
-                      <span style={{ textTransform: "capitalize" }}>{row.deviceType}</span>
-                      <span className="analyticsSimpleListValue">{row.views.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="analyticsDonutWrap">
+                  <div
+                    className="analyticsDonut"
+                    style={{ background: `conic-gradient(${deviceDonut.gradientStops})` }}
+                  >
+                    <div className="analyticsDonutCenter">
+                      <span className="analyticsDonutCenterValue">{deviceDonut.total.toLocaleString()}</span>
+                      <span className="analyticsDonutCenterLabel">views</span>
+                    </div>
+                  </div>
+                  <ul className="analyticsDonutLegend">
+                    {deviceDonut.legend.map((segment) => (
+                      <li key={segment.label} className="analyticsDonutLegendRow">
+                        <span className="analyticsDonutSwatch" style={{ backgroundColor: segment.color }} />
+                        <span className="analyticsDonutLegendLabel" style={{ textTransform: "capitalize" }}>
+                          {segment.label}
+                        </span>
+                        <span className="analyticsDonutLegendValue">{segment.percent.toFixed(0)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
 
-            {/* Country breakdown */}
+            {/* Country breakdown — donut chart */}
             <div className="analyticsPanel">
               <h2 className="analyticsPanelTitle">Top Countries</h2>
               {data.countryBreakdown.length === 0 ? (
                 <p className="analyticsEmptyMessage">No location data yet.</p>
               ) : (
-                <ul className="analyticsSimpleList">
-                  {data.countryBreakdown.map((row) => (
-                    <li key={row.countryCode} className="analyticsSimpleListRow">
-                      <span>{row.countryCode}</span>
-                      <span className="analyticsSimpleListValue">{row.views.toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="analyticsDonutWrap">
+                  <div
+                    className="analyticsDonut"
+                    style={{ background: `conic-gradient(${countryDonut.gradientStops})` }}
+                  >
+                    <div className="analyticsDonutCenter">
+                      <span className="analyticsDonutCenterValue">{countryDonut.total.toLocaleString()}</span>
+                      <span className="analyticsDonutCenterLabel">views</span>
+                    </div>
+                  </div>
+                  <ul className="analyticsDonutLegend">
+                    {countryDonut.legend.map((segment) => (
+                      <li key={segment.label} className="analyticsDonutLegendRow">
+                        <span className="analyticsDonutSwatch" style={{ backgroundColor: segment.color }} />
+                        <span className="analyticsDonutLegendLabel">{segment.label}</span>
+                        <span className="analyticsDonutLegendValue">{segment.percent.toFixed(0)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           </div>

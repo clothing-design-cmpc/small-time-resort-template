@@ -147,6 +147,24 @@ export async function GET(request) {
 
     const totalViews = totalViewsResult._sum.viewCount ?? 0;
 
+    /**
+     * mergeByLabel
+     * Some legacy rows store the literal string "Unknown"/"Direct" while
+     * newer rows store null for the same missing value. Prisma's groupBy
+     * treats null and the literal string as separate DB groups, so after
+     * the ?? fallback below two rows can collapse onto the same label —
+     * causing duplicate React keys and split view counts. This re-merges
+     * rows that share a label after the fallback is applied.
+     */
+    function mergeByLabel(rows, buildLabel, getViews) {
+      const merged = new Map();
+      for (const row of rows) {
+        const label = buildLabel(row);
+        merged.set(label, (merged.get(label) ?? 0) + getViews(row));
+      }
+      return Array.from(merged, ([label, views]) => ({ label, views })).sort((a, b) => b.views - a.views);
+    }
+
     // --- Daily Views series (for the redesigned trend chart) ---
     const dailyViewsByDate = new Map(dailyTotals.map((row) => [toDateKey(row.date), row._sum.viewCount ?? 0]));
     const dailyViewsSeries = buildDailySeries(thirtyDaysAgo, dailyViewsByDate);
@@ -207,21 +225,29 @@ export async function GET(request) {
         totalViews,
         dailyTotals: dailyViewsSeries.map((row) => ({ date: row.date, views: row.value })),
         topPages: topPages.map((row) => ({ path: row.path, views: row._sum.viewCount ?? 0 })),
-        topReferrers: topReferrers.map((row) => ({
-          referrerHost: row.referrerHost ?? "Direct",
-          views: row._sum.viewCount ?? 0,
-        })),
-        deviceBreakdown: deviceBreakdown.map((row) => ({
-          deviceType: row.deviceType ?? "Unknown",
-          views: row._sum.viewCount ?? 0,
-        })),
+        topReferrers: mergeByLabel(
+          topReferrers,
+          (row) => row.referrerHost ?? "Direct",
+          (row) => row._sum.viewCount ?? 0
+        ).map((row) => ({ referrerHost: row.label, views: row.views })),
+        deviceBreakdown: mergeByLabel(
+          deviceBreakdown,
+          (row) => row.deviceType ?? "Unknown",
+          (row) => row._sum.viewCount ?? 0
+        ).map((row) => ({ deviceType: row.label, views: row.views })),
         // Specific city + country per row, e.g. { city: "Imus", countryCode: "PH" }
         // — replaces the old country-only breakdown so location is fast to read.
-        locationBreakdown: locationBreakdown.map((row) => ({
-          city: row.geoCity ?? "Unknown",
-          countryCode: row.countryCode ?? "Unknown",
-          views: row._sum.viewCount ?? 0,
-        })),
+        // Rows are merged by their final "city, country" label (see mergeByLabel
+        // above) so a null-vs-"Unknown" split in the raw data never produces two
+        // rows with the same rendered key.
+        locationBreakdown: mergeByLabel(
+          locationBreakdown,
+          (row) => `${row.geoCity ?? "Unknown"}|||${row.countryCode ?? "Unknown"}`,
+          (row) => row._sum.viewCount ?? 0
+        ).map((row) => {
+          const [city, countryCode] = row.label.split("|||");
+          return { city, countryCode, views: row.views };
+        }),
 
         salesSummary: {
           totalRevenue,

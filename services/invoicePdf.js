@@ -54,6 +54,51 @@ const PESO = { format: (value) => `PHP ${PESO_NUMBER.format(value)}` };
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 /**
+ * drawWatermark
+ * Draws large, diagonal, semi-transparent text centered on the page.
+ *
+ * pdf-lib rotates a drawn text run around its (x, y) anchor — the
+ * BOTTOM-LEFT of the baseline, not the text's visual center — so
+ * naively centering x/y before rotating leaves the rotated text
+ * offset well away from where it looks centered (this is why the
+ * previous version rendered small/off-position). This helper instead
+ * solves for the anchor point that puts the text's true visual
+ * center at (centerX, centerY) AFTER rotation, using standard 2D
+ * rotation math.
+ *
+ * Also called LAST (after the map image and every other element) so
+ * the watermark paints on top of everything — otherwise the opaque
+ * map image fully covers whatever low-opacity text sits behind it in
+ * that region, making the watermark look broken/partial rather than
+ * one continuous stamp across the whole page.
+ */
+function drawWatermark(page, text, { font, size, color, opacity, angleDegrees, centerX, centerY }) {
+  const textWidth = font.widthOfTextAtSize(text, size);
+  // Approximate visual half-height above the baseline for a bold
+  // all-caps run — close enough for a diagonal background stamp.
+  const textHalfHeight = size * 0.35;
+
+  const angleRad = (angleDegrees * Math.PI) / 180;
+  const cosA = Math.cos(angleRad);
+  const sinA = Math.sin(angleRad);
+
+  // Offset from the baseline anchor to the text's visual center,
+  // rotated by the same angle the text itself will be rotated by.
+  const rotatedOffsetX = (textWidth / 2) * cosA - textHalfHeight * sinA;
+  const rotatedOffsetY = (textWidth / 2) * sinA + textHalfHeight * cosA;
+
+  page.drawText(text, {
+    x: centerX - rotatedOffsetX,
+    y: centerY - rotatedOffsetY,
+    size,
+    font,
+    color,
+    opacity,
+    rotate: degrees(angleDegrees),
+  });
+}
+
+/**
  * generateInvoicePdf
  * Builds and returns the invoice as a Buffer, ready to attach to an
  * email or stream back as a file download.
@@ -79,29 +124,6 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
   const ACCENT = rgb(0.13, 0.55, 0.13); // matches the site's green accent token
   const MUTED = rgb(0.4, 0.4, 0.4);
   const INK = rgb(0.05, 0.05, 0.06);
-
-  // --- Watermark — drawn first so every later element paints on top of
-  // it. Priority: CANCELLED > REBOOK > CONFIRMED — a cancelled booking
-  // always shows CANCELLED even if it was rebooked before it was later
-  // cancelled; otherwise a booking that's been moved via the
-  // self-service Rebook flow (rebookedAt set — see schema comment on
-  // Booking.rebookedAt) shows REBOOK so staff and the guest can see at
-  // a glance that this invoice reflects moved dates, not the original
-  // booking. Large, low-opacity, rotated diagonally across the page —
-  // standard invoice/receipt convention. ---
-  const watermarkText =
-    booking.status === "cancelled" ? "CANCELLED" : booking.rebookedAt ? "REBOOK" : "CONFIRMED";
-  const watermarkFontSize = 72;
-  const watermarkWidth = fontBold.widthOfTextAtSize(watermarkText, watermarkFontSize);
-  page.drawText(watermarkText, {
-    x: PAGE_WIDTH / 2 - watermarkWidth / 2,
-    y: PAGE_HEIGHT / 2,
-    size: watermarkFontSize,
-    font: fontBold,
-    color: booking.status === "cancelled" ? rgb(0.7, 0.15, 0.15) : ACCENT,
-    opacity: 0.08,
-    rotate: degrees(-30),
-  });
 
   let cursorY = PAGE_HEIGHT - MARGIN;
 
@@ -217,6 +239,29 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
   writeLine(`Status: ${booking.status}`, { gap: 26 });
 
   writeLine(`Issued: ${FULL_DATE.format(new Date())}`, { size: 9, color: MUTED });
+
+  // --- Watermark — drawn LAST so it sits on top of every other
+  // element, including the map image (see drawWatermark's comment for
+  // why). Priority: CANCELLED > REBOOK > CONFIRMED — a cancelled
+  // booking always shows CANCELLED even if it was rebooked before it
+  // was later cancelled; otherwise a booking moved via the
+  // self-service Rebook flow (rebookedAt set — see schema comment on
+  // Booking.rebookedAt) shows REBOOK so staff and the guest can see at
+  // a glance this invoice reflects moved dates, not the original
+  // booking. Sized relative to the page so it reads clearly at a
+  // glance without a print, and opacity is high enough to stay legible
+  // over the map image while still reading as a background stamp. ---
+  const watermarkText =
+    booking.status === "cancelled" ? "CANCELLED" : booking.rebookedAt ? "REBOOK" : "CONFIRMED";
+  drawWatermark(page, watermarkText, {
+    font: fontBold,
+    size: 108,
+    color: booking.status === "cancelled" ? rgb(0.75, 0.15, 0.15) : ACCENT,
+    opacity: 0.16,
+    angleDegrees: 35,
+    centerX: PAGE_WIDTH / 2,
+    centerY: PAGE_HEIGHT / 2,
+  });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);

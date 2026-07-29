@@ -238,6 +238,16 @@
   gap: var(--space-lg);
 }
 
+/*
+ * .analyticsPanel--wide
+ * Spans the full grid width — used by the Top Locations panel since
+ * the Philippines map needs more horizontal room than a standard
+ * single-column detail panel.
+ */
+.analyticsPanel--wide {
+  grid-column: 1 / -1;
+}
+
 .analyticsEmptyMessage {
   font-size: 0.85rem;
   color: var(--color-text-muted);

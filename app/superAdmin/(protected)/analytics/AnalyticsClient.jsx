@@ -44,6 +44,7 @@ import {
   Bar,
 } from "recharts";
 import { ResponsiveCalendar } from "@nivo/calendar";
+import AnalyticsLocationMap from "@/components/shared/AnalyticsLocationMap";
 import "./Analytics.css";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
@@ -432,19 +433,24 @@ export default function AnalyticsClient() {
               )}
             </div>
 
-            {/* Location breakdown — specific city + country, sorted, fast to scan */}
-            <div className="analyticsPanel">
+            {/* Location breakdown — Philippines map (color/size-coded by
+                views) so an admin sees traffic geography at a glance,
+                with the exact ranked figures kept below for precision. */}
+            <div className="analyticsPanel analyticsPanel--wide">
               <h2 className="analyticsPanelTitle">Top Locations</h2>
               {data.locationBreakdown.length === 0 ? (
                 <p className="analyticsEmptyMessage">No location data yet.</p>
               ) : (
-                <HorizontalBarChart
-                  rows={data.locationBreakdown.map((row) => ({
-                    ...row,
-                    locationLabel: `${row.city}${row.countryCode && row.countryCode !== "Unknown" ? `, ${row.countryCode}` : ""}`,
-                  }))}
-                  labelKey="locationLabel"
-                />
+                <>
+                  <AnalyticsLocationMap locations={data.locationBreakdown} />
+                  <HorizontalBarChart
+                    rows={data.locationBreakdown.map((row) => ({
+                      ...row,
+                      locationLabel: `${row.city}${row.countryCode && row.countryCode !== "Unknown" ? `, ${row.countryCode}` : ""}`,
+                    }))}
+                    labelKey="locationLabel"
+                  />
+                </>
               )}
             </div>
           </div>

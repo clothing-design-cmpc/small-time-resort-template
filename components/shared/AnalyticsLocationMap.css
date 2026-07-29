@@ -1,0 +1,47 @@
+/*
+ * FILE: components/shared/AnalyticsLocationMap.css
+ * Sizing and framing for the Top Locations map on the super-admin
+ * Analytics page. Taller than the footer's ResortLocationMap since
+ * this map needs room to show the whole Philippines archipelago, not
+ * just a single-pin close-up.
+ */
+
+.analyticsLocationMapWrapper {
+  width: 100%;
+}
+
+.analyticsLocationMapContainer {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  /* Leaflet's own internal z-index scale (200s–700s) is self-contained
+     and never needs to compete with this app's --z-* tokens (Rule
+     33.2), since the map never sits under a modal, drawer, or toast. */
+  z-index: 0;
+}
+
+/*
+ * .analyticsLocationMapSkeleton
+ * Shown while the Leaflet chunk is loading on the client — same pulse
+ * animation pattern used by every other skeleton in this app.
+ */
+.analyticsLocationMapSkeleton {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base, rgba(255, 255, 255, 0.06)) 25%,
+    var(--color-skeleton-shine, rgba(255, 255, 255, 0.12)) 50%,
+    var(--color-skeleton-base, rgba(255, 255, 255, 0.06)) 75%
+  );
+  background-size: 200% 100%;
+  animation: analyticsLocationMapPulse 1.5s infinite;
+}
+
+@keyframes analyticsLocationMapPulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

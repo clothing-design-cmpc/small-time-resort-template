@@ -50,7 +50,7 @@ export async function GET(request, { params }) {
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { room: { select: { name: true } } },
+    include: { room: { select: { name: true, amenityIds: true } } },
   });
 
   if (!booking) {
@@ -69,12 +69,31 @@ export async function GET(request, { params }) {
   // the invoice can list what's included — same matching logic the
   // booking flow itself used at submission time (bookingType +
   // howManySelectedDates). Never blocks the invoice: a lookup failure
-  // just means the "Included in this Package" section is skipped.
+  // just means that source contributes nothing to the list.
   const matchedRule = await getActiveBookingRuleForDateCount(
     booking.bookingType,
     booking.howManySelectedDates
   ).catch(() => null);
-  const packageInclusions = await resolvePackageInclusions(matchedRule).catch(() => []);
+  const ruleInclusions = await resolvePackageInclusions(matchedRule).catch(() => []);
+
+  // The room's OWN amenities (Room.amenityIds) are a separate inclusion
+  // source from the BookingRule's — this is what app/api/bookings/manage/
+  // lookup/route.js and app/api/rooms/[roomId]/route.js already show the
+  // guest as "Included" before and after booking. The invoice previously
+  // only listed BookingRule-level inclusions and never these, so a guest
+  // could see one set of inclusions everywhere else in the app and a
+  // different (or empty) set on the invoice PDF. Room amenities are
+  // listed first — they're what the guest saw when picking the room,
+  // before rule-specific extras — and never blocks the invoice on a
+  // lookup failure, same as ruleInclusions above.
+  const roomAmenities = booking.room?.amenityIds?.length
+    ? await prisma.amenity
+        .findMany({ where: { id: { in: booking.room.amenityIds } }, select: { name: true } })
+        .then((amenities) => amenities.map((a) => a.name))
+        .catch(() => [])
+    : [];
+
+  const packageInclusions = [...new Set([...roomAmenities, ...ruleInclusions])];
 
   let pdfBuffer;
   try {

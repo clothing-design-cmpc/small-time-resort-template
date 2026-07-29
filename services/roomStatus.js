@@ -4,14 +4,16 @@
  * Computes each room's CURRENT status for Booking Rules Section 6 —
  * the auto lifecycle requested: a confirmed booking makes a room
  * "Booked" for its stay, then "Checked-Out — Cleaning" for a
- * resort-wide configurable window after checkout
- * (BookingRule.cleaningHours, on the currently active rule set), then "Available" once that window
- * passes — with no manual date-range entry needed for any of those
- * three states. A manual BlackoutDate row (reason: Maintenance,
- * Private, or Custom — "Cleaning" is no longer a manual option, since
- * cleaning is now fully automatic) always takes priority over the
- * auto-computed booking states, since it represents a deliberate
- * admin decision to take the room offline regardless of booking data.
+ * configurable window after checkout (BookingRule.cleaningHours, on
+ * whichever rule set actually governed THAT booking's type — Overnight,
+ * Day Tour, and Night Tour can each be Active on a different rule set),
+ * then "Available" once that window passes — with no manual date-range
+ * entry needed for any of those three states. A manual BlackoutDate row
+ * (reason: Maintenance, Private, or Custom — "Cleaning" is no longer a
+ * manual option, since cleaning is now fully automatic) always takes
+ * priority over the auto-computed booking states, since it represents a
+ * deliberate admin decision to take the room offline regardless of
+ * booking data.
  *
  * PRIORITY ORDER (highest wins):
  *   1. Manual BlackoutDate (Maintenance / Private / Custom) covering now
@@ -43,28 +45,32 @@ function combineDateAndTime(dateOnly, hhmm) {
 
 /**
  * getCheckInOutMoments
- * Picks the right pair of "HH:mm" schedule fields off the active
- * BookingRule based on this specific booking's bookingType, then
- * combines them with the booking's checkInDate/checkOutDate into real
- * check-in/checkout instants.
+ * Picks the right pair of "HH:mm" schedule fields for this specific
+ * booking's bookingType off THAT type's own active BookingRule (see
+ * ruleByType below — Overnight, Day Tour, and Night Tour can each be
+ * governed by a different rule set), then combines them with the
+ * booking's checkInDate/checkOutDate into real check-in/checkout
+ * instants.
  */
-function getCheckInOutMoments(booking, activeRule) {
+function getCheckInOutMoments(booking, ruleByType) {
+  const rule = ruleByType[booking.bookingType] ?? ruleByType.overnight;
+
   if (booking.bookingType === "day_tour") {
     return {
-      checkInMoment: combineDateAndTime(booking.checkInDate, activeRule.dayTourStartTime),
-      checkOutMoment: combineDateAndTime(booking.checkOutDate, activeRule.dayTourEndTime),
+      checkInMoment: combineDateAndTime(booking.checkInDate, rule.dayTourStartTime),
+      checkOutMoment: combineDateAndTime(booking.checkOutDate, rule.dayTourEndTime),
     };
   }
   if (booking.bookingType === "night_tour") {
     return {
-      checkInMoment: combineDateAndTime(booking.checkInDate, activeRule.nightTourStartTime),
-      checkOutMoment: combineDateAndTime(booking.checkOutDate, activeRule.nightTourEndTime),
+      checkInMoment: combineDateAndTime(booking.checkInDate, rule.nightTourStartTime),
+      checkOutMoment: combineDateAndTime(booking.checkOutDate, rule.nightTourEndTime),
     };
   }
   // Default: overnight
   return {
-    checkInMoment: combineDateAndTime(booking.checkInDate, activeRule.checkInTime),
-    checkOutMoment: combineDateAndTime(booking.checkOutDate, activeRule.checkOutTime),
+    checkInMoment: combineDateAndTime(booking.checkInDate, rule.checkInTime),
+    checkOutMoment: combineDateAndTime(booking.checkOutDate, rule.checkOutTime),
   };
 }
 
@@ -76,14 +82,19 @@ function getCheckInOutMoments(booking, activeRule) {
  * only for the manual BlackoutDate case.
  */
 export async function getAllRoomStatuses(now = new Date()) {
-  const [rooms, activeRule, manualBlackouts, confirmedBookings] = await Promise.all([
+  const [rooms, overnightRule, dayTourRule, nightTourRule, manualBlackouts, confirmedBookings] = await Promise.all([
     prisma.room.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
-    getActiveBookingRule("overnight"), // room turnover/cleaning only applies to overnight stays
+    getActiveBookingRule("overnight"),
+    getActiveBookingRule("day_tour"),
+    getActiveBookingRule("night_tour"),
     prisma.blackoutDate.findMany({ where: { reason: { in: MANUAL_REASONS } } }),
     prisma.booking.findMany({ where: { status: "confirmed" } }),
   ]);
-  // Per-rule-set, not resort-wide — see the field's own schema comment.
-  const cleaningHours = activeRule.cleaningHours ?? 2;
+  // Each booking type can be governed by its own active rule set, and each
+  // rule set carries its own Cleaning Hours — a Day Tour checkout is no
+  // longer forced through the Overnight rule's cleaningHours (or its
+  // checkOutTime) just because that's the rule this function fetched.
+  const ruleByType = { overnight: overnightRule, day_tour: dayTourRule, night_tour: nightTourRule };
 
   return rooms.map((room) => {
     // Priority 1 — manual override covering today, for this room.
@@ -112,7 +123,7 @@ export async function getAllRoomStatuses(now = new Date()) {
     // this room don't affect its CURRENT status.
     const roomBookings = confirmedBookings
       .filter((booking) => booking.roomId === room.id)
-      .map((booking) => ({ booking, ...getCheckInOutMoments(booking, activeRule) }))
+      .map((booking) => ({ booking, ...getCheckInOutMoments(booking, ruleByType) }))
       .sort((a, b) => b.checkOutMoment - a.checkOutMoment);
 
     const currentStay = roomBookings.find((entry) => now >= entry.checkInMoment && now <= entry.checkOutMoment);
@@ -129,8 +140,18 @@ export async function getAllRoomStatuses(now = new Date()) {
 
     const mostRecentCheckout = roomBookings.find((entry) => entry.checkOutMoment <= now);
     if (mostRecentCheckout) {
+      // Prefer the Cleaning Hours snapshotted on THAT booking at create
+      // time (see services/cleaningBuffer.js / bookingPricing.js) — never
+      // today's live rule value — so an owner changing Cleaning Hours
+      // afterward doesn't retroactively change a status already computed
+      // for a past booking. Falls back to that booking's own type's
+      // currently active rule for bookings made before the snapshot
+      // column existed.
+      const ruleForBooking = ruleByType[mostRecentCheckout.booking.bookingType] ?? ruleByType.overnight;
+      const cleaningHoursForBooking = mostRecentCheckout.booking.cleaningHoursSnapshot ?? ruleForBooking.cleaningHours ?? 2;
+
       const cleaningEndsAt = new Date(mostRecentCheckout.checkOutMoment);
-      cleaningEndsAt.setHours(cleaningEndsAt.getHours() + cleaningHours);
+      cleaningEndsAt.setHours(cleaningEndsAt.getHours() + cleaningHoursForBooking);
       if (now <= cleaningEndsAt) {
         return {
           room,

@@ -324,7 +324,13 @@ export async function validateAndQuoteBooking({
   if (bookingType === "overnight" && roomId) {
     const existingBookings = await client.booking.findMany({
       where: { status: "confirmed" },
-      select: { checkInDate: true, checkOutDate: true, bookingType: true, effectiveCheckOutAt: true },
+      select: {
+        checkInDate: true,
+        checkOutDate: true,
+        bookingType: true,
+        effectiveCheckOutAt: true,
+        cleaningHoursSnapshot: true,
+      },
     });
 
     // Day Tour / Night Tour bookings occupy exactly one date
@@ -369,7 +375,16 @@ export async function validateAndQuoteBooking({
     const turnoverConflict = existingBookings.some((existing) => {
       if (existing.bookingType !== "overnight") return false;
 
+      // Only current/upcoming stays can ever conflict with a brand-new
+      // booking — a stay whose checkout date has already fully passed
+      // is done and gone regardless of what Cleaning Hours is set to
+      // today. (checkIn itself is already required to be today or
+      // later above, but this guard makes that intent explicit here
+      // too, so this check can never reach back into old history even
+      // if that earlier rule changes later.)
       const existingCheckOutLocalDay = utcDateToLocalCalendarDay(existing.checkOutDate);
+      if (existingCheckOutLocalDay < today) return false;
+
       const isBackToBackTurnover = toDateKey(existingCheckOutLocalDay) === toDateKey(checkIn);
       if (!isBackToBackTurnover) return false;
 
@@ -378,7 +393,15 @@ export async function validateAndQuoteBooking({
       // fall back to this rule's standard checkOutTime for that day.
       const existingCheckoutMoment =
         existing.effectiveCheckOutAt ?? combineDateAndTime(existingCheckOutLocalDay, rules.checkOutTime);
-      const cleaningEndsAt = getCleaningEndsAt(existingCheckoutMoment, rules.cleaningHours);
+
+      // Prefer the Cleaning Hours snapshotted on THAT booking at the
+      // moment it was created — never today's live rule value — so an
+      // owner changing Cleaning Hours afterward can't retroactively
+      // change what an already-made booking is checked against. Only
+      // bookings created before this column existed fall back to the
+      // rule active right now.
+      const cleaningHoursForExisting = existing.cleaningHoursSnapshot ?? rules.cleaningHours;
+      const cleaningEndsAt = getCleaningEndsAt(existingCheckoutMoment, cleaningHoursForExisting);
 
       return requestedCheckInMoment < cleaningEndsAt;
     });
@@ -478,6 +501,12 @@ export async function validateAndQuoteBooking({
     depositRequired: rules.depositRequired,
     checkInTime: rules.checkInTime,
     checkOutTime: rules.checkOutTime,
+    // Cleaning Hours that priced/governed THIS specific booking —
+    // snapshotted onto the Booking row (cleaningHoursSnapshot) at
+    // create time so a later change to the active rule's cleaning
+    // hours never rewrites what already-made bookings are checked
+    // against. See services/cleaningBuffer.js.
+    cleaningHours: rules.cleaningHours,
     // Non-null only when Same-Day Check-In Policy auto-adjusted this
     // specific booking (see block above) — the create route persists
     // these onto the Booking row; the quote preview route just returns

@@ -231,6 +231,18 @@ model Booking {
   effectiveCheckInAt  DateTime? @map("effective_check_in_at")
   effectiveCheckOutAt DateTime? @map("effective_check_out_at")
 
+  // --- Cleaning-buffer snapshot ---
+  // The Cleaning Hours value that actually applied to THIS booking's
+  // checkout, captured once at creation time. Without this snapshot,
+  // the turnover conflict check in services/bookingPricing.js would
+  // have to assume whatever Cleaning Hours is active RIGHT NOW when
+  // validating a brand-new booking against this one's checkout — which
+  // breaks the moment an owner changes Cleaning Hours after this
+  // booking was already made. Null only for bookings created before
+  // this column existed; the turnover check falls back to the
+  // currently active rule's cleaningHours for those old rows only.
+  cleaningHoursSnapshot Int? @map("cleaning_hours_snapshot")
+
   // --- Booking-time device/location capture ---
   // Captured server-side from the request that submitted THIS booking
   // (never trusted from the client body) — separate from VisitorLog's
@@ -243,18 +255,6 @@ model Booking {
   userAgent  String? @map("user_agent")
   geoCity    String? @map("geo_city")
   geoCountry String? @map("geo_country") // ISO country code, e.g. "PH"
-
-  // --- Rebook tracking ---
-  // Set the first time this booking's dates are moved via the
-  // self-service "Rebook" flow (app/api/bookings/manage/reschedule/
-  // route.js). referenceCode, guest info, room, and pricing all stay
-  // identical on a rebook — only checkInDate/checkOutDate change — so
-  // this timestamp is the one signal that distinguishes a booking on
-  // its original dates from one that's been moved. Read by
-  // services/invoicePdf.js to swap the watermark from "CONFIRMED" to
-  // "REBOOK" any time the invoice is re-downloaded after a reschedule.
-  // Null = never rebooked.
-  rebookedAt DateTime? @map("rebooked_at")
 
   createdAt      DateTime @default(now()) @map("created_at")
 
@@ -499,37 +499,6 @@ model BackupLog {
   completedAt    DateTime? @map("completed_at")
 
   @@map("backup_logs")
-}
-
-// ============================================================
-// MODEL: ApiCallLog  (Super-Admin "API Usage" page)
-// ============================================================
-// One row per outbound call this app makes to a metered third-party
-// API (Google Weather, Google Maps, Gemini, GitHub, EmailJS, Google
-// Drive, Cloudflare R2). Written by services/apiUsageTracker.js from
-// inside each of those services' own call sites — never inferred
-// after the fact from application logs, since those get purged and
-// don't carry a consistent shape. Read-only from the app's own
-// perspective; there is no UI that lets an admin edit or delete a row.
-model ApiCallLog {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  // Which provider/API this call went to — one of the keys defined in
-  // services/apiUsageTracker.js's API_CATALOG, e.g. "google_weather",
-  // "google_maps", "gemini", "github", "emailjs", "google_drive",
-  // "cloudflare_r2". Never free-text — always one of the catalog keys
-  // so the usage page can group reliably.
-  service   String
-  // Short label for which specific call this was within that service,
-  // e.g. "forecast_lookup", "geocode", "routes", "static_map",
-  // "generate_content", "workflow_dispatch", "send", "upload".
-  // Optional — some services only ever make one kind of call.
-  endpoint  String?
-  success   Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@index([service])
-  @@index([createdAt])
-  @@map("api_call_logs")
 }
 
 // ============================================================
@@ -943,16 +912,6 @@ model SystemSettings {
   resortPhone   String? @map("resort_phone")
   resortEmail   String? @map("resort_email")
   resortAddress String? @map("resort_address")
-
-  // --- Message Us channels (floating "Request a callback" widget) ---
-  // Each is independently optional — the widget only shows a button for
-  // a channel once its field is filled in. Numbers are stored exactly
-  // as the admin types them (digits only recommended, e.g. 639171234567
-  // with no "+" or spaces) since utils/messagingLinks.js strips
-  // non-digits before building the wa.me/viber:// link anyway.
-  resortWhatsapp          String? @map("resort_whatsapp")
-  resortViber             String? @map("resort_viber")
-  resortMessengerUsername String? @map("resort_messenger_username")
 
   // --- Location Map Pin (visitor Footer) ---
   // Placeholder default (Metro Manila) so the map always has something

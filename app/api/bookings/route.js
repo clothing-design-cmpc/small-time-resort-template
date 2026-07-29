@@ -120,6 +120,10 @@ async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
             // times) apply unchanged.
             effectiveCheckInAt: quote.effectiveCheckInAt ? new Date(quote.effectiveCheckInAt) : null,
             effectiveCheckOutAt: quote.effectiveCheckOutAt ? new Date(quote.effectiveCheckOutAt) : null,
+            // Snapshots the Cleaning Hours that governed THIS booking at
+            // creation time — see prisma/schema.prisma's field comment
+            // and services/bookingPricing.js's turnover conflict check.
+            cleaningHoursSnapshot: quote.cleaningHours,
             notes: payload.notes || null,
             status: "confirmed",
             referenceCode,

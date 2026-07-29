@@ -173,7 +173,7 @@ export async function POST(request) {
 
     const updatedBooking = await prisma.booking.update({
       where: { id: booking.id },
-      data: { checkInDate: newCheckIn, checkOutDate: newCheckOut },
+      data: { checkInDate: newCheckIn, checkOutDate: newCheckOut, rebookedAt: new Date() },
     });
 
     return NextResponse.json({

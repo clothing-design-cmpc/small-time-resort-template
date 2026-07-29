@@ -81,12 +81,16 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
   const INK = rgb(0.05, 0.05, 0.06);
 
   // --- Watermark — drawn first so every later element paints on top of
-  // it. Reflects the booking's own status ("CONFIRMED" / "CANCELLED")
-  // rather than a generic brand stamp, since that's the one fact a
-  // guest or front-desk staff most needs to visually confirm at a
-  // glance without reading the fine print. Large, low-opacity, rotated
-  // diagonally across the page — standard invoice/receipt convention. ---
-  const watermarkText = booking.status.toUpperCase();
+  // it. Priority: CANCELLED > REBOOK > CONFIRMED — a cancelled booking
+  // always shows CANCELLED even if it was rebooked before it was later
+  // cancelled; otherwise a booking that's been moved via the
+  // self-service Rebook flow (rebookedAt set — see schema comment on
+  // Booking.rebookedAt) shows REBOOK so staff and the guest can see at
+  // a glance that this invoice reflects moved dates, not the original
+  // booking. Large, low-opacity, rotated diagonally across the page —
+  // standard invoice/receipt convention. ---
+  const watermarkText =
+    booking.status === "cancelled" ? "CANCELLED" : booking.rebookedAt ? "REBOOK" : "CONFIRMED";
   const watermarkFontSize = 72;
   const watermarkWidth = fontBold.widthOfTextAtSize(watermarkText, watermarkFontSize);
   page.drawText(watermarkText, {

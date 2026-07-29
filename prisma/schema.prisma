@@ -244,6 +244,18 @@ model Booking {
   geoCity    String? @map("geo_city")
   geoCountry String? @map("geo_country") // ISO country code, e.g. "PH"
 
+  // --- Rebook tracking ---
+  // Set the first time this booking's dates are moved via the
+  // self-service "Rebook" flow (app/api/bookings/manage/reschedule/
+  // route.js). referenceCode, guest info, room, and pricing all stay
+  // identical on a rebook — only checkInDate/checkOutDate change — so
+  // this timestamp is the one signal that distinguishes a booking on
+  // its original dates from one that's been moved. Read by
+  // services/invoicePdf.js to swap the watermark from "CONFIRMED" to
+  // "REBOOK" any time the invoice is re-downloaded after a reschedule.
+  // Null = never rebooked.
+  rebookedAt DateTime? @map("rebooked_at")
+
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])

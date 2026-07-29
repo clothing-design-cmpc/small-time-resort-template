@@ -59,6 +59,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import RoomSelectionModal from "@/components/RoomSelectionModal";
+import { formatTime12Hour } from "@/utils/formatTime";
 import TourSelectionModal from "@/components/TourSelectionModal";
 import { useAvailableRooms } from "@/hooks/useAvailableRooms";
 import { useBookedDates } from "@/hooks/useBookedDates";
@@ -403,7 +404,7 @@ export default function HowToBookSection() {
           // letting them find out only after picking Day Tour.
           const checkoutNotice =
             !dateHasAnyExistingBooking && overnightCheckoutSet.has(checkInKey) && checkOutTime
-              ? `The previous guests check out at ${checkOutTime} this day, so Day Tour may not be available.`
+              ? `The previous guests check out at ${formatTime12Hour(checkOutTime)} this day, so Day Tour may not be available.`
               : null;
 
           // Open Room Selection first (useful even for a Tour visitor
@@ -667,14 +668,14 @@ export default function HowToBookSection() {
                     aria-label={
                       isOpen
                         ? `${isSelected ? "Deselect" : "Select"} ${cellKey}${
-                            isCheckoutDay && checkOutTime ? ` — previous guests check out ${checkOutTime}` : ""
+                            isCheckoutDay && checkOutTime ? ` — previous guests check out ${formatTime12Hour(checkOutTime)}` : ""
                           }${isFullyTourBookedDay ? " — Day Tour and Night Tour are both already booked this day" : isTourBookedDay ? " — a Tour is already booked this day" : ""}`
                         : undefined
                     }
                     onClick={() => handleDayClick(cellKey, isPast, isBooked)}
                     title={
                       isCheckoutDay && checkOutTime
-                        ? `Checkout ${checkOutTime}`
+                        ? `Checkout ${formatTime12Hour(checkOutTime)}`
                         : isFullyTourBookedDay
                         ? "Day Tour and Night Tour are both already booked this day"
                         : isTourBookedDay

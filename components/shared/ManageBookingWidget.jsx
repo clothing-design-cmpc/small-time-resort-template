@@ -23,6 +23,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import RebookCalendarModal from "./RebookCalendarModal";
+import { formatTime12Hour } from "@/utils/formatTime";
 import "./ManageBookingWidget.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -276,10 +277,10 @@ export default function ManageBookingWidget() {
                   <dd>{booking.roomName ?? "—"}{booking.roomBedType ? ` — ${booking.roomBedType} bed` : ""}</dd>
 
                   <dt>Check-in</dt>
-                  <dd>{booking.checkInDate}{booking.checkInTime ? ` at ${booking.checkInTime}` : ""}</dd>
+                  <dd>{booking.checkInDate}{booking.checkInTime ? ` at ${formatTime12Hour(booking.checkInTime)}` : ""}</dd>
 
                   <dt>Check-out</dt>
-                  <dd>{booking.checkOutDate}{booking.checkOutTime ? ` at ${booking.checkOutTime}` : ""}</dd>
+                  <dd>{booking.checkOutDate}{booking.checkOutTime ? ` at ${formatTime12Hour(booking.checkOutTime)}` : ""}</dd>
 
                   <dt>Guests</dt>
                   <dd>{booking.numberOfGuests}</dd>
@@ -373,10 +374,10 @@ export default function ManageBookingWidget() {
                     <dd>{booking.roomName ?? "—"}{booking.roomBedType ? ` — ${booking.roomBedType} bed` : ""}</dd>
 
                     <dt>Check-in</dt>
-                    <dd>{rebookedInfo.booking.checkInDate}{rebookedInfo.booking.checkInTime ? ` at ${rebookedInfo.booking.checkInTime}` : ""}</dd>
+                    <dd>{rebookedInfo.booking.checkInDate}{rebookedInfo.booking.checkInTime ? ` at ${formatTime12Hour(rebookedInfo.booking.checkInTime)}` : ""}</dd>
 
                     <dt>Check-out</dt>
-                    <dd>{rebookedInfo.booking.checkOutDate}{rebookedInfo.booking.checkOutTime ? ` at ${rebookedInfo.booking.checkOutTime}` : ""}</dd>
+                    <dd>{rebookedInfo.booking.checkOutDate}{rebookedInfo.booking.checkOutTime ? ` at ${formatTime12Hour(rebookedInfo.booking.checkOutTime)}` : ""}</dd>
 
                     <dt>Guests</dt>
                     <dd>{booking.numberOfGuests}</dd>

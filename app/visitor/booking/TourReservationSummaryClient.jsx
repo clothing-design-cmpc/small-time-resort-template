@@ -46,6 +46,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
+import { formatTime12Hour } from "@/utils/formatTime";
 import "./BookingForm.css";
 import "./ReservationSummary.css";
 
@@ -176,7 +177,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
         )}
         <dl className="bookingConfirmSummary">
           <dt>Date</dt>
-          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {confirmedQuote.checkInTime}</dd>
+          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {formatTime12Hour(confirmedQuote.checkInTime)}</dd>
           <dt>Total</dt>
           <dd>{PESO.format(confirmedQuote.total)}</dd>
           {confirmedQuote.depositRequired && (
@@ -254,7 +255,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
         <dd>{formatDateText(checkInDate)}</dd>
 
         <dt>Time</dt>
-        <dd>{startTime} – {endTime}</dd>
+        <dd>{formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}</dd>
 
         <dt>Price per Guest</dt>
         <dd>{PESO.format(Number(pricePerGuest) || 0)}</dd>

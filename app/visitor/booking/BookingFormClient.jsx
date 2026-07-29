@@ -32,6 +32,7 @@ import { usePublicRooms } from "@/hooks/usePublicRooms";
 import { useRoomAvailability } from "@/hooks/useRoomAvailability";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
+import { formatTime12Hour } from "@/utils/formatTime";
 import "./BookingForm.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -252,11 +253,11 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
             </>
           )}
           <dt>Check-in</dt>
-          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {confirmedQuote.checkInTime}</dd>
+          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {formatTime12Hour(confirmedQuote.checkInTime)}</dd>
           {confirmedQuote.nights > 0 && (
             <>
               <dt>Check-out</dt>
-              <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkOutDate}T00:00:00`))} at {confirmedQuote.checkOutTime}</dd>
+              <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkOutDate}T00:00:00`))} at {formatTime12Hour(confirmedQuote.checkOutTime)}</dd>
             </>
           )}
           <dt>Total</dt>
@@ -467,7 +468,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
             <p className="bookingQuoteRow"><span>Deposit due now</span><span>{PESO.format(quote.depositAmount)}</span></p>
           )}
           <p className="bookingQuotePolicy">
-            Check-in {quote.checkInTime}{quote.nights > 0 ? ` · Check-out ${quote.checkOutTime}` : ""} · Free cancellation
+            Check-in {formatTime12Hour(quote.checkInTime)}{quote.nights > 0 ? ` · Check-out ${formatTime12Hour(quote.checkOutTime)}` : ""} · Free cancellation
             up to {quote.cancellationCutoffDays} day(s) before ({quote.refundPercentage}% refund).
           </p>
         </div>

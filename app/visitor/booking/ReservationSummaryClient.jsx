@@ -40,6 +40,7 @@ import { z } from "zod";
 import { usePublicRoom } from "@/hooks/usePublicRoom";
 import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
+import { formatTime12Hour } from "@/utils/formatTime";
 import "./BookingForm.css";
 import "./ReservationSummary.css";
 
@@ -173,11 +174,11 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
             </>
           )}
           <dt>Check-in</dt>
-          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {confirmedQuote.checkInTime}</dd>
+          <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {formatTime12Hour(confirmedQuote.checkInTime)}</dd>
           {confirmedQuote.nights > 0 && (
             <>
               <dt>Check-out</dt>
-              <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkOutDate}T00:00:00`))} at {confirmedQuote.checkOutTime}</dd>
+              <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkOutDate}T00:00:00`))} at {formatTime12Hour(confirmedQuote.checkOutTime)}</dd>
             </>
           )}
           <dt>Total</dt>
@@ -253,10 +254,10 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
         <dd>{bookingRules.matchedRuleName || "Overnight Stay"}</dd>
 
         <dt>Check-in</dt>
-        <dd>{formatDateText(checkInDate)} at {bookingRules.checkInTime}</dd>
+        <dd>{formatDateText(checkInDate)} at {formatTime12Hour(bookingRules.checkInTime)}</dd>
 
         <dt>Check-out</dt>
-        <dd>{formatDateText(checkOutDate || checkInDate)} at {bookingRules.checkOutTime}</dd>
+        <dd>{formatDateText(checkOutDate || checkInDate)} at {formatTime12Hour(bookingRules.checkOutTime)}</dd>
 
         <dt>Room / Villa</dt>
         <dd>{room.name} — {room.bedType} bed</dd>

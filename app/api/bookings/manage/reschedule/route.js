@@ -64,9 +64,27 @@ const rescheduleSchema = z.object({
   checkOutDate: z.string().min(1),
 });
 
+/**
+ * startOfDay
+ * Zeroes a Date to UTC midnight — NOT local midnight. Booking.checkInDate/
+ * checkOutDate are @db.Date columns; Prisma always round-trips these as
+ * UTC midnight of the stored calendar day regardless of server timezone.
+ * Using setUTCHours (not setHours) here keeps every comparison and the
+ * final DB write on that same UTC-calendar-day basis.
+ *
+ * BUG THIS FIXES: the reschedule route previously parsed the guest's
+ * picked dates as "YYYY-MM-DDT00:00:00" (no "Z") and zeroed with
+ * setHours (local time). On a server running UTC+8 (e.g. Asia/Manila),
+ * local midnight for "2026-07-30" is 2026-07-29T16:00:00Z — the
+ * @db.Date column then stored July 29, one day EARLIER than what the
+ * guest actually selected. That silently shifted every rebooked date
+ * back a day and made the "unchanged dates" guard misfire, exactly
+ * what app/api/bookings/route.js's own docblock already warns about
+ * for this same "no Z suffix" mistake.
+ */
 function startOfDay(date) {
   const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
+  d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
@@ -113,8 +131,10 @@ export async function POST(request) {
     }
 
     const today = startOfDay(new Date());
-    const newCheckIn = startOfDay(new Date(`${payload.checkInDate}T00:00:00`));
-    const newCheckOut = startOfDay(new Date(`${payload.checkOutDate}T00:00:00`));
+    // "Z" suffix is mandatory here — see startOfDay's docblock above for
+    // exactly what silently breaks without it.
+    const newCheckIn = startOfDay(new Date(`${payload.checkInDate}T00:00:00Z`));
+    const newCheckOut = startOfDay(new Date(`${payload.checkOutDate}T00:00:00Z`));
 
     if (Number.isNaN(newCheckIn.getTime()) || Number.isNaN(newCheckOut.getTime()) || newCheckIn < today) {
       return NextResponse.json(

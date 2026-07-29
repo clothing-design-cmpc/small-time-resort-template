@@ -267,6 +267,19 @@ export default function DirectionsClient() {
                   className="directionsMapImage"
                 />
               )}
+              {/* Free deep-link into the guest's own Google Maps app —
+                  no API key, no per-view cost, unlike an embedded
+                  interactive map (Maps JavaScript API bills per load). */}
+              {route.googleMapsUrl && (
+                <a
+                  href={route.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="directionsOpenMapsButton"
+                >
+                  Open in Google Maps
+                </a>
+              )}
               <div className="directionsResultSummary">
                 <span><strong>{formatDistance(route.distanceMeters)}</strong> away</span>
                 <span>Approx. <strong>{formatDuration(route.durationSeconds)}</strong> by car</span>

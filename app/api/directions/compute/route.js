@@ -61,6 +61,26 @@ const computeSchema = z.object({
   ]),
 });
 
+/**
+ * buildGoogleMapsUrl
+ * Deep-link into Google Maps' own app/website with the origin and
+ * destination pre-filled — NOT an embedded map, just a URL. Opening
+ * this costs nothing: no Maps JavaScript API key, no "map load"
+ * billing, no server call at all. This is the free alternative to an
+ * embedded interactive map (Maps JavaScript API bills per load, which
+ * would reintroduce a per-view cost the caching in this route was
+ * built specifically to avoid).
+ */
+function buildGoogleMapsUrl(originLat, originLng, destLat, destLng) {
+  const params = new URLSearchParams({
+    api: "1",
+    origin: `${originLat},${originLng}`,
+    destination: `${destLat},${destLng}`,
+    travelmode: "driving",
+  });
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const { allowed } = await checkRateLimit(`directions-compute:${ip}`, COMPUTE_MAX_ATTEMPTS, COMPUTE_WINDOW_MS);
@@ -116,6 +136,22 @@ export async function POST(request) {
   // intentionally ignored here — the cached route is a snapshot of
   // wherever they were on first use, not a live re-route.
   if (booking.directionsAccessedAt && booking.directionsRouteData) {
+    // destinationLatitude/Longitude were only added to the snapshot
+    // starting with this update — older cached bookings won't have
+    // them, so fall back to the current SystemSettings value. This is
+    // a plain Postgres read, not a paid Google API call, so it's still
+    // free on every cache-hit view.
+    let cachedDestLat = booking.directionsRouteData.destinationLatitude;
+    let cachedDestLng = booking.directionsRouteData.destinationLongitude;
+    if (cachedDestLat == null || cachedDestLng == null) {
+      const settings = await prisma.systemSettings.findUnique({
+        where: { id: "singleton" },
+        select: { resortLatitude: true, resortLongitude: true },
+      });
+      cachedDestLat = settings?.resortLatitude ?? null;
+      cachedDestLng = settings?.resortLongitude ?? null;
+    }
+
     await logSecurityEvent({
       eventType: "directions_reaccessed",
       actor: booking.guestName,
@@ -125,7 +161,20 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       data: {
-        route: { ...booking.directionsRouteData, mapImageUrl: booking.directionsMapImageUrl ?? null, cached: true },
+        route: {
+          ...booking.directionsRouteData,
+          mapImageUrl: booking.directionsMapImageUrl ?? null,
+          googleMapsUrl:
+            cachedDestLat != null && cachedDestLng != null
+              ? buildGoogleMapsUrl(
+                  booking.directionsRouteData.originLatitude,
+                  booking.directionsRouteData.originLongitude,
+                  cachedDestLat,
+                  cachedDestLng
+                )
+              : null,
+          cached: true,
+        },
       },
       message: "Directions retrieved from your first request.",
     });
@@ -213,12 +262,17 @@ export async function POST(request) {
 
   // Snapshot saved once — never recomputed from this JSON later, it's
   // read-only from here on (see schema.prisma field comments).
+  // destinationLatitude/Longitude are stored alongside origin so the
+  // free "Open in Google Maps" deep-link can be rebuilt on every
+  // cache-hit view without a settings lookup.
   const routeSnapshot = {
     distanceMeters: route.distanceMeters,
     durationSeconds: route.durationSeconds,
     steps: route.steps,
     originLatitude: originCoords.latitude,
     originLongitude: originCoords.longitude,
+    destinationLatitude: destination.latitude,
+    destinationLongitude: destination.longitude,
   };
 
   // Route successfully computed — mark this booking's directions as
@@ -249,8 +303,15 @@ export async function POST(request) {
     data: {
       // encodedPolyline is only ever consumed server-side (by
       // getRouteMapImage() above) — never sent to the client, which
-      // gets the R2 CDN URL instead.
-      route: { ...routeSnapshot, mapImageUrl, cached: false },
+      // gets the R2 CDN URL instead. googleMapsUrl is a free deep-link
+      // (no API cost) so the guest can open turn-by-turn navigation in
+      // their own Google Maps app if they want a live, pannable map.
+      route: {
+        ...routeSnapshot,
+        mapImageUrl,
+        googleMapsUrl: buildGoogleMapsUrl(originCoords.latitude, originCoords.longitude, destination.latitude, destination.longitude),
+        cached: false,
+      },
     },
     message: "Directions calculated.",
   });

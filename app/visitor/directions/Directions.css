@@ -198,6 +198,36 @@
   display: block;
 }
 
+/*
+ * .directionsOpenMapsButton
+ * Free deep-link into the guest's own Google Maps app (no embedded
+ * interactive map, no Maps JavaScript API key, no per-view billing).
+ * Styled as a secondary/outline action — the static map image above
+ * is the primary visual, this is just an escape hatch to live nav.
+ */
+.directionsOpenMapsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.directionsOpenMapsButton:hover,
+.directionsOpenMapsButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
 .directionsResultSummary {
   display: flex;
   flex-wrap: wrap;

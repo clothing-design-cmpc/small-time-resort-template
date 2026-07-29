@@ -8,6 +8,10 @@
  * device/country breakdowns. Every number here is a pre-aggregated
  * counter from PageViewDaily — there is no per-visitor data behind any
  * of these views, by design (see services/analytics.js).
+ * Also displays Sales Summary (revenue, bookings, average order value)
+ * and Conversion Rate (share of visits that turned into a confirmed
+ * booking) — both sourced from real Booking rows, so an owner can see
+ * traffic and sales side by side on one page.
  *
  * DATA FLOW:
  * 1. On mount, fetches GET /api/admin/analytics
@@ -82,6 +86,29 @@ export default function AnalyticsClient() {
           <div className="analyticsTotalCard">
             <span className="analyticsTotalLabel">Total Page Views (Last 30 Days)</span>
             <span className="analyticsTotalValue">{data.totalViews.toLocaleString()}</span>
+          </div>
+
+          {/* Sales Summary + Conversion Rate — revenue and "visits that became a booking" side by side */}
+          <div className="analyticsSummaryRow">
+            <div className="analyticsSummaryCard">
+              <span className="analyticsSummaryLabel">Total Revenue (Last 30 Days)</span>
+              <span className="analyticsSummaryValue">
+                ₱{data.salesSummary.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0 })}
+              </span>
+              <span className="analyticsSummarySubtext">
+                {data.salesSummary.bookingsCount.toLocaleString()} confirmed bookings · avg ₱
+                {data.salesSummary.averageOrderValue.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+
+            <div className="analyticsSummaryCard">
+              <span className="analyticsSummaryLabel">Conversion Rate</span>
+              <span className="analyticsSummaryValue">{data.conversion.conversionRatePercent}%</span>
+              <span className="analyticsSummarySubtext">
+                {data.conversion.confirmedBookingCount.toLocaleString()} bookings from{" "}
+                {data.conversion.totalViews.toLocaleString()} visits
+              </span>
+            </div>
           </div>
 
           {/* Daily trend — simple CSS bar chart, no data-viz dependency needed */}

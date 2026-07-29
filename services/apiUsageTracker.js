@@ -23,7 +23,11 @@
  * 2. app/api/admin/api-usage/route.js reads and aggregates ApiCallLog
  *    rows for the API Usage page.
  */
-import { prisma } from "@/services/prisma";
+// Relative import, NOT the "@/" Next.js alias — this file is imported
+// (via r2.js) by scripts/runBackup.js, which runs under plain `node`,
+// not Next.js's bundler. See services/r2.js's own import comment for
+// the full reasoning.
+import { prisma } from "./prisma.js";
 
 /**
  * API_CATALOG

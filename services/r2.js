@@ -8,7 +8,13 @@
  */
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { recordApiCall } from "@/services/apiUsageTracker";
+// Relative import, NOT the "@/" Next.js alias — this file is imported
+// by scripts/runBackup.js, which runs under plain `node`, not Next.js's
+// bundler. Plain Node has no idea what "@/" maps to and throws
+// ERR_MODULE_NOT_FOUND; a relative path resolves correctly in BOTH
+// Next.js and a standalone `node` script, so it's the only safe choice
+// for any file that might be imported from scripts/.
+import { recordApiCall } from "./apiUsageTracker.js";
 
 /**
  * assertR2Configured

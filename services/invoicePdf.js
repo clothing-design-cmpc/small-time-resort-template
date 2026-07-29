@@ -14,20 +14,32 @@
  * one-shot server-side buffer generated inside a Next.js route handler.
  *
  * Also embeds a small location map (Static Maps API PNG, via services/
- * directions.js):
- *   - If the downloader's IP resolved to an approximate city-level
- *     location (services/geoip.js, passed in as guestLatitude/
- *     guestLongitude), shows an actual driving ROUTE from that
- *     approximate point to the resort, clearly labeled as approximate
- *     since it's IP-based, not the guest's exact address.
- *   - Otherwise (private/local IP, lookup miss, or route computation
- *     failure) falls back to a plain pin at the resort's own
- *     coordinates — the same fallback this always had.
+ * directions.js) — ALWAYS the plain resort pin, never a guessed route.
+ *
+ * Earlier version of this file also tried to draw an approximate
+ * driving ROUTE here, guessed from the downloader's IP-resolved
+ * city-level location (services/geoip.js). That guessed route almost
+ * never matched the REAL route a guest later sees on the gated
+ * /visitor/directions page (app/api/directions/compute/route.js),
+ * because that page computes its route from the guest's actual browser
+ * geolocation or typed address — a different, more accurate origin —
+ * and caches the result as a separate PNG in Cloudflare R2
+ * ("directions/<bookingId>.png"). Two different origins meant two
+ * different maps for the same booking, which was confusing rather than
+ * helpful. This file now ONLY renders the resort's own fixed pin (same
+ * image every time, for every booking, with the same coordinates) and
+ * instead points the guest at the real, accurate, gated directions page
+ * below — see the "Getting There" section for the link + instructions.
  *
  * Server-side only — never import this in a "use client" file.
  */
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { getResortLocationMapImage, getRouteMapImage, computeDrivingRoute } from "./directions";
+import { getResortLocationMapImage } from "./directions";
+
+// Falls back to a placeholder only if NEXT_PUBLIC_SITE_URL was never
+// configured — the link still renders (never blocks PDF generation),
+// it just won't be clickable/correct until the env var is set.
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain-here.com").replace(/\/$/, "");
 
 const PAGE_WIDTH = 595.28; // A4 in points
 const PAGE_HEIGHT = 841.89;
@@ -48,21 +60,13 @@ const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeri
  *
  * @param {object} booking - a Prisma Booking row, with `room` included
  *   (roomName may be null for tour bookings without a room)
- * @param {object} [location] - { resortLatitude, resortLongitude,
- *   guestLatitude, guestLongitude }, all nullable.
- *   - resortLatitude/Longitude present → a location map is embedded
- *     below Stay Details; absent → that section is skipped entirely.
- *   - guestLatitude/Longitude present (from the downloader's IP,
- *     services/geoip.js) → the map shows an approximate driving route
- *     instead of just a pin; absent/failed → falls back to the pin.
+ * @param {object} [location] - { resortLatitude, resortLongitude },
+ *   both nullable. Present → the resort pin map + directions link
+ *   section is embedded below Stay Details; absent → that section is
+ *   skipped entirely.
  */
 export async function generateInvoicePdf(booking, location = {}) {
-  const {
-    resortLatitude = null,
-    resortLongitude = null,
-    guestLatitude = null,
-    guestLongitude = null,
-  } = location;
+  const { resortLatitude = null, resortLongitude = null } = location;
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -126,64 +130,43 @@ export async function generateInvoicePdf(booking, location = {}) {
   writeLine(`Check-out: ${FULL_DATE.format(new Date(booking.checkOutDate))}`);
   writeLine(`Guests: ${booking.numberOfGuests}`, { gap: 26 });
 
-  // --- Location map: approximate route if we have a guest origin, else a plain resort pin ---
+  // --- Location map: always the resort's own fixed pin — never a
+  // guessed route, so this section renders identically for every
+  // booking and never conflicts with the real route image the guest
+  // later sees (and which gets cached to R2) on /visitor/directions. ---
   if (resortLatitude && resortLongitude) {
     writeLine("Getting There", { font: fontBold, size: 12, gap: 20 });
 
-    let mapImageBuffer = null;
-    let isApproximateRoute = false;
-
-    // Only attempt a route if geoip.js resolved the downloader's IP to
-    // an actual location — private/local IPs and lookup misses return
-    // null here, which correctly skips straight to the pin fallback.
-    if (guestLatitude && guestLongitude) {
-      const origin = { latitude: guestLatitude, longitude: guestLongitude };
-      const destination = { latitude: resortLatitude, longitude: resortLongitude };
-
-      // Reuses the exact same Routes API call the gated /visitor/directions
-      // page uses — errors here (e.g. Routes API hiccup) must never break
-      // invoice generation, so both calls are wrapped and simply fall
-      // through to the plain-pin fallback below.
-      const route = await computeDrivingRoute(origin, destination).catch(() => null);
-      if (route) {
-        mapImageBuffer = await getRouteMapImage(origin, destination, route.encodedPolyline).catch(() => null);
-        isApproximateRoute = Boolean(mapImageBuffer);
-      }
-    }
-
-    if (!mapImageBuffer) {
-      mapImageBuffer = await getResortLocationMapImage(resortLatitude, resortLongitude).catch(() => null);
-    }
+    const mapImageBuffer = await getResortLocationMapImage(resortLatitude, resortLongitude).catch(() => null);
 
     if (mapImageBuffer) {
       const mapImage = await pdfDoc.embedPng(mapImageBuffer);
-      // Route images are requested at 640x400 (8:5); pin-only images at
-      // 480x320 (3:2) — displayed width stays fixed, height adjusts per
-      // aspect ratio so neither ever stretches.
+      // Pin-only images are requested at 480x320 (3:2) — displayed
+      // width stays fixed, height follows the aspect ratio.
       const mapWidth = 240;
-      const mapHeight = isApproximateRoute ? 150 : 160;
+      const mapHeight = 160;
       page.drawImage(mapImage, { x: MARGIN, y: cursorY - mapHeight, width: mapWidth, height: mapHeight });
-      cursorY -= mapHeight + (isApproximateRoute ? 8 : 20);
-
-      if (isApproximateRoute) {
-        writeLine("Approximate route based on your device's general location (IP address).", {
-          size: 8,
-          color: MUTED,
-          gap: 26,
-        });
-        writeLine("Not your exact address — for turn-by-turn directions, use the code above on our website.", {
-          size: 8,
-          color: MUTED,
-          gap: 26,
-        });
-      }
+      cursorY -= mapHeight + 20;
     } else {
       writeLine("Map unavailable — see your confirmation email for the resort's exact location.", {
         size: 9,
         color: MUTED,
-        gap: 26,
+        gap: 20,
       });
     }
+
+    // --- Turn-by-turn directions link — the real, accurate route (from
+    // the guest's actual location, not a guess) lives on this gated
+    // page instead, unlocked with the reference code above. ---
+    writeLine("Get turn-by-turn driving directions:", { font: fontBold, size: 10, gap: 15 });
+    writeLine(`${SITE_URL}/visitor/directions`, { size: 10, color: ACCENT, gap: 18 });
+    writeLine("How it works:", { font: fontBold, size: 9, gap: 14 });
+    writeLine("1. Visit the link above starting one day before your check-in date.", { size: 9, gap: 14 });
+    writeLine(`2. Enter your reference code (${booking.referenceCode}) when prompted.`, { size: 9, gap: 14 });
+    writeLine("3. Share your location (or type your address) to get your personalized route.", {
+      size: 9,
+      gap: 26,
+    });
   }
 
   writeLine("Payment Summary", { font: fontBold, size: 12, gap: 20 });

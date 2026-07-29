@@ -15,19 +15,14 @@
  *    the booking id it just got back from POST /api/bookings
  * 2. Booking is looked up by id (+ its room, for the invoice layout);
  *    SystemSettings.resortLatitude/Longitude is also read here so the
- *    PDF can embed a small route map (Static Maps API, via services/
- *    directions.js) from the downloader's approximate location to the
- *    resort
- * 3. The downloader's IP is resolved to an approximate city-level
- *    lat/long via services/geoip.js's lookupGeoLocation() — the same
- *    self-hosted MaxMind lookup Security Logs already uses, no new
- *    external service, no IP stored anywhere. This is NOT the guest's
- *    exact address (city-level accuracy only, by design) —
- *    generateInvoicePdf() labels the map as approximate. A failed
- *    lookup (private/local IP, no match) falls back to a plain resort
- *    pin with no route, never a broken PDF.
- * 4. generateInvoicePdf() builds the PDF buffer
- * 5. Response is sent with Content-Disposition so the browser downloads
+ *    PDF can embed the resort's fixed location pin (Static Maps API,
+ *    via services/directions.js) — always the same pin, never a
+ *    guessed route, so it never conflicts with the real route image
+ *    the guest later gets (and which is cached to R2) on the gated
+ *    /visitor/directions page. The PDF instead links to that page and
+ *    explains how to unlock it with the reference code.
+ * 3. generateInvoicePdf() builds the PDF buffer
+ * 4. Response is sent with Content-Disposition so the browser downloads
  *    it as "invoice-<referenceCode>.pdf" instead of navigating to it
  */
 export const dynamic = "force-dynamic";
@@ -36,7 +31,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { generateInvoicePdf } from "@/services/invoicePdf";
 import { checkRateLimit } from "@/services/rateLimit";
-import { lookupGeoLocation } from "@/services/geoip";
 
 const INVOICE_DOWNLOAD_MAX = 20;
 const INVOICE_DOWNLOAD_WINDOW_MS = 15 * 60 * 1000;
@@ -70,20 +64,11 @@ export async function GET(request, { params }) {
     select: { resortLatitude: true, resortLongitude: true },
   });
 
-  // City-level approximate origin from the downloader's own IP — same
-  // self-hosted MaxMind lookup used for Security Logs (Rule 38), not a
-  // new tracking mechanism, and never persisted anywhere. Returns all
-  // nulls for private/local IPs or a lookup miss, which generateInvoicePdf
-  // treats the same as "no origin" (falls back to a plain resort pin).
-  const guestGeo = await lookupGeoLocation(ip);
-
   let pdfBuffer;
   try {
     pdfBuffer = await generateInvoicePdf(booking, {
       resortLatitude: settings?.resortLatitude ?? null,
       resortLongitude: settings?.resortLongitude ?? null,
-      guestLatitude: guestGeo.latitude,
-      guestLongitude: guestGeo.longitude,
     });
   } catch (error) {
     console.error("[api/bookings/invoice] Failed to generate PDF:", error.message);

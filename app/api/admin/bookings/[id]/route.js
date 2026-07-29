@@ -24,6 +24,7 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
+import { deleteFromR2 } from "@/services/r2";
 
 /**
  * PUT — full edit
@@ -143,6 +144,18 @@ export async function DELETE(request, { params }) {
 
     await prisma.booking.delete({ where: { id } });
 
+    // The booking row is gone entirely — its saved route PNG (Rule
+    // 35.6, "directions/" folder) would otherwise be orphaned in R2
+    // forever with nothing left pointing to it. Never let a failed R2
+    // delete block the permanent delete itself, which already succeeded.
+    if (existingBooking.directionsMapImageKey) {
+      try {
+        await deleteFromR2(existingBooking.directionsMapImageKey);
+      } catch (error) {
+        console.error("[api/admin/bookings/[id]] Failed to delete R2 directions image:", error.message);
+      }
+    }
+
     // Audit trail (Rule 6) — permanent deletes are irreversible, always log who did it.
     await logSecurityEvent({
       eventType: "admin_action",
@@ -187,8 +200,27 @@ export async function PATCH(request, { params }) {
 
     const updatedBooking = await prisma.booking.update({
       where: { id },
-      data: { status: "cancelled" },
+      data: {
+        status: "cancelled",
+        // Cancelled bookings no longer need their saved route image —
+        // clear the DB pointer alongside the R2 delete below so a
+        // cancelled booking never shows a stale/deleted map URL.
+        directionsMapImageUrl: null,
+        directionsMapImageKey: null,
+      },
     });
+
+    // Delete the saved route PNG from Cloudflare R2 (Rule 35.6) so a
+    // cancelled booking doesn't leave an orphaned image behind. Never
+    // let a failed R2 delete block the cancellation itself — the
+    // booking status change above already succeeded.
+    if (existingBooking.directionsMapImageKey) {
+      try {
+        await deleteFromR2(existingBooking.directionsMapImageKey);
+      } catch (error) {
+        console.error("[api/admin/bookings/[id]] Failed to delete R2 directions image:", error.message);
+      }
+    }
 
     // Audit trail (Rule 6) — who cancelled which guest's booking, and when.
     await logSecurityEvent({

@@ -47,7 +47,7 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
-import { uploadToR2 } from "@/services/r2";
+import { uploadToR2, slugifyForR2Key } from "@/services/r2";
 import { geocodeAddress, computeDrivingRoute, getRouteMapImage, getDirectionsAvailability } from "@/services/directions";
 
 const COMPUTE_MAX_ATTEMPTS = 10;
@@ -249,7 +249,12 @@ export async function POST(request) {
   let mapImageKey = null;
   if (mapImageBuffer) {
     try {
-      mapImageKey = `directions/${booking.id}.png`;
+      // Named after the guest's full name (Task: R2 filenames should be
+      // guest-identifiable, not an opaque booking UUID) — slugified for
+      // safe R2 key characters. A short suffix from the booking ID is
+      // still appended so two guests who happen to share the exact same
+      // name never silently overwrite each other's saved route image.
+      mapImageKey = `directions/${slugifyForR2Key(booking.guestName)}-${booking.id.slice(0, 8)}.png`;
       mapImageUrl = await uploadToR2(mapImageKey, mapImageBuffer, "image/png");
     } catch (error) {
       // A failed R2 upload should never block the turn-by-turn list

@@ -121,3 +121,28 @@ export async function getR2SignedDownloadUrl(key, expiresInSeconds = 24 * 60 * 6
   });
   return getSignedUrl(r2Client, command, { expiresIn: expiresInSeconds });
 }
+
+/**
+ * slugifyForR2Key
+ * Turns free text (e.g. a guest's full name) into a safe, lowercase,
+ * hyphenated fragment for use inside an R2 object key — strips accents,
+ * strips anything that isn't a-z/0-9, collapses repeats, and caps the
+ * length so one very long name can't blow out the key. Used by the
+ * "directions/" folder (app/api/directions/compute/route.js) so the
+ * saved map PNG is named after the guest instead of an opaque booking
+ * ID — falls back to "guest" if the input strips down to nothing
+ * (e.g. a name that's entirely non-Latin characters).
+ *
+ * @param {string} text
+ */
+export function slugifyForR2Key(text) {
+  const slug = String(text ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accent marks after decomposition
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return slug || "guest";
+}

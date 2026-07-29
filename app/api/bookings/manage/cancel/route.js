@@ -26,6 +26,7 @@ import { z } from "zod";
 import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
+import { deleteFromR2 } from "@/services/r2";
 
 const CANCEL_MAX_ATTEMPTS = 10;
 const CANCEL_WINDOW_MS = 15 * 60 * 1000;
@@ -63,7 +64,7 @@ export async function POST(request) {
   try {
     const booking = await prisma.booking.findUnique({
       where: { referenceCode: payload.referenceCode.toUpperCase() },
-      select: { id: true, status: true, guestName: true },
+      select: { id: true, status: true, guestName: true, directionsMapImageKey: true },
     });
 
     if (!booking || booking.status !== "confirmed") {
@@ -75,8 +76,27 @@ export async function POST(request) {
 
     await prisma.booking.update({
       where: { id: booking.id },
-      data: { status: "cancelled" },
+      data: {
+        status: "cancelled",
+        // Cancelled bookings no longer need their saved route image —
+        // clear the DB pointer alongside the R2 delete below so a
+        // cancelled booking never shows a stale/deleted map URL.
+        directionsMapImageUrl: null,
+        directionsMapImageKey: null,
+      },
     });
+
+    // Delete the saved route PNG from Cloudflare R2 (Rule 35.6) so a
+    // cancelled booking doesn't leave an orphaned image behind. Never
+    // let a failed R2 delete block the cancellation itself — the
+    // booking status change above already succeeded.
+    if (booking.directionsMapImageKey) {
+      try {
+        await deleteFromR2(booking.directionsMapImageKey);
+      } catch (error) {
+        console.error("[api/bookings/manage/cancel] Failed to delete R2 directions image:", error.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,

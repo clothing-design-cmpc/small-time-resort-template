@@ -21,6 +21,7 @@
  * 4. Anchor links in the sticky sidebar jump to each policy section
  */
 import "./Policies.css";
+import Link from "next/link";
 import { prisma } from "@/services/prisma";
 
 export const metadata = {
@@ -356,9 +357,9 @@ export default async function PoliciesPage() {
               <p className="policiesContactPromptText">
                 Questions about our policies? We&apos;re happy to clarify anything before you book.
               </p>
-              <a href="/visitor/contact" className="policiesContactPromptLink">
+              <Link href="/visitor#contact" className="policiesContactPromptLink">
                 Contact Us →
-              </a>
+              </Link>
             </div>
 
           </div>

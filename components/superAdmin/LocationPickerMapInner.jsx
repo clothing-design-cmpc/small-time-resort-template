@@ -199,6 +199,22 @@ export default function LocationPickerMapInner({ latitude, longitude, onLocation
 
       {searchError && <p className="locationPickerError" role="alert">{searchError}</p>}
 
+      {/* Live readout — confirms immediately that a click/drag/search
+          actually captured new coordinates, without needing to look
+          down at the number inputs below the map to check. */}
+      <div className="locationPickerCoordsReadout" aria-live="polite">
+        {hasPin ? (
+          <>
+            <span className="locationPickerCoordsLabel">Current pin:</span>
+            <span className="locationPickerCoordsValue">
+              {centerLatitude.toFixed(6)}, {centerLongitude.toFixed(6)}
+            </span>
+          </>
+        ) : (
+          <span className="locationPickerCoordsLabel">No pin set yet — click the map to place one.</span>
+        )}
+      </div>
+
       <MapContainer
         center={[centerLatitude, centerLongitude]}
         zoom={MAP_ZOOM_LEVEL}

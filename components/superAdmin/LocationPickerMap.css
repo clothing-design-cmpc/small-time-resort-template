@@ -90,6 +90,38 @@
   margin: 0;
 }
 
+/*
+ * .locationPickerCoordsReadout
+ * Live "Current pin: lat, long" line between the search row and the
+ * map — immediate visual confirmation that a click/drag/search
+ * actually captured new coordinates, so the admin isn't left guessing
+ * whether the interaction registered before scrolling down to check
+ * the number inputs.
+ */
+.locationPickerCoordsReadout {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  font-size: 0.85rem;
+}
+
+.locationPickerCoordsLabel {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.locationPickerCoordsValue {
+  font-family: monospace;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
 .locationPickerMapContainer {
   width: 100%;
   aspect-ratio: 16 / 9;

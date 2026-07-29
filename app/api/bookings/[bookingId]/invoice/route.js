@@ -31,6 +31,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { generateInvoicePdf } from "@/services/invoicePdf";
 import { checkRateLimit } from "@/services/rateLimit";
+import { getActiveBookingRuleForDateCount, resolvePackageInclusions } from "@/services/bookingRules";
 
 const INVOICE_DOWNLOAD_MAX = 20;
 const INVOICE_DOWNLOAD_WINDOW_MS = 15 * 60 * 1000;
@@ -64,12 +65,27 @@ export async function GET(request, { params }) {
     select: { resortLatitude: true, resortLongitude: true },
   });
 
+  // Resolve which package (BookingRule) actually priced this booking, so
+  // the invoice can list what's included — same matching logic the
+  // booking flow itself used at submission time (bookingType +
+  // howManySelectedDates). Never blocks the invoice: a lookup failure
+  // just means the "Included in this Package" section is skipped.
+  const matchedRule = await getActiveBookingRuleForDateCount(
+    booking.bookingType,
+    booking.howManySelectedDates
+  ).catch(() => null);
+  const packageInclusions = await resolvePackageInclusions(matchedRule).catch(() => []);
+
   let pdfBuffer;
   try {
-    pdfBuffer = await generateInvoicePdf(booking, {
-      resortLatitude: settings?.resortLatitude ?? null,
-      resortLongitude: settings?.resortLongitude ?? null,
-    });
+    pdfBuffer = await generateInvoicePdf(
+      booking,
+      {
+        resortLatitude: settings?.resortLatitude ?? null,
+        resortLongitude: settings?.resortLongitude ?? null,
+      },
+      packageInclusions
+    );
   } catch (error) {
     console.error("[api/bookings/invoice] Failed to generate PDF:", error.message);
     return NextResponse.json(

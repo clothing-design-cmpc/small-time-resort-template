@@ -94,3 +94,37 @@ export async function getActiveBookingRuleForDateCount(bookingType = "overnight"
 
   return getActiveBookingRule(bookingType);
 }
+
+/**
+ * resolvePackageInclusions
+ * Combines a BookingRule's three separate inclusion sources — free-text
+ * packageInclusions, includedAmenityIds, and includedProductIds — into
+ * one flat array of display-ready strings, in that order. Used by the
+ * invoice PDF (services/invoicePdf.js) so it never needs to touch the
+ * database itself; callers just resolve once and pass the result in.
+ * Returns [] for a null rule or a rule with nothing configured — the
+ * invoice section is skipped entirely in that case.
+ */
+export async function resolvePackageInclusions(bookingRule) {
+  if (!bookingRule) return [];
+
+  const inclusions = [...(bookingRule.packageInclusions ?? [])];
+
+  if (bookingRule.includedAmenityIds?.length) {
+    const amenities = await prisma.amenity.findMany({
+      where: { id: { in: bookingRule.includedAmenityIds } },
+      select: { name: true },
+    });
+    inclusions.push(...amenities.map((a) => a.name));
+  }
+
+  if (bookingRule.includedProductIds?.length) {
+    const products = await prisma.storeProduct.findMany({
+      where: { id: { in: bookingRule.includedProductIds } },
+      select: { name: true },
+    });
+    inclusions.push(...products.map((p) => p.name));
+  }
+
+  return inclusions;
+}

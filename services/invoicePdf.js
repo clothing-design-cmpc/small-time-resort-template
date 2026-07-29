@@ -33,7 +33,7 @@
  *
  * Server-side only — never import this in a "use client" file.
  */
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { getResortLocationMapImage } from "./directions";
 
 // Falls back to a placeholder only if NEXT_PUBLIC_SITE_URL was never
@@ -64,8 +64,12 @@ const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeri
  *   both nullable. Present → the resort pin map + directions link
  *   section is embedded below Stay Details; absent → that section is
  *   skipped entirely.
+ * @param {string[]} [packageInclusions] - display-ready strings (already
+ *   resolved from the matching BookingRule's amenities/products/free-text
+ *   by the route handler — this file stays DB-free). Empty/omitted →
+ *   the "Included in this Package" section is skipped entirely.
  */
-export async function generateInvoicePdf(booking, location = {}) {
+export async function generateInvoicePdf(booking, location = {}, packageInclusions = []) {
   const { resortLatitude = null, resortLongitude = null } = location;
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -75,6 +79,25 @@ export async function generateInvoicePdf(booking, location = {}) {
   const ACCENT = rgb(0.13, 0.55, 0.13); // matches the site's green accent token
   const MUTED = rgb(0.4, 0.4, 0.4);
   const INK = rgb(0.05, 0.05, 0.06);
+
+  // --- Watermark — drawn first so every later element paints on top of
+  // it. Reflects the booking's own status ("CONFIRMED" / "CANCELLED")
+  // rather than a generic brand stamp, since that's the one fact a
+  // guest or front-desk staff most needs to visually confirm at a
+  // glance without reading the fine print. Large, low-opacity, rotated
+  // diagonally across the page — standard invoice/receipt convention. ---
+  const watermarkText = booking.status.toUpperCase();
+  const watermarkFontSize = 72;
+  const watermarkWidth = fontBold.widthOfTextAtSize(watermarkText, watermarkFontSize);
+  page.drawText(watermarkText, {
+    x: PAGE_WIDTH / 2 - watermarkWidth / 2,
+    y: PAGE_HEIGHT / 2,
+    size: watermarkFontSize,
+    font: fontBold,
+    color: booking.status === "cancelled" ? rgb(0.7, 0.15, 0.15) : ACCENT,
+    opacity: 0.08,
+    rotate: degrees(-30),
+  });
 
   let cursorY = PAGE_HEIGHT - MARGIN;
 
@@ -129,6 +152,19 @@ export async function generateInvoicePdf(booking, location = {}) {
   writeLine(`Check-in: ${FULL_DATE.format(new Date(booking.checkInDate))}`);
   writeLine(`Check-out: ${FULL_DATE.format(new Date(booking.checkOutDate))}`);
   writeLine(`Guests: ${booking.numberOfGuests}`, { gap: 26 });
+
+  // --- Included in this Package — free-text extras + resolved Amenity/
+  // StoreProduct names, passed in already-resolved (see JSDoc above).
+  // Skipped entirely when the matching BookingRule has nothing listed,
+  // so bookings under a bare-bones rule set don't show an empty
+  // section header with nothing under it. ---
+  if (packageInclusions.length > 0) {
+    writeLine("Included in this Package", { font: fontBold, size: 12, gap: 20 });
+    for (const inclusion of packageInclusions) {
+      writeLine(`• ${inclusion}`, { size: 10, gap: 15 });
+    }
+    cursorY -= 8;
+  }
 
   // --- Location map: always the resort's own fixed pin — never a
   // guessed route, so this section renders identically for every

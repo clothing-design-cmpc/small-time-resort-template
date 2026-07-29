@@ -15,8 +15,10 @@
  * 3. No session check happens here — proxy.js already blocked anyone
  *    without a valid superAdmin session before this layout ever renders
  * 4. SessionCloseGuard signs the admin out on tab/browser close;
- *    IdleTimeoutGuard signs the admin out after 30 minutes of no
- *    mouse/keyboard/scroll/touch activity while the tab stays open;
+ *    IdleSessionProvider owns the single idle-timeout timer that signs
+ *    the admin out after 30 minutes of no mouse/keyboard/scroll/touch
+ *    activity while the tab stays open, and publishes the live
+ *    countdown via context to AdminHeader's badge;
  *    SessionExpiryGuard catches the case those two don't — an already-
  *    invalid session (from any cause: idle timeout in another tab, the
  *    close-guard's beacon, the cookie's own 7-day expiry) that would
@@ -33,7 +35,7 @@ import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
 import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
 import SessionCloseGuard from "@/components/superAdmin/SessionCloseGuard";
-import IdleTimeoutGuard from "@/components/superAdmin/IdleTimeoutGuard";
+import IdleSessionProvider from "@/components/superAdmin/IdleSessionProvider";
 import SessionExpiryGuard from "@/components/superAdmin/SessionExpiryGuard";
 import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
 import DatabaseWipeGraceModal from "@/components/superAdmin/DatabaseWipeGraceModal";
@@ -55,30 +57,34 @@ export default async function SuperAdminLayout({ children }) {
       {/* Signs the admin out the instant this tab or the browser itself
           is closed — see SessionCloseGuard's file header for details. */}
       <SessionCloseGuard />
-      {/* Signs the admin out after 30 minutes of no mouse/keyboard/scroll/
-          touch activity, even if the tab is left open — see
-          IdleTimeoutGuard's file header for details. */}
-      <IdleTimeoutGuard />
-      {/* Catches an already-invalid session before it turns into a
-          page full of silent 401 errors — see the component's own
-          file header for the exact two triggers it watches. */}
-      <SessionExpiryGuard />
-      <BreachAlertBanner />
-      {/* Non-dismissible final warning shown once a scheduled database
-          wipe has 2 hours or less remaining — see the component's own
-          file header for why it's mounted globally, same as the
-          breach banner above. */}
-      <DatabaseWipeGraceModal />
-      <a href="#mainContent" className="superAdminSkipLink">
-        Skip to main content
-      </a>
-      <Sidebar />
-      <div className="superAdminBody">
-        <AdminHeader />
-        <main id="mainContent" className="superAdminContent">
-          {children}
-        </main>
-      </div>
+      {/* Owns the ONE idle-timeout timer for the whole admin area — signs
+          the admin out after 30 minutes of no mouse/keyboard/scroll/touch
+          activity, and publishes the live countdown via context so
+          AdminHeader's badge (a descendant here) reads the exact same
+          number, never a second, independently-drifting one. See
+          IdleSessionProvider's file header for details. */}
+      <IdleSessionProvider>
+        {/* Catches an already-invalid session before it turns into a
+            page full of silent 401 errors — see the component's own
+            file header for the exact two triggers it watches. */}
+        <SessionExpiryGuard />
+        <BreachAlertBanner />
+        {/* Non-dismissible final warning shown once a scheduled database
+            wipe has 2 hours or less remaining — see the component's own
+            file header for why it's mounted globally, same as the
+            breach banner above. */}
+        <DatabaseWipeGraceModal />
+        <a href="#mainContent" className="superAdminSkipLink">
+          Skip to main content
+        </a>
+        <Sidebar />
+        <div className="superAdminBody">
+          <AdminHeader />
+          <main id="mainContent" className="superAdminContent">
+            {children}
+          </main>
+        </div>
+      </IdleSessionProvider>
     </div>
   );
 }

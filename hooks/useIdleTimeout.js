@@ -38,11 +38,14 @@
  * manages its own idle timer independently" guarantee — it only stops
  * an in-tab remount from acting like fresh activity.
  *
- * SHARED KEY, ONE CLOCK: IdleTimeoutGuard (the real logout) and
- * AdminHeader (the display-only countdown) both call this hook and
- * both read/write the same sessionStorage key, so they now track the
- * exact same deadline instead of two independently-computed timers
- * that could drift apart from each other by a second or two.
+ * SHARED KEY, ONE CLOCK: components/superAdmin/IdleSessionProvider.jsx
+ * is now the ONLY caller of this hook for the super-admin area (it owns
+ * both the real logout and the countdown AdminHeader displays via
+ * useIdleSessionCountdown() context, rather than mounting this hook a
+ * second time). That guarantees the displayed number and the real
+ * logout timer can never drift apart from each other — they're
+ * literally the same hook call now, not two independent ones reading/
+ * writing the same sessionStorage key.
  *
  * OPTIONAL STORAGE KEY OVERRIDE: a caller guarding a DIFFERENT,
  * independent session (e.g. VaultIdleTimeoutGuard, which locks the
@@ -57,12 +60,11 @@
  * are unaffected — they keep using the original shared default.
  *
  * DATA FLOW:
- * 1. Mounted inside app/superAdmin/(protected)/layout.jsx via
- *    components/superAdmin/IdleTimeoutGuard.jsx (drives the real
- *    logout), and again inside AdminHeader.jsx with a no-op onIdle
- *    (drives the visible "Session expires in mm:ss" countdown only —
- *    IdleTimeoutGuard remains the single place the actual logout fires
- *    from, so this second mount never causes a double sign-out)
+ * 1. Mounted once inside app/superAdmin/(protected)/layout.jsx via
+ *    components/superAdmin/IdleSessionProvider.jsx, which owns both
+ *    the real logout AND publishes secondsRemaining via context for
+ *    AdminHeader's "Session expires in mm:ss" badge to read — a single
+ *    call site, so the display and the real logout can never disagree
  * 2. On mount, reads any existing deadline from sessionStorage. If
  *    none exists yet (genuinely new tab/session) it creates one at
  *    "now + 30 minutes". Either way it schedules against whatever
@@ -126,12 +128,12 @@ function clearStoredDeadline(storageKey) {
 /**
  * clearIdleDeadline
  * Exported so a MANUAL sign-out (the admin clicking "Sign Out" in
- * AdminHeader, or IdleTimeoutGuard's own idle-triggered logout) can
+ * AdminHeader, or IdleSessionProvider's own idle-triggered logout) can
  * clear this tab's stored deadline too — otherwise a still-in-the-
  * future deadline from the session that just ended would carry over
  * and apply to whichever admin logs in next on this same tab, and an
  * already-past one would fire an immediate, confusing "session expired"
- * the moment the fresh login's IdleTimeoutGuard mounts.
+ * the moment the fresh login's IdleSessionProvider mounts.
  *
  * @param {string} [storageKey] - defaults to the shared admin key; pass
  * the same override used with useIdleTimeout() if clearing a different
@@ -146,7 +148,7 @@ export function clearIdleDeadline(storageKey = IDLE_DEADLINE_STORAGE_KEY) {
  * @param {() => void} onIdle - Callback fired when idle timeout is reached (logout function)
  * @param {number} idleMinutes - Minutes of inactivity before firing onIdle (default: 30)
  * @param {string} [storageKey] - sessionStorage key the deadline is persisted under.
- * Defaults to the shared admin key so existing callers (IdleTimeoutGuard, AdminHeader)
+ * Defaults to the shared admin key so the existing caller (IdleSessionProvider)
  * are unaffected. A caller guarding a separate session (see file header) must pass its
  * own distinct key so the two timers never read/overwrite each other's deadline.
  * @returns {number} secondsRemaining - live countdown, for display purposes
@@ -247,7 +249,7 @@ export function useIdleTimeout(onIdle, idleMinutes = 30, storageKey = IDLE_DEADL
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- idleDurationMs is derived
     // from the idleMinutes prop, which is always a hardcoded constant at every call site
-    // (IDLE_TIMEOUT_MINUTES in both IdleTimeoutGuard and AdminHeader) — it never changes
+    // (IDLE_TIMEOUT_MINUTES in IdleSessionProvider) — it never changes
     // across renders, so it's intentionally left out of this mount-only effect's deps.
   }, [extendDeadline, onIdle, scheduleForDeadline]);
 

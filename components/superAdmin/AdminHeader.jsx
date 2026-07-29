@@ -17,13 +17,14 @@
  *    it directly and needs this endpoint instead
  * 4. Clicking "Sign Out" calls POST /api/auth/logout to clear the
  *    session cookie, then redirects to the login page
- * 5. A second, display-only useIdleTimeout() mount drives the
- *    "Session expires in mm:ss" badge next to the user menu. It shares
- *    the exact same 30-minute duration and the same activity-reset
- *    events as components/superAdmin/IdleTimeoutGuard.jsx, so the
- *    number shown here always matches when that guard will actually
- *    sign the admin out — but its own onIdle is a no-op, so this
- *    component never fires a second, duplicate logout itself.
+ * 5. The "Session expires in mm:ss" badge reads secondsRemaining from
+ *    useIdleSessionCountdown() (components/superAdmin/
+ *    IdleSessionProvider.jsx, mounted once in the layout) — the exact
+ *    same live value driving the real 30-minute idle logout, not a
+ *    second, independently-computed timer. This used to be its own
+ *    separate useIdleTimeout() mount; that let the badge drift out of
+ *    sync with the real logout timer under React Fast Refresh/
+ *    StrictMode, so it was replaced with this single shared source.
  * 6. Date/Time: a plain client-side clock (Asia/Manila), ticking every
  *    second via setInterval — no server round-trip needed since it's
  *    just the current moment.
@@ -39,10 +40,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
 import { LogOut, ChevronDown, Clock, Calendar, Sparkles, Sun } from "lucide-react";
-import { useIdleTimeout, clearIdleDeadline } from "@/hooks/useIdleTimeout";
+import { clearIdleDeadline } from "@/hooks/useIdleTimeout";
+import { useIdleSessionCountdown } from "@/components/superAdmin/IdleSessionProvider";
 import "./AdminHeader.css";
 
-const IDLE_TIMEOUT_MINUTES = 30;
 // Badge switches to its warning color once this few seconds are left —
 // gives the admin a clear heads-up before the countdown actually hits
 // zero, instead of the number just quietly turning red at 0:00.
@@ -141,12 +142,11 @@ export default function AdminHeader() {
 
   const pageTitle = resolvePageTitle(pathname);
 
-  // No-op onIdle — components/superAdmin/IdleTimeoutGuard.jsx (mounted
-  // once in the layout) is the ONLY place that actually signs the
-  // admin out. This mount exists purely to read secondsRemaining for
-  // the badge below.
-  const noOpOnIdle = useCallback(() => {}, []);
-  const secondsRemaining = useIdleTimeout(noOpOnIdle, IDLE_TIMEOUT_MINUTES);
+  // Reads the SAME secondsRemaining value the real logout timer in
+  // IdleSessionProvider (mounted once in the layout) is counting down —
+  // not a second, independently-computed timer, so this badge can
+  // never drift from the moment the admin actually gets signed out.
+  const secondsRemaining = useIdleSessionCountdown();
   const isNearExpiry = secondsRemaining <= IDLE_WARNING_THRESHOLD_SECONDS;
 
   // Live clock — ticks every second, purely client-side (no server
@@ -278,9 +278,9 @@ export default function AdminHeader() {
           </span>
         </div>
 
-        {/* Live countdown to the same 30-minute idle logout that
-            IdleTimeoutGuard actually enforces — purely informational,
-            never triggers the sign-out itself (see hook comment above). */}
+        {/* Live countdown reading the exact secondsRemaining value
+            IdleSessionProvider is counting down for the real 30-minute
+            idle logout — see this file's header comment above. */}
         <span
           className={`adminSessionTimer${isNearExpiry ? " adminSessionTimer--warning" : ""}`}
           title="Time until you're automatically signed out from inactivity"

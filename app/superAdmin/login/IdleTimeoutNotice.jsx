@@ -12,7 +12,7 @@
  *
  * DATA FLOW:
  * 1. A guard redirects here with one of:
- *    - ?reason=idle-timeout      — components/superAdmin/IdleTimeoutGuard.jsx,
+ *    - ?reason=idle-timeout      — components/superAdmin/IdleSessionProvider.jsx,
  *      after 30 minutes of no mouse/keyboard/scroll/touch activity
  *    - ?reason=session-expired   — components/superAdmin/SessionExpiryGuard.jsx,
  *      after any admin API call came back 401 or a post-sleep/refocus

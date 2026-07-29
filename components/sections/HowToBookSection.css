@@ -265,6 +265,29 @@
   background-color: var(--color-info);
 }
 
+/* Both Day Tour AND Night Tour already booked on this date — no Tour
+ * capacity left. Deliberately a different color from both
+ * .howToBookCalendarDayBooked (red — Overnight, fully blocked/
+ * unclickable) and the single-tour blue dot above, so a visitor can
+ * tell "no slots left" apart from "already fully unavailable" at a
+ * glance instead of the two states reading identically. Day stays
+ * clickable (howToBookCalendarDayOpen still applies) — this is purely
+ * an awareness marker, same interaction pattern as the checkout and
+ * single-tour-booked badges. */
+.howToBookCalendarDayFullyTourBookedBadge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: #8b5cf6;
+}
+
+.howToBookCalendarLegendDotFullyTourBooked {
+  background-color: #8b5cf6;
+}
+
 /* ─── Legend ─────────────────────────────────────────────────────────── */
 .howToBookCalendarLegend {
   display: flex;

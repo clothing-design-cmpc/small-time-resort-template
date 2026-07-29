@@ -35,6 +35,36 @@
 }
 
 /*
+ * .walkInChatTooltip
+ * "Message us" label shown on hover/focus only — same pattern as
+ * ManageBookingWidget's "Cancellation" and ResortLocationWidget's
+ * "Location" tooltips. Positioned to the left of the icon so it's
+ * never clipped by the viewport's right edge (the icon itself sits at
+ * the far-right edge of the screen).
+ */
+.walkInChatTooltip {
+  position: absolute;
+  right: calc(100% + var(--space-sm));
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.walkInChatButton:hover .walkInChatTooltip,
+.walkInChatButton:focus-visible .walkInChatTooltip {
+  opacity: 1;
+}
+
+/*
  * .walkInChatBackdrop / .walkInChatModal
  * Same centered-dialog pattern as the super-admin ConfirmationModal,
  * using the shared light resort palette tokens instead of the admin

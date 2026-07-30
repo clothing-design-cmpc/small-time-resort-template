@@ -23,20 +23,25 @@
  * doesn't match real elapsed time."
  *
  * FIX: there is now exactly ONE useIdleTimeout() call in the whole
- * super-admin area, owned here. Its secondsRemaining is published via
- * IdleSessionContext, so AdminHeader's badge reads the literal same
- * value the real logout timer is counting down — not a second,
- * independently-computed approximation of it. IdleTimeoutGuard.jsx is
- * retired; this component now does what it used to do (fires the real
- * logout) plus exposes the countdown for display.
+ * super-admin area, owned here. IdleTimeoutGuard.jsx is retired; this
+ * component does what it used to do (fires the real logout) and also
+ * publishes the live secondsRemaining via IdleSessionContext.
+ *
+ * UPDATE: the visible "Session expires in mm:ss" badge was later
+ * removed from AdminHeader (the 30-minute auto-logout itself is
+ * unaffected and still fires the same way). useIdleSessionCountdown()
+ * is kept exported here, unused for now, in case a future page wants
+ * to show the countdown again — it will still read the exact same
+ * value the real logout timer counts down, with no drift risk,
+ * because it's the same underlying hook call either way.
  *
  * DATA FLOW:
  * 1. Mounted once in app/superAdmin/(protected)/layout.jsx, wrapping
  *    Sidebar + AdminHeader + {children}
  * 2. The single useIdleTimeout() call here fires the real logout after
  *    30 minutes of no mouse/keyboard/scroll/touch activity
- * 3. AdminHeader calls useIdleSessionCountdown() to read the exact
- *    same secondsRemaining for its display badge — no separate timer
+ * 3. Any future consumer can call useIdleSessionCountdown() to read
+ *    the exact same secondsRemaining — no separate timer needed
  */
 "use client";
 

@@ -8,7 +8,7 @@
  *   Step 2 — connection + core env var checklist (DATABASE_URL,
  *            DIRECT_URL, plus the supabase group: NEXT_PUBLIC_SUPABASE_URL,
  *            NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
- *   Step 3 — 4 sequential, locked sub-steps: db push -> generate ->
+ *   Step 2 — 4 sequential, locked sub-steps: db push -> generate ->
  *            enableRls.js -> addBookingExclusionConstraint.js
  * Every sub-step that leaves a trace in the database (3a, 3c, 3d) is
  * verified for real against /api/system-setup-wizard/database-status
@@ -25,7 +25,7 @@
  *    mid-session doesn't lose it (this session already has a 30-minute
  *    cookie lifetime — sessionStorage matches that scope)
  * 4. Once exclusionConstraint is true, this step hands off to
- *    <AdminSetupStep /> (Step 4 — Create Super-Admin), same
+ *    <AdminSetupStep /> (Step 3 — Create Super-Admin), same
  *    hand-off pattern SetupKeyForm.jsx uses to reach this file
  */
 "use client";
@@ -287,7 +287,7 @@ export default function DatabaseSetupStep() {
         </button>
       </div>
 
-      {/* ===== Step 3 — Sequential database setup commands ===== */}
+      {/* ===== Step 2 — Sequential database setup commands ===== */}
       {SUB_STEPS.map((subStep) => {
         const unlocked = subStepUnlocked[subStep.id];
         const done = subStepDone[subStep.id];

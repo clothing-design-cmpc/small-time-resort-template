@@ -19,6 +19,7 @@
     "check:health": "node scripts/checkSystemHealth.js",
     "check:wizard-status": "node scripts/checkSetupWizardStatus.js",
     "wipe-database": "node scripts/runDatabaseWipe.js",
+    "finalize-handoff": "node scripts/runFinalizeHandoff.js",
     "purge-security-logs": "node scripts/purgeSecurityLogs.js",
     "check:gatekeepers": "node scripts/checkGatekeepers.js",
     "generate-recovery-card": "node scripts/generateRecoveryCard.mjs",

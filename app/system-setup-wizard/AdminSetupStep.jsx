@@ -1,9 +1,9 @@
 /**
  * FILE: app/system-setup-wizard/AdminSetupStep.jsx
- * ROLE: Client Component — Step 4 of the setup wizard
+ * ROLE: Client Component — Step 3 of the setup wizard
  *
  * PURPOSE:
- * Renders once DatabaseSetupStep confirms Steps 2-3 are complete. No
+ * Renders once DatabaseSetupStep confirms Step 2 is complete. No
  * custom "create admin" form is built here — the project already has
  * `npx prisma db seed`, an idempotent (upsert-based) script that
  * creates the Supabase Auth user + admin_profiles row with
@@ -34,7 +34,7 @@
  * 2. First time ownerExists is true and this tab hasn't confirmed yet
  *    -> POST /api/system-setup-wizard/confirm-admin, then mark
  *    confirmed in sessionStorage
- * 3. Once confirmed, hands off to <RemainingEnvStep /> (Step 5 —
+ * 3. Once confirmed, hands off to <RemainingEnvStep /> (Step 4 —
  *    remaining environment variables), same hand-off pattern
  *    SetupKeyForm.jsx -> DatabaseSetupStep.jsx -> AdminSetupStep.jsx
  *    already uses. This component's own ToastStack stays mounted
@@ -48,10 +48,10 @@ import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
 import RemainingEnvStep from "./RemainingEnvStep";
 
-const ADMIN_CONFIRMED_STORAGE_KEY = "wizardStep4AdminConfirmed";
+const ADMIN_CONFIRMED_STORAGE_KEY = "wizardStep3AdminConfirmed";
 
 // Per-key "How do I get this?" instructions — same pattern Step 2
-// (DATABASE_ENV_HELP) already uses, so Step 4 doesn't feel like the
+// (DATABASE_ENV_HELP) already uses, so Step 3 doesn't feel like the
 // odd one out with no guidance.
 const ADMIN_ENV_HELP = {
   SEED_ADMIN_EMAIL: {
@@ -123,7 +123,7 @@ export default function AdminSetupStep() {
    * auto-fire effect below AND the manual "Continue" / "Retry" button
    * rendered once ownerExists is true — without this manual path, a
    * single failed attempt (network hiccup, transient 500) left the
-   * wizard stuck on Step 4 forever: ownerExists stays true, so the
+   * wizard stuck on Step 3 forever: ownerExists stays true, so the
    * effect's dependency never changes and never re-fires, and
    * "Check again" only re-polls admin-status, which was already true.
    */
@@ -183,7 +183,7 @@ export default function AdminSetupStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 3 of 10</span>
         <h1 className="setupWizardTitle">Checking admin status…</h1>
       </div>
     );
@@ -192,7 +192,7 @@ export default function AdminSetupStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 3 of 10</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load admin status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -222,7 +222,7 @@ export default function AdminSetupStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 3 of 10</span>
         <h1 className="setupWizardTitle">Create your super-admin account</h1>
         <p className="setupWizardBody">
           There&apos;s no form here — the project&apos;s seed script creates your

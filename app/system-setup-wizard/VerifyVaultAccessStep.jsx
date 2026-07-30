@@ -1,17 +1,17 @@
 /**
  * FILE: app/system-setup-wizard/VerifyVaultAccessStep.jsx
- * ROLE: Client Component — Step 9 of the setup wizard
+ * ROLE: Client Component — Step 8 of the setup wizard
  *
  * PURPOSE:
- * Renders once VaultPassphraseStep's generate call succeeds (Step 8).
+ * Renders once VaultPassphraseStep's generate call succeeds (Step 7).
  * By the time this component ever mounts, isSetupWizardLocked() is
  * ALREADY true (see generate-passphrase/route.js's SELF-LOCK NOTE) —
  * every route under app/api/system-setup-wizard/ would now 404,
  * including this step's own parent if it tried to call one again.
  * So this step makes NO server calls at all: vaultUrl was computed
- * server-side back in Step 8's response (services/vaultAuth.js's
+ * server-side back in Step 7’s response (services/vaultAuth.js's
  * getVaultRecoveryUrl()) and is simply passed down as a prop — this
- * is the only way Step 9 can ever have a working link.
+ * is the only way Step 8 can ever have a working link.
  *
  * PURPOSE OF THE STEP ITSELF:
  * A plain reminder + link so whoever is running setup actually opens
@@ -23,29 +23,32 @@
  *
  * DATA FLOW:
  * 1. Person clicks the vaultUrl link (opens in a new tab) and signs
- *    in there using the passphrase they just copied in Step 8, then
+ *    in there using the passphrase they just copied in Step 7, then
  *    the emailed OTP (services/vaultOtp.js) — the real vault system's
  *    own existing login flow, untouched by anything in this wizard
  * 2. Back in this tab, clicking "I've verified vault access" is a
  *    purely client-side state change — hands off to
- *    <SetupCompleteStep /> (Step 10). Nothing is sent to the server;
- *    setup_completed was already logged back in Step 8's route.
+ *    <PreHandoffTestingStep /> (Step 9 — full-site QA checklist,
+ *    added so login/vault access being individually verified doesn't
+ *    get mistaken for "the whole site was tested"). Nothing is sent
+ *    to the server; setup_completed was already logged back in
+ *    Step 7’s route.
  */
 "use client";
 
 import { useState } from "react";
-import SetupCompleteStep from "./SetupCompleteStep";
+import PreHandoffTestingStep from "./PreHandoffTestingStep";
 
 export default function VerifyVaultAccessStep({ vaultUrl }) {
   const [verified, setVerified] = useState(false);
 
   if (verified) {
-    return <SetupCompleteStep />;
+    return <PreHandoffTestingStep />;
   }
 
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 9 of 10</span>
+      <span className="setupWizardEyebrow">Step 8 of 10</span>
       <h1 className="setupWizardTitle">Verify vault access</h1>
       <p className="setupWizardBody">
         Open the vault recovery page in a new tab and sign in using the passphrase you just
@@ -60,7 +63,7 @@ export default function VerifyVaultAccessStep({ vaultUrl }) {
         </div>
       ) : (
         <p className="setupWizardError">
-          The vault link couldn't be computed. Check your email or the R2 backup from Step 8
+          The vault link couldn't be computed. Check your email or the R2 backup from Step 7
           for the passphrase, then open the vault from the resort's live site directly.
         </p>
       )}

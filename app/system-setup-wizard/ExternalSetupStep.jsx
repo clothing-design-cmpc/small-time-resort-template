@@ -1,9 +1,9 @@
 /**
  * FILE: app/system-setup-wizard/ExternalSetupStep.jsx
- * ROLE: Client Component — Step 7 of the setup wizard
+ * ROLE: Client Component — Step 6 of the setup wizard
  *
  * PURPOSE:
- * Renders once ScriptsHealthStep's "Continue" is clicked (Step 6).
+ * Renders once ScriptsHealthStep's "Continue" is clicked (Step 5).
  * Unlike every prior step, this one has NO API route behind it and
  * makes NO server calls at all — it's pure reference instructions for
  * three things that must run on the developer's own machine and are
@@ -24,11 +24,11 @@
  *   3. MaxMind GeoLite2-City.mmdb
  *      Not an env var — a physical file. Manual download from
  *      maxmind.com, placed at services/geoip/GeoLite2-City.mmdb
- *      (path configured via MAXMIND_DB_PATH — Step 5's geoip group
+ *      (path configured via MAXMIND_DB_PATH — Step 4's geoip group
  *      already checks that env var's presence; this step is only
  *      about the physical file itself).
  *
- * Step 8 (Generate Vault Passphrase) is built as its own component —
+ * Step 7 (Generate Vault Passphrase) is built as its own component —
  * the Continue button here hands off to <VaultPassphraseStep />, same
  * hand-off pattern every prior step uses.
  */
@@ -78,7 +78,7 @@ export default function ExternalSetupStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 7 of 10</span>
+        <span className="setupWizardEyebrow">Step 6 of 10</span>
         <h1 className="setupWizardTitle">External / local-machine-only setup</h1>
         <p className="setupWizardBody">
           Nothing on this step runs from this page — these three
@@ -120,7 +120,7 @@ export default function ExternalSetupStep() {
 
       <div className="setupWizardCard">
         <p className="setupWizardBody">
-          You can come back and finish these later — Step 8
+          You can come back and finish these later — Step 7
           doesn&apos;t require any of the above to be done first.
         </p>
         <button type="button" className="setupWizardButton" onClick={() => setContinued(true)}>

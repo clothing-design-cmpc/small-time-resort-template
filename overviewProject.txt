@@ -877,3 +877,111 @@ DEBUG POINTS:
   otherwise: no crash, no email, no log row — VaultPassphrase.expiresAt
   just sits in the past indefinitely until someone checks manually or
   clicks "Generate New Passphrase" themselves.
+
+=== PROCESS: First-Run Setup Wizard & Owner Handoff (app/system-setup-wizard/) ===
+10 client-rendered steps, each its own component, hand-off chain (no
+router — every step conditionally renders the next inside the same
+tree). Locked forever the instant Step 7 succeeds — see
+generate-passphrase/route.js's SELF-LOCK NOTE — so this whole flow
+only ever runs once per deployment.
+Step 1  : SetupKeyForm — enter WIZARD_SETUP_KEY
+Step 2  : DatabaseSetupStep — DATABASE_URL/DIRECT_URL + Supabase env,
+          then 4 sequential locked sub-steps (db push -> generate ->
+          seed -> verify)
+Step 3  : AdminSetupStep — SEED_ADMIN_EMAIL/PASSWORD, confirms
+          `npx prisma db seed` created the owner admin_profiles row
+Step 4  : RemainingEnvStep — the other 8 of 10 envGroups.mjs groups
+          (r2, emailjs, githubActions, rateLimit, geoip, vaultSecurity,
+          aiInsightAndDirections, siteConfig); doesn't block on every
+          key being set
+Step 5  : ScriptsHealthStep — on-demand "Run Env Check" / "Run Health
+          Check" buttons, plus copyable terminal-only reference
+          commands (Vercel env reference, GitHub Secrets reference)
+Step 6  : ExternalSetupStep — local-machine-only setup that can't be
+          verified from the deployed app itself (MaxMind .mmdb file,
+          Google OAuth for Drive, etc.)
+Step 7  : VaultPassphraseStep — generates the vault passphrase
+          (irreversible: this call is what flips isSetupWizardLocked()
+          true for every wizard API route, including this step's own)
+Step 8  : VerifyVaultAccessStep — opens the vault recovery URL in a
+          new tab and confirms the passphrase + emailed OTP actually
+          work end-to-end, not just "present in .env.local"
+Step 9  : PreHandoffTestingStep — manual QA checklist (visitor booking
+          flow, super-admin login, content CRUD, image upload, email
+          delivery, vault link re-check); every item must be ticked
+          before Continue unlocks; state is NOT persisted, so
+          reloading this tab resets the checklist on purpose
+Step 10 : SetupCompleteStep — final screen. Confirms the vault
+          passphrase and super-admin password were saved somewhere
+          durable, explains the finalize-handoff terminal command
+          below, and warns against logging in here just to test it
+          (see OWNER-IP LENIENCY below) before linking to
+          /superAdmin/login
+
+=== PROCESS: Finalize Handoff (scripts/runFinalizeHandoff.js) ===
+Terminal-only, run manually once by whoever finished setup/QA — no
+web UI trigger exists for this on purpose (see SetupCompleteStep,
+Step 10, for the only place it's referenced). Different from the
+existing `npm run wipe-database` (scripts/runDatabaseWipe.js): that
+script wipes admin_profiles too and needs the site to stay locked down
+afterward (hidden-vault-only recovery); this one is the opposite goal
+— keep the owner able to log in immediately, wipe everything else.
+Step 1 : `npm run finalize-handoff` (optional `--skip-backup` flag)
+Step 2 : Terminal prompt requires typing the exact phrase
+         "FINALIZE HANDOFF" — no --yes flag exists anywhere, so this
+         can never fire from a copied command or a script
+Step 3 : Unless --skip-backup, runs the same pg_dump + gzip + R2
+         upload flow as runBackup.js/runDatabaseWipe.js first; a
+         failed backup ABORTS before anything is truncated
+Step 4 : Queries pg_tables live (same denylist pattern as
+         runDatabaseWipe.js) and TRUNCATEs every table except
+         admin_profiles, vault, vault_passphrase, and
+         database_wipe_requests, inside one transaction
+Step 5 : Logs a security_logs "admin_action" event, then exits.
+         Does NOT call activatePostWipeLockdown() — unlike
+         runDatabaseWipe.js, the site stays fully live and the
+         super-admin login keeps working right away
+Step 6 : Whoever logs in first at /superAdmin/login after this becomes
+         SystemSettings.ownerVerifiedIp (auto-registered on the first
+         clean login — see app/api/auth/login/route.js) — this should
+         be the actual owner, not the developer testing the button
+
+OWNER-IP LENIENCY WARNING:
+The FIRST clean super-admin login after handoff auto-registers as the
+trusted "owner IP" for Gatekeeper leniency (5 login attempts instead
+of 3, GK3 new-device exemption). If the developer logs in first just
+to double-check things work, the developer's IP gets that leniency
+instead of the owner's. Always run finalize-handoff (which resets
+SystemSettings, including ownerVerifiedIp) and let the owner do the
+actual first login themselves.
+
+DEBUG POINTS:
+- Wizard eyebrow says "Step X of 10" but the step feels out of order ->
+  check that the component's own label AND every OTHER step's forward/
+  backward-reference comment agree — these are plain hardcoded text,
+  not computed from a shared step index, so a rename in one file does
+  not automatically update references to it in any other file
+- runFinalizeHandoff.js exits immediately with no prompt shown -> make
+  sure it's being run in an interactive terminal (readline needs a
+  real stdin); it will hang forever piped through a non-interactive
+  script or CI runner, which is intentional (this must only run by a
+  human, on purpose, watching the confirmation prompt)
+- Owner reports stricter login limits (3 attempts, no leniency) ->
+  check SystemSettings.ownerVerifiedIp against the owner's actual IP;
+  if it's the developer's IP instead, re-run finalize-handoff (resets
+  it to null) and have the owner log in again themselves
+
+FILE MAP additions (Setup Wizard, Step 9 + Finalize Handoff):
+- app/system-setup-wizard/PreHandoffTestingStep.jsx - Step 9, manual QA
+  checklist. Client-state only, no server calls, no persistence.
+- app/system-setup-wizard/SetupWizard.css - .setupWizardTestingGroup /
+  .setupWizardTestingGroupTitle added for the checklist's grouped rows.
+- scripts/runFinalizeHandoff.js - the standalone finalize-handoff
+  script. Terminal-only, never imported by any Next.js route, never
+  triggered by a request. Run via `npm run finalize-handoff`.
+- package.json - "finalize-handoff": "node scripts/runFinalizeHandoff.js"
+  added alongside the existing "wipe-database" script.
+- app/system-setup-wizard/SetupCompleteStep.jsx (Step 10) - now
+  documents the finalize-handoff command and the owner-IP leniency
+  warning; still the only place this script is referenced in the app.
+

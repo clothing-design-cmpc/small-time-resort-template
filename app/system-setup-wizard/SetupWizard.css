@@ -512,6 +512,34 @@ a.setupWizardButtonSecondary {
 }
 
 /*
+ * .setupWizardTestingGroup / .setupWizardTestingGroupTitle
+ * Groups related checklist items (Visitor site, Super-admin login,
+ * Content management, Alerts & recovery) in PreHandoffTestingStep so
+ * a long flat list of checkboxes doesn't read as one undifferentiated
+ * block. Each group stacks its checkbox rows with a bit more breathing
+ * room than the tighter rows elsewhere in the wizard (Rule 23.10).
+ */
+.setupWizardTestingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.setupWizardTestingGroup:last-of-type {
+  border-bottom: none;
+}
+
+.setupWizardTestingGroupTitle {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/*
  * .setupWizardProviderGrid / .setupWizardProviderCard
  * Per-provider reseller setup checklist inside ResellerArchitectureNote —
  * one card per external service, auto-filling the available width so it

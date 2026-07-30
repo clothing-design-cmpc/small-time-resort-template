@@ -1,9 +1,9 @@
 /**
  * FILE: app/system-setup-wizard/RemainingEnvStep.jsx
- * ROLE: Client Component — Step 5 of the setup wizard
+ * ROLE: Client Component — Step 4 of the setup wizard
  *
  * PURPOSE:
- * Renders once AdminSetupStep confirms Step 4 (super-admin created).
+ * Renders once AdminSetupStep confirms Step 3 (super-admin created).
  * Presence-only checklist for the 8 envGroups.mjs groups not already
  * covered by Step 2 (database, supabase): r2, emailjs, githubActions,
  * rateLimit, geoip, vaultSecurity, aiInsightAndDirections, siteConfig.
@@ -36,7 +36,7 @@
  *   - siteConfig: a sample .env line for NEXT_PUBLIC_SITE_URL.
  *
  * This step has no sequential locking and no "I ran this" checkbox —
- * unlike Step 3's database commands, there's nothing to run in order
+ * unlike Step 2's database commands, there's nothing to run in order
  * here, just external dashboard values to paste in. The person can set
  * these in any order, over multiple sessions if needed, since none of
  * them block each other.
@@ -53,7 +53,7 @@
  *    group id
  * 3. "Continue" is always available (these are external services, not
  *    build-blocking database steps) — hands off to <ScriptsHealthStep />
- *    (Step 6 — scripts & health checks), same hand-off pattern
+ *    (Step 5 — scripts & health checks), same hand-off pattern
  *    SetupKeyForm.jsx -> DatabaseSetupStep.jsx -> AdminSetupStep.jsx
  *    already uses
  */
@@ -449,7 +449,7 @@ export default function RemainingEnvStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 5 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 10</span>
         <h1 className="setupWizardTitle">Checking environment status…</h1>
       </div>
     );
@@ -458,7 +458,7 @@ export default function RemainingEnvStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 5 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 10</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load environment status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -477,7 +477,7 @@ export default function RemainingEnvStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 5 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 10</span>
         <h1 className="setupWizardTitle">Remaining services</h1>
         <p className="setupWizardBody">
           Set these in <code>.env.local</code> (and your deployment
@@ -580,7 +580,7 @@ export default function RemainingEnvStep() {
 
       <div className="setupWizardCard">
         <p className="setupWizardBody">
-          You can come back and finish these later — Step 6 doesn&apos;t
+          You can come back and finish these later — Step 5 doesn&apos;t
           require every key above to be set yet.
         </p>
         <button type="button" className="setupWizardButton" onClick={() => setContinued(true)}>

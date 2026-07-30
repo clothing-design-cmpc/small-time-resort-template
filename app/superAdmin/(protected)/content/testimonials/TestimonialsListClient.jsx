@@ -126,8 +126,9 @@ export default function TestimonialsListClient() {
     try {
       await updateTestimonial(testimonial.id, { isApproved: true });
       showToast(`✓ Approved the review from "${testimonial.guestName}".`, "success");
-    } catch {
-      showToast("✕ Failed to approve this review.", "error");
+    } catch (approveError) {
+      const message = approveError?.response?.data?.message || "Failed to approve this review.";
+      showToast(`✕ ${message}`, "error");
     }
   }
 

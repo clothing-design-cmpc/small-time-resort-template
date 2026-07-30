@@ -28,14 +28,20 @@ export async function PUT(request, { params }) {
 
   try {
     const body = await request.json();
-    const guestName = body.guestName?.trim();
 
     const existingTestimonial = await prisma.testimonial.findUnique({ where: { id: testimonialId } });
     if (!existingTestimonial) {
       return NextResponse.json({ success: false, data: null, message: "Testimonial not found." }, { status: 404 });
     }
 
-    if (!guestName) {
+    // guestName is only validated when the caller is actually trying to
+    // change it. Partial updates like the Approve action send only
+    // { isApproved: true } and must not be rejected just because they
+    // didn't also resend the guest's name.
+    const isChangingGuestName = body.guestName !== undefined;
+    const guestName = isChangingGuestName ? body.guestName?.trim() : existingTestimonial.guestName;
+
+    if (isChangingGuestName && !guestName) {
       return NextResponse.json(
         { success: false, data: null, message: "Guest name is required." },
         { status: 400 }

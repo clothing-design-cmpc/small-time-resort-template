@@ -13,8 +13,10 @@
  * message rather than just checking for config presence.
  *
  * GOOGLE DRIVE DROPPED (July 2026) — Drive used to be one of these
- * channels; retired for reliability reasons (see services/googleDrive.js's
- * header). R2 replaces it below as the offsite storage channel.
+ * channels; retired because its OAuth refresh-token setup was too
+ * much friction for the reliability it bought (see
+ * services/vaultPassphraseBackup.js's header, which made the same
+ * move earlier). R2 replaces it below as the offsite storage channel.
  *
  * WHY THIS EXISTS:
  * Today the only way to discover an expired GitHub token or a broken

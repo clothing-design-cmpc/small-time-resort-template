@@ -6,7 +6,7 @@
  * Renders once ScriptsHealthStep's "Continue" is clicked (Step 5).
  * Unlike every prior step, this one has NO API route behind it and
  * makes NO server calls at all — it's pure reference instructions for
- * three things that must run on the developer's own machine and are
+ * two things that must run on the developer's own machine and are
  * never wired into any web UI (plan doc's "TWO SEPARATE VAULT
  * SYSTEMS" and "READ-ONLY VS TERMINAL-ONLY SCRIPTS" sections):
  *
@@ -17,11 +17,7 @@
  *      an API route. Instructions include the "scan the QR then
  *      delete vault-totp-qr.png" warning.
  *
- *   2. node scripts/getGoogleDriveRefreshToken.mjs
- *      Interactive OAuth flow with a localhost redirect — must run on
- *      the developer's own machine, never as a deployed route.
- *
- *   3. MaxMind GeoLite2-City.mmdb
+ *   2. MaxMind GeoLite2-City.mmdb
  *      Not an env var — a physical file. Manual download from
  *      maxmind.com, placed at services/geoip/GeoLite2-City.mmdb
  *      (path configured via MAXMIND_DB_PATH — Step 4's geoip group
@@ -46,13 +42,6 @@ const EXTERNAL_STEPS = [
     description:
       "Creates the OwnerVault row and writes vault-totp-qr.png to the project root. Scan it with your authenticator app immediately, then delete the file — never commit it or leave it on disk. Refuses to run if a vault already exists.",
     warning: "This is the only place the TOTP secret is ever generated in plaintext. Never deployed as an API route.",
-  },
-  {
-    title: "2. Google Drive refresh token",
-    command: "node scripts/getGoogleDriveRefreshToken.mjs",
-    description:
-      'Walks you through Google\'s OAuth consent screen as the Gmail account that should own backup uploads, then prints a refresh token. Paste it into GOOGLE_OAUTH_REFRESH_TOKEN in .env.local and your deployment\'s env vars. Requires GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET already set (OAuth client type "Desktop app", Google Drive API enabled).',
-    warning: "Interactive, localhost-redirect OAuth flow — must run on your own machine, never in GitHub Actions or as a deployed route.",
   },
 ];
 
@@ -102,7 +91,7 @@ export default function ExternalSetupStep() {
       ))}
 
       <div className="setupWizardCard">
-        <h2 className="setupWizardSubStepTitle">3. MaxMind GeoIP database file</h2>
+        <h2 className="setupWizardSubStepTitle">2. MaxMind GeoIP database file</h2>
         <p className="setupWizardBody">
           Not an env var — a physical file. Already included in this
           template at <code>services/geoip/GeoLite2-City.mmdb</code>, and{" "}

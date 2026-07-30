@@ -19,9 +19,10 @@
  *      show a "just archived" banner + a signed download link
  *
  * GOOGLE DRIVE DROPPED (July 2026) — this used to upload to Google
- * Drive; switched to R2 for the same reliability reasons documented in
- * services/googleDrive.js's header and services/vaultPassphraseBackup.js
- * (which made the same move earlier for the vault passphrase backup).
+ * Drive; switched to R2 because Drive's OAuth refresh-token setup was
+ * too much friction for the reliability it bought — see
+ * services/vaultPassphraseBackup.js's header, which made the same
+ * move earlier for the vault passphrase backup.
  *
  * WHY SNAPSHOT-BY-ID INSTEAD OF "DELETE EVERYTHING OLDER THAN NOW":
  * New visitor/staff activity can be written between the snapshot read

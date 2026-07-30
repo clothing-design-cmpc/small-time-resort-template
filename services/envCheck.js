@@ -40,7 +40,9 @@
  * GOOGLE DRIVE DROPPED (July 2026) — this used to run a live
  * drive.about.get() check too; removed along with the googleDrive env
  * group in scripts/lib/envGroups.mjs now that R2 is the only backup
- * destination (services/googleDrive.js's header has the full reasoning).
+ * destination (see services/vaultPassphraseBackup.js's header for the
+ * full reasoning — Drive's OAuth refresh-token setup was too much
+ * friction for the reliability it bought).
  */
 import { prisma } from "@/services/prisma";
 import { existsSync } from "node:fs";

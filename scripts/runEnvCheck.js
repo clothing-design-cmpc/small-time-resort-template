@@ -72,7 +72,8 @@ function checkPresence() {
  * Database + GeoIP file reachability — the same side-effect-free live
  * checks services/envCheck.js runs, minus the EmailJS test-send (see
  * file header for why). Google Drive dropped along with the
- * googleDrive env group (see scripts/lib/envGroups.mjs).
+ * googleDrive env group (see scripts/lib/envGroups.mjs and
+ * services/vaultPassphraseBackup.js's header for the reasoning).
  */
 async function runLiveChecks() {
   const failures = [];

@@ -16,7 +16,7 @@
  *
  * DATA FLOW:
  * 1. Each service file (weather.js, directions.js, aiInsight.js,
- *    github.js, emailjs.js, googleDrive.js, r2.js) calls
+ *    github.js, emailjs.js, r2.js) calls
  *    recordApiCall() right after its own fetch/SDK call resolves —
  *    success or failure both get logged, so a string of failures is
  *    visible on the usage page too, not just successful calls.
@@ -67,12 +67,6 @@ export const API_CATALOG = {
     usedBy: "services/emailjs.js, services/emailAlert.js",
     quotaNote: "200 emails/month on the Free plan",
     dashboardUrl: "https://dashboard.emailjs.com/admin",
-  },
-  google_drive: {
-    label: "Google Drive",
-    usedBy: "services/googleDrive.js",
-    quotaNote: "15GB storage (personal Gmail account quota)",
-    dashboardUrl: "https://one.google.com/storage",
   },
   cloudflare_r2: {
     label: "Cloudflare R2",

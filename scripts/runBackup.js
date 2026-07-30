@@ -7,9 +7,9 @@
  * has history.
  *
  * GOOGLE DRIVE DROPPED (July 2026) — Drive was previously a second,
- * redundant upload destination alongside R2. It was retired for
- * reliability reasons (see services/googleDrive.js's own header for
- * the full reasoning, and services/vaultPassphraseBackup.js, which
+ * redundant upload destination alongside R2. It was retired because
+ * its OAuth refresh-token setup was too much friction for the
+ * reliability it bought (see services/vaultPassphraseBackup.js, which
  * made the same switch earlier for the vault passphrase backup). R2
  * is now the single backup destination — PITR (Rule 40.1) remains the
  * primary recovery mechanism regardless.

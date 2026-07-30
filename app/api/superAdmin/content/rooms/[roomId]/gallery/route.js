@@ -1,106 +1,105 @@
 /**
- * FILE: app/api/superAdmin/content/rooms/[roomId]/gallery/[imageId]/route.js
+ * FILE: app/api/superAdmin/content/rooms/[roomId]/gallery/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * PUT    -> updates one gallery image: caption, isFeatured toggle, or
- *           "Set as Main" (copies this image's url/key onto the parent
- *           Room row, which is what visitor-facing cards/lists use).
- * DELETE -> removes one gallery image and its R2 file.
+ * GET  -> returns every RoomImage for this room, in display order,
+ *         for the Room Gallery sub-page (hooks/useRoomGallery.js).
+ * POST -> creates a new RoomImage for this room. The actual file is
+ *         already uploaded to R2 by the client beforehand (via
+ *         /api/superAdmin/content/upload) — this only saves the
+ *         resulting imageUrl/imageKey plus an optional caption.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logAuditEvent } from "@/services/auditLog";
 
-export async function PUT(request, { params }) {
-  const { roomId, imageId } = await params;
+export async function GET(request, { params }) {
+  const { roomId } = await params;
 
   try {
-    const body = await request.json();
-
-    const existingImage = await prisma.roomImage.findUnique({ where: { id: imageId } });
-    if (!existingImage || existingImage.roomId !== roomId) {
-      return NextResponse.json({ success: false, data: null, message: "Gallery image not found." }, { status: 404 });
-    }
-
-    // "Set as Main" pushes this gallery image's url/key onto the Room
-    // row itself — this is a separate action from isFeatured, which
-    // only affects this gallery entry.
-    if (body.setAsMain) {
-      await prisma.room.update({
-        where: { id: roomId },
-        data: { imageUrl: existingImage.imageUrl, imageKey: existingImage.imageKey },
-      });
-
-      // Audit trail (Rule 6) — this changes what visitors see as the room's main photo.
-      const session = requireSuperAdmin(request);
-      await logAuditEvent({
-        actor: session?.uid ?? null,
-        action: "updated",
-        targetType: "Room",
-        targetId: roomId,
-        targetName: null,
-        request,
-        details: `Set a gallery image as the main photo for room ID ${roomId}.`,
-      });
-
-      return NextResponse.json({ success: true, data: existingImage, message: "Set as the room's main image." });
-    }
-
-    const updatedImage = await prisma.roomImage.update({
-      where: { id: imageId },
-      data: {
-        caption: body.caption ?? existingImage.caption,
-        isFeatured: body.isFeatured ?? existingImage.isFeatured,
-      },
+    const images = await prisma.roomImage.findMany({
+      where: { roomId },
+      orderBy: { displayOrder: "asc" },
     });
-
-    return NextResponse.json({ success: true, data: updatedImage, message: "Gallery image updated successfully." });
+    return NextResponse.json({ success: true, data: images, message: "Room gallery fetched successfully." });
   } catch (error) {
-    console.error("[RoomGallery] Failed to update:", error);
+    console.error("[RoomGallery] Failed to fetch:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't save this change. Please try again." },
+      { success: false, data: null, message: "We couldn't load this room's gallery. Please try again." },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(request, { params }) {
-  const { roomId, imageId } = await params;
+export async function POST(request, { params }) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to do this." },
+      { status: 401 }
+    );
+  }
+
+  const { roomId } = await params;
 
   try {
-    const image = await prisma.roomImage.findUnique({ where: { id: imageId } });
-    if (!image || image.roomId !== roomId) {
-      return NextResponse.json({ success: false, data: null, message: "Gallery image not found." }, { status: 404 });
+    const room = await prisma.room.findUnique({ where: { id: roomId } });
+    if (!room) {
+      return NextResponse.json({ success: false, data: null, message: "Room not found." }, { status: 404 });
     }
 
-    await prisma.roomImage.delete({ where: { id: imageId } });
+    const body = await request.json();
+    const imageUrl = body.imageUrl?.trim();
+    const imageKey = body.imageKey?.trim();
 
-    if (image.imageKey) {
-      await deleteFromR2(image.imageKey);
+    if (!imageUrl || !imageKey) {
+      return NextResponse.json(
+        { success: false, data: null, message: "An uploaded image is required." },
+        { status: 400 }
+      );
     }
 
-    // Audit trail (Rule 6) — room image deletions are tracked per blueprint.
-    const session = requireSuperAdmin(request);
-    await logAuditEvent({
-      actor: session?.uid ?? null,
-      action: "deleted",
-      targetType: "RoomGalleryImage",
-      targetId: imageId,
-      targetName: `Room ID ${roomId} — gallery image`,
-      request,
-      details: `Deleted a gallery image from room ID ${roomId}.`,
+    // New images go to the end of this room's display order by default.
+    const lastImage = await prisma.roomImage.findFirst({
+      where: { roomId },
+      orderBy: { displayOrder: "desc" },
+    });
+    const nextDisplayOrder = (lastImage?.displayOrder ?? -1) + 1;
+
+    const image = await prisma.roomImage.create({
+      data: {
+        roomId,
+        imageUrl,
+        imageKey,
+        caption: body.caption ?? null,
+        displayOrder: body.displayOrder ?? nextDisplayOrder,
+        isFeatured: body.isFeatured ?? false,
+      },
     });
 
-    return NextResponse.json({ success: true, data: null, message: "Gallery image deleted successfully." });
-  } catch (error) {
-    console.error("[RoomGallery] Failed to delete:", error);
+    // Audit trail (Rule 6) — who added a gallery photo to which room.
+    await logAuditEvent({
+      actor: session.uid,
+      action: "created",
+      targetType: "RoomGalleryImage",
+      targetId: image.id,
+      targetName: `${room.name} — gallery image`,
+      request,
+      details: `Added a gallery image to room "${room.name}".`,
+    });
+
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't delete this image. Please try again." },
+      { success: true, data: image, message: "Gallery image added successfully." },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("[RoomGallery] Failed to create:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "We couldn't add this image. Please try again." },
       { status: 500 }
     );
   }

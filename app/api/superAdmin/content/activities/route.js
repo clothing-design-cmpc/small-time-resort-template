@@ -1,50 +1,37 @@
 /**
- * FILE: app/api/superAdmin/content/activities/[activityId]/route.js
+ * FILE: app/api/superAdmin/content/activities/route.js
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * GET    -> fetch a single activity for the edit form.
- * PUT    -> update an activity. Re-checks name uniqueness (excluding
- *           itself) and deletes the old R2 image if it was replaced.
- * DELETE -> deletes the activity and its R2 image.
+ * GET  -> returns every activity, ordered by sortOrder, for the
+ *         Activities Management list page.
+ * POST -> creates a new activity. The image (if any) is already
+ *         uploaded to R2 by the client beforehand — this only saves
+ *         the resulting imageUrl/imageKey plus the rest of the form.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logAuditEvent } from "@/services/auditLog";
 
-export async function GET(request, { params }) {
-  const session = requireSuperAdmin(request);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to view this page." },
-      { status: 401 }
-    );
-  }
-
-  const { activityId } = await params;
-
+export async function GET() {
   try {
-    const activity = await prisma.activity.findUnique({ where: { id: activityId } });
-
-    if (!activity) {
-      return NextResponse.json({ success: false, data: null, message: "Activity not found." }, { status: 404 });
-    }
-
-    return NextResponse.json({ success: true, data: activity, message: "Activity fetched successfully." });
+    const activities = await prisma.activity.findMany({
+      orderBy: { sortOrder: "asc" },
+    });
+    return NextResponse.json({ success: true, data: activities, message: "Activities fetched successfully." });
   } catch (error) {
     console.error("[Activities] Failed to fetch:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't load this activity. Please try again." },
+      { success: false, data: null, message: "We couldn't load the activities. Please try again." },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request, { params }) {
+export async function POST(request) {
   const session = requireSuperAdmin(request);
   if (!session) {
     return NextResponse.json(
@@ -52,115 +39,69 @@ export async function PUT(request, { params }) {
       { status: 401 }
     );
   }
-
-  const { activityId } = await params;
 
   try {
     const body = await request.json();
     const name = body.name?.trim();
 
-    const existingActivity = await prisma.activity.findUnique({ where: { id: activityId } });
-    if (!existingActivity) {
-      return NextResponse.json({ success: false, data: null, message: "Activity not found." }, { status: 404 });
+    if (!name) {
+      return NextResponse.json(
+        { success: false, data: null, message: "Activity name is required." },
+        { status: 400 }
+      );
     }
 
-    // Duplicate check excludes this activity's own current name.
-    if (name && name.toLowerCase() !== existingActivity.name.toLowerCase()) {
-      const nameTaken = await prisma.activity.findFirst({
-        where: { name: { equals: name, mode: "insensitive" }, NOT: { id: activityId } },
-      });
-      if (nameTaken) {
-        return NextResponse.json(
-          { success: false, data: null, message: "An activity with this name already exists." },
-          { status: 409 }
-        );
-      }
+    // Duplicate check — activity names must be unique (case-insensitive),
+    // mirroring the same check the PUT handler runs on rename.
+    const nameTaken = await prisma.activity.findFirst({
+      where: { name: { equals: name, mode: "insensitive" } },
+    });
+    if (nameTaken) {
+      return NextResponse.json(
+        { success: false, data: null, message: "An activity with this name already exists." },
+        { status: 409 }
+      );
     }
 
-    const updatedActivity = await prisma.activity.update({
-      where: { id: activityId },
+    // New activities go to the end of the sort order by default.
+    const lastActivity = await prisma.activity.findFirst({ orderBy: { sortOrder: "desc" } });
+    const nextSortOrder = (lastActivity?.sortOrder ?? -1) + 1;
+
+    const activity = await prisma.activity.create({
       data: {
-        name: name || existingActivity.name,
+        name,
         description: body.description ?? null,
-        duration: body.duration ?? null,
-        minGroupSize: body.minGroupSize,
-        maxGroupSize: body.maxGroupSize,
-        imageUrl: body.imageUrl ?? existingActivity.imageUrl,
-        imageKey: body.imageKey ?? existingActivity.imageKey,
-        isFeatured: body.isFeatured,
-        isActive: body.isActive,
-        sortOrder: body.sortOrder ?? existingActivity.sortOrder,
+        duration: body.duration || "",
+        minGroupSize: body.minGroupSize ?? 1,
+        maxGroupSize: body.maxGroupSize ?? 10,
+        imageUrl: body.imageUrl ?? null,
+        imageKey: body.imageKey ?? null,
+        isActive: body.isActive ?? true,
+        isFeatured: body.isFeatured ?? false,
+        sortOrder: body.sortOrder ?? nextSortOrder,
+        updatedBy: body.updatedBy || null,
       },
     });
 
-    // The image was replaced with a new upload — remove the old R2 file
-    // so the bucket never accumulates orphaned images.
-    if (body.imageKey && existingActivity.imageKey && body.imageKey !== existingActivity.imageKey) {
-      await deleteFromR2(existingActivity.imageKey);
-    }
-
-    // Audit trail (Rule 6) — track activity edits, including renames.
-    // session is guaranteed non-null here since the gate above already returned early.
+    // Audit trail (Rule 6) — who added which activity.
     await logAuditEvent({
       actor: session.uid,
-      action: "updated",
-      targetType: "Activity",
-      targetId: updatedActivity.id,
-      targetName: updatedActivity.name,
-      request,
-      details: `Updated activity "${existingActivity.name}"${updatedActivity.name !== existingActivity.name ? ` → "${updatedActivity.name}"` : ""}.`,
-    });
-
-    return NextResponse.json({ success: true, data: updatedActivity, message: "Activity updated successfully." });
-  } catch (error) {
-    console.error("[Activities] Failed to update:", error);
-    return NextResponse.json(
-      { success: false, data: null, message: "We couldn't save the changes. Please try again." },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(request, { params }) {
-  const session = requireSuperAdmin(request);
-  if (!session) {
-    return NextResponse.json(
-      { success: false, data: null, message: "You don't have permission to do this." },
-      { status: 401 }
-    );
-  }
-
-  const { activityId } = await params;
-
-  try {
-    const activity = await prisma.activity.findUnique({ where: { id: activityId } });
-    if (!activity) {
-      return NextResponse.json({ success: false, data: null, message: "Activity not found." }, { status: 404 });
-    }
-
-    await prisma.activity.delete({ where: { id: activityId } });
-
-    if (activity.imageKey) {
-      await deleteFromR2(activity.imageKey);
-    }
-
-    // Audit trail (Rule 6) — deletions are the most important action to trace.
-    // session is guaranteed non-null here since the gate above already returned early.
-    await logAuditEvent({
-      actor: session.uid,
-      action: "deleted",
+      action: "created",
       targetType: "Activity",
       targetId: activity.id,
       targetName: activity.name,
       request,
-      details: `Deleted activity "${activity.name}".`,
+      details: `Added activity "${activity.name}".`,
     });
 
-    return NextResponse.json({ success: true, data: null, message: "Activity deleted successfully." });
-  } catch (error) {
-    console.error("[Activities] Failed to delete:", error);
     return NextResponse.json(
-      { success: false, data: null, message: "We couldn't delete this activity. Please try again." },
+      { success: true, data: activity, message: "Activity added successfully." },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("[Activities] Failed to create:", error);
+    return NextResponse.json(
+      { success: false, data: null, message: "We couldn't add this activity. Please try again." },
       { status: 500 }
     );
   }

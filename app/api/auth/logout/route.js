@@ -5,12 +5,17 @@
  * PURPOSE:
  * Clears the HttpOnly "session" cookie so middleware.js immediately
  * denies further /superAdmin/* requests, sending the admin back to the
- * login page.
+ * login page. Also sends the Clear-Site-Data header so the browser
+ * wipes any cookies, storage, and cache tied to THIS origin only —
+ * this never touches other origins/tabs (the browser enforces that,
+ * not this code).
  *
  * DATA FLOW:
  * 1. Client calls POST /api/auth/logout (no body needed)
  * 2. The "session" cookie is deleted from the response
- * 3. Client redirects to /superAdmin/login
+ * 3. Clear-Site-Data header instructs the browser to purge this
+ *    origin's cookies/storage/cache
+ * 4. Client redirects to /superAdmin/login
  */
 export const dynamic = "force-dynamic";
 
@@ -36,6 +41,19 @@ export async function POST() {
       path: "/",
       maxAge: 0,
     });
+
+    // Origin-Scoped Session Termination: tells the browser to purge
+    // cookies, localStorage/sessionStorage, and cache for THIS origin
+    // only. Spec-defined (W3C Clear-Site-Data) — cannot reach other
+    // origins or other sites' tabs, only https://<this-domain>.
+    // Skipped on plain HTTP local dev since the header is ignored
+    // (or can error) on insecure contexts in some browsers.
+    if (isProduction) {
+      response.headers.set(
+        "Clear-Site-Data",
+        '"cookies", "storage", "cache"'
+      );
+    }
 
     return response;
   } catch (error) {

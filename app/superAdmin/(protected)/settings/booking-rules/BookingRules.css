@@ -186,6 +186,20 @@
 }
 
 /*
+ * input[aria-invalid="true"]
+ * Red border highlight for a field flagged invalid — used both by
+ * normal zod validation and by the backend's cleaning-buffer conflict
+ * response (services/cleaningBuffer.js), so the admin sees exactly
+ * which Check-in/Check-out Time field needs to change, not just a
+ * toast message.
+ */
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/*
  * .bookingRulesHint
  * Short explanatory line under a field or toggle — always plain
  * English, never just restating the label (Rule 2 comment standard

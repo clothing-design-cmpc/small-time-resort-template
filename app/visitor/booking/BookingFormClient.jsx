@@ -23,7 +23,7 @@
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +33,8 @@ import { useRoomAvailability } from "@/hooks/useRoomAvailability";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
 import { formatTime12Hour } from "@/utils/formatTime";
+import { useToast } from "@/app/visitor/shared/useToast";
+import ToastStack from "@/app/visitor/shared/ToastStack";
 import "./BookingForm.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -79,11 +81,16 @@ const BOOKING_TYPE_LABELS = {
 export default function BookingFormClient({ initialCheckInDate, initialCheckOutDate, initialBookingType, resortPhone }) {
   const { rooms, isLoading: roomsLoading } = usePublicRooms(false);
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
+  const { toasts, showToast, dismissToast } = useToast();
 
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  // Tracks the last quote-conflict message already toasted, so the
+  // debounced quote refetch below doesn't re-toast the identical
+  // message on every keystroke — only a genuinely NEW conflict fires.
+  const lastToastedConflictRef = useRef(null);
 
   // The home calendar (HowToBookSection) only ever sends ?checkout= when
   // 2+ dates were selected there (see app/visitor/booking/page.jsx) —
@@ -195,9 +202,19 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
         });
         setQuote(result);
         setQuoteError(null);
+        lastToastedConflictRef.current = null;
       } catch (error) {
         setQuote(null);
         setQuoteError(error.message);
+        // Stop here and surface it immediately as a toast — a
+        // turnover/cleaning-buffer or blackout conflict means these
+        // dates genuinely aren't bookable, so the guest is told right
+        // away instead of only finding out after filling in guest info
+        // and pressing Confirm.
+        if (lastToastedConflictRef.current !== error.message) {
+          showToast(`✕ ${error.message}`, "error");
+          lastToastedConflictRef.current = error.message;
+        }
       }
     }, 500);
 
@@ -314,6 +331,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
   return (
     <form className="bookingForm" onSubmit={handleSubmit(onSubmit)} noValidate>
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
       <p className="bookingFormLegend">* Required fields</p>
 
       {/* Booking type pills — hidden in favor of a plain locked label
@@ -476,7 +494,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
       {submitError && <p className="bookingFormSubmitError" role="alert">{submitError}</p>}
 
-      <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating}>
+      <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating || Boolean(quoteError)}>
         {isSubmitting ? "Confirming…" : "Confirm Booking"}
       </button>
     </form>

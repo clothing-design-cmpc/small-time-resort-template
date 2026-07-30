@@ -15,9 +15,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logAuditEvent } from "@/services/auditLog";
+import { logSecurityEvent } from "@/services/securityLog";
 import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
-import { findCleaningBufferConflict } from "@/services/cleaningBuffer";
+import { findAllCleaningBufferConflicts } from "@/services/cleaningBuffer";
 
 export async function GET(request) {
   try {
@@ -59,15 +59,31 @@ export async function POST(request) {
     // client sent — see services/bookingTypeFlags.js.
     const bookingTypeFlags = normalizeBookingTypeFlags(body);
 
-    // Cleaning-buffer conflict check — the form doesn't expose
-    // cleaningHours yet (it's edited separately from the Room Status
-    // section), so a brand-new rule always starts at the schema
+    // Cleaning-buffer conflict check — checked against ALL THREE booking
+    // types' own check-in/check-out time pairs (Overnight, Day Tour,
+    // Night Tour), not just Overnight, since a single rule set holds all
+    // three pairs plus one shared cleaningHours column. The form doesn't
+    // expose cleaningHours yet (it's edited separately from the Room
+    // Status section), so a brand-new rule always starts at the schema
     // default of 2 hours; mirror that same default here so this
     // pre-check matches what will actually be saved.
     const cleaningHoursForCheck = Number.isFinite(Number(body.cleaningHours)) ? Number(body.cleaningHours) : 2;
-    const bufferConflict = findCleaningBufferConflict(body.checkInTime, body.checkOutTime, cleaningHoursForCheck);
+    const bufferConflict = findAllCleaningBufferConflicts(
+      {
+        checkInTime: body.checkInTime,
+        checkOutTime: body.checkOutTime,
+        dayTourStartTime: body.dayTourStartTime,
+        dayTourEndTime: body.dayTourEndTime,
+        nightTourStartTime: body.nightTourStartTime,
+        nightTourEndTime: body.nightTourEndTime,
+      },
+      cleaningHoursForCheck
+    );
     if (bufferConflict) {
-      return NextResponse.json({ success: false, data: null, message: bufferConflict }, { status: 400 });
+      return NextResponse.json(
+        { success: false, data: null, message: bufferConflict.message, conflictFields: bufferConflict.fields },
+        { status: 400 }
+      );
     }
 
     const createdRule = await prisma.bookingRule.create({
@@ -128,12 +144,9 @@ export async function POST(request) {
 
     // Audit trail (Rule 6) — record who created this rule set.
     const session = requireSuperAdmin(request);
-    await logAuditEvent({
+    await logSecurityEvent({
+      eventType: "admin_action",
       actor: session?.uid ?? null,
-      action: "created",
-      targetType: "BookingRule",
-      targetId: createdRule.id,
-      targetName: createdRule.name,
       request,
       details: `Created booking rule set "${createdRule.name}".`,
     });

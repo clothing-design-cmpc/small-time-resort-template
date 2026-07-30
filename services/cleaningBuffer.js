@@ -73,6 +73,51 @@ export function findCleaningBufferConflict(checkInTime, checkOutTime, cleaningHo
   );
 }
 
+// Maps each booking type's check-in/check-out field pair to the actual
+// form field names on BookingRule, so a caller can tell the admin
+// exactly which field(s) to fix instead of just showing a message.
+const BOOKING_TYPE_TIME_FIELDS = [
+  { type: "overnight", label: "Overnight Stay", checkInField: "checkInTime", checkOutField: "checkOutTime" },
+  { type: "day_tour", label: "Day Tour", checkInField: "dayTourStartTime", checkOutField: "dayTourEndTime" },
+  { type: "night_tour", label: "Night Tour", checkInField: "nightTourStartTime", checkOutField: "nightTourEndTime" },
+];
+
+/**
+ * findAllCleaningBufferConflicts
+ * Runs findCleaningBufferConflict() against EVERY booking type's own
+ * check-in/check-out time pair (Overnight, Day Tour, Night Tour) using
+ * the SAME shared cleaningHours value — a single BookingRule row holds
+ * all three type pairs plus one cleaningHours column (see
+ * prisma/schema.prisma), so a conflict on any one of them is a real,
+ * saveable conflict for that rule set. Stops at the first conflict
+ * found (checked in the order above) and returns which exact field(s)
+ * caused it, so the admin form can highlight them instead of leaving
+ * the admin to guess which of the 6 time fields is the problem.
+ *
+ * @param {object} values        - object with checkInTime/checkOutTime,
+ *                                 dayTourStartTime/dayTourEndTime,
+ *                                 nightTourStartTime/nightTourEndTime
+ * @param {number} cleaningHours - shared cleaning hours for this rule set
+ * @returns {{ message: string, fields: string[] } | null}
+ */
+export function findAllCleaningBufferConflicts(values, cleaningHours) {
+  for (const pair of BOOKING_TYPE_TIME_FIELDS) {
+    const checkInValue = values?.[pair.checkInField];
+    const checkOutValue = values?.[pair.checkOutField];
+    if (!checkInValue || !checkOutValue) continue; // type not configured yet — nothing to check
+
+    const conflictMessage = findCleaningBufferConflict(checkInValue, checkOutValue, cleaningHours);
+    if (conflictMessage) {
+      return {
+        message: `${pair.label}: ${conflictMessage}`,
+        fields: [pair.checkInField, pair.checkOutField, "cleaningHours"],
+      };
+    }
+  }
+  return null;
+}
+
+
 /**
  * getCleaningEndsAt
  * Given an existing booking's actual checkout moment (a real Date) and

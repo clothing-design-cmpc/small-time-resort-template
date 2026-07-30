@@ -283,6 +283,8 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
     reset,
     watch,
     setValue,
+    setError,
+    clearErrors,
     formState: { isSubmitting, errors },
   } = useForm({
     resolver: zodResolver(bookingRuleSchema),
@@ -506,6 +508,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
   ]);
 
   async function onSubmit(data) {
+    clearErrors(["checkInTime", "checkOutTime", "dayTourStartTime", "dayTourEndTime", "nightTourStartTime", "nightTourEndTime"]);
     try {
       if (isEditMode) {
         await axios.put(`/api/superAdmin/settings/booking-rules/${existingRule.id}`, data);
@@ -518,6 +521,32 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
     } catch (submitError) {
       const message = submitError?.response?.data?.message || "We couldn't save this rule set. Please try again.";
       showToast(`✕ ${message}`, "error");
+
+      // Cleaning-buffer conflicts (services/cleaningBuffer.js) come back
+      // with a conflictFields array naming the exact check-in/check-out
+      // time field(s) that caused the overlap — highlight them right on
+      // the form (red border + inline message, same pattern as normal
+      // zod validation errors) and scroll the first one into view, so
+      // the admin doesn't have to guess which of the 6 time fields to
+      // fix. cleaningHours itself isn't a field on this form (it's
+      // edited separately under Section 6: Room Status), so it's named
+      // in the toast message text but never targeted with setError here.
+      const conflictFields = submitError?.response?.data?.conflictFields;
+      if (Array.isArray(conflictFields) && conflictFields.length > 0) {
+        conflictFields
+          .filter((fieldName) => fieldName !== "cleaningHours")
+          .forEach((fieldName) => setError(fieldName, { type: "conflict", message }));
+
+        const firstFieldName = conflictFields.find((fieldName) => fieldName !== "cleaningHours");
+        if (firstFieldName) {
+          // checkInTime/checkOutTime render on inputs id'd checkInTimeSingle/
+          // checkOutTimeSingle (Section 1's single-date panel) — every other
+          // conflictable field's DOM id matches its registered name exactly.
+          const fieldIdOverrides = { checkInTime: "checkInTimeSingle", checkOutTime: "checkOutTimeSingle" };
+          const targetId = fieldIdOverrides[firstFieldName] || firstFieldName;
+          document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
     }
   }
 
@@ -827,7 +856,10 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="checkInTimeSingle">Check-in Time</label>
-                    <input id="checkInTimeSingle" type="time" {...register("checkInTime")} />
+                    <input id="checkInTimeSingle" type="time" aria-invalid={!!errors.checkInTime} {...register("checkInTime")} />
+                    {errors.checkInTime && (
+                      <span role="alert" className="bookingRulesFormError">{errors.checkInTime.message}</span>
+                    )}
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="overnightStayHours">Total Hours of Stay</label>
@@ -852,7 +884,10 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="checkOutTimeSingle">Check-out Time</label>
-                    <input id="checkOutTimeSingle" type="time" {...register("checkOutTime")} />
+                    <input id="checkOutTimeSingle" type="time" aria-invalid={!!errors.checkOutTime} {...register("checkOutTime")} />
+                    {errors.checkOutTime && (
+                      <span role="alert" className="bookingRulesFormError">{errors.checkOutTime.message}</span>
+                    )}
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="hourlyChargeAmountSingle">Hourly Charge (₱)</label>
@@ -878,7 +913,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="dayTourStartTime">Check-in Time</label>
-                    <input id="dayTourStartTime" type="time" min="01:00" max="11:59" {...register("dayTourStartTime")} />
+                    <input id="dayTourStartTime" type="time" min="01:00" max="11:59" aria-invalid={!!errors.dayTourStartTime} {...register("dayTourStartTime")} />
                     {errors.dayTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.dayTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
@@ -904,7 +939,10 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="dayTourEndTime">Check-out Time</label>
-                    <input id="dayTourEndTime" type="time" {...register("dayTourEndTime")} />
+                    <input id="dayTourEndTime" type="time" aria-invalid={!!errors.dayTourEndTime} {...register("dayTourEndTime")} />
+                    {errors.dayTourEndTime && (
+                      <span role="alert" className="bookingRulesFormError">{errors.dayTourEndTime.message}</span>
+                    )}
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="dayTourPricePerGuest">Bayad Kada Guest (₱)</label>
@@ -922,7 +960,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="nightTourStartTime">Check-in Time</label>
-                    <input id="nightTourStartTime" type="time" min="13:00" max="23:59" {...register("nightTourStartTime")} />
+                    <input id="nightTourStartTime" type="time" min="13:00" max="23:59" aria-invalid={!!errors.nightTourStartTime} {...register("nightTourStartTime")} />
                     {errors.nightTourStartTime && <span role="alert" className="bookingRulesFormError">{errors.nightTourStartTime.message}</span>}
                   </div>
                   <div className="bookingRulesFormField">
@@ -948,7 +986,10 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="nightTourEndTime">Check-out Time</label>
-                    <input id="nightTourEndTime" type="time" {...register("nightTourEndTime")} />
+                    <input id="nightTourEndTime" type="time" aria-invalid={!!errors.nightTourEndTime} {...register("nightTourEndTime")} />
+                    {errors.nightTourEndTime && (
+                      <span role="alert" className="bookingRulesFormError">{errors.nightTourEndTime.message}</span>
+                    )}
                   </div>
                   <div className="bookingRulesFormField">
                     <label htmlFor="nightTourPricePerGuest">Bayad Kada Guest (₱)</label>

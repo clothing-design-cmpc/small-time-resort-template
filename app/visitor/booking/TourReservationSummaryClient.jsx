@@ -40,13 +40,15 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import { formatTime12Hour } from "@/utils/formatTime";
+import { useToast } from "@/app/visitor/shared/useToast";
+import ToastStack from "@/app/visitor/shared/ToastStack";
 import "./BookingForm.css";
 import "./ReservationSummary.css";
 
@@ -76,11 +78,17 @@ function formatDateText(dateKey) {
 export default function TourReservationSummaryClient({ checkInDate, bookingType, resortPhone }) {
   const { bookingRules, isLoading: isRulesLoading, error: rulesError } = usePublicBookingRules();
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
+  const { toasts, showToast, dismissToast } = useToast();
 
   const [quote, setQuote] = useState(null);
   const [quoteError, setQuoteError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  // Tracks the last quote-conflict message already toasted, so the
+  // debounced quote refetch below doesn't re-toast the identical
+  // message on every re-render — only a genuinely NEW conflict (or a
+  // fresh one after the guest changes something) fires again.
+  const lastToastedConflictRef = useRef(null);
 
   const isAllowed = bookingType === "day_tour" ? bookingRules?.allowDayTour : bookingRules?.allowNightTour;
   const startTime = bookingType === "day_tour" ? bookingRules?.dayTourStartTime : bookingRules?.nightTourStartTime;
@@ -123,9 +131,19 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
         });
         setQuote(result);
         setQuoteError(null);
+        lastToastedConflictRef.current = null;
       } catch (error) {
         setQuote(null);
         setQuoteError(error.message);
+        // Stop here and surface it immediately as a toast — a
+        // turnover/cleaning-buffer or blackout conflict means this
+        // date+time genuinely isn't bookable, so the guest is told
+        // right away instead of only finding out after filling in
+        // contact info and pressing Confirm.
+        if (lastToastedConflictRef.current !== error.message) {
+          showToast(`✕ ${error.message}`, "error");
+          lastToastedConflictRef.current = error.message;
+        }
       }
     }, 300);
 
@@ -242,6 +260,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
 
   return (
     <div className="reservationSummary">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
       {/* ─── Read-only text summary — package, date, tour time window,
           guest count, and pax/fee info. Nothing here is an editable
           input; the visitor already made these choices on the homepage
@@ -345,7 +364,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
 
         {submitError && <p className="bookingFormSubmitError" role="alert">{submitError}</p>}
 
-        <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating}>
+        <button type="submit" className="bookingFormSubmit" disabled={isSubmitting || isFormValidating || Boolean(quoteError)}>
           {isSubmitting ? "Confirming…" : "Confirm Booking"}
         </button>
       </form>

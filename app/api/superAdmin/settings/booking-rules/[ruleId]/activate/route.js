@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function POST(request, { params }) {
   const { ruleId } = await params;
@@ -39,9 +39,12 @@ export async function POST(request, { params }) {
     });
 
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "updated",
+      targetType: "BookingRule",
+      targetId: updatedRule.id,
+      targetName: rule.name,
       request,
       details: `${nextIsActive ? "Activated" : "Deactivated"} booking rule set "${rule.name}".`,
     });

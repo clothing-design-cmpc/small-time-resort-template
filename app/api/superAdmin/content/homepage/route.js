@@ -19,7 +19,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET() {
   try {
@@ -117,9 +117,12 @@ export async function PUT(request) {
 
     // Audit trail (Rule 6) — homepage.customized action.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "updated",
+      targetType: "Homepage",
+      targetId: updatedSettings.id,
+      targetName: "Homepage Customization",
       request,
       details: "Updated homepage customization (hero, CTA, featured rooms, or SEO metadata).",
     });

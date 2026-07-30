@@ -1,0 +1,175 @@
+/*
+ * .auditLogsHeaderRow
+ * Matches the Security Logs / Bookings page header pattern (eyebrow ->
+ * title) for visual consistency across all super-admin list pages.
+ */
+.auditLogsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.auditLogsHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.auditLogsEyebrow {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auditLogsTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.auditLogsSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  max-width: 65ch;
+}
+
+/*
+ * .auditLogsFilterRow
+ * Pill-style action filter — same interaction pattern as Security
+ * Logs' event-type pills, kept consistent across the whole app.
+ */
+.auditLogsFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.auditLogsFilterPill {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
+}
+
+.auditLogsFilterPill:hover {
+  border-color: var(--color-border-strong);
+}
+
+.auditLogsFilterPillActive {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.auditLogsToolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.auditLogsSelectRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-lg);
+}
+
+.auditLogsSelectLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auditLogsSelect {
+  min-width: 160px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-family: var(--font-admin-body), sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.auditLogsSelect:hover {
+  border-color: var(--color-border-strong);
+}
+
+/*
+ * .auditLogTargetCell
+ * Groups the target type + target name so both read as one unit in
+ * the Target column (e.g. "Room: Azure Villa 1").
+ */
+.auditLogTargetCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.auditLogTargetType {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auditLogTargetName {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+/*
+ * .auditLogDetailPanel
+ * Grid layout for the expanded-row detail fields, matching Security
+ * Logs' detail panel pattern.
+ */
+.auditLogDetailPanel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md) var(--space-lg);
+}
+
+.auditLogDetailField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.auditLogDetailField--full {
+  grid-column: 1 / -1;
+}
+
+.auditLogDetailLabel {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.auditLogDetailValue {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.auditLogDetailValue--wrap {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}

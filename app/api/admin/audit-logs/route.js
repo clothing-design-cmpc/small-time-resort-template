@@ -1,0 +1,84 @@
+/**
+ * FILE: app/api/admin/audit-logs/route.js
+ * ROLE: Super-admin only — verified via requireSuperAdmin(), not middleware.js
+ *
+ * PURPOSE:
+ * Paginated read of the AuditLog table for the Audit Logs admin page —
+ * who created/updated/deleted which piece of content (rooms, shop
+ * products, policies, booking rules, etc.), and when. Separate from
+ * /api/admin/security-logs (Rule 38 — logins/anomalies/attacks).
+ *
+ * DATA FLOW:
+ * 1. app/superAdmin/(protected)/audit-logs/AuditLogsClient.jsx fetches
+ *    this on mount and whenever the page/action/targetType filter changes
+ * 2. requireSuperAdmin() checks the session — this route is never
+ *    protected by middleware.js (its matcher only covers page routes)
+ * 3. Optional ?action=, ?targetType= narrow the result; otherwise all
+ *    entries are returned, newest first
+ */
+export const dynamic = "force-dynamic";
+
+import { NextResponse } from "next/server";
+import { prisma } from "@/services/prisma";
+import { requireSuperAdmin } from "@/services/adminSession";
+
+const PAGE_SIZE = 10;
+
+export async function GET(request) {
+  const session = requireSuperAdmin(request);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, data: null, message: "You don't have permission to view this page." },
+      { status: 401 }
+    );
+  }
+
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const action = searchParams.get("action");
+  const targetType = searchParams.get("targetType");
+
+  try {
+    // Built incrementally so each filter is only applied when actually
+    // set — an unset filter must never accidentally narrow the result.
+    const where = {};
+    if (action && action !== "all") where.action = action;
+    if (targetType && targetType !== "all") where.targetType = targetType;
+
+    const [logs, totalCount, targetTypes] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+      prisma.auditLog.count({ where }),
+      // Populates the Target Type filter's option list — always the full
+      // set of distinct types ever logged, independent of current filters.
+      prisma.auditLog.findMany({
+        distinct: ["targetType"],
+        select: { targetType: true },
+        orderBy: { targetType: "asc" },
+      }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        logs,
+        page,
+        pageSize: PAGE_SIZE,
+        totalCount,
+        totalPages: Math.max(1, Math.ceil(totalCount / PAGE_SIZE)),
+        targetTypes: targetTypes.map((row) => row.targetType),
+      },
+      message: "Audit logs fetched successfully.",
+    });
+  } catch (error) {
+    console.error("[api/admin/audit-logs] Failed to fetch:", error.message);
+    return NextResponse.json(
+      { success: false, data: null, message: "Failed to load audit logs. Please try again." },
+      { status: 500 }
+    );
+  }
+}

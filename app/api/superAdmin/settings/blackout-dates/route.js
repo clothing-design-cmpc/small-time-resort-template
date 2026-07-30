@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 // "Cleaning" is intentionally NOT a valid manual reason anymore —
 // cleaning is now fully automatic (services/roomStatus.js computes a
@@ -81,9 +81,12 @@ export async function POST(request) {
 
     // Audit trail (Rule 6) — blackout dates directly affect availability.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "created",
+      targetType: "BlackoutDate",
+      targetId: blackoutDate.id,
+      targetName: blackoutDate.room.name,
       request,
       details: `Added a blackout range for "${blackoutDate.room.name}" (${body.startDate} – ${body.endDate}, reason: ${reason}).`,
     });

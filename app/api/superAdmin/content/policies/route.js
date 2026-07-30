@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET() {
   try {
@@ -139,9 +139,12 @@ export async function PUT(request) {
     );
 
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "updated",
+      targetType: "Policies",
+      targetId: "singleton",
+      targetName: "Policies & Contact Info",
       request,
       details: changedFields.length
         ? `Updated policy section(s): ${changedFields.map((f) => POLICY_FIELD_LABELS[f]).join(", ")}.`

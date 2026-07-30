@@ -70,6 +70,10 @@ const STATUS_STYLES = {
   maintenance: { label: "Maintenance", color: "#8b5cf6" },
   private: { label: "Private", color: "#ec4899" },
   custom: { label: "Custom", color: "#71717a" },
+  // Audit Logs page (app/superAdmin/(protected)/audit-logs) — action column
+  created: { label: "Created", color: "#10b981" },
+  updated: { label: "Updated", color: "#3b82f6" },
+  deleted: { label: "Deleted", color: "#ef4444" },
 };
 
 export default function StatusBadge({ status }) {

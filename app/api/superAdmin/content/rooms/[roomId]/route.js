@@ -17,7 +17,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET(request, { params }) {
   const session = requireSuperAdmin(request);
@@ -105,9 +105,12 @@ export async function PUT(request, { params }) {
 
     // Audit trail (Rule 6) — who changed this room, and what price moved.
     // session is guaranteed non-null here since the gate above already returned early.
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session.uid,
+      action: "updated",
+      targetType: "Room",
+      targetId: updatedRoom.id,
+      targetName: updatedRoom.name,
       request,
       details: `Updated room "${existingRoom.name}" (₱${existingRoom.pricePerNight} → ₱${updatedRoom.pricePerNight}).`,
     });
@@ -170,9 +173,12 @@ export async function DELETE(request, { params }) {
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
     // session is guaranteed non-null here since the gate above already returned early.
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session.uid,
+      action: "deleted",
+      targetType: "Room",
+      targetId: room.id,
+      targetName: room.name,
       request,
       details: `Deleted room "${room.name}"${wasFeatured ? " (also removed from homepage featured rooms)" : ""}.`,
     });

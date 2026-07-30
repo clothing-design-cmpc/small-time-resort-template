@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function PUT(request, { params }) {
   const { seasonId } = await params;
@@ -37,9 +37,12 @@ export async function PUT(request, { params }) {
 
     // Audit trail (Rule 6) — dynamic pricing changes directly affect revenue.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "updated",
+      targetType: "SeasonalPrice",
+      targetId: updatedEntry.id,
+      targetName: `${updatedEntry.seasonName} — ${updatedEntry.room.name}`,
       request,
       details: `Updated seasonal price "${existingEntry.seasonName}" for "${updatedEntry.room.name}" (₱${existingEntry.pricePerNight} → ₱${updatedEntry.pricePerNight}).`,
     });
@@ -67,9 +70,12 @@ export async function DELETE(request, { params }) {
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "deleted",
+      targetType: "SeasonalPrice",
+      targetId: existingEntry.id,
+      targetName: existingEntry.seasonName,
       request,
       details: `Deleted seasonal price "${existingEntry.seasonName}".`,
     });

@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function PUT(request, { params }) {
   const { roomId, imageId } = await params;
@@ -38,9 +38,12 @@ export async function PUT(request, { params }) {
 
       // Audit trail (Rule 6) — this changes what visitors see as the room's main photo.
       const session = requireSuperAdmin(request);
-      await logSecurityEvent({
-        eventType: "admin_action",
+      await logAuditEvent({
         actor: session?.uid ?? null,
+        action: "updated",
+        targetType: "Room",
+        targetId: roomId,
+        targetName: null,
         request,
         details: `Set a gallery image as the main photo for room ID ${roomId}.`,
       });
@@ -83,9 +86,12 @@ export async function DELETE(request, { params }) {
 
     // Audit trail (Rule 6) — room image deletions are tracked per blueprint.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "deleted",
+      targetType: "RoomGalleryImage",
+      targetId: imageId,
+      targetName: `Room ID ${roomId} — gallery image`,
       request,
       details: `Deleted a gallery image from room ID ${roomId}.`,
     });

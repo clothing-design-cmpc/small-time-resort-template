@@ -366,6 +366,34 @@ model SecurityLog {
 }
 
 // ============================================================
+// MODEL: AuditLog  (Rule 6 — content/settings change trail)
+// ============================================================
+// Separate from SecurityLog (Rule 38 — login attempts, anomalies,
+// attacks, device/geo). AuditLog answers "WHO changed WHAT content"
+// (rooms, amenities, shop products, activities, testimonials, gallery,
+// policies, homepage, booking rules) — never login/security events.
+// See /superAdmin/audit-logs vs /superAdmin/security-logs: two
+// separate pages for two separate purposes, per Rule 38.1.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor      String? // the admin's email/name who performed the change
+  action     String // created | updated | deleted
+  targetType String   @map("target_type") // e.g. "Room", "Policy", "BookingRule"
+  targetId   String?  @map("target_id") // the affected row's id, when it still exists
+  targetName String?  @map("target_name") // human-readable label, e.g. the room's name — kept even after the row is deleted
+  details    String?  @db.Text // human-readable one-liner, e.g. "Updated room \"Azure Villa 1\" (₱5,000 -> ₱5,500)."
+  ipAddress  String?  @map("ip_address")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Speeds up "most recent changes" (default sort) and the Actor/Target Type filters.
+  @@index([createdAt])
+  @@index([actor])
+  @@index([targetType])
+  @@map("audit_logs")
+}
+
+// ============================================================
 // MODEL: BlockedIp  (3-Gatekeeper breach response — auto/manual IP block)
 // ============================================================
 // One row per blocked IP address. Checked by middleware.js on every

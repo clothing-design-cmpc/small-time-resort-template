@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 const VALID_REASONS = ["Maintenance", "Private", "Custom"];
 
@@ -40,9 +40,12 @@ export async function PUT(request, { params }) {
 
     // Audit trail (Rule 6) — blackout dates directly affect availability.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "updated",
+      targetType: "BlackoutDate",
+      targetId: updatedEntry.id,
+      targetName: updatedEntry.room.name,
       request,
       details: `Updated blackout range for "${updatedEntry.room.name}" (${body.startDate} – ${body.endDate}).`,
     });
@@ -70,9 +73,12 @@ export async function DELETE(request, { params }) {
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "deleted",
+      targetType: "BlackoutDate",
+      targetId: existingEntry.id,
+      targetName: null,
       request,
       details: `Deleted a blackout range (${existingEntry.startDate.toISOString().slice(0, 10)} – ${existingEntry.endDate.toISOString().slice(0, 10)}).`,
     });

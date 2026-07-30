@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET() {
   try {
@@ -55,9 +55,12 @@ export async function PATCH(request) {
     // Audit trail — flipping this affects every guest on the site, so it's
     // always logged regardless of which direction it was flipped.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "updated",
+      targetType: "Maintenance",
+      targetId: "singleton",
+      targetName: "Site-wide Maintenance Mode",
       request,
       details: maintenanceMode
         ? "Enabled site-wide maintenance mode."

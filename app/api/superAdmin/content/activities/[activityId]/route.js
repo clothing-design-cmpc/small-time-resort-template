@@ -14,7 +14,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { deleteFromR2 } from "@/services/r2";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET(request, { params }) {
   const session = requireSuperAdmin(request);
@@ -101,9 +101,12 @@ export async function PUT(request, { params }) {
 
     // Audit trail (Rule 6) — track activity edits, including renames.
     // session is guaranteed non-null here since the gate above already returned early.
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session.uid,
+      action: "updated",
+      targetType: "Activity",
+      targetId: updatedActivity.id,
+      targetName: updatedActivity.name,
       request,
       details: `Updated activity "${existingActivity.name}"${updatedActivity.name !== existingActivity.name ? ` → "${updatedActivity.name}"` : ""}.`,
     });
@@ -143,9 +146,12 @@ export async function DELETE(request, { params }) {
 
     // Audit trail (Rule 6) — deletions are the most important action to trace.
     // session is guaranteed non-null here since the gate above already returned early.
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session.uid,
+      action: "deleted",
+      targetType: "Activity",
+      targetId: activity.id,
+      targetName: activity.name,
       request,
       details: `Deleted activity "${activity.name}".`,
     });

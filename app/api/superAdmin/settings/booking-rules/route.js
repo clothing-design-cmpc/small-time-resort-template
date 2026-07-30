@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
 import { findCleaningBufferConflict } from "@/services/cleaningBuffer";
 
@@ -128,9 +128,12 @@ export async function POST(request) {
 
     // Audit trail (Rule 6) — record who created this rule set.
     const session = requireSuperAdmin(request);
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session?.uid ?? null,
+      action: "created",
+      targetType: "BookingRule",
+      targetId: createdRule.id,
+      targetName: createdRule.name,
       request,
       details: `Created booking rule set "${createdRule.name}".`,
     });

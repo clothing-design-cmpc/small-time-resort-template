@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { logSecurityEvent } from "@/services/securityLog";
+import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET(request) {
   const session = requireSuperAdmin(request);
@@ -94,9 +94,12 @@ export async function POST(request) {
 
     // Audit trail (Rule 6) — who created which room, and when.
     // session is guaranteed non-null here since the gate above already returned early.
-    await logSecurityEvent({
-      eventType: "admin_action",
+    await logAuditEvent({
       actor: session.uid,
+      action: "created",
+      targetType: "Room",
+      targetId: room.id,
+      targetName: room.name,
       request,
       details: `Created room "${room.name}" (₱${room.pricePerNight}/night).`,
     });

@@ -164,7 +164,7 @@ export default function TestimonialsListClient() {
           {testimonial.source === "visitor" ? "Guest" : "Admin"}
         </span>
       ),
-      status: isPending ? <StatusBadge status="pending_review" /> : null,
+      status: isPending ? <StatusBadge status="pending_review" /> : <StatusBadge status="approved_review" />,
       featured: <StatusBadge status={testimonial.isFeatured ? "active" : "suspended"} />,
       actions: (
         <div className="testimonialsRowActions">

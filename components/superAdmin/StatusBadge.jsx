@@ -73,6 +73,7 @@ const STATUS_STYLES = {
   // Testimonials page (app/superAdmin/(protected)/content/testimonials)
   // — visitor-submitted reviews awaiting super-admin approval
   pending_review: { label: "Pending Approval", color: "#3b82f6" },
+  approved_review: { label: "Approved", color: "#10b981" },
   // Audit Logs page (app/superAdmin/(protected)/audit-logs) — action column
   created: { label: "Created", color: "#10b981" },
   updated: { label: "Updated", color: "#3b82f6" },

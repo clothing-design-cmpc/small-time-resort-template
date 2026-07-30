@@ -51,6 +51,7 @@ export async function PUT(request, { params }) {
         rating: body.rating ?? existingTestimonial.rating,
         quote: (body.quote ?? existingTestimonial.quote).slice(0, 500),
         isFeatured: body.isFeatured ?? existingTestimonial.isFeatured,
+        isApproved: body.isApproved ?? existingTestimonial.isApproved,
         displayOrder: body.displayOrder ?? existingTestimonial.displayOrder,
         updatedBy: body.updatedBy || existingTestimonial.updatedBy,
       },
@@ -62,7 +63,14 @@ export async function PUT(request, { params }) {
       await deleteFromR2(existingTestimonial.guestPhotoKey);
     }
 
-    // Audit trail (Rule 6) — track testimonial edits.
+    // Audit trail (Rule 6) — track testimonial edits. Approval on a
+    // visitor-submitted review gets its own message since that's a
+    // meaningfully different action from a normal content edit.
+    const approvalChanged = existingTestimonial.isApproved !== updatedTestimonial.isApproved;
+    const auditDetails = approvalChanged
+      ? `${updatedTestimonial.isApproved ? "Approved" : "Un-approved"} the guest review from "${existingTestimonial.guestName}".`
+      : `Updated testimonial from "${existingTestimonial.guestName}".`;
+
     // session is guaranteed non-null here since the gate above already returned early.
     await logAuditEvent({
       actor: session.uid,
@@ -71,7 +79,7 @@ export async function PUT(request, { params }) {
       targetId: updatedTestimonial.id,
       targetName: updatedTestimonial.guestName,
       request,
-      details: `Updated testimonial from "${existingTestimonial.guestName}".`,
+      details: auditDetails,
     });
 
     return NextResponse.json({ success: true, data: updatedTestimonial, message: "Testimonial updated successfully." });

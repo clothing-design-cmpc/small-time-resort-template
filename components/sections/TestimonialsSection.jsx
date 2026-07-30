@@ -12,18 +12,26 @@
  *    set by the super-admin under Content > Homepage), then queries the
  *    Testimonial table using that config — same two-step pattern as the
  *    Rooms "featured" query, just config-driven instead of hardcoded
- * 3. Returns null entirely when the admin has turned the section off,
- *    OR when there are zero testimonials in the database — no
- *    placeholder/sample reviews are ever shown, so what a visitor sees
- *    always matches exactly what's in Super-Admin > Testimonials.
+ * 3. Returns null entirely when the admin has turned the section off.
+ *    When there are zero approved reviews yet, the section still
+ *    renders (header + "Create Review" button + empty state) so a
+ *    fresh site always has somewhere for the first review to go — no
+ *    placeholder/sample reviews are ever shown, only real approved ones.
  * 4. Eyebrow/title text come from SystemSettings
  *    (testimonialsEyebrow/testimonialsTitle, same Homepage section
  *    header fields every other section on the page uses) — never
  *    hardcoded, with the current copy as the fallback default so the
  *    heading is never blank before an admin sets custom text.
+ * 5. "Create Review" opens CreateReviewModal.jsx (Client Component),
+ *    which POSTs to /api/reviews. New submissions are inserted with
+ *    isApproved: false and never appear here until a super-admin
+ *    approves them under Super-Admin > Testimonials — this section's
+ *    query always filters isApproved: true, defensively, even when
+ *    featuredOnly is turned off.
  */
 import { prisma } from "@/services/prisma";
 import Image from "next/image";
+import CreateReviewModal from "./CreateReviewModal";
 import "./TestimonialsSection.css";
 
 /**
@@ -70,18 +78,16 @@ export default async function TestimonialsSection() {
   const eyebrowText = settings?.testimonialsEyebrow || "Guest Reviews";
   const titleText = settings?.testimonialsTitle || "What Guests Say";
 
+  // isApproved: true is always applied, even when featuredOnly is off —
+  // a visitor-submitted review must be approved by a super-admin before
+  // it can appear here under any configuration.
   const testimonials = await prisma.testimonial
     .findMany({
-      where: featuredOnly ? { isFeatured: true } : {},
+      where: featuredOnly ? { isFeatured: true, isApproved: true } : { isApproved: true },
       orderBy: { displayOrder: "asc" },
       take: count,
     })
     .catch(() => []);
-
-  // No placeholder fallback — if there are no real testimonials yet,
-  // hide the section entirely rather than showing sample/fake reviews
-  // that don't exist in the database.
-  if (testimonials.length === 0) return null;
 
   return (
     <section className="testimonialsSection" id="testimonials">
@@ -91,35 +97,43 @@ export default async function TestimonialsSection() {
           <h2 className="testimonialsTitle">{titleText}</h2>
         </div>
 
-        <div className="testimonialsGrid">
-          {testimonials.map((t) => (
-            <article key={t.id} className="testimonialCard">
-              <div className="testimonialAvatarRow">
-                {/* Guest photo — uploaded via Super-Admin > Testimonials, stored
-                    in Cloudflare R2. Falls back to an initials avatar when no
-                    photo was uploaded, so every card looks intentional. */}
-                {t.guestPhoto ? (
-                  <Image
-                    src={t.guestPhoto}
-                    alt={t.guestName}
-                    width={48}
-                    height={48}
-                    className="testimonialAvatarPhoto"
-                  />
-                ) : (
-                  <div className="testimonialAvatarInitials" aria-hidden="true">
-                    {getInitials(t.guestName)}
+        {testimonials.length > 0 ? (
+          <div className="testimonialsGrid">
+            {testimonials.map((t) => (
+              <article key={t.id} className="testimonialCard">
+                <div className="testimonialAvatarRow">
+                  {/* Guest photo — uploaded via Super-Admin > Testimonials, stored
+                      in Cloudflare R2. Falls back to an initials avatar when no
+                      photo was uploaded, so every card looks intentional. */}
+                  {t.guestPhoto ? (
+                    <Image
+                      src={t.guestPhoto}
+                      alt={t.guestName}
+                      width={48}
+                      height={48}
+                      className="testimonialAvatarPhoto"
+                    />
+                  ) : (
+                    <div className="testimonialAvatarInitials" aria-hidden="true">
+                      {getInitials(t.guestName)}
+                    </div>
+                  )}
+                  <div className="testimonialAvatarMeta">
+                    <span className="testimonialName">{t.guestName}</span>
+                    <StarRating count={t.rating} />
                   </div>
-                )}
-                <div className="testimonialAvatarMeta">
-                  <span className="testimonialName">{t.guestName}</span>
-                  <StarRating count={t.rating} />
                 </div>
-              </div>
-              <blockquote className="testimonialQuote">&ldquo;{t.quote}&rdquo;</blockquote>
-            </article>
-          ))}
-        </div>
+                <blockquote className="testimonialQuote">&ldquo;{t.quote}&rdquo;</blockquote>
+              </article>
+            ))}
+          </div>
+        ) : (
+          // No real reviews approved yet — no placeholder/sample reviews
+          // are ever shown, just a friendly empty state (Rule 25.3).
+          <p className="testimonialsEmptyState">Be the first to share your stay with us!</p>
+        )}
+
+        <CreateReviewModal />
       </div>
     </section>
   );

@@ -1,0 +1,244 @@
+/*
+ * .createReviewBackdrop / .createReviewModal
+ * Same centered-dialog pattern as WalkInChatWidget.css / the
+ * super-admin ConfirmationModal, using the shared light resort
+ * palette tokens.
+ */
+.createReviewBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 43, 32, 0.45);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.createReviewModal {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+}
+
+.createReviewCloseButton {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.createReviewCloseButton:hover,
+.createReviewCloseButton:focus-visible,
+.createReviewCloseButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.createReviewTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.createReviewSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.createReviewField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.createReviewField input[type="text"],
+.createReviewField textarea {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.createReviewField input[type="file"] {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.createReviewOptionalLabel {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* Live character counter under the review textarea (Rule 34.3) */
+.createReviewCharCount {
+  align-self: flex-end;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .createReviewStarInput
+ * Five clickable star buttons for the 1-5 rating field. Larger tap
+ * targets than the display-only star rating used on review cards,
+ * since these are real interactive buttons (min 44x44, Rule 29.1).
+ */
+.createReviewStarInput {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+
+.createReviewStarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--transition-fast);
+}
+
+.createReviewStarButton--filled {
+  color: #f59e0b;
+}
+
+.createReviewStarButton:hover,
+.createReviewStarButton:focus-visible {
+  color: #f59e0b;
+}
+
+/*
+ * .createReviewPhotoPreviewRow
+ * Small thumbnail + remove button shown after a photo is chosen, so
+ * the guest can confirm what they're about to submit.
+ */
+.createReviewPhotoPreviewRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.createReviewPhotoPreview {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+
+.createReviewRemovePhotoButton {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.createReviewRemovePhotoButton:hover,
+.createReviewRemovePhotoButton:focus-visible,
+.createReviewRemovePhotoButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.createReviewError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.createReviewSubmitButton {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: 8px;
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  transition: background-color var(--transition-fast);
+}
+
+.createReviewSubmitButton:hover,
+.createReviewSubmitButton:focus-visible,
+.createReviewSubmitButton:active {
+  background-color: var(--color-accent-hover);
+}
+
+.createReviewSubmitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/*
+ * .createReviewSuccess
+ * Shown in place of the form immediately after a successful submit.
+ * Modal auto-closes a few seconds later (see component).
+ */
+.createReviewSuccess {
+  text-align: center;
+  padding: var(--space-lg) 0;
+}
+
+.createReviewSuccessTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.createReviewSuccessSubtitle {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 32ch;
+  margin-inline: auto;
+}

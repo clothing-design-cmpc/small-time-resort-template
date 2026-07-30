@@ -146,6 +146,31 @@
   background-color: rgba(239, 68, 68, 0.1);
 }
 
+/*
+ * .testimonialsRowActionButton--approve
+ * Only rendered on visitor-submitted reviews still pending approval —
+ * green to distinguish it as the positive/primary action on that row.
+ */
+.testimonialsRowActionButton--approve {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.testimonialsRowActionButton--approve:hover,
+.testimonialsRowActionButton--approve:focus-visible {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+/*
+ * .testimonialsSourceCell
+ * Plain-text "Admin" / "Guest" label distinguishing who created the
+ * row — informational only, not a status, so it isn't a StatusBadge.
+ */
+.testimonialsSourceCell {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
 /* ============================================================
  * CREATE / EDIT MODAL
  * ============================================================ */

@@ -855,12 +855,19 @@ model Testimonial {
   quote        String   @db.VarChar(500)
   isFeatured   Boolean  @default(false) @map("is_featured") // shown on homepage
   displayOrder Int      @default(0) @map("display_order")
+  // Visitor-submitted reviews (source: "visitor") default to isApproved:
+  // false so they stay hidden from every public query until a
+  // super-admin reviews and approves them. Admin-created rows (source:
+  // "admin") default to true so existing behavior is unchanged.
+  source       String   @default("admin") // "admin" | "visitor"
+  isApproved   Boolean  @default(true) @map("is_approved")
   updatedBy    String?  @map("updated_by") // super-admin user id who last saved this testimonial
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([isFeatured])
   @@index([displayOrder])
+  @@index([isApproved])
   @@map("testimonials")
 }
 

@@ -116,16 +116,38 @@ export default function TestimonialsListClient() {
     }
   }
 
+  /**
+   * handleApprove
+   * Approves a visitor-submitted review (isApproved: false -> true) so
+   * it becomes eligible to show on the public site. Admin-created rows
+   * are already isApproved: true by default and never show this action.
+   */
+  async function handleApprove(testimonial) {
+    try {
+      await updateTestimonial(testimonial.id, { isApproved: true });
+      showToast(`✓ Approved the review from "${testimonial.guestName}".`, "success");
+    } catch {
+      showToast("✕ Failed to approve this review.", "error");
+    }
+  }
+
   const columns = [
     { key: "photo", label: "Photo", align: "center" },
     { key: "guestName", label: "Guest Name" },
     { key: "rating", label: "Rating", align: "center" },
     { key: "quote", label: "Quote" },
+    { key: "source", label: "Source", align: "center" },
+    { key: "status", label: "Status", align: "center" },
     { key: "featured", label: "Featured?", align: "center" },
     { key: "actions", label: "Actions", align: "right" },
   ];
 
   const rows = testimonials.map((testimonial) => {
+    // Visitor-submitted reviews start unapproved (Rule: never trust
+    // public writes to go live without moderation) — flagged here so
+    // the admin can spot and act on them at a glance.
+    const isPending = testimonial.source === "visitor" && !testimonial.isApproved;
+
     return {
       id: testimonial.id,
       photo: <PhotoCell guestPhoto={testimonial.guestPhoto} guestName={testimonial.guestName} />,
@@ -136,9 +158,27 @@ export default function TestimonialsListClient() {
           {testimonial.quote.length > 80 ? `${testimonial.quote.slice(0, 80)}…` : testimonial.quote}
         </span>
       ),
+      source: (
+        <span className="testimonialsSourceCell">
+          {testimonial.source === "visitor" ? "Guest" : "Admin"}
+        </span>
+      ),
+      status: isPending ? <StatusBadge status="pending_review" /> : null,
       featured: <StatusBadge status={testimonial.isFeatured ? "active" : "suspended"} />,
       actions: (
         <div className="testimonialsRowActions">
+          {isPending && (
+            <button
+              type="button"
+              className="testimonialsRowActionButton testimonialsRowActionButton--approve"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleApprove(testimonial);
+              }}
+            >
+              Approve
+            </button>
+          )}
           <button
             type="button"
             className="testimonialsRowActionButton"

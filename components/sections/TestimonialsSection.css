@@ -167,3 +167,43 @@
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
+
+/*
+ * .testimonialsEmptyState
+ * Shown instead of the grid when there are zero approved reviews yet —
+ * friendly placeholder text, never a blank gap (Rule 25.3).
+ */
+.testimonialsEmptyState {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/*
+ * .createReviewTriggerButton
+ * Opens the Create Review modal. Sits below the grid/empty-state so it
+ * reads as "add your own" rather than competing with existing reviews.
+ */
+.createReviewTriggerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-xl);
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--color-accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.createReviewTriggerButton:hover,
+.createReviewTriggerButton:focus-visible,
+.createReviewTriggerButton:active {
+  background-color: var(--color-accent);
+  color: #ffffff;
+}

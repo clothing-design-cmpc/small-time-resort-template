@@ -16,6 +16,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AlertCircle, Plus } from "lucide-react";
 import { useNavBadges } from "@/hooks/useNavBadges";
 import "./Sidebar.css";
 
@@ -24,8 +25,8 @@ import "./Sidebar.css";
 // lookup instead of hardcoding hrefs inline below, so adding a badge to
 // a future nav item is a one-line change here.
 const BADGE_RULES = {
-  "/superAdmin/walkin-inquiries": { countKey: "pendingWalkInCount", variant: "urgent", icon: "!" },
-  "/superAdmin/bookings": { countKey: "newBookingsCount", variant: "update", icon: "O" },
+  "/superAdmin/walkin-inquiries": { countKey: "pendingWalkInCount", variant: "urgent", Icon: AlertCircle },
+  "/superAdmin/bookings": { countKey: "newBookingsCount", variant: "update", Icon: Plus },
 };
 
 /* Add entries here as new admin pages are built. Grouped into sections
@@ -108,8 +109,9 @@ export default function Sidebar({ isOwner = false }) {
               const isActive = pathname === link.href;
 
               // Look up whether this link has a live badge counter
-              // (Walk-in Inquiries -> urgent "!", Bookings -> update "O")
-              // and only render it once that counter is above zero.
+              // (Walk-in Inquiries -> urgent AlertCircle, Bookings ->
+              // update Plus) and only render it once that counter is
+              // above zero.
               const badgeRule = BADGE_RULES[link.href];
               const badgeCount = badgeRule ? badgeCounts[badgeRule.countKey] : 0;
 
@@ -129,7 +131,8 @@ export default function Sidebar({ isOwner = false }) {
                             : `${badgeCount} new`
                         }
                       >
-                        {badgeRule.icon} {badgeCount}
+                        <badgeRule.Icon size={11} strokeWidth={2.75} aria-hidden="true" />
+                        {badgeCount > 99 ? "99+" : badgeCount}
                       </span>
                     )}
                   </Link>

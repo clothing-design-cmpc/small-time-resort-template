@@ -118,23 +118,34 @@
 
 /*
  * .adminSidebarBadge
- * Small pill shown after a nav link's label — "!" (urgent, e.g. a
- * walk-in inquiry still awaiting reply) or "O" (update, e.g. new
- * bookings placed since this admin last checked). Pinned to the right
- * edge of the row via margin-left: auto so it never shifts the label.
+ * Small pill shown after a nav link's label — a live count paired with
+ * a real SVG icon (AlertCircle for urgent, e.g. a walk-in inquiry
+ * still awaiting reply; Plus for update, e.g. new bookings placed
+ * since this admin last checked). Pinned to the right edge of the row
+ * via margin-left: auto on the parent so it never shifts the label.
  */
 .adminSidebarBadge {
   flex-shrink: 0;
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 1px var(--space-xs);
+  justify-content: center;
+  gap: 3px;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 var(--space-xs);
   border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   font-family: var(--font-admin-mono), "JetBrains Mono", Menlo, monospace;
   font-size: 0.68rem;
   font-weight: 700;
-  line-height: 1.6;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  transition: transform var(--transition-fast, 0.15s ease);
+}
+
+.adminSidebarLink:hover .adminSidebarBadge {
+  transform: scale(1.05);
 }
 
 /* Urgent — needs a reply/action, e.g. Walk-in Inquiries */

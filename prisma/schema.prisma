@@ -240,7 +240,8 @@ model Booking {
   // breaks the moment an owner changes Cleaning Hours after this
   // booking was already made. Null only for bookings created before
   // this column existed; the turnover check falls back to the
-  // currently active rule's cleaningHours for those old rows only.
+  // current resort-wide value (SystemSettings.cleaningHours) for those
+  // old rows only.
   cleaningHoursSnapshot Int? @map("cleaning_hours_snapshot")
 
   // --- Booking-time device/location capture ---
@@ -640,17 +641,6 @@ model BookingRule {
   name   String  @unique @default("Default Rules") // e.g. "Default Rules", "Holiday Season Rules"
   isActive Boolean @default(true) @map("is_active") // simple per-row toggle — no exclusivity enforced; multiple rule sets can be active at once
 
-  // --- Room Status Auto-Cleaning Window (Section 6, Booking Rules list
-  // page) --- Per-rule-set on purpose, not a single resort-wide value:
-  // different rule sets (e.g. "Holiday Season Rules" vs "Default Rules")
-  // can reasonably need different turnover times. services/roomStatus.js
-  // always reads this off the currently ACTIVE rule (getActiveBookingRule())
-  // when computing a room's "Checked-Out — Cleaning" auto window. This
-  // column already existed live on this table from earlier work — kept
-  // the exact same name/type/default here on purpose so `prisma db push`
-  // treats it as unchanged rather than dropping and recreating it.
-  cleaningHours Int @default(2) @map("cleaning_hours")
-
   // --- Section 1: General Booking Settings ---
   // minNightsRequired / maxNightsAllowed / advanceBookingDays are no longer
   // editable from the Create/Edit form (removed from Section 1 per admin
@@ -1040,6 +1030,18 @@ model SystemSettings {
   checkOutTime String? @default("12:00 PM") @map("check_out_time")
   checkInNote  String? @map("check_in_note")
   checkOutNote String? @map("check_out_note")
+
+  // --- Room Status Auto-Cleaning Window (Section 6, Booking Rules list
+  // page) --- Moved here from BookingRule.cleaningHours: now ONE
+  // resort-wide value shared by every booking type and every rule set,
+  // instead of a separate value per rule set. services/roomStatus.js
+  // and services/bookingPricing.js both read this off
+  // services/cleaningHours.js -> getGlobalCleaningHours() when computing
+  // a room's "Checked-Out — Cleaning" auto window / checking turnover
+  // conflicts. Kept name/type/default the same as the old BookingRule
+  // column on purpose so `prisma db push` treats this as a straight
+  // move rather than introducing an unrelated shape change.
+  cleaningHours Int @default(2) @map("cleaning_hours")
 
   // --- Contact Info ---
   resortPhone   String? @map("resort_phone")

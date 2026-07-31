@@ -9,10 +9,17 @@
  * silently overlap in real life even though the old date-only overlap
  * check in services/bookingPricing.js would never catch it.
  *
+ * Note: cleaningHours itself is now a resort-wide value (SystemSettings,
+ * see services/cleaningHours.js) rather than a per-rule-set column —
+ * this file doesn't care where the number comes from, it just checks
+ * the given check-in/check-out times against it.
+ *
  * Used by:
- *   - app/api/superAdmin/settings/booking-rules/route.js (POST/create)
- *   - app/api/superAdmin/settings/booking-rules/[ruleId]/route.js (PUT/update)
- *   - app/api/superAdmin/settings/cleaning-hours/route.js (PUT)
+ *   - app/api/superAdmin/settings/booking-rules/route.js (POST/create) —
+ *     checks a rule set's own times against the current global value
+ *   - app/api/superAdmin/settings/booking-rules/[ruleId]/route.js (PUT/update) — same
+ *   - app/api/superAdmin/settings/cleaning-hours/route.js (PUT) —
+ *     checks a new global value against every currently Active rule set
  *   - services/bookingPricing.js (real booking-vs-booking overlap check)
  *
  * ASSUMPTION (matches the existing overlap-check convention already in
@@ -85,19 +92,21 @@ const BOOKING_TYPE_TIME_FIELDS = [
 /**
  * findAllCleaningBufferConflicts
  * Runs findCleaningBufferConflict() against EVERY booking type's own
- * check-in/check-out time pair (Overnight, Day Tour, Night Tour) using
- * the SAME shared cleaningHours value — a single BookingRule row holds
- * all three type pairs plus one cleaningHours column (see
- * prisma/schema.prisma), so a conflict on any one of them is a real,
- * saveable conflict for that rule set. Stops at the first conflict
- * found (checked in the order above) and returns which exact field(s)
- * caused it, so the admin form can highlight them instead of leaving
- * the admin to guess which of the 6 time fields is the problem.
+ * check-in/check-out time pair (Overnight, Day Tour, Night Tour) on a
+ * single rule set, using the SAME cleaningHours value passed in — since
+ * Cleaning Hours is resort-wide now (see services/cleaningHours.js),
+ * this same helper is reused two ways: (1) checking one rule set's own
+ * time fields against the current global value, and (2) checking a
+ * proposed NEW global value against each Active rule set's time fields
+ * in turn. Stops at the first conflict found (checked in the order
+ * above) and returns which exact field(s) caused it, so the caller can
+ * highlight them instead of leaving the admin to guess which of the 6
+ * time fields is the problem.
  *
  * @param {object} values        - object with checkInTime/checkOutTime,
  *                                 dayTourStartTime/dayTourEndTime,
  *                                 nightTourStartTime/nightTourEndTime
- * @param {number} cleaningHours - shared cleaning hours for this rule set
+ * @param {number} cleaningHours - the resort-wide cleaning hours value to check against
  * @returns {{ message: string, fields: string[] } | null}
  */
 export function findAllCleaningBufferConflicts(values, cleaningHours) {

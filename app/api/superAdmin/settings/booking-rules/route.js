@@ -18,6 +18,7 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
 import { findAllCleaningBufferConflicts } from "@/services/cleaningBuffer";
+import { getGlobalCleaningHours } from "@/services/cleaningHours";
 
 export async function GET(request) {
   try {
@@ -61,13 +62,11 @@ export async function POST(request) {
 
     // Cleaning-buffer conflict check — checked against ALL THREE booking
     // types' own check-in/check-out time pairs (Overnight, Day Tour,
-    // Night Tour), not just Overnight, since a single rule set holds all
-    // three pairs plus one shared cleaningHours column. The form doesn't
-    // expose cleaningHours yet (it's edited separately from the Room
-    // Status section), so a brand-new rule always starts at the schema
-    // default of 2 hours; mirror that same default here so this
-    // pre-check matches what will actually be saved.
-    const cleaningHoursForCheck = Number.isFinite(Number(body.cleaningHours)) ? Number(body.cleaningHours) : 2;
+    // Night Tour) on this new rule set. Cleaning Hours itself is
+    // resort-wide now (SystemSettings, see services/cleaningHours.js),
+    // not a field on this row, so the current global value is what this
+    // new rule set's times get checked against.
+    const globalCleaningHours = await getGlobalCleaningHours();
     const bufferConflict = findAllCleaningBufferConflicts(
       {
         checkInTime: body.checkInTime,
@@ -77,7 +76,7 @@ export async function POST(request) {
         nightTourStartTime: body.nightTourStartTime,
         nightTourEndTime: body.nightTourEndTime,
       },
-      cleaningHoursForCheck
+      globalCleaningHours
     );
     if (bufferConflict) {
       return NextResponse.json(
@@ -103,7 +102,6 @@ export async function POST(request) {
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         sameDayPolicy: body.sameDayPolicy,
-        cleaningHours: body.cleaningHours,
         // Visitor-facing guest count for this rule set — read by the
         // public reservation page (app/visitor/booking/ReservationSummaryClient.jsx)
         // and displayed there as text instead of an editable input.

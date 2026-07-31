@@ -17,8 +17,8 @@ import { logAuditEvent } from "@/services/auditLog";
 // "Cleaning" is intentionally NOT a valid manual reason anymore —
 // cleaning is now fully automatic (services/roomStatus.js computes a
 // "Checked-Out — Cleaning" window from a booking's checkout moment +
-// BookingRule.cleaningHours, on the currently active rule set). A
-// manually-created BlackoutDate row
+// the resort-wide Cleaning Hours setting, see services/cleaningHours.js).
+// A manually-created BlackoutDate row
 // is only ever for a deliberate admin decision to take a room offline.
 const VALID_REASONS = ["Maintenance", "Private", "Custom"];
 

@@ -194,7 +194,7 @@ export default function RoomStatusSection({ showToast }) {
           </p>
         </div>
         <div className="roomStatusCleaningHoursField">
-          <label htmlFor="cleaningHoursInput">Cleaning Hours (Active Rule Set)</label>
+          <label htmlFor="cleaningHoursInput">Cleaning Hours (Resort-Wide)</label>
           <input
             id="cleaningHoursInput"
             type="number"

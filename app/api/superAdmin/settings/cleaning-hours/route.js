@@ -4,32 +4,33 @@
  *       session gate.
  *
  * PURPOSE:
- * GET -> returns the currently ACTIVE BookingRule's cleaningHours (the
- *        per-rule-set number of hours a room stays "Checked-Out —
- *        Cleaning" after a guest's checkout before auto-flipping to
- *        "Available" — see the field's own schema comment on
- *        BookingRule for why this is per-rule-set, not resort-wide).
- * PUT -> updates it on that same active rule. Read by
- *        services/roomStatus.js (via getActiveBookingRule()) on every
- *        room-status computation.
+ * GET -> returns the resort-wide Cleaning Hours value (SystemSettings,
+ *        see services/cleaningHours.js) — the single number of hours a
+ *        room stays "Checked-Out — Cleaning" after a guest's checkout
+ *        before auto-flipping to "Available", shared by every booking
+ *        type and every rule set.
+ * PUT -> updates that same global value. Since it's no longer tied to
+ *        one rule set, a new value is checked against EVERY currently
+ *        Active BookingRule's own check-in/check-out time pairs — not
+ *        just one row — before it's allowed to save. Read by
+ *        services/roomStatus.js and services/bookingPricing.js (via
+ *        getGlobalCleaningHours()) on every room-status computation and
+ *        every new booking.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
-import { getActiveBookingRule } from "@/services/bookingRules";
+import { getGlobalCleaningHours, updateGlobalCleaningHours } from "@/services/cleaningHours";
 import { findAllCleaningBufferConflicts } from "@/services/cleaningBuffer";
 
 export async function GET() {
   try {
-    // cleaningHours lives on BookingRule (per active rule set), not on
-    // SystemSettings — this mirrors exactly what services/roomStatus.js
-    // reads when computing each room's current status.
-    const activeRule = await getActiveBookingRule();
+    const cleaningHours = await getGlobalCleaningHours();
     return NextResponse.json({
       success: true,
-      data: { cleaningHours: activeRule.cleaningHours },
+      data: { cleaningHours },
       message: "Cleaning hours fetched successfully.",
     });
   } catch (error) {
@@ -58,45 +59,44 @@ export async function PUT(request) {
       );
     }
 
-    // Save onto the currently active BookingRule — never SystemSettings —
-    // so the value actually affects services/roomStatus.js's computation,
-    // which always reads cleaningHours off getActiveBookingRule().
-    const activeRule = await getActiveBookingRule();
+    // Cleaning-buffer conflict check — since this value is now
+    // resort-wide, it must be checked against EVERY currently Active
+    // rule set's own time pairs (Overnight, Day Tour, Night Tour), not
+    // just one — any number of rule sets can be Active at once (see
+    // services/bookingRules.js), and this one Cleaning Hours value will
+    // apply to all of them equally.
+    const activeRules = await prisma.bookingRule.findMany({ where: { isActive: true } });
 
-    // Cleaning-buffer conflict check — this is the field most likely to
-    // create the overlap, since it's edited on its own here without the
-    // admin re-seeing the rule's Check-in/Check-out times side by side.
-    // Checked against ALL THREE booking types' own time pairs on this
-    // same rule row (Overnight, Day Tour, Night Tour) — not just
-    // Overnight — since the new cleaningHours value applies to all of
-    // them equally.
-    const bufferConflict = findAllCleaningBufferConflicts(
-      {
-        checkInTime: activeRule.checkInTime,
-        checkOutTime: activeRule.checkOutTime,
-        dayTourStartTime: activeRule.dayTourStartTime,
-        dayTourEndTime: activeRule.dayTourEndTime,
-        nightTourStartTime: activeRule.nightTourStartTime,
-        nightTourEndTime: activeRule.nightTourEndTime,
-      },
-      cleaningHours
-    );
-    if (bufferConflict) {
-      return NextResponse.json(
-        { success: false, data: null, message: bufferConflict.message, conflictFields: bufferConflict.fields },
-        { status: 400 }
+    for (const rule of activeRules) {
+      const bufferConflict = findAllCleaningBufferConflicts(
+        {
+          checkInTime: rule.checkInTime,
+          checkOutTime: rule.checkOutTime,
+          dayTourStartTime: rule.dayTourStartTime,
+          dayTourEndTime: rule.dayTourEndTime,
+          nightTourStartTime: rule.nightTourStartTime,
+          nightTourEndTime: rule.nightTourEndTime,
+        },
+        cleaningHours
       );
+      if (bufferConflict) {
+        return NextResponse.json(
+          {
+            success: false,
+            data: null,
+            message: `"${rule.name}": ${bufferConflict.message}`,
+            conflictFields: bufferConflict.fields,
+          },
+          { status: 400 }
+        );
+      }
     }
 
-    const updatedRule = await prisma.bookingRule.update({
-      where: { id: activeRule.id },
-      data: { cleaningHours },
-      select: { cleaningHours: true },
-    });
+    const updatedSettings = await updateGlobalCleaningHours(cleaningHours, admin.uid);
 
     return NextResponse.json({
       success: true,
-      data: updatedRule,
+      data: updatedSettings,
       message: `Cleaning hours updated to ${cleaningHours}.`,
     });
   } catch (error) {

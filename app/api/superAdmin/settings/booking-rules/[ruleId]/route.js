@@ -22,6 +22,7 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { normalizeBookingTypeFlags } from "@/services/bookingTypeFlags";
 import { findAllCleaningBufferConflicts } from "@/services/cleaningBuffer";
+import { getGlobalCleaningHours } from "@/services/cleaningHours";
 
 export async function GET(request, { params }) {
   const { ruleId } = await params;
@@ -73,15 +74,13 @@ export async function PUT(request, { params }) {
 
     // Cleaning-buffer conflict check — checked against ALL THREE booking
     // types' own check-in/check-out time pairs (Overnight, Day Tour,
-    // Night Tour), not just Overnight, since a single rule set holds all
-    // three pairs plus one shared cleaningHours column (cleaningHours is
-    // edited separately via the Room Status section). Falls back to this
-    // rule's existing saved values for whichever fields weren't resent,
-    // and checks the combination that will actually be in effect after
-    // this save.
-    const cleaningHoursForCheck = Number.isFinite(Number(body.cleaningHours))
-      ? Number(body.cleaningHours)
-      : existingRule.cleaningHours;
+    // Night Tour) on this rule set. Cleaning Hours itself is resort-wide
+    // now (SystemSettings, see services/cleaningHours.js), not a field
+    // on this row — edited separately via the Cleaning Hours setting —
+    // so the current global value is what this rule set's (possibly
+    // updated) times get checked against. Falls back to this rule's
+    // existing saved values for whichever time fields weren't resent.
+    const globalCleaningHours = await getGlobalCleaningHours();
     const bufferConflict = findAllCleaningBufferConflicts(
       {
         checkInTime: body.checkInTime || existingRule.checkInTime,
@@ -91,7 +90,7 @@ export async function PUT(request, { params }) {
         nightTourStartTime: body.nightTourStartTime || existingRule.nightTourStartTime,
         nightTourEndTime: body.nightTourEndTime || existingRule.nightTourEndTime,
       },
-      cleaningHoursForCheck
+      globalCleaningHours
     );
     if (bufferConflict) {
       return NextResponse.json(
@@ -118,7 +117,6 @@ export async function PUT(request, { params }) {
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         sameDayPolicy: body.sameDayPolicy,
-        cleaningHours: body.cleaningHours,
         allowOvernightStay: bookingTypeFlags.allowOvernightStay,
         allowDayTour: bookingTypeFlags.allowDayTour,
         allowNightTour: bookingTypeFlags.allowNightTour,

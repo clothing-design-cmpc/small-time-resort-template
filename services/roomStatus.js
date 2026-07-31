@@ -4,10 +4,10 @@
  * Computes each room's CURRENT status for Booking Rules Section 6 —
  * the auto lifecycle requested: a confirmed booking makes a room
  * "Booked" for its stay, then "Checked-Out — Cleaning" for a
- * configurable window after checkout (BookingRule.cleaningHours, on
- * whichever rule set actually governed THAT booking's type — Overnight,
- * Day Tour, and Night Tour can each be Active on a different rule set),
- * then "Available" once that window passes — with no manual date-range
+ * configurable window after checkout (SystemSettings.cleaningHours —
+ * ONE resort-wide value, shared by every booking type and every rule
+ * set — see services/cleaningHours.js), then "Available" once that
+ * window passes — with no manual date-range
  * entry needed for any of those three states. A manual BlackoutDate row
  * (reason: Maintenance, Private, or Custom — "Cleaning" is no longer a
  * manual option, since cleaning is now fully automatic) always takes
@@ -24,6 +24,7 @@
  */
 import { prisma } from "@/services/prisma";
 import { getActiveBookingRule } from "@/services/bookingRules";
+import { getGlobalCleaningHours } from "@/services/cleaningHours";
 
 const MANUAL_REASONS = ["Maintenance", "Private", "Custom"];
 
@@ -82,18 +83,21 @@ function getCheckInOutMoments(booking, ruleByType) {
  * only for the manual BlackoutDate case.
  */
 export async function getAllRoomStatuses(now = new Date()) {
-  const [rooms, overnightRule, dayTourRule, nightTourRule, manualBlackouts, confirmedBookings] = await Promise.all([
-    prisma.room.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
-    getActiveBookingRule("overnight"),
-    getActiveBookingRule("day_tour"),
-    getActiveBookingRule("night_tour"),
-    prisma.blackoutDate.findMany({ where: { reason: { in: MANUAL_REASONS } } }),
-    prisma.booking.findMany({ where: { status: "confirmed" } }),
-  ]);
-  // Each booking type can be governed by its own active rule set, and each
-  // rule set carries its own Cleaning Hours — a Day Tour checkout is no
-  // longer forced through the Overnight rule's cleaningHours (or its
-  // checkOutTime) just because that's the rule this function fetched.
+  const [rooms, overnightRule, dayTourRule, nightTourRule, manualBlackouts, confirmedBookings, globalCleaningHours] =
+    await Promise.all([
+      prisma.room.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+      getActiveBookingRule("overnight"),
+      getActiveBookingRule("day_tour"),
+      getActiveBookingRule("night_tour"),
+      prisma.blackoutDate.findMany({ where: { reason: { in: MANUAL_REASONS } } }),
+      prisma.booking.findMany({ where: { status: "confirmed" } }),
+      getGlobalCleaningHours(),
+    ]);
+  // Each booking type can be governed by its own active rule set — a Day
+  // Tour checkout is no longer forced through the Overnight rule's
+  // checkOutTime just because that's the rule this function fetched.
+  // Cleaning Hours itself, however, is resort-wide now (globalCleaningHours
+  // above), not per rule set.
   const ruleByType = { overnight: overnightRule, day_tour: dayTourRule, night_tour: nightTourRule };
 
   return rooms.map((room) => {
@@ -142,13 +146,11 @@ export async function getAllRoomStatuses(now = new Date()) {
     if (mostRecentCheckout) {
       // Prefer the Cleaning Hours snapshotted on THAT booking at create
       // time (see services/cleaningBuffer.js / bookingPricing.js) — never
-      // today's live rule value — so an owner changing Cleaning Hours
+      // today's live global setting — so an owner changing Cleaning Hours
       // afterward doesn't retroactively change a status already computed
-      // for a past booking. Falls back to that booking's own type's
-      // currently active rule for bookings made before the snapshot
-      // column existed.
-      const ruleForBooking = ruleByType[mostRecentCheckout.booking.bookingType] ?? ruleByType.overnight;
-      const cleaningHoursForBooking = mostRecentCheckout.booking.cleaningHoursSnapshot ?? ruleForBooking.cleaningHours ?? 2;
+      // for a past booking. Falls back to the current global value for
+      // bookings made before the snapshot column existed.
+      const cleaningHoursForBooking = mostRecentCheckout.booking.cleaningHoursSnapshot ?? globalCleaningHours ?? 2;
 
       const cleaningEndsAt = new Date(mostRecentCheckout.checkOutMoment);
       cleaningEndsAt.setHours(cleaningEndsAt.getHours() + cleaningHoursForBooking);

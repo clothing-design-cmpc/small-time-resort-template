@@ -19,6 +19,7 @@
 import { prisma } from "@/services/prisma";
 import { getActiveBookingRule, getActiveBookingRuleForDateCount } from "@/services/bookingRules";
 import { getCleaningEndsAt } from "@/services/cleaningBuffer";
+import { getGlobalCleaningHours } from "@/services/cleaningHours";
 
 const LAST_MINUTE_WINDOW_DAYS = 3;
 
@@ -325,6 +326,13 @@ export async function validateAndQuoteBooking({
     },
   });
 
+  // Cleaning Hours is now ONE resort-wide value (SystemSettings, see
+  // services/cleaningHours.js) — no longer per rule set. Fetched once
+  // here (function scope) so both the turnover-conflict check below and
+  // the final returned quote (cleaningHours, snapshotted onto the
+  // Booking row) use the exact same value.
+  const globalCleaningHours = await getGlobalCleaningHours();
+
   // Day Tour / Night Tour bookings occupy exactly one date
   // (checkInDate === checkOutDate) — treat that single date as
   // occupying [date, date+1) for the same half-open range comparison
@@ -372,14 +380,13 @@ export async function validateAndQuoteBooking({
   // turnover (an existing booking's checkout date === this request's
   // check-in date) — that's the normal, expected case for back-to-back
   // bookings. But if that specific existing booking's actual checkout
-  // moment + ITS rule's cleaningHours runs past the requested check-in
-  // moment on that same calendar day, the incoming guest would arrive
-  // before the villa is actually ready — regardless of whether the
-  // outgoing booking was Overnight, Day Tour, or Night Tour, and
-  // regardless of what type is checking in next. Previously this only
-  // ran for an incoming Overnight request checked against an outgoing
-  // Overnight stay; every Cleaning Hours setting now applies to every
-  // booking rule / booking type, in both directions.
+  // moment + the resort-wide Cleaning Hours setting (SystemSettings, see
+  // services/cleaningHours.js — ONE value shared by every booking type
+  // and rule set) runs past the requested check-in moment on that same
+  // calendar day, the incoming guest would arrive before the villa is
+  // actually ready — regardless of whether the outgoing booking was
+  // Overnight, Day Tour, or Night Tour, and regardless of what type is
+  // checking in next. This applies resort-wide, in both directions.
   {
     const startTimeByType = {
       overnight: rules.checkInTime,
@@ -429,12 +436,12 @@ export async function validateAndQuoteBooking({
         combineDateAndTime(existingCheckOutLocalDay, endTimeByType[existing.bookingType]);
 
       // Prefer the Cleaning Hours snapshotted on THAT booking at the
-      // moment it was created — never today's live rule value — so an
-      // owner changing Cleaning Hours afterward can't retroactively
+      // moment it was created — never today's live global setting — so
+      // an owner changing Cleaning Hours afterward can't retroactively
       // change what an already-made booking is checked against. Only
       // bookings created before this column existed fall back to the
-      // rule active right now for that booking's own type.
-      const cleaningHoursForExisting = existing.cleaningHoursSnapshot ?? ruleForExisting.cleaningHours;
+      // current resort-wide value.
+      const cleaningHoursForExisting = existing.cleaningHoursSnapshot ?? globalCleaningHours;
       const cleaningEndsAt = getCleaningEndsAt(existingCheckoutMoment, cleaningHoursForExisting);
 
       return requestedCheckInMoment < cleaningEndsAt;
@@ -535,12 +542,13 @@ export async function validateAndQuoteBooking({
     depositRequired: rules.depositRequired,
     checkInTime: rules.checkInTime,
     checkOutTime: rules.checkOutTime,
-    // Cleaning Hours that priced/governed THIS specific booking —
-    // snapshotted onto the Booking row (cleaningHoursSnapshot) at
-    // create time so a later change to the active rule's cleaning
-    // hours never rewrites what already-made bookings are checked
-    // against. See services/cleaningBuffer.js.
-    cleaningHours: rules.cleaningHours,
+    // Cleaning Hours that governed THIS specific booking — the
+    // resort-wide value at the moment of booking, snapshotted onto the
+    // Booking row (cleaningHoursSnapshot) at create time so a later
+    // change to the global setting never rewrites what already-made
+    // bookings are checked against. See services/cleaningHours.js and
+    // services/cleaningBuffer.js.
+    cleaningHours: globalCleaningHours,
     // Non-null only when Same-Day Check-In Policy auto-adjusted this
     // specific booking (see block above) — the create route persists
     // these onto the Booking row; the quote preview route just returns

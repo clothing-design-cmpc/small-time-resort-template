@@ -21,7 +21,14 @@
  * unaffected — it was always a separate, independent system from the
  * removed one (see prisma/schema.prisma's Vault/VaultPassphrase models).
  *
- *   1. node scripts/setupVaultPassphrase.js
+ *   1. node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY
+ *      Generates VAULT_SETUP_KEY — an env-only master secret that
+ *      grants access to the /system-vault-setup bootstrap page.
+ *      Completely separate from the passphrase in item 2 below: this
+ *      one lives only in .env.local (never the database), never
+ *      expires, and never auto-rotates.
+ *
+ *   2. node scripts/setupVaultPassphrase.js
  *      Auto-generates a random vault passphrase, saves it to the
  *      database, emails the plaintext to VAULT_OWNER_EMAIL, and backs
  *      up a copy to Cloudflare R2 — same rotate + email + R2-backup
@@ -34,13 +41,7 @@
  *      referenced instead from the real vault dashboard's Scripts
  *      Reference section).
  *
- *   1a. Verify: open /system-vault-setup
- *       Optional sanity check, not a command — confirms the script
- *       above actually worked by reading the same VaultPassphrase row
- *       it just wrote. Never regenerates on its own; only its own
- *       "Generate new" button rotates the existing passphrase.
- *
- *   2. MaxMind GeoLite2-City.mmdb
+ *   3. MaxMind GeoLite2-City.mmdb
  *      Not an env var — a physical file. Manual download from
  *      maxmind.com, placed at services/geoip/GeoLite2-City.mmdb
  *      (path configured via MAXMIND_DB_PATH — Step 4's geoip group
@@ -60,10 +61,17 @@ import VerifyVaultAccessStep from "./VerifyVaultAccessStep";
 
 const EXTERNAL_STEPS = [
   {
-    title: "1. Vault passphrase (hidden recovery page)",
+    title: "1. System vault setup (access key)",
+    command: "node scripts/generateEnvSecret.mjs VAULT_SETUP_KEY",
+    description:
+      "Generates VAULT_SETUP_KEY — an env-only secret that grants access to the hidden /system-vault-setup bootstrap page. Completely separate from the recovery passphrase in item 2 below: this key lives only in .env.local, never the database. Paste the printed value into VAULT_SETUP_KEY in .env.local, then restart the dev server (Node only reads .env.local once at startup). To verify it worked, visit /system-vault-setup?key=YOUR_VAULT_SETUP_KEY in your browser — it should load the page instead of a 404.",
+    warning: "This key never expires and never auto-rotates — treat it like a master password. It survives even a full database wipe, since it lives only in .env.local, never in the database.",
+  },
+  {
+    title: "2. Vault recovery (passphrase)",
     command: "node scripts/setupVaultPassphrase.js",
     description:
-      "Auto-generates a random passphrase, saves it to the database, emails the plaintext to VAULT_OWNER_EMAIL, and backs up a copy to Cloudflare R2. This is the passphrase for the hidden recovery page (/system-vault/[slug]). Refuses to run if a passphrase already exists — use node scripts/rotateVaultPassphrase.mjs instead if you need to rotate it later.",
+      "Auto-generates a random passphrase, saves it to the database, emails the plaintext to VAULT_OWNER_EMAIL, and backs up a copy to Cloudflare R2. This is the actual recovery passphrase used to log into the hidden recovery page (/system-vault/[slug]) — a completely different value from VAULT_SETUP_KEY in item 1 above. Refuses to run if a passphrase already exists — use node scripts/rotateVaultPassphrase.mjs instead if you need to rotate it later.",
     warning: "The plaintext passphrase is shown here once only — copy it now, or find it later via the email or R2 backup.",
   },
 ];
@@ -91,9 +99,9 @@ export default function ExternalSetupStep() {
 
       <div className="setupWizardCard">
         <span className="setupWizardEyebrow">Step 6 of 10</span>
-        <h1 className="setupWizardTitle">Vault passphrase setup</h1>
+        <h1 className="setupWizardTitle">Vault setup</h1>
         <p className="setupWizardBody">
-          Nothing on this step runs from this page — these two things
+          Nothing on this step runs from this page — these three things
           happen on your own machine, not through the wizard. Copy the
           commands below and run them in your own terminal.
         </p>
@@ -114,27 +122,7 @@ export default function ExternalSetupStep() {
       ))}
 
       <div className="setupWizardCard">
-        <h2 className="setupWizardSubStepTitle">1a. Verify: open the vault system setup page</h2>
-        <p className="setupWizardBody">
-          Optional check — confirms the command above actually worked.
-          Open <code>/system-vault-setup</code> in your browser (append{" "}
-          <code>?key=YOUR_VAULT_SETUP_KEY</code> to the URL using the
-          same value you saved in <code>.env.local</code>, or just visit
-          it while logged in as the owner admin account — either credential
-          works). This page reads from the exact same{" "}
-          <code>VaultPassphrase</code> database row the command above
-          just created, so it will show{" "}
-          <b>&quot;A passphrase is currently set&quot;</b> — not a blank
-          or unset state, and it will NOT silently generate a second,
-          different passphrase behind your back. That page's own
-          &quot;Generate new&quot; button, if you click it, rotates the
-          same passphrase (and reuses the same email + R2-backup flow) —
-          it does not create a separate, parallel one.
-        </p>
-      </div>
-
-      <div className="setupWizardCard">
-        <h2 className="setupWizardSubStepTitle">2. MaxMind GeoIP database file</h2>
+        <h2 className="setupWizardSubStepTitle">3. MaxMind GeoIP database file</h2>
         <p className="setupWizardBody">
           Not an env var — a physical file. Already included in this
           template at <code>services/geoip/GeoLite2-City.mmdb</code>, and{" "}

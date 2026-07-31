@@ -78,4 +78,12 @@ async function main() {
   console.log("Then DELETE vault-totp-qr.png — do not commit it or leave it on disk.");
 }
 
-main().finally(() => process.exit());
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    // Print the real failure instead of letting process.exit() cut it off —
+    // .finally(() => process.exit()) used to swallow this silently.
+    console.error("Vault setup failed:");
+    console.error(error);
+    process.exit(1);
+  });

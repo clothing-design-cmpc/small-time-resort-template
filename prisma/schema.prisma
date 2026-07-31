@@ -1245,6 +1245,41 @@ model VaultPassphrase {
 }
 
 // ============================================================
+// MODEL: OwnerVault  (second, separate vault system — dashboard VIEW
+// access + step-up unban checks, NOT the hidden recovery page above)
+// ============================================================
+// Singleton-by-convention row (findFirst(), never findMany) holding
+// the owner's bcrypt-hashed passphrase and TOTP secret. Written once
+// by scripts/setupVault.js (never from a deployed route — see that
+// file's header), then read by app/api/vault/login/route.js and
+// app/api/vault/unban/route.js via services/totp.js's
+// verifyTotpCode(). Deliberately separate from Vault/VaultPassphrase
+// above — that pair gates the hidden recovery page; this one gates
+// the vault dashboard's banned-device list and unban action.
+model OwnerVault {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  passphraseHash String   @map("passphrase_hash")
+  totpSecret     String   @map("totp_secret")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("owner_vault")
+}
+
+// ============================================================
+// MODEL: VaultSession  (short-lived session for the OwnerVault
+// dashboard above — issued by app/api/vault/login/route.js)
+// ============================================================
+model VaultSession {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([sessionToken])
+  @@map("vault_sessions")
+}
+
+// ============================================================
 // MODEL: DatabaseWipeRequest  (Backups page — "Danger Zone: Wipe Database")
 // ============================================================
 // One row per wipe request. Only ever one row with status "pending" at

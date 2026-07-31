@@ -18,6 +18,7 @@
  *   project root. Scan it with your authenticator app immediately,
  *   then delete the file — never commit it or leave it on disk.
  */
+import "./loadEnv.mjs";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import fs from "fs";
@@ -78,12 +79,4 @@ async function main() {
   console.log("Then DELETE vault-totp-qr.png — do not commit it or leave it on disk.");
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    // Print the real failure instead of letting process.exit() cut it off —
-    // .finally(() => process.exit()) used to swallow this silently.
-    console.error("Vault setup failed:");
-    console.error(error);
-    process.exit(1);
-  });
+main().finally(() => process.exit());

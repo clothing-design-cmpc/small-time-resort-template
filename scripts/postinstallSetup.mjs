@@ -87,8 +87,10 @@ async function main() {
       "fill in the values, then follow the guide.)\n"
   );
 
-  // Await the launch attempt — swallow failures (e.g. headless CI), never affect the install's exit code.
-  await openSetupGuide(() => {});
+  // Await the launch attempt — never affect the install's exit code, but
+  // surface the failure to the console (e.g. headless/remote/SSH dev
+  // environments) instead of failing silently with no output at all.
+  await openSetupGuide((message) => console.error(`\n${message}\n`));
 }
 
 main()

@@ -76,11 +76,6 @@ const SCRIPT_GROUPS = [
         purpose: "Generates a small printable HTML \"recovery card\" — a physical fallback for when both the vault owner's email and R2 are unreachable.",
         whenToRun: "Once, right after initial setup — print it and store it somewhere safe (a physical safe, not a cloud drive).",
       },
-      {
-        command: "node scripts/setupVault.js \"your-passphrase\"",
-        purpose: "One-time local setup for the owner vault — generates the TOTP secret in plaintext (only place this ever happens).",
-        whenToRun: "Once, during initial project setup. Never run this again afterward, and never deploy it as an API route.",
-      },
     ],
   },
   {

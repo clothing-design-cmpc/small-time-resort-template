@@ -10,8 +10,7 @@
  * section (app/system-vault/[vaultSlug]/ScriptsReferenceSection.jsx) —
  * NOT used by the setup wizard's Step 6, which points at
  * scripts/setupVaultPassphrase.js instead (auto-generates, emails, and
- * backs up to R2 in one step, matching how the owner vault's own
- * setupVault.js script behaves).
+ * backs up to R2 in one step).
  *
  * *** THIS SCRIPT IS DELIBERATELY NOT PART OF THE LIVE APP. *** Same
  * "decoupled from live traffic" reasoning as scripts/runBackup.js.

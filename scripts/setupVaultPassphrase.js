@@ -2,11 +2,9 @@
  * FILE: scripts/setupVaultPassphrase.js
  * PURPOSE:
  * One-time local setup for the vault passphrase (the hidden
- * disaster-recovery page's first factor). Mirrors scripts/
- * setupVault.js's behavior for the owner vault — run this ONCE,
- * auto-generates a random passphrase, and refuses to run again if one
- * already exists. Reuses the exact same rotate + email + R2-backup +
- * audit-log flow every other passphrase-generation trigger uses
+ * disaster-recovery page's first factor). Reuses the exact same
+ * rotate + email + R2-backup + audit-log flow every other
+ * passphrase-generation trigger uses
  * (services/vaultPassphrase.js's generateAndDistributePassphrase()),
  * so this is not a separate, drifting implementation.
  *
@@ -16,7 +14,7 @@
  * section) — it only ever prints a VAULT_PASSPHRASE_HASH line for you
  * to paste into .env.local, no email, no R2, no auto-generation. This
  * script is specifically the setup wizard's first-run bootstrap step
- * (Step 6, item 2) — auto-generates, saves straight to the database,
+ * (Step 6, item 1) — auto-generates, saves straight to the database,
  * emails the plaintext to VAULT_OWNER_EMAIL, and backs up a .txt copy
  * to Cloudflare R2, exactly like scripts/rotateVaultPassphrase.mjs
  * does for a later rotation. The R2 filename uses a distinct
@@ -38,8 +36,8 @@ import { generateAndDistributePassphrase } from "../services/vaultPassphrase.js"
 import { getVaultRecoveryUrl } from "../services/vaultAuth.js";
 
 async function main() {
-  // Refuse to run if a passphrase already exists — same reasoning as
-  // setupVault.js refusing to overwrite an existing OwnerVault row.
+  // Refuse to run if a passphrase already exists — same first-run
+  // bootstrap guard pattern used across this project's setup scripts.
   // Checks both the DB row and the env fallback, since either one
   // already satisfies the wizard's prerequisites (services/
   // setupWizardStatus.js's arePrerequisitesMet()).

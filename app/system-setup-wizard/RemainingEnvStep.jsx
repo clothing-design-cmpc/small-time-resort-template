@@ -277,7 +277,8 @@ const REMAINING_ENV_HELP = {
   rateLimit: {
     links: [{ label: "Upstash Console", url: "https://console.upstash.com" }],
     steps: [
-      "Create Database → Regional type, region close to where the app is hosted. Free tier is enough for this project.",
+      "Sign in with your Google/Gmail account (fastest option — no separate password to manage).",
+      "Create Database → Regional type. For Primary Region, pick the same region as your Supabase project (Supabase Dashboard → Settings → General → Region) — keeping Redis and Postgres in the same region avoids cross-region latency on every rate-limited request. Free tier is enough for this project.",
       "Open the database → REST API section → copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
       "No further setup — services/rateLimit.js switches from its in-memory fallback to the distributed limiter automatically once both values are present.",
     ],
@@ -324,7 +325,7 @@ const REMAINING_ENV_HELP = {
     ],
     steps: [
       "Gemini: in AI Studio, click \"Get API key\" then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required. Copy the key into GEMINI_API_KEY.",
-      "Keys created in AI Studio from 2026 onward are auto-restricted — if a key shows \"Unrestricted\" on the API Keys page, click \"Restrict to Gemini API\" (Google rejects unrestricted keys starting June 19, 2026).",
+      "Keys created in AI Studio in 2026 are auth keys by default — prefixed \"AQ.\" instead of \"AIza\", already scoped to the Gemini API. If you land on an older \"AIza\" standard key, restrict it to Gemini API immediately if it's unrestricted, and regenerate a fresh AQ. key when you can — standard keys stop working entirely in September 2026.",
       "GEMINI_MODEL is optional — leave unset to default to gemini-flash-latest.",
       "Maps + Weather: in Cloud Console, use the same project. APIs & Services → Library — enable Geocoding API, Routes API, and Weather API.",
       "APIs & Services → Credentials → Create Credentials → API Key (requires billing enabled, but all three APIs have a free monthly call allowance). Restrict the key to just those three APIs.",
@@ -449,7 +450,7 @@ export default function RemainingEnvStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 11</span>
         <h1 className="setupWizardTitle">Checking environment status…</h1>
       </div>
     );
@@ -458,7 +459,7 @@ export default function RemainingEnvStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 11</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load environment status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -477,7 +478,7 @@ export default function RemainingEnvStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 11</span>
         <h1 className="setupWizardTitle">Remaining services</h1>
         <p className="setupWizardBody">
           Set these in <code>.env.local</code> (and your deployment

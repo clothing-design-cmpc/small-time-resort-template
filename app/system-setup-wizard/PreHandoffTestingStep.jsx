@@ -1,6 +1,6 @@
 /**
  * FILE: app/system-setup-wizard/PreHandoffTestingStep.jsx
- * ROLE: Client Component — Step 9 of the setup wizard
+ * ROLE: Client Component — Step 10 of the setup wizard
  *
  * PURPOSE:
  * Renders once VerifyVaultAccessStep's "I've Verified Vault Access" is
@@ -21,7 +21,7 @@
  * remembers being checked once already defeats the point of it.
  *
  * DATA FLOW: none. Pure client-side checklist -> hands off to
- * <SetupCompleteStep /> (Step 10) once every item is checked.
+ * <SetupCompleteStep /> (Step 11) once every item is checked.
  */
 "use client";
 
@@ -82,7 +82,7 @@ export default function PreHandoffTestingStep() {
 
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 9 of 10</span>
+      <span className="setupWizardEyebrow">Step 10 of 11</span>
       <h1 className="setupWizardTitle">Test the live site before handing it off</h1>
       <p className="setupWizardBody">
         Everything above confirmed individual pieces are configured correctly — it did not

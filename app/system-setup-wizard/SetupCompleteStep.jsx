@@ -1,10 +1,10 @@
 /**
  * FILE: app/system-setup-wizard/SetupCompleteStep.jsx
- * ROLE: Client Component — Step 10 of the setup wizard (final screen)
+ * ROLE: Client Component — Step 11 of the setup wizard (final screen)
  *
  * PURPOSE:
  * Renders once PreHandoffTestingStep's checklist is fully checked off
- * (Step 9). This is a pure confirmation screen — no server calls,
+ * (Step 10). This is a pure confirmation screen — no server calls,
  * nothing left to do. setup_completed was already logged back in
  * generate-passphrase/route.js's Step 7 request (see that route's
  * SELF-LOCK NOTE for why it fires there and not here); by this point
@@ -38,7 +38,7 @@
 export default function SetupCompleteStep() {
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 10 of 10</span>
+      <span className="setupWizardEyebrow">Step 11 of 11</span>
       <h1 className="setupWizardTitle">Setup complete</h1>
       <p className="setupWizardBody">
         First-run setup is finished. This page — and every route under it — will now return a

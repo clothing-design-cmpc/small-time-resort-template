@@ -141,7 +141,8 @@ const SETUP_GUIDE_SECTIONS = [
     label: "5. Upstash Redis — distributed rate limiting",
     envVars: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
     steps: [
-      "console.upstash.com — Create Database, Regional type, region close to where the app is hosted. Free tier is enough for this project.",
+      "console.upstash.com — sign in with your Google/Gmail account.",
+      "Create Database → Regional type. For Primary Region, pick the same region as your Supabase project (Supabase Dashboard → Settings → General → Region) — keeps Redis and Postgres colocated so rate-limit checks don't add cross-region latency. Free tier is enough for this project.",
       "Open the database → REST API section → copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
       "No further setup — services/rateLimit.js switches from its in-memory fallback to the distributed limiter automatically once both values are present.",
     ],
@@ -152,7 +153,7 @@ const SETUP_GUIDE_SECTIONS = [
     envVars: ["GEMINI_API_KEY", "GEMINI_MODEL", "GOOGLE_MAPS_API_KEY", "GOOGLE_WEATHER_API_KEY"],
     steps: [
       "Gemini: go to aistudio.google.com, sign in, click \"Get API key\" in the left sidebar, then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required. Copy the key into GEMINI_API_KEY.",
-      "Keys created in AI Studio from 2026 onward are auto-restricted (\"Auth keys\") — if the key shows an \"Unrestricted\" tag on the API Keys page, click \"Restrict to Gemini API\" (Google rejects unrestricted keys starting June 19, 2026).",
+      "Keys created in AI Studio in 2026 are auth keys by default — they start with \"AQ.\" instead of the older \"AIza\" prefix and are already scoped to the Gemini API, so no extra restriction step is needed. If your key still starts with \"AIza\" (an older standard key), Google now rejects unrestricted standard keys outright — go to the API Keys page, and if it shows an \"Unrestricted\" tag, click \"Restrict to Gemini API\" immediately. Standard keys stop working entirely in September 2026, so an AIza key should be treated as temporary either way — regenerate a fresh AQ. key if you can.",
       "GEMINI_MODEL is optional — leave unset to default to gemini-flash-latest, or set it to pin a specific model.",
       "Google Maps + Weather: go to console.cloud.google.com, use the same project (or a new one). APIs & Services → Library — enable Geocoding API, Routes API, and Weather API.",
       "APIs & Services → Credentials → Create Credentials → API Key. This requires billing enabled on the Cloud project, but all three APIs have a free monthly call allowance — you won't be charged unless you exceed it.",

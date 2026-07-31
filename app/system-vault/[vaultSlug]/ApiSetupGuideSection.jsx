@@ -61,17 +61,6 @@ const SETUP_GUIDE_SECTIONS = [
     ],
   },
   {
-    id: "gatekeeperHash",
-    label: "0.6 GATEKEEPER_VAULT_PASSPHRASE_HASH (generated locally, no signup)",
-    envVars: ["GATEKEEPER_VAULT_PASSPHRASE_HASH"],
-    steps: [
-      'Run: node scripts/hashGatekeeperVaultPassphrase.js "your-chosen-passphrase"',
-      "Copy the printed GATEKEEPER_VAULT_PASSPHRASE_HASH=... line into .env.local and the deployment's env vars.",
-      "Gates the hidden Gatekeeper Tester page — its URL slug is derived from this hash and changes automatically whenever it's regenerated.",
-      "Different secret from VAULT_SETUP_KEY above — never reuse one for the other. Losing the plaintext just means re-running the script with a new passphrase.",
-    ],
-  },
-  {
     id: "supabase",
     label: "1. Supabase — Database (Postgres) + Auth",
     envVars: [

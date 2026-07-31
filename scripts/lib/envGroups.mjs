@@ -96,7 +96,6 @@ export const ENV_GROUPS = [
       { key: "VAULT_SETUP_KEY", required: true },
       { key: "VAULT_OWNER_EMAIL", required: true },
       { key: "VAULT_ALERT_WEBHOOK_URL", required: false },
-      { key: "GATEKEEPER_VAULT_PASSPHRASE_HASH", required: false },
       { key: "VAULT_PASSPHRASE_HASH", required: false },
       { key: "CRON_SECRET", required: true },
       { key: "SECURITY_LOG_RETENTION_DAYS", required: false },

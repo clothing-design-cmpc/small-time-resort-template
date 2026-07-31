@@ -38,9 +38,9 @@ import VaultPassphraseStep from "./VaultPassphraseStep";
 const EXTERNAL_STEPS = [
   {
     title: "1. Owner vault + TOTP QR code",
-    command: 'node scripts/setupVault.js "your-chosen-passphrase-min-12-chars"',
+    command: "node scripts/setupVault.js",
     description:
-      "Creates the OwnerVault row and writes vault-totp-qr.png to the project root. Scan it with your authenticator app immediately, then delete the file — never commit it or leave it on disk. Refuses to run if a vault already exists.",
+      "Auto-generates a random passphrase, prints it once (save it immediately), creates the OwnerVault row, and writes vault-totp-qr.png to the project root. Scan it with your authenticator app immediately, then delete the file — never commit it or leave it on disk. Refuses to run if a vault already exists. Pass your own passphrase as an argument instead if you'd rather choose one.",
     warning: "This is the only place the TOTP secret is ever generated in plaintext. Never deployed as an API route.",
   },
 ];
@@ -67,7 +67,7 @@ export default function ExternalSetupStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 6 of 10</span>
+        <span className="setupWizardEyebrow">Step 6 of 11</span>
         <h1 className="setupWizardTitle">External / local-machine-only setup</h1>
         <p className="setupWizardBody">
           Nothing on this step runs from this page — these three

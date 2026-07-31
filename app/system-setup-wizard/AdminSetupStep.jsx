@@ -183,7 +183,7 @@ export default function AdminSetupStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 3 of 10</span>
+        <span className="setupWizardEyebrow">Step 3 of 11</span>
         <h1 className="setupWizardTitle">Checking admin status…</h1>
       </div>
     );
@@ -192,7 +192,7 @@ export default function AdminSetupStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 3 of 10</span>
+        <span className="setupWizardEyebrow">Step 3 of 11</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load admin status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -222,7 +222,7 @@ export default function AdminSetupStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 3 of 10</span>
+        <span className="setupWizardEyebrow">Step 3 of 11</span>
         <h1 className="setupWizardTitle">Create your super-admin account</h1>
         <p className="setupWizardBody">
           There&apos;s no form here — the project&apos;s seed script creates your

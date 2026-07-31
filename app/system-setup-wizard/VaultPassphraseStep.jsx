@@ -80,7 +80,7 @@ export default function VaultPassphraseStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 7 of 10</span>
+        <span className="setupWizardEyebrow">Step 7 of 11</span>
         <h1 className="setupWizardTitle">Generate the vault passphrase</h1>
         <p className="setupWizardBody">
           This creates the disaster-recovery passphrase for the owner

@@ -78,7 +78,7 @@ export default function SetupKeyForm() {
 
   return (
     <form className="setupWizardCard" onSubmit={handleSubmit(onSubmit)}>
-      <span className="setupWizardEyebrow">Step 1 of 10</span>
+      <span className="setupWizardEyebrow">Step 1 of 11</span>
       <h1 className="setupWizardTitle">First-Run Setup</h1>
       <p className="setupWizardBody">
         This key confirms you have terminal access to this project before

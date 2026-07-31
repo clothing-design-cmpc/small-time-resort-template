@@ -107,6 +107,7 @@ const REMAINING_ENV_HELP = {
       "TEMPLATE 2 — step I, same right-hand panel fields as Template 1: Subject = {{subject}}, To Email = {{to_email}}, Reply To = {{reply_to}}, From Name = the same fixed brand name you used before.",
       "TEMPLATE 2 — step J, switch to HTML view the same way as Template 1's step F, then paste the \"Template 2\" block from below. This one uses regular double-brace tags only (no triple-brace needed): {{submitted_at}}, {{booking_id}}, {{guest_name}}, {{guest_pax}}, {{guest_phone}}, {{guest_email}}, {{room}}, {{package}}, {{check_in}}, {{check_out}}, {{price}}, {{downpayment}}, {{balance}}, {{payment_status}}, and {{special_requests}}.",
       "Step K — save everything: click \"Save\" on both templates. Then confirm Strict Mode is switched on (Account → Security tab) — this is what makes the Private Key from step B actually required and valid, so this server-side call can't be replayed by someone who only has the Public Key.",
+      "Step L — allow server-side sending: on that same Account → Security tab, find \"API access from non-browser environments\" and turn it ON. This project's services/emailjs.js calls EmailJS's REST API directly from Node (never the @emailjs/browser SDK, since OTP and vault-passphrase emails must never be handled client-side) — with this toggle left off, EmailJS rejects every send with a 403 (\"API access from non-browser environments is currently disabled\"), even though the Service ID, Template IDs, and both keys are all correct.",
     ],
     codeBlocks: [
       {

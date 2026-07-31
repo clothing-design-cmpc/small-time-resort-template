@@ -277,9 +277,12 @@ const REMAINING_ENV_HELP = {
   rateLimit: {
     links: [{ label: "Upstash Console", url: "https://console.upstash.com" }],
     steps: [
-      "Sign in with your Google/Gmail account (fastest option — no separate password to manage).",
-      "Create Database → Regional type. For Primary Region, pick the same region as your Supabase project (Supabase Dashboard → Settings → General → Region) — keeping Redis and Postgres in the same region avoids cross-region latency on every rate-limited request. Free tier is enough for this project.",
-      "Open the database → REST API section → copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+      "Go to console.upstash.com and click \"Sign in\" (or \"Sign up\" if it's your first time) — choose \"Continue with Google\" and log in with your Gmail account. Fastest option, no separate password to manage.",
+      "In the left sidebar, click \"Redis\" — this is Upstash's Redis product page, where your databases will be listed (empty on first login).",
+      "Click the \"Create Database\" button. Give it a name, then set Type to \"Regional\" (not Global — Regional is enough and free-tier eligible for this project).",
+      "Before confirming, find the Primary Region dropdown. Open your Supabase Dashboard in another tab → Settings → General → Region, and note the region shown there. Back in Upstash, pick that exact same region for Primary Region — keeping Redis and Postgres in the same region avoids cross-region latency on every rate-limited request.",
+      "Click \"Create\" to finish provisioning. The database is ready almost instantly.",
+      "Open the new database → REST API section → copy the values shown for UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN into .env.local.",
       "No further setup — services/rateLimit.js switches from its in-memory fallback to the distributed limiter automatically once both values are present.",
     ],
   },
@@ -301,7 +304,9 @@ const REMAINING_ENV_HELP = {
       "Set VAULT_OWNER_EMAIL to the email that should receive vault alerts. VAULT_ALERT_WEBHOOK_URL (optional) is a Slack/Discord-style incoming webhook URL, if you want alerts posted to a channel too.",
       "Restart npm run dev after saving these into .env.local — Next.js only reads env vars once at server start, so VAULT_SETUP_KEY, CRON_SECRET, and VAULT_OWNER_EMAIL won't actually take effect until the dev server restarts, even though the file is already saved. Keep that npm run dev running in its own terminal tab — the command below needs a second, separate terminal, since the dev server has to still be running (not just restarted and then stopped again) for the request to connect.",
       "No vault passphrase registered yet? Locally there's no Vercel Cron to auto-generate the first one on its own schedule — trigger the same auto-rotate route by hand with the command below, in that second terminal, while npm run dev is still running. It treats \"no VaultPassphrase row yet\" the same as \"expired,\" so it generates, emails (to VAULT_OWNER_EMAIL), and backs up (to R2) the very first passphrase immediately, no 30-day wait.",
-      "On Windows PowerShell specifically: PowerShell's built-in curl is actually an alias for Invoke-WebRequest, which does NOT accept real curl's -H \"Header: value\" syntax — that's the \"Cannot bind parameter 'Headers'\" error if you hit it. Use the PowerShell-native command below instead, or type curl.exe (not just curl) to call the real curl binary Windows already ships with, which does accept -H normally.",
+      "On Windows PowerShell specifically: PowerShell's built-in \"curl\" is actually an alias for Invoke-WebRequest, and its -Headers parameter needs a real PowerShell hashtable (@{ Name = \"value\" }) — not real curl's \"Header: value\" text syntax. Passing the macOS/Linux command's -H \"Authorization: Bearer ...\" text as-is throws a type-conversion error (something like \"Cannot convert value ... to type IDictionary\"). Use the PowerShell-native command below instead — it's already written in hashtable syntax, no typing needed.",
+      "Also on Windows PowerShell 5.1 (the version that ships with Windows by default — check with $PSVersionTable.PSVersion): Invoke-WebRequest can additionally throw \"The response content cannot be parsed because the Internet Explorer engine is not available\" if IE's first-run setup was never completed on that machine. The command below already includes -UseBasicParsing, which skips that IE dependency entirely and avoids the error — no other setup needed. PowerShell 7+ doesn't have this issue, but the flag is harmless there too.",
+      "What success looks like: either command prints a JSON body back to the terminal. {\"success\":true,\"data\":{\"rotated\":true},...} means a fresh passphrase was just generated, emailed to VAULT_OWNER_EMAIL, and backed up to R2 — check that inbox next. {\"success\":true,\"data\":{\"rotated\":false},...} means one was already on file and not yet due for rotation. {\"success\":false,\"message\":\"Unauthorized.\"} with a 401 means CRON_SECRET in .env.local doesn't match what you pasted into the command — recheck it and make sure the dev server was restarted after saving .env.local (see the bullet above).",
     ],
     codeBlocks: [
       {
@@ -313,8 +318,8 @@ const REMAINING_ENV_HELP = {
         code: "curl -H \"Authorization: Bearer YOUR_CRON_SECRET\" http://localhost:3000/api/system-vault-setup/auto-rotate",
       },
       {
-        label: "Windows PowerShell — same request, PowerShell-native syntax",
-        code: "Invoke-WebRequest -Uri \"http://localhost:3000/api/system-vault-setup/auto-rotate\" -Headers @{ Authorization = \"Bearer YOUR_CRON_SECRET\" }",
+        label: "Windows PowerShell — same request, PowerShell-native syntax (replace YOUR_CRON_SECRET with the value from .env.local)",
+        code: "Invoke-WebRequest -UseBasicParsing -Uri \"http://localhost:3000/api/system-vault-setup/auto-rotate\" -Headers @{ Authorization = \"Bearer YOUR_CRON_SECRET\" }",
       },
     ],
   },

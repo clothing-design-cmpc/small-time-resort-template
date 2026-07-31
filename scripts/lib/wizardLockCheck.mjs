@@ -2,9 +2,10 @@
  * FILE: scripts/lib/wizardLockCheck.mjs
  * PURPOSE:
  * Standalone (outside Next.js) version of
- * services/setupWizardStatus.js's isSetupWizardLocked() — same two
- * conditions (owner AdminProfile exists AND VaultPassphrase is set),
- * same "missing table / unreachable DB = not locked" fallback.
+ * services/setupWizardStatus.js's isSetupWizardLocked() — same three
+ * conditions (owner AdminProfile exists AND VaultPassphrase is set
+ * AND SystemSettings.setupFinalized is true), same "missing table /
+ * unreachable DB = not locked" fallback.
  * scripts/checkSetupWizardStatus.js already re-implements this logic
  * inline for its printable diagnostic; this file extracts a reusable,
  * boolean-only version so scripts/postinstallSetup.mjs can gate the
@@ -14,30 +15,30 @@
  * WHY THIS MUST NEVER THROW:
  * Called from postinstall, at the end of every `npm install` — on a
  * brand-new clone (no .env.local yet), DIRECT_URL is undefined, the
- * DB is unreachable, or admin_profiles/vault_passphrases don't exist
- * yet (pre-`db push`). All of these mean "setup obviously hasn't
- * finished", not "crash the install" — so every failure path here
- * resolves to false (not locked), same fallback services/
- * setupWizardStatus.js uses for the live app.
+ * DB is unreachable, or admin_profiles/vault_passphrases/
+ * system_settings don't exist yet (pre-`db push`). All of these mean
+ * "setup obviously hasn't finished", not "crash the install" — so
+ * every failure path here resolves to false (not locked), same
+ * fallback services/setupWizardStatus.js uses for the live app.
  *
- * ALSO CHECKS setupGuideDismissed:
- * SystemSettings.setupGuideDismissed (set once, explicitly, by the
- * button on SetupCompleteStep.jsx / app/api/system-setup-wizard/
- * dismiss-guide) is a separate signal from the owner+vault check
- * below — either one being true is enough to stop reopening the
- * guide. In the normal flow the owner+vault check already goes true
- * a few steps before setupGuideDismissed would ever get set, so this
- * mostly matters as the explicit, deliberate override the developer
- * asked for.
+ * setupFinalized IS NOW REQUIRED, NOT JUST DERIVED:
+ * Owner admin + vault existing is no longer enough on its own — the
+ * guide keeps reopening through every `npm install` / `npm run dev`
+ * until the developer explicitly clicks "Finished testing" on
+ * SetupCompleteStep.jsx (Step 11), which sets
+ * SystemSettings.setupFinalized. This mirrors
+ * services/setupWizardStatus.js's isSetupWizardLocked() exactly, on
+ * purpose — same three-condition AND, not an OR.
  */
 import { existsSync } from "node:fs";
 
 /**
  * isWizardLockedStandalone
  * Returns true only when a real, reachable Postgres connection
- * confirms both an owner AdminProfile and a set VaultPassphrase
- * exist. Returns false for every other case (no .env.local yet, no
- * DIRECT_URL, unreachable DB, tables not migrated yet, or any
+ * confirms an owner AdminProfile exists, a VaultPassphrase is set,
+ * AND SystemSettings.setupFinalized is true. Returns false for every
+ * other case (no .env.local yet, no DIRECT_URL, unreachable DB,
+ * tables not migrated yet, finalize step not clicked yet, or any
  * unexpected error) — never throws.
  */
 export async function isWizardLockedStandalone() {
@@ -71,14 +72,14 @@ export async function isWizardLockedStandalone() {
         }),
         prisma.systemSettings.findUnique({
           where: { id: "singleton" },
-          select: { setupGuideDismissed: true },
+          select: { setupFinalized: true },
         }),
       ]);
 
-      const isDerivedLocked = ownerAdminCount > 0 && Boolean(vaultPassphrase?.passphraseHash);
-      const isExplicitlyDismissed = Boolean(systemSettings?.setupGuideDismissed);
+      const prerequisitesMet = ownerAdminCount > 0 && Boolean(vaultPassphrase?.passphraseHash);
+      const isFinalized = Boolean(systemSettings?.setupFinalized);
 
-      return isDerivedLocked || isExplicitlyDismissed;
+      return prerequisitesMet && isFinalized;
     } finally {
       await prisma.$disconnect();
     }

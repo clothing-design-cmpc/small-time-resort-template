@@ -11,13 +11,14 @@
  *
  * AUTO-LOCK (see services/setupWizardStatus.js):
  * Before rendering anything, this Server Component checks whether
- * setup is already complete (an isOwner AdminProfile AND a set
- * VaultPassphrase both exist). If so, calls notFound() — the page
+ * setup is finalized (owner AdminProfile + VaultPassphrase both exist
+ * AND the developer explicitly clicked "Finished testing" on
+ * SetupCompleteStep.jsx, Step 11). If so, calls notFound() — the page
  * behaves as if it never existed. This check runs on EVERY request,
- * not once at build time, so the page locks itself the moment setup
- * finishes without needing a redeploy. Every API route under
- * app/api/system-setup-wizard/ performs this same check independently
- * — the page alone is not the enforcement boundary.
+ * not once at build time, so the page locks itself the moment the
+ * finalize button succeeds without needing a redeploy. Every API
+ * route under app/api/system-setup-wizard/ performs this same check
+ * independently — the page alone is not the enforcement boundary.
  *
  * DATA FLOW:
  * 1. isSetupWizardLocked() — DB read, decides 404 vs render

@@ -6,28 +6,28 @@
  * Renders once PreHandoffTestingStep's checklist is fully checked off
  * (Step 10). setup_completed was already logged back in
  * generate-passphrase/route.js's Step 7 request (see that route's
- * SELF-LOCK NOTE for why it fires there and not here); by this point
- * isSetupWizardLocked() has been true for three steps already, so any
- * wizard API route this screen might have called would already 404 —
- * EXCEPT dismiss-guide below, which specifically requires the lock to
- * already be true (see that route's own comment).
+ * SELF-LOCK NOTE for why it fires there and not here).
  *
- * From here on, reloading /system-setup-wizard itself returns a plain
- * 404 (app/system-setup-wizard/page.jsx's own check) — this screen is
- * the last thing this route will ever render for this deployment.
+ * THE WIZARD IS STILL OPEN AT THIS POINT (changed):
+ * Unlike before, isSetupWizardLocked() (services/setupWizardStatus.js)
+ * is NOT true yet just because the owner admin and vault passphrase
+ * exist — it now also requires SystemSettings.setupFinalized, set only
+ * by the button below. So reaching this screen does NOT 404 the wizard
+ * on reload; earlier steps stay fully testable/repeatable until
+ * "Finished testing" is clicked.
  *
- * "FINISHED TESTING" BUTTON:
- * The owner+vault check already stops scripts/postinstallSetup.mjs
- * from reopening the setup guide a few steps before this screen even
- * renders — this button does NOT change wizard access or lock state.
- * It sets a separate, explicit SystemSettings.setupGuideDismissed flag
- * (via /api/system-setup-wizard/dismiss-guide) purely so a developer
- * who wants a deliberate, visible confirmation — rather than relying
- * on the derived state alone — has one. Safe to click more than once;
- * safe to skip entirely.
+ * "FINISHED TESTING" BUTTON — THIS IS THE ACTUAL LOCK TRIGGER:
+ * Calls /api/system-setup-wizard/finalize-setup, which sets
+ * SystemSettings.setupFinalized. The moment that succeeds:
+ *   - /system-setup-wizard -> 404 on next load
+ *   - every /api/system-setup-wizard/* route -> rejects
+ *   - scripts/postinstallSetup.mjs stops reopening the setup guide
+ * There is no button to undo this — only clearing the owner admin and
+ * vault passphrase from the database reopens the wizard afterward.
+ * Don't click it until you're genuinely done testing.
  *
  * OWNER-IP LENIENCY WARNING (added after a real handoff mix-up):
- * The FIRST clean (non-anomalous) super-admin login after this screen
+ * The FIRST clean (non-anomalous) super-admin login after finalizing
  * auto-registers as SystemSettings.ownerVerifiedIp — see
  * app/api/auth/login/route.js's "AUTO-UPDATE the trusted owner IP"
  * block. Whoever clicks "Go to Super-Admin Login" below and signs in
@@ -41,8 +41,9 @@
  * to blank, so whoever logs in AFTER finalize-handoff is the one who
  * actually gets registered as the trusted owner IP.
  *
- * DATA FLOW: dismiss-guide button -> POST /api/system-setup-wizard/dismiss-guide
- * -> toast success/error. Everything else on this screen is static.
+ * DATA FLOW: "Finished testing" button -> POST
+ * /api/system-setup-wizard/finalize-setup -> toast success/error ->
+ * on success, wizard is locked from that request onward.
  */
 "use client";
 
@@ -52,31 +53,31 @@ import ToastStack from "./shared/ToastStack";
 
 export default function SetupCompleteStep() {
   const { toasts, showToast, dismissToast } = useToast();
-  const [isDismissing, setIsDismissing] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isFinalized, setIsFinalized] = useState(false);
 
   /**
-   * handleDismissGuide
-   * Confirms production testing is done and tells the postinstall/predev
-   * hook to stop reopening the setup guide. Disabled after a successful
-   * call so it can't be double-submitted.
+   * handleFinalizeSetup
+   * Locks the wizard for good: sets SystemSettings.setupFinalized via
+   * the finalize-setup route. Disabled after a successful call so it
+   * can't be double-submitted.
    */
-  async function handleDismissGuide() {
-    setIsDismissing(true);
+  async function handleFinalizeSetup() {
+    setIsFinalizing(true);
     try {
-      const response = await fetch("/api/system-setup-wizard/dismiss-guide", { method: "POST" });
+      const response = await fetch("/api/system-setup-wizard/finalize-setup", { method: "POST" });
       const result = await response.json();
 
       if (result.success) {
-        showToast("✓ Setup guide will no longer open automatically.", "success");
-        setIsDismissed(true);
+        showToast("✓ Setup finalized. The wizard is now locked.", "success");
+        setIsFinalized(true);
       } else {
         showToast("✕ " + result.message, "error");
       }
     } catch {
       showToast("✕ Network error — please try again.", "error");
     } finally {
-      setIsDismissing(false);
+      setIsFinalizing(false);
     }
   }
 
@@ -85,33 +86,34 @@ export default function SetupCompleteStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <span className="setupWizardEyebrow">Step 11 of 11</span>
-      <h1 className="setupWizardTitle">Setup complete</h1>
+      <h1 className="setupWizardTitle">Setup complete — not yet locked</h1>
       <p className="setupWizardBody">
-        First-run setup is finished. This page — and every route under it — will now return a
-        plain 404 on every future visit, even with the correct{" "}
-        <code>WIZARD_SETUP_KEY</code>. There is no way to reopen it from here; it stays this
-        way unless the owner admin and vault passphrase are both removed from the database.
+        Every earlier step still works right now — the owner admin and vault passphrase existing
+        is not enough on its own anymore. The wizard only locks (and the setup guide stops
+        reopening on <code>npm install</code> / <code>npm run dev</code>) once you click
+        "Finished testing" below.
       </p>
       <p className="setupWizardError">
-        Before you leave this page: confirm you've saved the vault passphrase (Step 7) and the
+        Before you click that button: confirm you've saved the vault passphrase (Step 7) and the
         super-admin password (Step 3) somewhere durable. Neither can be recovered from this
-        wizard again.
+        wizard again once it locks.
       </p>
 
       <h2 className="setupWizardTestingGroupTitle">Ready for production?</h2>
       <p className="setupWizardBody">
-        Once you've finished testing and confirmed the site is production-ready, click below —
-        the setup guide (<code>scripts/setup-guide.html</code>) will stop reopening on
-        <code> npm install</code> / <code>npm run dev</code>. This is optional: it already stops
-        reopening on its own once setup is this far along — this button just makes it explicit.
+        Click below only once you've finished testing and confirmed the site is production-ready.
+        This permanently locks <code>/system-setup-wizard</code> (plain 404 from then on, even
+        with the correct <code>WIZARD_SETUP_KEY</code>) and stops the setup guide from reopening.
+        There is no button to undo this — the only way back in afterward is removing the owner
+        admin and vault passphrase from the database.
       </p>
       <button
         type="button"
         className="setupWizardButton"
-        onClick={handleDismissGuide}
-        disabled={isDismissing || isDismissed}
+        onClick={handleFinalizeSetup}
+        disabled={isFinalizing || isFinalized}
       >
-        {isDismissed ? "✓ Guide dismissed" : isDismissing ? "Saving…" : "Finished testing — stop showing the setup guide"}
+        {isFinalized ? "✓ Setup finalized — wizard locked" : isFinalizing ? "Locking…" : "Finished testing — lock the wizard"}
       </button>
 
       <h2 className="setupWizardTestingGroupTitle">Before you hand this off to the owner</h2>

@@ -59,7 +59,10 @@ const navGroups = [
   },
   {
     label: "Settings",
-    links: [{ label: "Booking Rules", href: "/superAdmin/settings/booking-rules" }],
+    links: [
+      { label: "Booking Rules", href: "/superAdmin/settings/booking-rules" },
+      { label: "Admin Access Limit", href: "/superAdmin/settings/admin-access-limit" },
+    ],
   },
   {
     label: "Insights",

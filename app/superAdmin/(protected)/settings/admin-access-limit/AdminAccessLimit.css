@@ -1,0 +1,158 @@
+/*
+ * .adminAccessLimitPage
+ * Outer wrapper — vertical stack of the header and the single settings
+ * card below it.
+ */
+.adminAccessLimitPage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  max-width: 640px;
+}
+
+.adminAccessLimitHeaderRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.adminAccessLimitEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.adminAccessLimitPageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.adminAccessLimitSubtitle {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+}
+
+.adminAccessLimitHint {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.adminAccessLimitFormError {
+  font-size: 0.9rem;
+  color: var(--color-error);
+}
+
+/*
+ * .adminAccessLimitCard
+ * The single settings card — active-count readout, the input field,
+ * and the Save/Edit actions. Padding on all sides + a visible border,
+ * per the card spacing standard.
+ */
+.adminAccessLimitCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.adminAccessLimitActiveCount {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.adminAccessLimitActiveCount strong {
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.adminAccessLimitFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.adminAccessLimitFormField label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.adminAccessLimitFormField input {
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast, 0.15s ease), box-shadow var(--transition-fast, 0.15s ease);
+}
+
+.adminAccessLimitFormField input:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.adminAccessLimitFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.adminAccessLimitButton {
+  min-height: 44px;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.adminAccessLimitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adminAccessLimitButton--neutral {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.adminAccessLimitButton--neutral:hover:not(:disabled),
+.adminAccessLimitButton--neutral:focus-visible:not(:disabled) {
+  background-color: var(--color-surface-hover);
+}
+
+.adminAccessLimitButton--primary {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+
+.adminAccessLimitButton--primary:hover:not(:disabled),
+.adminAccessLimitButton--primary:focus-visible:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+@media (min-width: 768px) {
+  .adminAccessLimitPageTitle {
+    font-size: 2.25rem;
+  }
+}

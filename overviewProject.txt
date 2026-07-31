@@ -657,6 +657,72 @@ FILE MAP additions (3-Gatekeeper Breach Response):
   Next.js version in use still supports `runtime: "nodejs"` in
   middleware's exported config; this was verified against Next 16.2.10.
 
+=== PROCESS: Super-Admin Access Limit ===
+Step 1 : Super-admin opens Settings > Admin Access Limit
+         (app/superAdmin/(protected)/settings/admin-access-limit/page.jsx)
+Step 2 : AdminAccessLimitClient fetches GET
+         /api/superAdmin/settings/admin-access-limit -> current
+         maxAdminSessions value + how many admins are signed in right
+         now (services/adminAccessLimit.js's getAdminAccessLimitStatus)
+Step 3 : Field starts disabled. Clicking "Edit" enables the input;
+         clicking "Save" PUTs the new number (or blank = unlimited) to
+         the same route, which upserts SystemSettings.maxAdminSessions
+         and logs an AuditLog row, then the field disables again
+Step 4 : On every login attempt, app/api/auth/login/route.js calls
+         getAdminAccessLimitStatus() right after confirming the
+         account is a super_admin, and BEFORE Gatekeeper 3 anomaly
+         processing - if the active (non-expired) AdminSession count
+         is already >= the configured limit, the Supabase session is
+         signed back out, an "admin_access_limit_reached" SecurityLog
+         row is written, and the login is rejected with 403 - this
+         never enters the GK3 block, so GK3 keeps applying normally to
+         every login that IS allowed through
+Step 5 : A login that clears the limit check creates one AdminSession
+         row (id = "sid" embedded in the session cookie payload),
+         expiresAt = now + 7 days (same window as the cookie itself)
+Step 6 : app/superAdmin/login/page.jsx also calls GET
+         /api/auth/access-status (public, no session) on mount - if
+         the limit is already full, the email/password inputs, the
+         "Super Admin" quick-fill button, and the submit button are
+         all disabled with an inline message before the admin even
+         types anything
+Step 7 : Logging out (explicit "Sign Out", or SessionCloseGuard's
+         beacon on tab/browser close) deletes that device's exact
+         AdminSession row via app/api/auth/logout/route.js, freeing up
+         one slot immediately
+Step 8 : A session that's never explicitly logged out (crashed
+         browser, killed process) simply stops counting once its
+         expiresAt passes - no separate cleanup job needed, since
+         getActiveAdminSessionCount() only counts expiresAt > now
+
+DEBUG POINTS (Admin Access Limit):
+- Login rejected with "Maximum number of admins..." even though it
+  looks like fewer than the limit are actually using the site right
+  now -> check the AdminSession table directly; a stale row (crashed
+  browser, force-quit) still counts until its expiresAt (7 days from
+  creation) passes - there is no manual "kick" action yet.
+- Settings page shows "Currently signed in: 0" right after a
+  successful login on another device -> the two pages don't
+  auto-refresh each other; reload the Settings page to see the
+  updated activeSessionCount.
+- Cookie from a login issued before this feature existed has no "sid"
+  -> app/api/auth/logout/route.js's decode is wrapped in try/catch and
+  simply skips the AdminSession delete in that case; not an error.
+
+FILE MAP additions (Admin Access Limit):
+- services/adminAccessLimit.js - session counting, capacity check,
+  create/delete session, update the saved limit
+- app/api/auth/access-status/route.js - public GET, login page reads
+  this on mount
+- app/api/superAdmin/settings/admin-access-limit/route.js - GET/PUT
+  for the settings page
+- app/superAdmin/(protected)/settings/admin-access-limit/ - the
+  settings page itself (page.jsx, AdminAccessLimitClient.jsx,
+  AdminAccessLimit.css)
+- hooks/useAdminAccessLimit.js - fetch/save hook for the settings page
+- prisma/schema.prisma - AdminSession model; SystemSettings gained
+  maxAdminSessions / maxAdminSessionsUpdatedAt / maxAdminSessionsUpdatedBy
+
 9. COMMON DEBUG POINTS
 - "pg_dump: command not found" when testing scripts/runBackup.js locally:
   install the postgresql-client package for your OS — pg_dump is a system

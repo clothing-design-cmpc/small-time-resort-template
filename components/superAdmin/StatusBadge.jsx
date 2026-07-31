@@ -30,6 +30,7 @@ const STATUS_STYLES = {
   login_success: { label: "Login Success", color: "#10b981" },
   login_failed: { label: "Login Failed", color: "#f59e0b" },
   admin_login_denied: { label: "Access Denied", color: "#ef4444" },
+  admin_access_limit_reached: { label: "Access Limit Reached", color: "#f59e0b" },
   rate_limit_hit: { label: "Rate Limited", color: "#ef4444" },
   admin_action: { label: "Admin Action", color: "#3b82f6" },
   sql_injection_attempt: { label: "SQLi Attempt", color: "#dc2626" },

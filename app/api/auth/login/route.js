@@ -34,6 +34,13 @@
  *   lockdown/backup/rotation) when the anomaly was a NEW DEVICE from
  *   this exact IP — an IMPOSSIBLE TRAVEL trip is never exempted here,
  *   regardless of IP.
+ *
+ * ADMIN ACCESS LIMIT (SystemSettings.maxAdminSessions) — a valid
+ * super_admin login is turned away with 403 if that many devices are
+ * already signed in (see services/adminAccessLimit.js). This check
+ * runs AFTER role verification but BEFORE Gatekeeper 3 processing, so
+ * a login blocked here never counts as "successful" and GK3 keeps
+ * running normally on every login that isn't blocked by this limit.
  */
 export const dynamic = "force-dynamic";
 
@@ -48,6 +55,7 @@ import { isIpBlocked } from "@/services/ipBlock";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { issueMagicLoginToken } from "@/services/magicLogin";
 import { sendOwnerMagicLoginEmail, sendOwnerIpUpdatedEmail } from "@/services/emailAlert";
+import { getAdminAccessLimitStatus, createAdminSession } from "@/services/adminAccessLimit";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -301,9 +309,45 @@ export async function POST(request) {
     );
   }
 
-  // Step 3: set the HttpOnly session cookie proxy.js decodes.
+  // Step 2.5: Admin Access Limit — a valid super_admin login can still
+  // be turned away if SystemSettings.maxAdminSessions is set and that
+  // many devices/browsers are already signed in (AdminSession rows
+  // that haven't expired yet). This check runs BEFORE Gatekeeper 3's
+  // anomaly detection below on purpose — a login blocked here never
+  // becomes a "successful login" at all, so it never enters the GK3
+  // block, and GK3 keeps applying in full to every login that DOES
+  // get through, exactly as before this feature existed.
+  const { limitReached } = await getAdminAccessLimitStatus();
+  if (limitReached) {
+    // Sign the Supabase session back out — same reasoning as the
+    // non-admin case above: the browser must not keep a valid Supabase
+    // session for a login this app is refusing to honor.
+    await adminClient.auth.admin.signOut(signInData.session.access_token).catch(() => {});
+
+    await logSecurityEvent({
+      eventType: "admin_access_limit_reached",
+      actor: email,
+      request,
+      details: "Valid super-admin credentials, but the admin access limit is already full.",
+    });
+
+    return NextResponse.json(
+      {
+        success: false,
+        data: { accessLimitReached: true },
+        message: "Maximum number of admins allowed to access the system has been reached. Please try again later.",
+      },
+      { status: 403 }
+    );
+  }
+
+  // Step 3: set the HttpOnly session cookie proxy.js decodes. "sid" is
+  // this device/browser's own AdminSession row id — logout uses it to
+  // delete exactly this session without touching this admin's other
+  // active sessions on other devices.
+  const sessionId = crypto.randomUUID();
   const sessionPayload = Buffer.from(
-    JSON.stringify({ uid: authUserId, role: adminProfile.role })
+    JSON.stringify({ uid: authUserId, role: adminProfile.role, sid: sessionId })
   ).toString("base64");
 
   const securityLogRow = await logSecurityEvent({
@@ -383,6 +427,17 @@ export async function POST(request) {
     sameSite: "strict",
     path: "/",
     maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
+  });
+
+  // Track this device/browser as an active session — expiresAt mirrors
+  // the cookie's own maxAge so a session that's never explicitly
+  // logged out (browser crash, killed process) still stops counting
+  // toward the access limit once the cookie itself would have expired.
+  await createAdminSession({
+    id: sessionId,
+    adminId: authUserId,
+    ipAddress: ip !== "unknown" ? ip : null,
+    expiresAt: new Date(Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000),
   });
 
   return response;

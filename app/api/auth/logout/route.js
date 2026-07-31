@@ -12,21 +12,40 @@
  *
  * DATA FLOW:
  * 1. Client calls POST /api/auth/logout (no body needed)
- * 2. The "session" cookie is deleted from the response
- * 3. Clear-Site-Data header instructs the browser to purge this
+ * 2. This device's AdminSession row (id = the "sid" decoded from the
+ *    session cookie) is deleted, freeing up one slot against
+ *    SystemSettings.maxAdminSessions
+ * 3. The "session" cookie is deleted from the response
+ * 4. Clear-Site-Data header instructs the browser to purge this
  *    origin's cookies/storage/cache
- * 4. Client redirects to /superAdmin/login
+ * 5. Client redirects to /superAdmin/login
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { deleteAdminSession } from "@/services/adminAccessLimit";
 
 // Must match the login route's rule — Secure cookies are dropped
 // outright on plain HTTP local dev, so only require it in production.
 const isProduction = process.env.NODE_ENV === "production";
 
-export async function POST() {
+export async function POST(request) {
   try {
+    // Free up this device's slot against the access limit BEFORE
+    // clearing the cookie — best-effort, wrapped inside
+    // deleteAdminSession() itself so a DB hiccup here can never block
+    // sign-out.
+    const sessionCookie = request.cookies.get("session")?.value;
+    if (sessionCookie) {
+      try {
+        const decoded = JSON.parse(Buffer.from(sessionCookie, "base64").toString("utf-8"));
+        await deleteAdminSession(decoded?.sid);
+      } catch {
+        // Malformed/legacy cookie (no "sid", e.g. a session issued
+        // before this feature existed) — nothing to delete.
+      }
+    }
+
     const response = NextResponse.json({
       success: true,
       data: null,

@@ -9,17 +9,23 @@
  * that auto-fills the demo credentials for local testing.
  *
  * DATA FLOW:
- * 1. User types email/password OR clicks "Super Admin" to auto-fill both fields
- * 2. React Hook Form + Zod validate on submit (Rule 31.7)
- * 3. onSubmit POSTs to /api/auth/login, which verifies the credentials
- *    against Supabase Auth + admin_profiles and sets the "session" cookie
- *    that middleware.js reads
- * 4. On success, redirect to /superAdmin/dashboard. On failure, show an
+ * 1. On mount, GET /api/auth/access-status checks whether the Admin
+ *    Access Limit (Super-Admin > Settings > Admin Access Limit) is
+ *    already full — if so, both inputs are disabled with an inline
+ *    message instead of letting the admin fill out a form that would
+ *    only be rejected afterward
+ * 2. User types email/password OR clicks "Super Admin" to auto-fill both fields
+ * 3. React Hook Form + Zod validate on submit (Rule 31.7)
+ * 4. onSubmit POSTs to /api/auth/login, which verifies the credentials
+ *    against Supabase Auth + admin_profiles, checks the same access
+ *    limit again server-side, and sets the "session" cookie that
+ *    middleware.js reads
+ * 5. On success, redirect to /superAdmin/dashboard. On failure, show an
  *    inline error banner above the form.
  */
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,6 +61,35 @@ export default function SuperAdminLoginPage() {
   // emailed (owner-verified-IP leniency, 5 failed attempts exceeded) —
   // swaps the error banner for a "check your email" message instead.
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+
+  // Admin Access Limit (Super-Admin > Settings > Admin Access Limit) —
+  // true once the configured number of admins are already signed in.
+  // Checked once on mount so the form starts disabled instead of
+  // letting the admin type credentials that /api/auth/login would
+  // just reject anyway.
+  const [isAccessLimitReached, setIsAccessLimitReached] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkAccessStatus() {
+      try {
+        const response = await fetch("/api/auth/access-status");
+        const result = await response.json();
+        if (isMounted && result.success) {
+          setIsAccessLimitReached(Boolean(result.data?.limitReached));
+        }
+      } catch {
+        // Fail open on a network error — never block a legitimate
+        // login attempt just because this pre-check couldn't run.
+      }
+    }
+
+    checkAccessStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const {
     register,
@@ -110,6 +145,17 @@ export default function SuperAdminLoginPage() {
       // normal error banner, and stop here (no reload, no attempt count).
       if (result.data?.magicLinkSent) {
         setMagicLinkSent(true);
+        setValue("email", "");
+        setValue("password", "");
+        return;
+      }
+
+      // A slot could fill up between this page's mount-time check and
+      // this exact submit — lock the form the same way the mount check
+      // would have, instead of just showing a one-off error.
+      if (result.data?.accessLimitReached) {
+        setIsAccessLimitReached(true);
+        setAuthError(result.message);
         setValue("email", "");
         setValue("password", "");
         return;
@@ -196,10 +242,20 @@ export default function SuperAdminLoginPage() {
           </p>
         )}
 
+        {/* Access limit reached — takes priority over the normal error
+            banner and the magic-link notice, since the whole form is
+            unusable in this state regardless of what was just typed. */}
+        {isAccessLimitReached && (
+          <p role="alert" className="loginAuthError">
+            {authError ||
+              "Maximum number of admins allowed to access the system has been reached. Please try again later."}
+          </p>
+        )}
+
         {/* Whole-form auth error — wrong credentials, not a super admin,
             or a network failure. Field-level Zod errors render separately
             below each input. */}
-        {!magicLinkSent && authError && (
+        {!isAccessLimitReached && !magicLinkSent && authError && (
           <p role="alert" className="loginAuthError">
             {authError}
           </p>
@@ -215,6 +271,7 @@ export default function SuperAdminLoginPage() {
               type="email"
               autoFocus
               autoComplete="email"
+              disabled={isAccessLimitReached}
               {...register("email")}
             />
             {errors.email && (
@@ -233,6 +290,7 @@ export default function SuperAdminLoginPage() {
                 id="password"
                 type={isPasswordVisible ? "text" : "password"}
                 autoComplete="current-password"
+                disabled={isAccessLimitReached}
                 {...register("password")}
               />
               {/* Show/hide toggle — required on every password field per Rule 34.3 */}
@@ -241,6 +299,7 @@ export default function SuperAdminLoginPage() {
                 className="loginPasswordToggle"
                 onClick={() => setIsPasswordVisible((visible) => !visible)}
                 aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                disabled={isAccessLimitReached}
               >
                 {isPasswordVisible ? "Hide" : "Show"}
               </button>
@@ -258,11 +317,12 @@ export default function SuperAdminLoginPage() {
             type="button"
             className="loginSuperAdminFillButton"
             onClick={fillSuperAdminDemoCredentials}
+            disabled={isAccessLimitReached}
           >
             Super Admin
           </button>
 
-          <button type="submit" className="loginSubmitButton" disabled={isSubmitting}>
+          <button type="submit" className="loginSubmitButton" disabled={isSubmitting || isAccessLimitReached}>
             {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
         </form>

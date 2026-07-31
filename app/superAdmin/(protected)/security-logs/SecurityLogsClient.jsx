@@ -70,6 +70,7 @@ const EVENT_TYPE_FILTERS = [
   { value: "login_success", label: "Login Success" },
   { value: "login_failed", label: "Login Failed" },
   { value: "admin_login_denied", label: "Access Denied" },
+  { value: "admin_access_limit_reached", label: "Access Limit Reached" },
   { value: "rate_limit_hit", label: "Rate Limited" },
   { value: "admin_action", label: "Admin Action" },
   { value: "directions_verified", label: "Directions Verified" },

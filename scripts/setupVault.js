@@ -15,8 +15,12 @@
  *
  * OUTPUT:
  *   Creates the OwnerVault row, then writes vault-totp-qr.png to the
- *   project root. Scan it with your authenticator app immediately,
- *   then delete the file — never commit it or leave it on disk.
+ *   project root AND uploads a copy to a private Cloudflare R2
+ *   secrets/ key (services/ownerVaultBackup.js) as a recovery copy —
+ *   scan the local file with your authenticator app immediately,
+ *   then delete it — never commit it or leave it on disk. Prints a
+ *   confirmation (row id + passphrase hash) after saving so you can
+ *   verify the row actually landed in the database.
  */
 import "./loadEnv.mjs";
 import bcrypt from "bcryptjs";
@@ -24,6 +28,7 @@ import crypto from "crypto";
 import fs from "fs";
 import { prisma } from "../services/prisma.js";
 import { generateTotpSecret, generateTotpQrCode } from "../services/totp.js";
+import { saveOwnerVaultQrToR2 } from "../services/ownerVaultBackup.js";
 
 /**
  * generatePassphrase
@@ -60,11 +65,18 @@ async function main() {
   const passphraseHash = await bcrypt.hash(passphrase, 12);
   const totpSecret = generateTotpSecret();
 
-  await prisma.ownerVault.create({ data: { passphraseHash, totpSecret } });
+  const createdVault = await prisma.ownerVault.create({ data: { passphraseHash, totpSecret } });
 
   const qrDataUrl = await generateTotpQrCode(totpSecret);
   const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
-  fs.writeFileSync("vault-totp-qr.png", base64Data, "base64");
+  const qrBuffer = Buffer.from(base64Data, "base64");
+  fs.writeFileSync("vault-totp-qr.png", qrBuffer);
+
+  // Best-effort backup to Cloudflare R2 (private secrets/ key, never
+  // the public CDN URL) — never blocks vault creation itself if it
+  // fails, since the local file is already the primary copy.
+  console.log("Backing up QR code to Cloudflare R2…");
+  const { r2Saved, r2SignedUrl } = await saveOwnerVaultQrToR2(qrBuffer);
 
   // The generated passphrase is never stored or shown again after this —
   // it only ever exists in plaintext here, on the owner's own machine.
@@ -74,9 +86,23 @@ async function main() {
     console.log("");
   }
 
+  // Confirmation that the row actually landed in the database — the
+  // hash is safe to print (unlike the plaintext passphrase above, a
+  // bcrypt hash can't be used to log in on its own) and gives an
+  // immediate way to verify the save without opening Supabase.
+  console.log("Saved to database:");
+  console.log(`  owner_vault row id: ${createdVault.id}`);
+  console.log(`  passphrase hash:    ${passphraseHash}`);
+  console.log("");
+
   console.log("Vault created successfully.");
   console.log("Scan vault-totp-qr.png with your authenticator app now.");
   console.log("Then DELETE vault-totp-qr.png — do not commit it or leave it on disk.");
+  console.log(
+    r2Saved
+      ? `QR code also backed up to Cloudflare R2 (signed link, expires in 24h): ${r2SignedUrl}`
+      : "Could not back up the QR code to Cloudflare R2 — check R2 credentials in .env.local. The local vault-totp-qr.png file is still the only copy, so scan it before deleting."
+  );
 }
 
 main().finally(() => process.exit());

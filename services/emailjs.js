@@ -47,7 +47,7 @@
  * Server-side only — never import this in a "use client" file.
  */
 
-import { recordApiCall } from "@/services/apiUsageTracker";
+import { recordApiCall } from "./apiUsageTracker.js";
 
 const EMAILJS_SEND_URL = "https://api.emailjs.com/api/v1.0/email/send";
 

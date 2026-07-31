@@ -332,12 +332,14 @@ const REMAINING_ENV_HELP = {
       { label: "Google Cloud Console (Maps + Weather)", url: "https://console.cloud.google.com" },
     ],
     steps: [
-      "Gemini: in AI Studio, click \"Get API key\" then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required. Copy the key into GEMINI_API_KEY.",
+      "Gemini: in AI Studio, click \"Get API key\" then \"Create API key\". Import an existing Google Cloud project or create a new one — no billing account required for Gemini. Copy the key into GEMINI_API_KEY.",
       "Keys created in AI Studio in 2026 are auth keys by default — prefixed \"AQ.\" instead of \"AIza\", already scoped to the Gemini API. If you land on an older \"AIza\" standard key, restrict it to Gemini API immediately if it's unrestricted, and regenerate a fresh AQ. key when you can — standard keys stop working entirely in September 2026.",
       "GEMINI_MODEL is optional — leave unset to default to gemini-flash-latest.",
-      "Maps + Weather: in Cloud Console, use the same project. APIs & Services → Library — enable Geocoding API, Routes API, and Weather API.",
-      "APIs & Services → Credentials → Create Credentials → API Key (requires billing enabled, but all three APIs have a free monthly call allowance). Restrict the key to just those three APIs.",
-      "One key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY — use the same string, or generate two separately restricted keys to track usage independently.",
+      "Maps + Weather: in Cloud Console, use the SAME project you picked/created for Gemini above (top dropdown next to \"Google Cloud\" — switch to it if it's not already selected). Unlike Gemini, these APIs require billing enabled, so do this next: left menu (☰) → Billing → \"Link a billing account\" → add a payment card. This unlocks the option to enable these APIs; it does not charge you by itself — all four have a free monthly call allowance well above what this project needs.",
+      "APIs & Services → Library — search for and enable each of these FOUR APIs one at a time (search box at top, click each result, click \"Enable\"): Geocoding API, Maps Static API, Routes API, Weather API. Maps Static API is easy to miss since nothing in the app calls it by that exact name in visible UI text — skipping it doesn't throw an error, it just makes the route map image silently never appear on /visitor/directions.",
+      "APIs & Services → Credentials → \"+ Create Credentials\" → API Key. It's created immediately and unrestricted by default — click on the new key's name to open \"Edit API key\", then under \"Select API restrictions\" choose \"Restrict key\" and check all four APIs from the step above (Geocoding, Maps Static, Routes, Weather). Save.",
+      "One key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY — paste the same string into both, or generate two separately-restricted keys later if you want to track each API's usage independently.",
+      "To verify it worked: restart npm run dev after saving both keys into .env.local, then open /visitor/directions in the browser. A map image with the resort's location should render — if it stays blank, double-check Maps Static API specifically is enabled and included in the key's restrictions (that's the one silent-failure API from the step above).",
     ],
   },
   siteConfig: {

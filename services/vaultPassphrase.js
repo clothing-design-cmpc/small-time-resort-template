@@ -23,10 +23,10 @@
  * unchanged; it just now lives somewhere both callers can legitimately
  * import from.
  */
-import { rotateVaultPassphrase } from "@/services/vaultAuth";
-import { sendVaultPassphraseRotationEmail } from "@/services/emailAlert";
-import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
-import { logSecurityEvent } from "@/services/securityLog";
+import { rotateVaultPassphrase } from "./vaultAuth.js";
+import { sendVaultPassphraseRotationEmail } from "./emailAlert.js";
+import { saveVaultPassphraseToR2 } from "./vaultPassphraseBackup.js";
+import { logSecurityEvent } from "./securityLog.js";
 
 /**
  * generateAndDistributePassphrase

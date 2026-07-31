@@ -6,7 +6,12 @@
  * place the TOTP secret is ever generated in plaintext.
  *
  * USAGE:
+ *   node scripts/setupVault.js
+ *     → auto-generates a cryptographically random passphrase and prints
+ *       it once to the terminal. Save it immediately — it is never
+ *       stored or shown again.
  *   node scripts/setupVault.js "your-chosen-passphrase-min-12-chars"
+ *     → uses your own passphrase instead of generating one.
  *
  * OUTPUT:
  *   Creates the OwnerVault row, then writes vault-totp-qr.png to the
@@ -14,14 +19,31 @@
  *   then delete the file — never commit it or leave it on disk.
  */
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import fs from "fs";
 import { prisma } from "../services/prisma.js";
 import { generateTotpSecret, generateTotpQrCode } from "../services/totp.js";
 
-async function main() {
-  const passphrase = process.argv[2];
+/**
+ * generatePassphrase
+ * Creates a cryptographically random, URL-safe passphrase of at least
+ * 12 characters (default 24) using Node's crypto module — never Math.random().
+ */
+function generatePassphrase(length = 24) {
+  return crypto.randomBytes(length).toString("base64url").slice(0, length);
+}
 
-  if (!passphrase || passphrase.length < 12) {
+async function main() {
+  let passphrase = process.argv[2];
+  let wasGenerated = false;
+
+  // No passphrase provided — auto-generate a secure one instead of failing.
+  if (!passphrase) {
+    passphrase = generatePassphrase();
+    wasGenerated = true;
+  }
+
+  if (passphrase.length < 12) {
     console.error("Provide a passphrase of at least 12 characters as the first argument.");
     process.exit(1);
   }
@@ -42,6 +64,14 @@ async function main() {
   const qrDataUrl = await generateTotpQrCode(totpSecret);
   const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
   fs.writeFileSync("vault-totp-qr.png", base64Data, "base64");
+
+  // The generated passphrase is never stored or shown again after this —
+  // it only ever exists in plaintext here, on the owner's own machine.
+  if (wasGenerated) {
+    console.log("Generated passphrase (save this now — it will not be shown again):");
+    console.log(`  ${passphrase}`);
+    console.log("");
+  }
 
   console.log("Vault created successfully.");
   console.log("Scan vault-totp-qr.png with your authenticator app now.");

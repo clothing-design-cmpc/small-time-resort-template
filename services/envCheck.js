@@ -45,7 +45,7 @@
  * friction for the reliability it bought).
  */
 import { prisma } from "@/services/prisma";
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { sendGeneralEmail } from "@/services/emailjs";
 // ENV_GROUPS now lives in scripts/lib/envGroups.mjs so the nightly
 // standalone check (scripts/runEnvCheck.js, runs via plain `node` and
@@ -119,14 +119,30 @@ export async function checkEnvironment() {
   }
 
   // --- Live check 2: GeoIP database file present on disk ---
+  // The `reminder` field is ALWAYS populated (pass or fail) — this is
+  // a standing reminder, not a failure-only message, since a present
+  // but stale .mmdb file passes this check yet still needs refreshing
+  // every ~2 weeks. EnvCheckerSection.jsx renders it unconditionally,
+  // never gated behind the collapsed ApiSetupGuideSection accordion.
   let geoipLive = { status: "unknown", message: "Not checked." };
   const maxmindPath = process.env.MAXMIND_DB_PATH;
+  const geoipReminder =
+    "Reminder: GeoLite2-City.mmdb is a static file that only updates when you replace it manually. MaxMind refreshes GeoLite2 roughly every 2 weeks — sign up free at maxmind.com, download the latest GeoLite2 City .mmdb, and replace the file at this same path to keep location lookups accurate.";
+
   if (!maxmindPath) {
-    geoipLive = { status: "failed", message: "MAXMIND_DB_PATH is not set." };
+    geoipLive = { status: "failed", message: "MAXMIND_DB_PATH is not set.", reminder: geoipReminder };
+  } else if (!existsSync(maxmindPath)) {
+    geoipLive = { status: "failed", message: `No file found at ${maxmindPath}.`, reminder: geoipReminder };
   } else {
-    geoipLive = existsSync(maxmindPath)
-      ? { status: "ok", message: "Database file found on disk." }
-      : { status: "failed", message: `No file found at ${maxmindPath}.` };
+    // File age tells the owner at a glance how stale the committed
+    // copy has become — this is on-disk mtime (last replaced), not
+    // MaxMind's own release date.
+    const fileAgeDays = Math.floor((Date.now() - statSync(maxmindPath).mtimeMs) / (1000 * 60 * 60 * 24));
+    geoipLive = {
+      status: "ok",
+      message: `Database file found on disk (last replaced ${fileAgeDays} day(s) ago).`,
+      reminder: geoipReminder,
+    };
   }
 
   // --- Live check 3: EmailJS can actually send ---

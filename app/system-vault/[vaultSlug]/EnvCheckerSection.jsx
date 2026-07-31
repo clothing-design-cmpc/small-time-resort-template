@@ -92,10 +92,17 @@ export default function EnvCheckerSection({ showToast }) {
               </ul>
 
               {group.liveCheck && (
-                <p className="recoveryMutedText">
-                  Live check — <StatusBadge status={group.liveCheck.status === "ok" ? "success" : "failed"} />{" "}
-                  {group.liveCheck.message}
-                </p>
+                <>
+                  <p className="recoveryMutedText">
+                    Live check — <StatusBadge status={group.liveCheck.status === "ok" ? "success" : "failed"} />{" "}
+                    {group.liveCheck.message}
+                  </p>
+                  {/* Always shown when present — e.g. GeoIP's refresh-every-2-weeks
+                      note — never hidden behind the collapsed API Setup Guide card. */}
+                  {group.liveCheck.reminder && (
+                    <p className="envCheckerReminder">⚠ {group.liveCheck.reminder}</p>
+                  )}
+                </>
               )}
             </div>
           ))}

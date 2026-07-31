@@ -53,3 +53,16 @@
   gap: var(--space-sm);
   flex-wrap: wrap;
 }
+
+/*
+ * .envCheckerReminder
+ * Standing reminder text (e.g. GeoIP file staleness) shown directly
+ * under a group's live-check line — always visible when present,
+ * never requiring the owner to expand a separate accordion. Uses the
+ * warning token since this is informational, not a pass/fail state.
+ */
+.envCheckerReminder {
+  color: var(--color-warning);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}

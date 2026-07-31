@@ -31,6 +31,7 @@ import { Fraunces, Manrope, Inter, Space_Grotesk, JetBrains_Mono } from "next/fo
 import "./styles/globals.css";
 import "./styles/mediaQueries.css";
 import AnalyticsBeacon from "@/components/shared/AnalyticsBeacon";
+import RightClickGuard from "@/components/shared/RightClickGuard";
 
 /* Display serif for headings, eyebrows, and the wordmark — optional-italic gives editorial CTA emphasis */
 const fraunces = Fraunces({
@@ -91,6 +92,7 @@ export default function RootLayout({ children }) {
     >
       <body>
         <AnalyticsBeacon />
+        <RightClickGuard />
         {children}
       </body>
     </html>

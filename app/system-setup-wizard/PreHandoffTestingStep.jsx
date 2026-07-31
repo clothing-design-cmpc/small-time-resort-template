@@ -82,7 +82,7 @@ export default function PreHandoffTestingStep() {
 
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 10 of 11</span>
+      <span className="setupWizardEyebrow">Step 9 of 10</span>
       <h1 className="setupWizardTitle">Test the live site before handing it off</h1>
       <p className="setupWizardBody">
         Everything above confirmed individual pieces are configured correctly — it did not

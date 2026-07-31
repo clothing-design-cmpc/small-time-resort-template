@@ -1,17 +1,18 @@
 /**
  * FILE: app/system-setup-wizard/VerifyVaultAccessStep.jsx
- * ROLE: Client Component — Step 8 of the setup wizard
+ * ROLE: Client Component — Step 7 of the setup wizard
  *
  * PURPOSE:
- * Renders once VaultPassphraseStep's generate call succeeds (Step 7).
- * By the time this component ever mounts, isSetupWizardLocked() is
- * ALREADY true (see generate-passphrase/route.js's SELF-LOCK NOTE) —
- * every route under app/api/system-setup-wizard/ would now 404,
- * including this step's own parent if it tried to call one again.
- * So this step makes NO server calls at all: vaultUrl was computed
- * server-side back in Step 7’s response (services/vaultAuth.js's
- * getVaultRecoveryUrl()) and is simply passed down as a prop — this
- * is the only way Step 8 can ever have a working link.
+ * Renders once ExternalSetupStep's "Continue" is clicked (Step 6).
+ *
+ * SELF-FETCHING (2026 update, on request):
+ * Previously this received vaultUrl as a prop, computed server-side
+ * by the old Step 7's web auto-generate call. Step 6 is now two
+ * terminal-only scripts with no server call at all (see
+ * ExternalSetupStep.jsx's header), so there is nothing to pass down
+ * — this step fetches its own vaultUrl on mount instead, via GET
+ * /api/system-setup-wizard/vault-status (strictly read-only, never
+ * generates anything).
  *
  * PURPOSE OF THE STEP ITSELF:
  * A plain reminder + link so whoever is running setup actually opens
@@ -22,25 +23,59 @@
  * guarantee a key is valid; only an actual login attempt does.
  *
  * DATA FLOW:
- * 1. Person clicks the vaultUrl link (opens in a new tab) and signs
- *    in there using the passphrase they just copied in Step 7, then
- *    the emailed OTP (services/vaultOtp.js) — the real vault system's
+ * 1. On mount, GET /api/system-setup-wizard/vault-status -> vaultUrl
+ *    (null if scripts/hashVaultPassphrase.js hasn't been run yet —
+ *    shows a "come back once you've run Step 6" message instead)
+ * 2. Person clicks the vaultUrl link (opens in a new tab) and signs
+ *    in there using the passphrase they set in Step 6, then the
+ *    emailed OTP (services/vaultOtp.js) — the real vault system's
  *    own existing login flow, untouched by anything in this wizard
- * 2. Back in this tab, clicking "I've verified vault access" is a
+ * 3. Back in this tab, clicking "I've verified vault access" is a
  *    purely client-side state change — hands off to
- *    <DeploymentStep /> (Step 9 — deploy to Vercel + connect the
+ *    <DeploymentStep /> (Step 8 — deploy to Vercel + connect the
  *    custom domain, added so PreHandoffTestingStep's "test the live
  *    URL" checklist has an actual live URL to test by the time it
- *    renders). Nothing is sent to the server; setup_completed was
- *    already logged back in Step 7’s route.
+ *    renders).
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DeploymentStep from "./DeploymentStep";
 
-export default function VerifyVaultAccessStep({ vaultUrl }) {
+export default function VerifyVaultAccessStep() {
   const [verified, setVerified] = useState(false);
+  const [vaultUrl, setVaultUrl] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  // Runs once on mount — this step has no other trigger for fetching
+  // the vault URL, since Step 6 no longer hands anything down as a prop.
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchVaultStatus() {
+      try {
+        const response = await fetch("/api/system-setup-wizard/vault-status");
+        const apiResult = await response.json();
+        if (!isMounted) return;
+
+        if (!response.ok || !apiResult.success) {
+          setLoadError(apiResult.message ?? "We couldn't check the vault status.");
+          return;
+        }
+        setVaultUrl(apiResult.data.vaultUrl);
+      } catch {
+        if (isMounted) setLoadError("We couldn't reach the server. Check your connection and try again.");
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    fetchVaultStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (verified) {
     return <DeploymentStep />;
@@ -48,24 +83,31 @@ export default function VerifyVaultAccessStep({ vaultUrl }) {
 
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 8 of 11</span>
+      <span className="setupWizardEyebrow">Step 7 of 10</span>
       <h1 className="setupWizardTitle">Verify vault access</h1>
       <p className="setupWizardBody">
-        Open the vault recovery page in a new tab and sign in using the passphrase you just
-        copied, then the one-time code emailed to you next. This confirms the services
+        Open the vault recovery page in a new tab and sign in using the passphrase you set in
+        Step 6, then the one-time code emailed to you next. This confirms the services
         configured earlier (Supabase, EmailJS) actually work — not just that they were
         present in the checklist.
       </p>
 
-      {vaultUrl ? (
+      {isLoading && <p className="setupWizardBody">Checking vault status…</p>}
+      {loadError && <p className="setupWizardError">{loadError}</p>}
+
+      {!isLoading && !loadError && !vaultUrl && (
+        <p className="setupWizardError">
+          No vault passphrase found yet. Run{" "}
+          <code>node scripts/hashVaultPassphrase.js &quot;your-chosen-passphrase&quot;</code> from
+          Step 6, add the printed line to <code>.env.local</code>, restart the dev server, then
+          refresh this page.
+        </p>
+      )}
+
+      {vaultUrl && (
         <div className="setupWizardCommandRow">
           <code className="setupWizardCodeBlock">{vaultUrl}</code>
         </div>
-      ) : (
-        <p className="setupWizardError">
-          The vault link couldn't be computed. Check your email or the R2 backup from Step 7
-          for the passphrase, then open the vault from the resort's live site directly.
-        </p>
       )}
 
       {vaultUrl && (

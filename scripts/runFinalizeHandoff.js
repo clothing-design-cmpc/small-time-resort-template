@@ -8,7 +8,7 @@
  *   1. admin_profiles — the super-admin account (owner logs in with
  *      the same email/password from AdminSetupStep, Step 3)
  *   2. vault + vault_passphrase — the hidden disaster-recovery login
- *      (VaultPassphraseStep, Step 7)
+ *      (set via scripts/hashVaultPassphrase.js, wizard Step 6)
  * Everything else (rooms, amenities, store products, bookings, test
  * security/activity logs, policies/content text, homepage
  * customization, etc.) is truncated so the owner's first login sees a

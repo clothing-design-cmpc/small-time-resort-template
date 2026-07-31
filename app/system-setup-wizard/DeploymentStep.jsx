@@ -374,7 +374,7 @@ export default function DeploymentStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 9 of 11</span>
+        <span className="setupWizardEyebrow">Step 8 of 10</span>
         <h1 className="setupWizardTitle">Deploy to Vercel &amp; connect your domain</h1>
         <p className="setupWizardBody">
           Everything so far has run on localhost. This step puts the site on a real URL —

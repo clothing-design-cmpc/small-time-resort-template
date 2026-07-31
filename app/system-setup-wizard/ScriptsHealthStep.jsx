@@ -137,7 +137,7 @@ export default function ScriptsHealthStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 5 of 11</span>
+        <span className="setupWizardEyebrow">Step 5 of 10</span>
         <h1 className="setupWizardTitle">Scripts &amp; health checks</h1>
         <p className="setupWizardBody">
           Two on-demand checks you can run from here, plus a couple of

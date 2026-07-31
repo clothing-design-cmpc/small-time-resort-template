@@ -473,7 +473,7 @@ export default function RemainingEnvStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 4 of 11</span>
+        <span className="setupWizardEyebrow">Step 4 of 10</span>
         <h1 className="setupWizardTitle">Checking environment status…</h1>
       </div>
     );
@@ -482,7 +482,7 @@ export default function RemainingEnvStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 4 of 11</span>
+        <span className="setupWizardEyebrow">Step 4 of 10</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load environment status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -501,7 +501,7 @@ export default function RemainingEnvStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 4 of 11</span>
+        <span className="setupWizardEyebrow">Step 4 of 10</span>
         <h1 className="setupWizardTitle">Remaining services</h1>
         <p className="setupWizardBody">
           Set these in <code>.env.local</code> (and your deployment

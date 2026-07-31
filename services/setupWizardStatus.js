@@ -57,6 +57,27 @@ import { prisma } from "@/services/prisma";
  * before allowing SystemSettings.setupFinalized to be set, without
  * calling isSetupWizardLocked() itself (which would be circular).
  */
+/**
+ * arePrerequisitesMet
+ * Returns true once BOTH an owner AdminProfile and a set
+ * VaultPassphrase exist. This is necessary but NOT sufficient for
+ * isSetupWizardLocked() below — it's exposed separately so
+ * finalize-setup/route.js can confirm the prerequisites are real
+ * before allowing SystemSettings.setupFinalized to be set, without
+ * calling isSetupWizardLocked() itself (which would be circular).
+ *
+ * Vault passphrase source — DB row OR env fallback:
+ * The wizard's Step 6 points at scripts/hashVaultPassphrase.js
+ * (terminal-only, writes VAULT_PASSPHRASE_HASH to .env.local) instead
+ * of a web-based auto-generate flow that writes straight to
+ * VaultPassphrase.passphraseHash. Both are valid, equally-effective
+ * ways to set the passphrase — services/vaultAuth.js's
+ * getEffectivePassphraseHash() already treats them as interchangeable
+ * (DB wins if both are set, env is the fallback). This check mirrors
+ * that same either/or logic, or a passphrase set purely via the
+ * terminal script would never satisfy setup, even though vault login
+ * itself works fine with it.
+ */
 export async function arePrerequisitesMet() {
   try {
     const [ownerAdminCount, vaultPassphrase] = await Promise.all([
@@ -67,7 +88,9 @@ export async function arePrerequisitesMet() {
       }),
     ]);
 
-    return ownerAdminCount > 0 && Boolean(vaultPassphrase?.passphraseHash);
+    const hasVaultPassphrase = Boolean(vaultPassphrase?.passphraseHash) || Boolean(process.env.VAULT_PASSPHRASE_HASH);
+
+    return ownerAdminCount > 0 && hasVaultPassphrase;
   } catch (error) {
     console.error("[setupWizardStatus] Prerequisite check failed — treating as not met:", error.message);
     return false;

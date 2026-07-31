@@ -4,11 +4,16 @@
  *
  * PURPOSE:
  * Renders once ScriptsHealthStep's "Continue" is clicked (Step 5).
- * Unlike every prior step, this one has NO API route behind it and
- * makes NO server calls at all — it's pure reference instructions for
- * two things that must run on the developer's own machine and are
- * never wired into any web UI (plan doc's "TWO SEPARATE VAULT
- * SYSTEMS" and "READ-ONLY VS TERMINAL-ONLY SCRIPTS" sections):
+ * Like before, this step has NO API route behind it and makes NO
+ * server calls at all — everything here happens on the developer's
+ * own machine, in their own terminal.
+ *
+ * MERGED WITH THE OLD STEP 7 (2026 update, on request):
+ * This step used to cover only the OwnerVault/TOTP script, with a
+ * separate Step 7 (VaultPassphraseStep, now removed from the wizard)
+ * handling the vault passphrase via a web-based auto-generate API
+ * call. Both vault setups are terminal-only scripts now, so they are
+ * shown together here as one step instead of two:
  *
  *   1. node scripts/setupVault.js "<passphrase>"
  *      OwnerVault + TOTP QR code generation. This is the ONLY place
@@ -17,23 +22,37 @@
  *      an API route. Instructions include the "scan the QR then
  *      delete vault-totp-qr.png" warning.
  *
- *   2. MaxMind GeoLite2-City.mmdb
+ *   2. node scripts/hashVaultPassphrase.js "<passphrase>"
+ *      Hashes a chosen vault passphrase and prints the
+ *      VAULT_PASSPHRASE_HASH line to paste into .env.local — the
+ *      same script referenced on the real vault-setup page
+ *      (ScriptsReferenceSection.jsx) and in docs/SETUP_NOTES.md.
+ *      Deliberately NOT the old web auto-generate flow: that flow
+ *      wrote straight to the DB and doubled as the "complete setup"
+ *      trigger, which mixed two unrelated concerns (setting a
+ *      passphrase vs. finalizing the wizard). services/
+ *      setupWizardStatus.js's arePrerequisitesMet() now accepts
+ *      this env-set value exactly like it accepts the DB row, so
+ *      this path finalizes the wizard the same as before.
+ *
+ *   3. MaxMind GeoLite2-City.mmdb
  *      Not an env var — a physical file. Manual download from
  *      maxmind.com, placed at services/geoip/GeoLite2-City.mmdb
  *      (path configured via MAXMIND_DB_PATH — Step 4's geoip group
  *      already checks that env var's presence; this step is only
  *      about the physical file itself).
  *
- * Step 7 (Generate Vault Passphrase) is built as its own component —
- * the Continue button here hands off to <VaultPassphraseStep />, same
- * hand-off pattern every prior step uses.
+ * Continue hands off directly to <VerifyVaultAccessStep /> (Step 7)
+ * — that step now fetches its own vaultUrl on mount (GET
+ * /api/system-setup-wizard/vault-status) instead of receiving it as
+ * a prop from the old auto-generate response.
  */
 "use client";
 
 import { useState } from "react";
 import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
-import VaultPassphraseStep from "./VaultPassphraseStep";
+import VerifyVaultAccessStep from "./VerifyVaultAccessStep";
 
 const EXTERNAL_STEPS = [
   {
@@ -42,6 +61,13 @@ const EXTERNAL_STEPS = [
     description:
       "Auto-generates a random passphrase, prints it once (save it immediately), creates the OwnerVault row, and writes vault-totp-qr.png to the project root. Scan it with your authenticator app immediately, then delete the file — never commit it or leave it on disk. Refuses to run if a vault already exists. Pass your own passphrase as an argument instead if you'd rather choose one.",
     warning: "This is the only place the TOTP secret is ever generated in plaintext. Never deployed as an API route.",
+  },
+  {
+    title: "2. Vault passphrase (hidden recovery page)",
+    command: 'node scripts/hashVaultPassphrase.js "your-chosen-passphrase"',
+    description:
+      "Hashes your chosen passphrase and prints a VAULT_PASSPHRASE_HASH line — copy it into .env.local, then restart the dev server so it's picked up. This is the passphrase for the separate hidden recovery page (/system-vault/[slug]), not the owner vault dashboard above. Passphrase must be at least 12 characters.",
+    warning: "Never commit the plaintext passphrase anywhere, including this terminal's shell history if the machine is shared.",
   },
 ];
 
@@ -59,7 +85,7 @@ export default function ExternalSetupStep() {
   }
 
   if (continued) {
-    return <VaultPassphraseStep />;
+    return <VerifyVaultAccessStep />;
   }
 
   return (
@@ -67,8 +93,8 @@ export default function ExternalSetupStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 6 of 11</span>
-        <h1 className="setupWizardTitle">External / local-machine-only setup</h1>
+        <span className="setupWizardEyebrow">Step 6 of 10</span>
+        <h1 className="setupWizardTitle">Owner vault + vault passphrase setup</h1>
         <p className="setupWizardBody">
           Nothing on this step runs from this page — these three
           things happen on your own machine, not through the wizard.
@@ -91,7 +117,7 @@ export default function ExternalSetupStep() {
       ))}
 
       <div className="setupWizardCard">
-        <h2 className="setupWizardSubStepTitle">2. MaxMind GeoIP database file</h2>
+        <h2 className="setupWizardSubStepTitle">3. MaxMind GeoIP database file</h2>
         <p className="setupWizardBody">
           Not an env var — a physical file. Already included in this
           template at <code>services/geoip/GeoLite2-City.mmdb</code>, and{" "}

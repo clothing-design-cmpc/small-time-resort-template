@@ -2,14 +2,18 @@
  * FILE: services/vaultPassphrase.js
  * PURPOSE:
  * Shared rotate + email + R2-backup + audit-log flow for generating a
- * brand-new vault passphrase. Used by THREE separate callers that must
+ * brand-new vault passphrase. Used by TWO separate callers that must
  * never drift into slightly different flows:
  *   1. app/api/system-vault-setup/route.js GET  — auto-generate on
  *      first check if nothing is configured yet
  *   2. app/api/system-vault-setup/route.js POST — owner's manual
  *      "generate new" click
- *   3. app/api/system-setup-wizard/generate-passphrase/route.js GET —
- *      first-run setup wizard's own passphrase generation step
+ *
+ * The setup wizard's Step 6 no longer calls this — it now points at
+ * scripts/hashVaultPassphrase.js (terminal-only), so the wizard has
+ * no web-based passphrase-generation call at all anymore. See
+ * services/setupWizardStatus.js's arePrerequisitesMet() for how the
+ * terminal-set env value is treated as equally valid.
  *
  * Previously this function lived directly inside
  * app/api/system-vault-setup/route.js (un-exported), and the wizard

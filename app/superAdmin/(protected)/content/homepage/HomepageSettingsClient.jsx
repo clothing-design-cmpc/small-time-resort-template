@@ -27,6 +27,8 @@ import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import "./Homepage.css";
 
 const EMPTY_FORM = {
+  siteTitle: "",
+  brandAccentColor: "",
   heroTagline: "",
   heroImageUrl: null,
   heroImageKey: null,
@@ -44,7 +46,6 @@ const EMPTY_FORM = {
   ctaSectionSubtext: "",
   ctaButtonText: "",
   ctaSectionVisible: true,
-  siteTitle: "",
   siteDescription: "",
   ogImageUrl: null,
   ogImageKey: null,
@@ -64,6 +65,8 @@ export default function HomepageSettingsClient() {
   useEffect(() => {
     if (!homepageSettings) return;
     setFormValues({
+      siteTitle: homepageSettings.siteTitle ?? "",
+      brandAccentColor: homepageSettings.brandAccentColor ?? "#3f7d52",
       heroTagline: homepageSettings.heroTagline ?? "",
       heroImageUrl: homepageSettings.heroImageUrl ?? null,
       heroImageKey: homepageSettings.heroImageKey ?? null,
@@ -81,7 +84,6 @@ export default function HomepageSettingsClient() {
       ctaSectionSubtext: homepageSettings.ctaSectionSubtext ?? "",
       ctaButtonText: homepageSettings.ctaButtonText ?? "",
       ctaSectionVisible: homepageSettings.ctaSectionVisible ?? true,
-      siteTitle: homepageSettings.siteTitle ?? "",
       siteDescription: homepageSettings.siteDescription ?? "",
       ogImageUrl: homepageSettings.ogImageUrl ?? null,
       ogImageKey: homepageSettings.ogImageKey ?? null,
@@ -182,6 +184,43 @@ export default function HomepageSettingsClient() {
         <button type="button" className="homepageSaveButton" onClick={handleSaveAll} disabled={isSaving}>
           {isSaving ? "Saving…" : "Save All Changes"}
         </button>
+      </div>
+
+      {/* ---------- Section 0: Brand Identity ---------- */}
+      <div className="homepagePanel">
+        <h2 className="homepagePanelTitle">Brand Identity</h2>
+        <p className="homepageFormHint">
+          Shown across the Header logo, Footer, Hero section, and browser tab title.
+        </p>
+        <div className="homepageFormField">
+          <label htmlFor="siteTitle">Resort Name</label>
+          <input
+            id="siteTitle"
+            type="text"
+            value={formValues.siteTitle}
+            onChange={(event) => handleFieldChange("siteTitle", event.target.value)}
+            placeholder="Villa Azure Resort"
+          />
+        </div>
+        <div className="homepageFormField">
+          <label htmlFor="brandAccentColor">Brand Accent Color</label>
+          <div className="homepageColorFieldRow">
+            <input
+              id="brandAccentColor"
+              type="color"
+              value={formValues.brandAccentColor || "#3f7d52"}
+              onChange={(event) => handleFieldChange("brandAccentColor", event.target.value)}
+            />
+            <input
+              type="text"
+              value={formValues.brandAccentColor}
+              onChange={(event) => handleFieldChange("brandAccentColor", event.target.value)}
+              placeholder="#3f7d52"
+              className="homepageColorHexInput"
+            />
+          </div>
+          <p className="homepageFormHint">Used for buttons, active states, and highlights site-wide.</p>
+        </div>
       </div>
 
       {/* ---------- Section 1: Hero ---------- */}
@@ -343,15 +382,9 @@ export default function HomepageSettingsClient() {
       {/* ---------- Section 5: SEO & Metadata ---------- */}
       <div className="homepagePanel">
         <h2 className="homepagePanelTitle">SEO &amp; Metadata</h2>
-        <div className="homepageFormField">
-          <label htmlFor="siteTitle">Page Title</label>
-          <input
-            id="siteTitle"
-            type="text"
-            value={formValues.siteTitle}
-            onChange={(event) => handleFieldChange("siteTitle", event.target.value)}
-          />
-        </div>
+        <p className="homepageFormHint">
+          Page title comes from Resort Name in Brand Identity above.
+        </p>
         <div className="homepageFormField">
           <label htmlFor="siteDescription">Page Description</label>
           <textarea

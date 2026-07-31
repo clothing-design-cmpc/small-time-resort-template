@@ -78,12 +78,16 @@ export default async function Footer() {
   const resortLatitude = settings?.resortLatitude ?? 14.5995;
   const resortLongitude = settings?.resortLongitude ?? 120.9842;
 
+  // Resort display name — Super-Admin > Content > Homepage > Brand
+  // Identity. Falls back to the original placeholder if unset.
+  const resortName = settings?.siteTitle || "your-private-resort";
+
   return (
     <footer className="siteFooter">
       <div className="footerContainer">
         {/* Column 1 — Brand + tagline */}
         <div className="footerBrand">
-          <span className="footerLogoText">your-private-resort</span>
+          <span className="footerLogoText">{resortName}</span>
           <p className="footerTagline">
             An intimate private retreat in the province. One room, a small attentive team, and nothing else to distract you.
           </p>
@@ -138,7 +142,7 @@ export default async function Footer() {
           <ResortLocationMap
             latitude={resortLatitude}
             longitude={resortLongitude}
-            resortName="your-private-resort"
+            resortName={resortName}
           />
         </div>
       </div>
@@ -146,7 +150,7 @@ export default async function Footer() {
       {/* Bottom bar */}
       <div className="footerBottom">
         <div className="footerBottomContainer">
-          <span className="footerCopyright">© {currentYear} your-private-resort. All rights reserved.</span>
+          <span className="footerCopyright">© {currentYear} {resortName}. All rights reserved.</span>
           {/* app/visitor/policies now exists, so both legal links go
               straight there instead of the old placeholder (#contact). */}
           <div className="footerLegalLinks">

@@ -482,6 +482,78 @@ a.setupWizardButtonSecondary {
   color: var(--color-text-primary);
 }
 
+/*
+ * .setupWizardFormField
+ * Label + input pair used by BrandingCard.jsx (Step 3's optional
+ * resort name / accent color form) — mirrors the admin panel's own
+ * .homepageFormField pattern so the wizard doesn't invent a second
+ * visual language for the same kind of control.
+ */
+.setupWizardFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+}
+
+.setupWizardFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.setupWizardFormField input[type="text"] {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.setupWizardFormHint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .setupWizardColorFieldRow
+ * Native color swatch + hex text input side by side — the swatch
+ * gives a quick visual pick, the text input lets the developer paste
+ * an exact hex value from the client's brand guide.
+ */
+.setupWizardColorFieldRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.setupWizardColorFieldRow input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  cursor: pointer;
+}
+
+.setupWizardColorHexInput {
+  flex: 1 1 160px;
+  min-height: 44px;
+  font-size: 1rem;
+  font-family: var(--font-admin-mono, monospace);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
 .setupWizardLockedNotice {
   font-size: 0.85rem;
   font-style: italic;

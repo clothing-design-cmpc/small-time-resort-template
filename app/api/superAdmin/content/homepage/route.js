@@ -54,6 +54,7 @@ export async function PUT(request) {
     const updatedSettings = await prisma.systemSettings.update({
       where: { id: "singleton" },
       data: {
+        brandAccentColor: body.brandAccentColor ?? existingSettings.brandAccentColor,
         heroEyebrow: body.heroEyebrow ?? existingSettings.heroEyebrow,
         heroTitle: body.heroTitle ?? existingSettings.heroTitle,
         heroTagline: body.heroTagline ?? existingSettings.heroTagline,

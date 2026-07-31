@@ -28,10 +28,51 @@
  *    the {children} slot below.
  */
 import { Fraunces, Manrope, Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { cache } from "react";
 import "./styles/globals.css";
 import "./styles/mediaQueries.css";
 import AnalyticsBeacon from "@/components/shared/AnalyticsBeacon";
 import RightClickGuard from "@/components/shared/RightClickGuard";
+import { prisma } from "@/services/prisma";
+import { darkenHexColor } from "@/utils/colorShade";
+
+const DEFAULT_RESORT_NAME = "your-private-resort";
+const DEFAULT_RESORT_DESCRIPTION =
+  "A private resort offering an intimate escape — rooms, amenities, and experiences.";
+const DEFAULT_ACCENT_COLOR = "#3f7d52";
+
+/**
+ * getBrandIdentity
+ * Reads the singleton SystemSettings row for the resort's display
+ * name (siteTitle), SEO description, OG image, and brand accent
+ * color — used below by both generateMetadata() and the <html> tag's
+ * inline CSS variable override. Wrapped in React's cache() so both
+ * callers share one DB read per request instead of two. Fails safe to
+ * the placeholder defaults on any DB error so the site never 500s on
+ * this alone.
+ */
+const getBrandIdentity = cache(async function getBrandIdentity() {
+  try {
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: "singleton" },
+      select: { siteTitle: true, siteDescription: true, ogImageUrl: true, brandAccentColor: true },
+    });
+
+    return {
+      resortName: settings?.siteTitle || DEFAULT_RESORT_NAME,
+      resortDescription: settings?.siteDescription || DEFAULT_RESORT_DESCRIPTION,
+      ogImageUrl: settings?.ogImageUrl || "/images/og-villa-azure.jpg",
+      accentColor: settings?.brandAccentColor || DEFAULT_ACCENT_COLOR,
+    };
+  } catch {
+    return {
+      resortName: DEFAULT_RESORT_NAME,
+      resortDescription: DEFAULT_RESORT_DESCRIPTION,
+      ogImageUrl: "/images/og-villa-azure.jpg",
+      accentColor: DEFAULT_ACCENT_COLOR,
+    };
+  }
+});
 
 /* Display serif for headings, eyebrows, and the wordmark — optional-italic gives editorial CTA emphasis */
 const fraunces = Fraunces({
@@ -74,21 +115,42 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata = {
-  title: "your-private-resort",
-  description: "A private resort offering an intimate escape — rooms, amenities, and experiences.",
-  openGraph: {
-    title: "your-private-resort",
-    description: "A private resort offering an intimate escape — rooms, amenities, and experiences.",
-    images: ["/images/og-villa-azure.jpg"],
-  },
-};
+// Replaces the old static `export const metadata` object — the resort
+// name/description/OG image are now admin-editable (Super-Admin >
+// Content > Homepage > Brand Identity), so the <title> tag and social
+// share metadata must be resolved from the DB on every request instead
+// of being hardcoded here.
+export async function generateMetadata() {
+  const { resortName, resortDescription, ogImageUrl } = await getBrandIdentity();
 
-export default function RootLayout({ children }) {
+  return {
+    title: resortName,
+    description: resortDescription,
+    openGraph: {
+      title: resortName,
+      description: resortDescription,
+      images: [ogImageUrl],
+    },
+  };
+}
+
+export default async function RootLayout({ children }) {
+  const { accentColor } = await getBrandIdentity();
+  // Hover shade is derived, not stored — see utils/colorShade.js.
+  const accentColorHover = darkenHexColor(accentColor, 0.2);
+
   return (
     <html
       lang="en"
       className={`${fraunces.variable} ${manrope.variable} ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+      // Overrides the --color-accent / --color-accent-hover tokens
+      // declared in app/styles/globals.css with the admin's chosen
+      // brand color (Super-Admin > Content > Homepage > Brand
+      // Identity) — every CTA, active state, and highlight across the
+      // visitor site reads these two variables, so this single
+      // override re-themes the whole public site without touching
+      // any component CSS file.
+      style={{ "--color-accent": accentColor, "--color-accent-hover": accentColorHover }}
     >
       <body>
         <AnalyticsBeacon />

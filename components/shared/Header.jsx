@@ -9,7 +9,10 @@
  * DATA FLOW:
  * 1. Rendered inside app/visitor/layout.jsx above {children}
  * 2. Local state (menuOpen) controls mobile menu visibility
- * 3. No data fetching — fully static navigation
+ * 3. resortName is passed as a prop from app/visitor/layout.jsx (a
+ *    Server Component, so it can read the singleton SystemSettings
+ *    row) — this Client Component can't fetch it directly. Editable
+ *    by the super-admin under Content > Homepage > Brand Identity.
  */
 "use client";
 
@@ -40,7 +43,7 @@ const navLinks = [
   { label: "Contact", href: "/visitor#contact" },
 ];
 
-export default function Header() {
+export default function Header({ resortName = "your-private-resort" }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const headerRef = useRef(null);
 
@@ -70,7 +73,7 @@ export default function Header() {
       <div className="headerContainer">
         {/* Logo */}
         <Link href="/visitor" className="headerLogo">
-          your-private-resort
+          {resortName}
         </Link>
 
         {/* Desktop nav */}

@@ -116,10 +116,32 @@ async function getMessageUsChannels() {
   }
 }
 
+/**
+ * getBrandName
+ * Reads only the siteTitle field off the singleton SystemSettings row
+ * (Super-Admin > Content > Homepage > Brand Identity) so Header — a
+ * Client Component, which can't fetch Prisma directly — always gets
+ * the resort's current display name as a prop. Falls back to the
+ * original placeholder on any DB error, same fail-safe pattern as
+ * getMaintenanceStatus/getMessageUsChannels above.
+ */
+async function getBrandName() {
+  try {
+    const settings = await prisma.systemSettings.findUnique({
+      where: { id: "singleton" },
+      select: { siteTitle: true },
+    });
+    return settings?.siteTitle || "your-private-resort";
+  } catch {
+    return "your-private-resort";
+  }
+}
+
 export default async function VisitorLayout({ children }) {
   const { maintenanceMode, maintenanceMessage, breachLockdown, postWipeLockdown, activeGatekeeper } =
     await getMaintenanceStatus();
   const messageUsChannels = await getMessageUsChannels();
+  const resortName = await getBrandName();
 
   // A completed database wipe (Task 2) is the most severe case of all —
   // proxy.js already redirects every visitor request to /maintenance
@@ -151,7 +173,7 @@ export default async function VisitorLayout({ children }) {
           instead of the browser restoring a previous scroll position */}
       <ScrollToTopOnLoad />
       {maintenanceMode && <MaintenanceBanner message={maintenanceMessage} />}
-      <Header />
+      <Header resortName={resortName} />
       {/* pt-[header height] so page content is never hidden behind the sticky header */}
       <div className="visitorContent">
         {children}

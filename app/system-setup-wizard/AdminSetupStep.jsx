@@ -47,6 +47,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
 import RemainingEnvStep from "./RemainingEnvStep";
+import BrandingCard from "./BrandingCard";
 
 const ADMIN_CONFIRMED_STORAGE_KEY = "wizardStep3AdminConfirmed";
 
@@ -206,6 +207,7 @@ export default function AdminSetupStep() {
     return (
       <>
         <ToastStack toasts={toasts} onDismiss={dismissToast} />
+        <BrandingCard showToast={showToast} />
         <RemainingEnvStep />
       </>
     );
@@ -327,6 +329,8 @@ export default function AdminSetupStep() {
         </div>
         {confirmError && <p className="setupWizardError">{confirmError}</p>}
       </div>
+
+      <BrandingCard showToast={showToast} />
     </div>
   );
 }

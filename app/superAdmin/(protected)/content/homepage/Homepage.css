@@ -134,6 +134,42 @@
   color: var(--color-text-muted);
 }
 
+/*
+ * .homepageColorFieldRow
+ * Native color swatch + hex text input side by side, used by the
+ * Brand Identity panel's accent color field — the swatch gives a
+ * quick visual pick, the text input lets the admin paste an exact
+ * hex value from the resort's brand guide.
+ */
+.homepageColorFieldRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.homepageColorFieldRow input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  cursor: pointer;
+}
+
+.homepageColorHexInput {
+  flex: 1 1 160px;
+  min-height: 44px;
+  font-size: 1rem;
+  font-family: var(--font-admin-mono, monospace);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
 .homepageFormCharCount {
   text-align: right;
 }

@@ -1064,6 +1064,14 @@ model SystemSettings {
   resortLatitude  Float? @default(14.5995) @map("resort_latitude")
   resortLongitude Float? @default(120.9842) @map("resort_longitude")
 
+  // --- Brand Identity (resort name + accent color, used site-wide —
+  // Header logo, Footer logo/copyright, Hero title, and <title> tag —
+  // not just the Homepage Customization page). siteTitle below doubles
+  // as the resort's display name; brandAccentColor drives --color-accent
+  // / --color-accent-hover (app/layout.jsx computes the hover shade at
+  // render time via utils/colorShade.js, so only one color is stored).
+  brandAccentColor String? @default("#3f7d52") @map("brand_accent_color")
+
   // --- Homepage Customization (Page 9) ---
   heroEyebrow       String? @map("hero_eyebrow")
   heroTitle         String? @map("hero_title")

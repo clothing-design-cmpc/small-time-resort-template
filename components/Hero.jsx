@@ -32,12 +32,15 @@ export default async function Hero() {
   const heroImageUrl = settings?.heroImageUrl || DEFAULT_HERO_IMAGE;
   const heroTagline = settings?.heroTagline || "Experience Luxury";
   const ctaButtonText = settings?.ctaButtonText || "Plan Your Stay";
+  // Resort display name — Super-Admin > Content > Homepage > Brand
+  // Identity. Falls back to the original placeholder if unset.
+  const resortName = settings?.siteTitle || "your-private-resort";
 
   return (
     <section className="heroSection">
       <Image
         src={heroImageUrl}
-        alt="your-private-resort"
+        alt={resortName}
         fill
         priority
         className="heroBackgroundImage"
@@ -47,7 +50,7 @@ export default async function Hero() {
 
       <div className="heroContainer">
         <span className="heroEyebrow">A Private Escape</span>
-        <h1 className="heroTitle">your-private-resort</h1>
+        <h1 className="heroTitle">{resortName}</h1>
         <p className="heroSubtitle">{heroTagline}</p>
         <div className="heroActions">
           <a className="heroCtaPrimary" href="#contact">

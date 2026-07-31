@@ -34,6 +34,12 @@
  *      referenced instead from the real vault dashboard's Scripts
  *      Reference section).
  *
+ *   1a. Verify: open /system-vault-setup
+ *       Optional sanity check, not a command — confirms the script
+ *       above actually worked by reading the same VaultPassphrase row
+ *       it just wrote. Never regenerates on its own; only its own
+ *       "Generate new" button rotates the existing passphrase.
+ *
  *   2. MaxMind GeoLite2-City.mmdb
  *      Not an env var — a physical file. Manual download from
  *      maxmind.com, placed at services/geoip/GeoLite2-City.mmdb
@@ -106,6 +112,26 @@ export default function ExternalSetupStep() {
           <p className="setupWizardError">{item.warning}</p>
         </div>
       ))}
+
+      <div className="setupWizardCard">
+        <h2 className="setupWizardSubStepTitle">1a. Verify: open the vault system setup page</h2>
+        <p className="setupWizardBody">
+          Optional check — confirms the command above actually worked.
+          Open <code>/system-vault-setup</code> in your browser (append{" "}
+          <code>?key=YOUR_VAULT_SETUP_KEY</code> to the URL using the
+          same value you saved in <code>.env.local</code>, or just visit
+          it while logged in as the owner admin account — either credential
+          works). This page reads from the exact same{" "}
+          <code>VaultPassphrase</code> database row the command above
+          just created, so it will show{" "}
+          <b>&quot;A passphrase is currently set&quot;</b> — not a blank
+          or unset state, and it will NOT silently generate a second,
+          different passphrase behind your back. That page's own
+          &quot;Generate new&quot; button, if you click it, rotates the
+          same passphrase (and reuses the same email + R2-backup flow) —
+          it does not create a separate, parallel one.
+        </p>
+      </div>
 
       <div className="setupWizardCard">
         <h2 className="setupWizardSubStepTitle">2. MaxMind GeoIP database file</h2>

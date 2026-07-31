@@ -19,6 +19,16 @@
  * finished", not "crash the install" — so every failure path here
  * resolves to false (not locked), same fallback services/
  * setupWizardStatus.js uses for the live app.
+ *
+ * ALSO CHECKS setupGuideDismissed:
+ * SystemSettings.setupGuideDismissed (set once, explicitly, by the
+ * button on SetupCompleteStep.jsx / app/api/system-setup-wizard/
+ * dismiss-guide) is a separate signal from the owner+vault check
+ * below — either one being true is enough to stop reopening the
+ * guide. In the normal flow the owner+vault check already goes true
+ * a few steps before setupGuideDismissed would ever get set, so this
+ * mostly matters as the explicit, deliberate override the developer
+ * asked for.
  */
 import { existsSync } from "node:fs";
 
@@ -53,15 +63,22 @@ export async function isWizardLockedStandalone() {
     const prisma = new PrismaClient({ adapter });
 
     try {
-      const [ownerAdminCount, vaultPassphrase] = await Promise.all([
+      const [ownerAdminCount, vaultPassphrase, systemSettings] = await Promise.all([
         prisma.adminProfile.count({ where: { isOwner: true } }),
         prisma.vaultPassphrase.findUnique({
           where: { id: "vault_passphrase" },
           select: { passphraseHash: true },
         }),
+        prisma.systemSettings.findUnique({
+          where: { id: "singleton" },
+          select: { setupGuideDismissed: true },
+        }),
       ]);
 
-      return ownerAdminCount > 0 && Boolean(vaultPassphrase?.passphraseHash);
+      const isDerivedLocked = ownerAdminCount > 0 && Boolean(vaultPassphrase?.passphraseHash);
+      const isExplicitlyDismissed = Boolean(systemSettings?.setupGuideDismissed);
+
+      return isDerivedLocked || isExplicitlyDismissed;
     } finally {
       await prisma.$disconnect();
     }

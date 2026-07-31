@@ -958,6 +958,17 @@ model SystemSettings {
   ownerVerifiedIp          String?   @map("owner_verified_ip")
   ownerVerifiedIpUpdatedAt DateTime? @map("owner_verified_ip_updated_at")
 
+  // --- Setup Guide Dismissal (Step 11 "Finished testing" button) ---
+  // Independent of isSetupWizardLocked() (services/setupWizardStatus.js),
+  // which already gates wizard *access* off owner AdminProfile + Vault
+  // existing (true a few steps before this one). This flag only
+  // controls the separate postinstall/predev convenience popup
+  // (scripts/postinstallSetup.mjs) — set true only when the developer
+  // explicitly clicks the button on SetupCompleteStep.jsx confirming
+  // production testing is done. Never set automatically.
+  setupGuideDismissed   Boolean   @default(false) @map("setup_guide_dismissed")
+  setupGuideDismissedAt DateTime? @map("setup_guide_dismissed_at")
+
   // --- Policies & Pages (Page 8) — rich text / markdown content ---
   houseRules         String? @map("house_rules")
   bookingPolicies    String? @map("booking_policies")

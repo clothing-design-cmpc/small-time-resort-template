@@ -4,16 +4,27 @@
  *
  * PURPOSE:
  * Renders once PreHandoffTestingStep's checklist is fully checked off
- * (Step 10). This is a pure confirmation screen — no server calls,
- * nothing left to do. setup_completed was already logged back in
+ * (Step 10). setup_completed was already logged back in
  * generate-passphrase/route.js's Step 7 request (see that route's
  * SELF-LOCK NOTE for why it fires there and not here); by this point
  * isSetupWizardLocked() has been true for three steps already, so any
- * wizard API route this screen might have called would already 404.
+ * wizard API route this screen might have called would already 404 —
+ * EXCEPT dismiss-guide below, which specifically requires the lock to
+ * already be true (see that route's own comment).
  *
  * From here on, reloading /system-setup-wizard itself returns a plain
  * 404 (app/system-setup-wizard/page.jsx's own check) — this screen is
  * the last thing this route will ever render for this deployment.
+ *
+ * "FINISHED TESTING" BUTTON:
+ * The owner+vault check already stops scripts/postinstallSetup.mjs
+ * from reopening the setup guide a few steps before this screen even
+ * renders — this button does NOT change wizard access or lock state.
+ * It sets a separate, explicit SystemSettings.setupGuideDismissed flag
+ * (via /api/system-setup-wizard/dismiss-guide) purely so a developer
+ * who wants a deliberate, visible confirmation — rather than relying
+ * on the derived state alone — has one. Safe to click more than once;
+ * safe to skip entirely.
  *
  * OWNER-IP LENIENCY WARNING (added after a real handoff mix-up):
  * The FIRST clean (non-anomalous) super-admin login after this screen
@@ -30,14 +41,49 @@
  * to blank, so whoever logs in AFTER finalize-handoff is the one who
  * actually gets registered as the trusted owner IP.
  *
- * DATA FLOW: none. Static confirmation + finalize-handoff instructions
- * + a plain link to /superAdmin/login.
+ * DATA FLOW: dismiss-guide button -> POST /api/system-setup-wizard/dismiss-guide
+ * -> toast success/error. Everything else on this screen is static.
  */
 "use client";
 
+import { useState } from "react";
+import { useToast } from "./shared/useToast";
+import ToastStack from "./shared/ToastStack";
+
 export default function SetupCompleteStep() {
+  const { toasts, showToast, dismissToast } = useToast();
+  const [isDismissing, setIsDismissing] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  /**
+   * handleDismissGuide
+   * Confirms production testing is done and tells the postinstall/predev
+   * hook to stop reopening the setup guide. Disabled after a successful
+   * call so it can't be double-submitted.
+   */
+  async function handleDismissGuide() {
+    setIsDismissing(true);
+    try {
+      const response = await fetch("/api/system-setup-wizard/dismiss-guide", { method: "POST" });
+      const result = await response.json();
+
+      if (result.success) {
+        showToast("✓ Setup guide will no longer open automatically.", "success");
+        setIsDismissed(true);
+      } else {
+        showToast("✕ " + result.message, "error");
+      }
+    } catch {
+      showToast("✕ Network error — please try again.", "error");
+    } finally {
+      setIsDismissing(false);
+    }
+  }
+
   return (
     <div className="setupWizardCard">
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
       <span className="setupWizardEyebrow">Step 11 of 11</span>
       <h1 className="setupWizardTitle">Setup complete</h1>
       <p className="setupWizardBody">
@@ -51,6 +97,22 @@ export default function SetupCompleteStep() {
         super-admin password (Step 3) somewhere durable. Neither can be recovered from this
         wizard again.
       </p>
+
+      <h2 className="setupWizardTestingGroupTitle">Ready for production?</h2>
+      <p className="setupWizardBody">
+        Once you've finished testing and confirmed the site is production-ready, click below —
+        the setup guide (<code>scripts/setup-guide.html</code>) will stop reopening on
+        <code> npm install</code> / <code>npm run dev</code>. This is optional: it already stops
+        reopening on its own once setup is this far along — this button just makes it explicit.
+      </p>
+      <button
+        type="button"
+        className="setupWizardButton"
+        onClick={handleDismissGuide}
+        disabled={isDismissing || isDismissed}
+      >
+        {isDismissed ? "✓ Guide dismissed" : isDismissing ? "Saving…" : "Finished testing — stop showing the setup guide"}
+      </button>
 
       <h2 className="setupWizardTestingGroupTitle">Before you hand this off to the owner</h2>
       <p className="setupWizardBody">

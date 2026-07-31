@@ -100,7 +100,7 @@ export const ENV_GROUPS = [
       { key: "VAULT_PASSPHRASE_HASH", required: false },
       { key: "CRON_SECRET", required: true },
       { key: "SECURITY_LOG_RETENTION_DAYS", required: false },
-      { key: "GATEKEEPER_IP_BLOCK_ENABLED", required: false },
+      { key: "GATEKEEPER_IP_BLOCK_ENABLED", required: false, defaultValue: "true" },
     ],
   },
   {

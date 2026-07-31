@@ -308,6 +308,8 @@ const REMAINING_ENV_HELP = {
       "Also on Windows PowerShell 5.1 (the version that ships with Windows by default — check with $PSVersionTable.PSVersion): Invoke-WebRequest can additionally throw \"The response content cannot be parsed because the Internet Explorer engine is not available\" if IE's first-run setup was never completed on that machine. The command below already includes -UseBasicParsing, which skips that IE dependency entirely and avoids the error — no other setup needed. PowerShell 7+ doesn't have this issue, but the flag is harmless there too.",
       "What success looks like: either command prints a JSON body back to the terminal. {\"success\":true,\"data\":{\"rotated\":true},...} means a fresh passphrase was just generated, emailed to VAULT_OWNER_EMAIL, and backed up to R2 — check that inbox next. {\"success\":true,\"data\":{\"rotated\":false},...} means one was already on file and not yet due for rotation. {\"success\":false,\"message\":\"Unauthorized.\"} with a 401 means CRON_SECRET in .env.local doesn't match what you pasted into the command — recheck it and make sure the dev server was restarted after saving .env.local (see the bullet above).",
     ],
+    codeBlocksIntro:
+      "The three commands below all go into a terminal — Command Prompt, PowerShell, or Git Bash on Windows; Terminal on macOS/Linux — opened at your project's root folder (the same folder that contains package.json). The first one is a one-time setup command; the other two are the auto-rotate request, run in a second terminal tab/window while npm run dev keeps running in the first.",
     codeBlocks: [
       {
         label: "Run in your terminal, from the project root",
@@ -540,6 +542,17 @@ export default function RemainingEnvStep() {
                   <div className="setupWizardInstructionsNote">{REMAINING_ENV_HELP[group.id].note}</div>
                 )}
 
+                <ol className="setupWizardInstructionsList">
+                  {REMAINING_ENV_HELP[group.id]?.steps.map((stepText, index) => (
+                    <li key={index}>{stepText}</li>
+                  ))}
+                </ol>
+
+                {REMAINING_ENV_HELP[group.id]?.codeBlocksIntro && (
+                  <p className="setupWizardInstructionsNote">
+                    {REMAINING_ENV_HELP[group.id].codeBlocksIntro}
+                  </p>
+                )}
                 {REMAINING_ENV_HELP[group.id]?.codeBlocks?.map((block) => (
                   <div key={block.label} className="setupWizardCodeBlockGroup">
                     <span className="setupWizardInstructionsLabel">{block.label}</span>
@@ -555,12 +568,6 @@ export default function RemainingEnvStep() {
                     </div>
                   </div>
                 ))}
-
-                <ol className="setupWizardInstructionsList">
-                  {REMAINING_ENV_HELP[group.id]?.steps.map((stepText, index) => (
-                    <li key={index}>{stepText}</li>
-                  ))}
-                </ol>
               </div>
             )}
           </div>

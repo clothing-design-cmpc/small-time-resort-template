@@ -882,6 +882,12 @@ model GalleryImage {
   caption      String?
   displayOrder Int      @default(0) @map("display_order")
   isFeatured   Boolean  @default(false) @map("is_featured") // shows on homepage/featured section
+  // When the photo was actually TAKEN, read from the file's own EXIF
+  // metadata (DateTimeOriginal) at upload time — see utils/exifReader.js.
+  // Null when the file has no EXIF data (screenshots, many downloaded/
+  // re-saved images). Distinct from createdAt below, which is only ever
+  // "when this row was uploaded" and says nothing about the photo itself.
+  capturedAt   DateTime? @map("captured_at")
   updatedBy    String?  @map("updated_by") // super-admin user id who last saved this image
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")

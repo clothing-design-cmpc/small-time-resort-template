@@ -169,6 +169,7 @@
 .galleryCardMeta {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-sm);
 }
@@ -185,6 +186,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * .galleryCardDate
+ * "Taken <date>" (from EXIF, see utils/formatGalleryDate.js) or
+ * "Uploaded <date>" fallback. Always drops to its own line via
+ * flex-basis so it never competes for space with the caption on
+ * narrow cards.
+ */
+.galleryCardDate {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
 }
 
 .galleryCardActions {

@@ -20,6 +20,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useGallery } from "@/hooks/useGallery";
+import { getGalleryImageDisplayDate } from "@/utils/formatGalleryDate";
 import { useToast } from "@/app/superAdmin/shared/useToast";
 import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
@@ -160,6 +161,15 @@ export default function GalleryClient() {
               <div className="galleryCardMeta">
                 <span className="galleryCardOrder">#{index + 1}</span>
                 {image.caption && <span className="galleryCardCaption">{image.caption}</span>}
+                {/* Prefers the EXIF "date taken" over the upload date — see
+                    utils/formatGalleryDate.js — so an admin can tell an
+                    old photo apart from a newly-uploaded one at a glance. */}
+                {(() => {
+                  const displayDate = getGalleryImageDisplayDate(image);
+                  return displayDate ? (
+                    <span className="galleryCardDate">{displayDate.label} {displayDate.date}</span>
+                  ) : null;
+                })()}
               </div>
 
               <div className="galleryCardActions">

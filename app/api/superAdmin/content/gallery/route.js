@@ -64,6 +64,9 @@ export async function POST(request) {
         imageUrl,
         imageKey,
         caption: body.caption ?? null,
+        // EXIF "date taken" from utils/exifReader.js, extracted at
+        // upload time — null when the photo had no EXIF data.
+        capturedAt: body.capturedAt ? new Date(body.capturedAt) : null,
         displayOrder: body.displayOrder ?? nextDisplayOrder,
         isFeatured: body.isFeatured ?? false,
         updatedBy: body.updatedBy || null,

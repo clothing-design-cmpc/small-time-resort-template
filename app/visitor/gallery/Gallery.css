@@ -150,3 +150,17 @@
   color: var(--color-text-muted);
   text-align: center;
 }
+
+/*
+ * .galleryVisitorDate
+ * "Taken <date>" (from the photo's own EXIF data) or "Uploaded <date>"
+ * fallback — shown under every photo so a guest can see proof of when
+ * it was actually taken, not just when it was added to the site.
+ */
+.galleryVisitorDate {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: var(--space-xs);
+}

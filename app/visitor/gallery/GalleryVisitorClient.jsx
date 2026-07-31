@@ -19,6 +19,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
+import { getGalleryImageDisplayDate } from "@/utils/formatGalleryDate";
 
 /* Same category set the admin's Gallery Management tabs use, plus an
    "All" option so a first-time visitor sees everything by default. */
@@ -83,6 +84,15 @@ export default function GalleryVisitorClient({ images }) {
                 />
               </div>
               {image.caption && <figcaption className="galleryVisitorCaption">{image.caption}</figcaption>}
+              {/* Prefers the EXIF "date taken" over the upload date (Rule:
+                  utils/formatGalleryDate.js) — this is what lets a guest
+                  see a photo wasn't just staged/downloaded today. */}
+              {(() => {
+                const displayDate = getGalleryImageDisplayDate(image);
+                return displayDate ? (
+                  <span className="galleryVisitorDate">{displayDate.label} {displayDate.date}</span>
+                ) : null;
+              })()}
             </figure>
           ))}
         </div>

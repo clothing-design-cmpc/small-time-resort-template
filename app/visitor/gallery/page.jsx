@@ -32,7 +32,7 @@ export default async function VisitorGalleryPage() {
   const images = await prisma.galleryImage
     .findMany({
       orderBy: [{ category: "asc" }, { displayOrder: "asc" }],
-      select: { id: true, category: true, imageUrl: true, caption: true },
+      select: { id: true, category: true, imageUrl: true, caption: true, capturedAt: true, createdAt: true },
     })
     .catch(() => []);
 

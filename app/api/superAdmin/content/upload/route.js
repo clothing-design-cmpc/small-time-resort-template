@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { processImage } from "@/utils/imageProcessor";
+import { extractPhotoCapturedAt } from "@/utils/exifReader";
 import { uploadToR2 } from "@/services/r2";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -55,13 +56,16 @@ export async function POST(request) {
     }
 
     const rawBuffer = Buffer.from(await file.arrayBuffer());
+    // Must read EXIF from the RAW buffer — processImage()'s WebP
+    // conversion below strips all metadata, so this has to happen first.
+    const capturedAt = await extractPhotoCapturedAt(rawBuffer);
     const processedBuffer = await processImage(rawBuffer);
     const fileKey = `${folder}/${randomUUID()}.webp`;
     const publicUrl = await uploadToR2(fileKey, processedBuffer, "image/webp");
 
     return NextResponse.json({
       success: true,
-      data: { url: publicUrl, key: fileKey },
+      data: { url: publicUrl, key: fileKey, capturedAt: capturedAt ? capturedAt.toISOString() : null },
       message: "Image uploaded successfully.",
     });
   } catch (error) {

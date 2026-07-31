@@ -68,6 +68,8 @@ export default function GalleryUploadModal({ isOpen, defaultCategory, onSubmit, 
         caption: caption.trim() || null,
         imageUrl: uploadResponse.data.data.url,
         imageKey: uploadResponse.data.data.key,
+        // EXIF "date taken", if the file had it — see utils/exifReader.js
+        capturedAt: uploadResponse.data.data.capturedAt,
       });
 
       // Reset for the next upload — parent closes the modal on success.

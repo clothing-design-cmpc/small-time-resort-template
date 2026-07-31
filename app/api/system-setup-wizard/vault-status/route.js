@@ -11,7 +11,7 @@
  * VerifyVaultAccessStep.jsx (Step 7) has a real, clickable link —
  * without generating or changing anything. Replaces the old
  * dependency on generate-passphrase's response for this value, now
- * that the vault passphrase is set via scripts/hashVaultPassphrase.js
+ * that the vault passphrase is set via scripts/setupVaultPassphrase.js
  * (terminal-only) instead of a web auto-generate call — Step 7 has
  * nothing to receive as a prop anymore, so it fetches this itself.
  *

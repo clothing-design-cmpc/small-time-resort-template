@@ -22,18 +22,18 @@
  *      an API route. Instructions include the "scan the QR then
  *      delete vault-totp-qr.png" warning.
  *
- *   2. node scripts/hashVaultPassphrase.js "<passphrase>"
- *      Hashes a chosen vault passphrase and prints the
- *      VAULT_PASSPHRASE_HASH line to paste into .env.local — the
- *      same script referenced on the real vault-setup page
- *      (ScriptsReferenceSection.jsx) and in docs/SETUP_NOTES.md.
- *      Deliberately NOT the old web auto-generate flow: that flow
- *      wrote straight to the DB and doubled as the "complete setup"
- *      trigger, which mixed two unrelated concerns (setting a
- *      passphrase vs. finalizing the wizard). services/
- *      setupWizardStatus.js's arePrerequisitesMet() now accepts
- *      this env-set value exactly like it accepts the DB row, so
- *      this path finalizes the wizard the same as before.
+ *   2. node scripts/setupVaultPassphrase.js
+ *      Auto-generates a random vault passphrase, saves it to the
+ *      database, emails the plaintext to VAULT_OWNER_EMAIL, and backs
+ *      up a copy to Cloudflare R2 — same rotate + email + R2-backup
+ *      flow every other passphrase trigger uses (services/
+ *      vaultPassphrase.js), just triggered from the terminal instead
+ *      of a web route. Refuses to run if a passphrase already exists.
+ *      For manually choosing your own passphrase instead of an
+ *      auto-generated one, see scripts/hashVaultPassphrase.js
+ *      (a separate manual utility, not used by this wizard step —
+ *      referenced instead from the real vault dashboard's Scripts
+ *      Reference section).
  *
  *   3. MaxMind GeoLite2-City.mmdb
  *      Not an env var — a physical file. Manual download from
@@ -64,10 +64,10 @@ const EXTERNAL_STEPS = [
   },
   {
     title: "2. Vault passphrase (hidden recovery page)",
-    command: 'node scripts/hashVaultPassphrase.js "your-chosen-passphrase"',
+    command: "node scripts/setupVaultPassphrase.js",
     description:
-      "Hashes your chosen passphrase and prints a VAULT_PASSPHRASE_HASH line — copy it into .env.local, then restart the dev server so it's picked up. This is the passphrase for the separate hidden recovery page (/system-vault/[slug]), not the owner vault dashboard above. Passphrase must be at least 12 characters.",
-    warning: "Never commit the plaintext passphrase anywhere, including this terminal's shell history if the machine is shared.",
+      "Auto-generates a random passphrase, saves it to the database, emails the plaintext to VAULT_OWNER_EMAIL, and backs up a copy to Cloudflare R2 — mirrors the owner vault script above. This is the passphrase for the separate hidden recovery page (/system-vault/[slug]), not the owner vault dashboard. Refuses to run if a passphrase already exists — use node scripts/rotateVaultPassphrase.mjs instead if you need to rotate it later.",
+    warning: "The plaintext passphrase is shown here once only — copy it now, or find it later via the email or R2 backup.",
   },
 ];
 

@@ -24,7 +24,7 @@
  *
  * DATA FLOW:
  * 1. On mount, GET /api/system-setup-wizard/vault-status -> vaultUrl
- *    (null if scripts/hashVaultPassphrase.js hasn't been run yet —
+ *    (null if scripts/setupVaultPassphrase.js hasn't been run yet —
  *    shows a "come back once you've run Step 6" message instead)
  * 2. Person clicks the vaultUrl link (opens in a new tab) and signs
  *    in there using the passphrase they set in Step 6, then the
@@ -98,9 +98,7 @@ export default function VerifyVaultAccessStep() {
       {!isLoading && !loadError && !vaultUrl && (
         <p className="setupWizardError">
           No vault passphrase found yet. Run{" "}
-          <code>node scripts/hashVaultPassphrase.js &quot;your-chosen-passphrase&quot;</code> from
-          Step 6, add the printed line to <code>.env.local</code>, restart the dev server, then
-          refresh this page.
+          <code>node scripts/setupVaultPassphrase.js</code> from Step 6, then refresh this page.
         </p>
       )}
 

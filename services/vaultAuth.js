@@ -230,7 +230,12 @@ export async function getVaultRecoveryPath() {
  * every caller must await it.
  */
 export async function getVaultRecoveryUrl() {
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://your-domain-here.com").replace(/\/$/, "");
+  // Falls back to localhost:3000 (not a placeholder domain) — this
+  // project is local-dev-only until Step 8 of the setup wizard
+  // (Deployment) actually sets NEXT_PUBLIC_SITE_URL for the real
+  // deployed domain. A link the person can't even visit yet isn't
+  // useful during local setup/testing.
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
   const path = (await getVaultRecoveryPath()) || `${VAULT_RECOVERY_PATH_PREFIX}not-configured-yet`;
   return `${siteUrl}${path}`;
 }

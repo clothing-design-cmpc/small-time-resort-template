@@ -79,9 +79,14 @@ function sleep(ms) {
  *
  * @param {string} newPassphrase   - plaintext passphrase, same value emailed to the owner
  * @param {string} generatedByLabel - e.g. "Gatekeeper 1 — Login brute force: ..." or "Automatic 30-day rotation"
+ * @param {string} [keyPrefix]     - R2 filename prefix, defaults to "vault-passphrase". Callers
+ *                                   that want a distinguishable filename (e.g. the setup wizard's
+ *                                   first-run script, separate from a later rotation) pass their
+ *                                   own — e.g. "setup-vault-passphrase" — so the R2 bucket listing
+ *                                   makes it obvious which process created which file.
  * @returns {Promise<{ r2Saved: boolean, r2Key: string|null, r2SignedUrl: string|null }>}
  */
-export async function saveVaultPassphraseToR2({ newPassphrase, generatedByLabel }) {
+export async function saveVaultPassphraseToR2({ newPassphrase, generatedByLabel, keyPrefix = "vault-passphrase" }) {
   const generatedAt = new Date().toISOString();
   const vaultRecoveryUrl = await getVaultRecoveryUrl();
   const fileContents = buildPassphraseFileContents({
@@ -93,7 +98,7 @@ export async function saveVaultPassphraseToR2({ newPassphrase, generatedByLabel 
   // secrets/ prefix keeps this isolated from every public-facing image
   // folder (products/, rooms/, gallery/, etc.) — see Rule 35.8's
   // storage folder naming convention.
-  const key = `secrets/vault-passphrase-${generatedAt.replace(/[:.]/g, "-")}.txt`;
+  const key = `secrets/${keyPrefix}-${generatedAt.replace(/[:.]/g, "-")}.txt`;
   const buffer = Buffer.from(fileContents, "utf-8");
 
   for (let attempt = 1; attempt <= 2; attempt++) {

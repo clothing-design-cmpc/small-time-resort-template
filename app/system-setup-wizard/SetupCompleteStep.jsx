@@ -5,7 +5,7 @@
  * PURPOSE:
  * Renders once PreHandoffTestingStep's checklist is fully checked off
  * (Step 9). The owner admin (Step 3) and vault passphrase (Step 6,
- * scripts/hashVaultPassphrase.js) are both prerequisites checked by
+ * scripts/setupVaultPassphrase.js) are both prerequisites checked by
  * arePrerequisitesMet() (services/setupWizardStatus.js) before this
  * screen's "Finished testing" button is allowed to actually lock
  * anything — see that file's header for the DB-row-or-env-fallback

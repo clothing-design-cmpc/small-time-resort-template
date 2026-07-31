@@ -67,16 +67,18 @@ import { prisma } from "@/services/prisma";
  * calling isSetupWizardLocked() itself (which would be circular).
  *
  * Vault passphrase source — DB row OR env fallback:
- * The wizard's Step 6 points at scripts/hashVaultPassphrase.js
- * (terminal-only, writes VAULT_PASSPHRASE_HASH to .env.local) instead
- * of a web-based auto-generate flow that writes straight to
- * VaultPassphrase.passphraseHash. Both are valid, equally-effective
- * ways to set the passphrase — services/vaultAuth.js's
- * getEffectivePassphraseHash() already treats them as interchangeable
- * (DB wins if both are set, env is the fallback). This check mirrors
- * that same either/or logic, or a passphrase set purely via the
- * terminal script would never satisfy setup, even though vault login
- * itself works fine with it.
+ * The wizard's Step 6 points at scripts/setupVaultPassphrase.js,
+ * which writes straight to VaultPassphrase.passphraseHash (DB) —
+ * same as every other passphrase-generation trigger in the app
+ * (services/vaultPassphrase.js's generateAndDistributePassphrase()).
+ * The env fallback here is for scripts/hashVaultPassphrase.js, a
+ * separate manual utility (not part of the wizard) that writes
+ * VAULT_PASSPHRASE_HASH to .env.local instead, for someone who wants
+ * to choose their own passphrase later. services/vaultAuth.js's
+ * getEffectivePassphraseHash() already treats DB and env as
+ * interchangeable (DB wins if both are set, env is the fallback) —
+ * this check mirrors that same either/or logic, so a passphrase set
+ * via either script satisfies setup.
  */
 export async function arePrerequisitesMet() {
   try {

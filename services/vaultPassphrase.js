@@ -2,18 +2,15 @@
  * FILE: services/vaultPassphrase.js
  * PURPOSE:
  * Shared rotate + email + R2-backup + audit-log flow for generating a
- * brand-new vault passphrase. Used by TWO separate callers that must
+ * brand-new vault passphrase. Used by THREE separate callers that must
  * never drift into slightly different flows:
  *   1. app/api/system-vault-setup/route.js GET  — auto-generate on
  *      first check if nothing is configured yet
  *   2. app/api/system-vault-setup/route.js POST — owner's manual
  *      "generate new" click
- *
- * The setup wizard's Step 6 no longer calls this — it now points at
- * scripts/hashVaultPassphrase.js (terminal-only), so the wizard has
- * no web-based passphrase-generation call at all anymore. See
- * services/setupWizardStatus.js's arePrerequisitesMet() for how the
- * terminal-set env value is treated as equally valid.
+ *   3. scripts/setupVaultPassphrase.js — the setup wizard's Step 6
+ *      terminal-only first-run bootstrap (passes r2KeyPrefix so its
+ *      R2 backup filename is distinguishable from a later rotation)
  *
  * Previously this function lived directly inside
  * app/api/system-vault-setup/route.js (un-exported), and the wizard
@@ -38,14 +35,16 @@ import { logSecurityEvent } from "@/services/securityLog";
  * both best-effort (a failure in either never blocks the caller from
  * seeing the passphrase in its own response).
  *
- * @param actor  - VAULT_IDENTITY (key-based path) or the session's uid
- * @param reason - human-readable audit trail string, distinguishes
+ * @param {string} actor  - VAULT_IDENTITY (key-based path) or the session's uid
+ * @param {string} reason - human-readable audit trail string, distinguishes
  *                 auto-generated (nothing set yet) from a manual
  *                 rotation (owner/wizard explicitly triggered it)
- * @param request - forwarded to logSecurityEvent for IP/device capture
- * @param generatedByLabel - text used inside the R2 .txt file body
+ * @param {object} request - forwarded to logSecurityEvent for IP/device capture
+ * @param {string} generatedByLabel - text used inside the R2 .txt file body
+ * @param {string} [r2KeyPrefix] - forwarded to saveVaultPassphraseToR2, see that
+ *                 function's own doc for why a caller would set this
  */
-export async function generateAndDistributePassphrase({ actor, reason, request, generatedByLabel }) {
+export async function generateAndDistributePassphrase({ actor, reason, request, generatedByLabel, r2KeyPrefix }) {
   const newPassphrase = await rotateVaultPassphrase();
 
   // Email the plaintext to VAULT_OWNER_EMAIL — best-effort, reuses the
@@ -62,6 +61,7 @@ export async function generateAndDistributePassphrase({ actor, reason, request, 
   const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
     newPassphrase,
     generatedByLabel,
+    ...(r2KeyPrefix ? { keyPrefix: r2KeyPrefix } : {}),
   });
 
   // Audit trail — this is a disaster-recovery credential, always

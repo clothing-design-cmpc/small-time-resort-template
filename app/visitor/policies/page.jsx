@@ -23,6 +23,7 @@
 import "./Policies.css";
 import Link from "next/link";
 import { prisma } from "@/services/prisma";
+import { DEFAULT_HOUSE_RULES } from "@/utils/defaultHouseRules";
 
 export const metadata = {
   title: "Policies | your-private-resort",
@@ -102,16 +103,7 @@ const refundPolicies = [
   },
 ];
 
-const houseRules = [
-  "Quiet hours are observed from 10:00 PM to 7:00 AM. Loud music, gatherings, and any noise that may disturb other guests is not permitted during this period.",
-  "Smoking is prohibited inside the room and enclosed areas. Designated outdoor smoking areas are available — please ask the front desk.",
-  "Pets are not allowed on resort premises without prior written approval. Approved pets must remain within the guest's room at all times.",
-  "All resort equipment and room furnishings must be treated with care. Guests will be charged for any deliberate or negligent damage to property.",
-  "Outside food and beverages are permitted in the room. Outside food is not allowed in the resort's restaurant or common dining areas.",
-  "The resort reserves the right to refuse service or remove any guest whose behavior is disruptive, threatening, or in violation of these house rules — without a refund.",
-  "Children under 12 must be supervised by an adult at all times near the basketball court and playground.",
-  "Single-use plastics are discouraged on resort grounds. Guests are encouraged to use the refillable water station provided in the room.",
-];
+const houseRules = DEFAULT_HOUSE_RULES;
 
 /* ─── Component ─────────────────────────────────────────────────── */
 

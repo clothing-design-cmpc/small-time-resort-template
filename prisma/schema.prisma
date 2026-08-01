@@ -947,6 +947,62 @@ model GalleryImage {
 // ============================================================
 // Singleton table — the app always reads/writes the single row with
 // ============================================================
+// MODEL: BookingConfirmationEmail  (singleton, id "singleton")
+// ============================================================
+// Admin-editable copy for the automatic email sent the moment a
+// booking flips from "pending" to "confirmed" (see
+// app/api/admin/bookings/[id]/confirm/route.js and
+// services/bookingConfirmationEmail.js). Resort rules text is
+// deliberately NOT duplicated here — the email always pulls the live
+// SystemSettings.houseRules at send time (single source of truth,
+// same text shown on the visitor Policies page), so an admin only
+// edits it once in Content > Policies and both places stay in sync.
+model BookingConfirmationEmail {
+  id String @id @default("singleton")
+
+  eyebrowText       String? @default("BOOKING CONFIRMED") @map("eyebrow_text")
+  headingText       String? @default("Your stay is confirmed!") @map("heading_text")
+  introMessage      String? @map("intro_message")
+  resortRulesHeading String? @default("Resort Rules") @map("resort_rules_heading")
+  resortRulesIntro  String? @default("Please review these rules before your stay:") @map("resort_rules_intro")
+  closingMessage    String? @default("We look forward to welcoming you!") @map("closing_message")
+  footerNote        String? @map("footer_note")
+
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved this
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  images BookingConfirmationEmailImage[]
+
+  @@map("booking_confirmation_email")
+}
+
+// ============================================================
+// MODEL: BookingConfirmationEmailImage
+// ============================================================
+// Gallery-style images an admin attaches to the confirmation email
+// (e.g. a welcome banner, room photos). Uploaded via the shared
+// /api/superAdmin/content/upload endpoint to Cloudflare R2 first —
+// this row only stores the resulting URL/key, same pattern as
+// GalleryImage above.
+model BookingConfirmationEmailImage {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settingsId String @default("singleton") @map("settings_id")
+
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  settings BookingConfirmationEmail @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@index([settingsId])
+  @@index([displayOrder])
+  @@map("booking_confirmation_email_images")
+}
+
+// ============================================================
 // MODEL: WeatherForecastCache  (singleton, id "singleton")
 // ============================================================
 // Holds the last successfully fetched Google Weather API forecast for
@@ -1091,22 +1147,6 @@ model SystemSettings {
   // column on purpose so `prisma db push` treats this as a straight
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
-
-  // --- DP (Down Payment) Countdown / Pending Hold Window ---
-  // ONE resort-wide value: how many hours a "pending" Booking holds its
-  // dates before app/api/cron/booking-expiry/route.js auto-expires it.
-  // Replaces the old hardcoded PENDING_HOLD_HOURS constant in
-  // services/bookingRules.js — see services/pendingHoldHours.js for the
-  // read/write helpers, and app/api/superAdmin/settings/pending-hold-hours/
-  // route.js for the super-admin PUT endpoint. Editing THIS value never
-  // affects a booking that's already pending: Booking.pendingExpiresAt is
-  // computed ONCE at booking-creation time from whatever this value was
-  // back then and stored directly on that row (app/api/bookings/route.js)
-  // — every already-pending booking keeps counting down against its own
-  // saved pendingExpiresAt, never against this live setting, so changing
-  // this number mid-flight can never error out or reset an active hold.
-  pendingHoldHours Int @default(8) @map("pending_hold_hours")
-
 
   // --- Contact Info ---
   resortPhone   String? @map("resort_phone")

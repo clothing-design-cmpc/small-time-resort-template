@@ -26,6 +26,7 @@ import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
+import { sendBookingConfirmationEmail } from "@/services/bookingConfirmationEmail";
 
 export async function POST(request, { params }) {
   const session = requireSuperAdmin(request);
@@ -61,6 +62,14 @@ export async function POST(request, { params }) {
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: { status: "confirmed", pendingExpiresAt: null },
+      include: { room: true },
+    });
+
+    // Best-effort — a failed email must never fail an already-confirmed
+    // booking. Carries the resort rules (live from Content > Policies)
+    // and any admin-attached images (Content > Booking Confirmation Email).
+    sendBookingConfirmationEmail({ booking: updatedBooking }).catch((error) => {
+      console.error("[api/admin/bookings/[id]/confirm] Failed to send confirmation email:", error.message);
     });
 
     // Audit trail (Rule 6) — who approved which guest's pending booking, and when.

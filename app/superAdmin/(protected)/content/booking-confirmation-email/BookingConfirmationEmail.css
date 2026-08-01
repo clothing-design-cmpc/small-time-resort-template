@@ -1,0 +1,352 @@
+/*
+ * .bceSection
+ * Outer wrapper for the Booking Confirmation Email editor.
+ */
+.bceSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.bceHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.bceEyebrow {
+  display: block;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.bceTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+.bceIntroNote {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 70ch;
+  margin: 0;
+}
+
+.bceSaveButton,
+.bceAddButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.bceSaveButton:hover,
+.bceSaveButton:focus-visible,
+.bceAddButton:hover,
+.bceAddButton:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.bceSaveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bceFormPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.bceFormField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.bceFormField label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.bceFormField input[type="text"],
+.bceFormField textarea {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.bceFormField textarea {
+  resize: vertical;
+}
+
+/*
+ * .bceRulesNote
+ * Points the admin to Content > Policies for the actual rules text —
+ * this page only owns the heading/intro copy around it, never the
+ * rules themselves (single source of truth lives on the Policies page).
+ */
+.bceRulesNote {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 8px;
+}
+
+.bceRulesNote a {
+  color: var(--color-accent);
+}
+
+.bceImagesHeaderRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.bceSectionHeading {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.bceEmptyState {
+  padding: var(--space-lg);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/*
+ * .bceImageGrid
+ * Auto-fill grid so image cards reflow without any breakpoints —
+ * consistent with Rule 23's responsive-grid standard.
+ */
+.bceImageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-lg);
+}
+
+.bceImageCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+}
+
+.bceImageThumbWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.bceImageCaptionInput {
+  width: 100%;
+  min-height: 44px;
+  font-size: 0.9rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.bceImageCardActions {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-xs);
+}
+
+.bceIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.bceIconButton:hover,
+.bceIconButton:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.bceIconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bceIconButton--danger {
+  margin-left: auto;
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.bceStateMessage {
+  padding: var(--space-lg);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.bceStateMessage--error {
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+}
+
+.bceSkeleton {
+  min-height: 320px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--color-skeleton-base, rgba(255,255,255,0.06)) 25%, var(--color-skeleton-shine, rgba(255,255,255,0.12)) 50%, var(--color-skeleton-base, rgba(255,255,255,0.06)) 75%);
+  background-size: 200% 100%;
+  animation: bceSkeletonPulse 1.5s infinite;
+}
+
+@keyframes bceSkeletonPulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Upload modal (mirrors GalleryUploadModal's modal styling) ── */
+
+.bceModalBackdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: var(--z-modal-backdrop);
+}
+
+.bceModalDialog {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-lg);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  z-index: var(--z-modal);
+}
+
+.bceUploadForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bceFormImageUpload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.bceFormImagePreviewWrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bceFormError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+}
+
+.bceFormActions {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.bceFormButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.bceFormButton--neutral {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.bceFormButton--neutral:hover,
+.bceFormButton--neutral:focus-visible {
+  background-color: var(--color-surface-hover);
+}
+
+.bceFormButton--primary {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.bceFormButton--primary:hover,
+.bceFormButton--primary:focus-visible {
+  background-color: var(--color-primary-hover);
+}
+
+.bceFormButton--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

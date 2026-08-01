@@ -17,6 +17,7 @@
  */
 
 import { recordApiCall } from "@/services/apiUsageTracker";
+import { prisma } from "@/services/prisma";
 
 const WEATHER_FORECAST_URL = "https://weather.googleapis.com/v1/forecast/days:lookup";
 
@@ -150,4 +151,54 @@ export async function getVisitorWeatherForecast(latitude, longitude) {
     console.error("[weather] Visitor forecast request failed:", error.message);
     return null;
   }
+}
+
+// Same placeholder Metro Manila coordinates every other resort-location
+// consumer (Footer.jsx, ResortLocationWidget.jsx, the cron route) falls
+// back to.
+const PLACEHOLDER_LATITUDE = 14.5995;
+const PLACEHOLDER_LONGITUDE = 120.9842;
+
+/**
+ * refreshWeatherForecastCache
+ * Reads the resort's coordinates, calls getVisitorWeatherForecast(),
+ * and upserts the WeatherForecastCache singleton row. Shared by both
+ * the 3x/day cron route (app/api/cron/weather/route.js) and the
+ * super-admin manual "Refresh now" route
+ * (app/api/admin/weather/refresh/route.js) so there's exactly one
+ * place this logic lives — same shared-service pattern
+ * generateDailyInsight() uses for the AI Insight cron + manual routes.
+ *
+ * On a failed Google call: only flips the cache to status "error" if
+ * there was never a successful row before. Otherwise the previous good
+ * forecast is left untouched so one bad run never blanks the widget.
+ *
+ * @returns {Promise<{ok: boolean, days: number}>}
+ */
+export async function refreshWeatherForecastCache() {
+  const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
+  const latitude = settings?.resortLatitude ?? PLACEHOLDER_LATITUDE;
+  const longitude = settings?.resortLongitude ?? PLACEHOLDER_LONGITUDE;
+
+  const forecastDays = await getVisitorWeatherForecast(latitude, longitude);
+
+  if (!forecastDays) {
+    const existing = await prisma.weatherForecastCache.findUnique({ where: { id: "singleton" } }).catch(() => null);
+    if (!existing) {
+      await prisma.weatherForecastCache.upsert({
+        where: { id: "singleton" },
+        create: { id: "singleton", forecastDays: null, status: "error" },
+        update: { status: "error" },
+      });
+    }
+    return { ok: false, days: 0 };
+  }
+
+  await prisma.weatherForecastCache.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton", forecastDays, status: "ok" },
+    update: { forecastDays, status: "ok" },
+  });
+
+  return { ok: true, days: forecastDays.length };
 }

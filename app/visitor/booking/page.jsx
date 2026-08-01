@@ -64,6 +64,11 @@ export default async function BookingPage({ searchParams }) {
   // number below instead of breaking the whole booking page.
   const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
   const resortPhone = settings?.resortPhone || PLACEHOLDER_PHONE;
+  // Used to build the "Confirm on Messenger" CTA on the pending
+  // confirmation panel (no PayMongo integration yet — see
+  // app/api/bookings/route.js and services/invoicePdf.js). Null falls
+  // back to a "contact us directly" message instead of a broken link.
+  const resortMessengerUsername = settings?.resortMessengerUsername || null;
 
   return (
     <section className="bookingSection">
@@ -83,15 +88,22 @@ export default async function BookingPage({ searchParams }) {
             roomId={roomId}
             ruleId={ruleId}
             resortPhone={resortPhone}
+            resortMessengerUsername={resortMessengerUsername}
           />
         ) : isLockedTourType ? (
-          <TourReservationSummaryClient checkInDate={initialCheckInDate} bookingType={initialBookingType} resortPhone={resortPhone} />
+          <TourReservationSummaryClient
+            checkInDate={initialCheckInDate}
+            bookingType={initialBookingType}
+            resortPhone={resortPhone}
+            resortMessengerUsername={resortMessengerUsername}
+          />
         ) : (
           <BookingFormClient
             initialCheckInDate={initialCheckInDate}
             initialCheckOutDate={initialCheckOutDate}
             initialBookingType={initialBookingType}
             resortPhone={resortPhone}
+            resortMessengerUsername={resortMessengerUsername}
           />
         )}
       </div>

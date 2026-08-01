@@ -256,6 +256,11 @@
   background-color: var(--color-success);
 }
 
+.bookingConfirmBadge--pending {
+  color: #09090b;
+  background-color: var(--color-warning);
+}
+
 .bookingConfirmMessage {
   color: var(--color-text-secondary);
   line-height: 1.6;
@@ -376,4 +381,24 @@
 .bookingConfirmInvoiceLink:focus-visible {
   background-color: var(--color-accent);
   color: var(--color-on-accent);
+}
+
+.bookingConfirmMessengerLink {
+  align-self: flex-start;
+  margin-top: var(--space-xs);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #09090b;
+  background-color: #0084ff;
+  border: 1px solid #0084ff;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background-color var(--transition-fast);
+}
+
+.bookingConfirmMessengerLink:hover,
+.bookingConfirmMessengerLink:focus-visible {
+  background-color: #006edb;
+  border-color: #006edb;
 }

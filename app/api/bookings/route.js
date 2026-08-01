@@ -3,11 +3,16 @@
  * ROLE: Public — no auth required, called by the visitor booking form
  *
  * PURPOSE:
- * Creates a confirmed Booking after re-validating every BookingRules
+ * Creates a "pending" Booking after re-validating every BookingRules
  * check server-side (never trusts the /api/bookings/quote preview
  * alone — a second guest could have taken the room in between). This
  * is the only place a Booking row actually gets written from the
- * visitor side.
+ * visitor side. No PayMongo integration yet, so the booking is not
+ * auto-confirmed: it holds its dates for PENDING_HOLD_HOURS while the
+ * guest sends their invoice PDF to the resort's Facebook Page and the
+ * owner approves it from Super-Admin > Bookings (see services/
+ * bookingRules.js, services/invoicePdf.js, app/api/admin/bookings/
+ * [id]/confirm/route.js, and app/api/cron/booking-expiry/route.js).
  *
  * DATA FLOW:
  * 1. BookingFormClient POSTs guest info + selected room/dates/type
@@ -48,6 +53,7 @@ import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { generateUniqueReferenceCode } from "@/services/referenceCode";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { isExclusionViolation, isSerializationFailure } from "@/services/pgErrorCodes";
+import { PENDING_HOLD_HOURS } from "@/services/bookingRules";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -125,7 +131,17 @@ async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
             // and services/bookingPricing.js's turnover conflict check.
             cleaningHoursSnapshot: quote.cleaningHours,
             notes: payload.notes || null,
-            status: "confirmed",
+            // No PayMongo integration yet — every new booking starts
+            // "pending" and holds its dates for PENDING_HOLD_HOURS
+            // (see services/bookingRules.js) while the guest is
+            // expected to confirm via Messenger (invoice PDF's PENDING
+            // watermark + instructions — services/invoicePdf.js) and
+            // the owner approves it from Super-Admin > Bookings
+            // (app/api/admin/bookings/[id]/confirm/route.js). If it's
+            // never confirmed in time, app/api/cron/booking-expiry/
+            // route.js flips it to "expired" and frees the dates.
+            status: "pending",
+            pendingExpiresAt: new Date(Date.now() + PENDING_HOLD_HOURS * 60 * 60 * 1000),
             referenceCode,
             // Device/location capture — resolved server-side before this
             // transaction started (see POST handler below), never trusted
@@ -281,16 +297,16 @@ export async function POST(request) {
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${booking.id}/invoice` : null;
     await sendGeneralEmail({
       toEmail: payload.guestEmail,
-      subject: `your-private-resort — Booking Confirmed (${booking.referenceCode})`,
-      eyebrow: "BOOKING CONFIRMED",
-      heading: `Thank you, ${payload.guestName}!`,
+      subject: `your-private-resort — Booking Request Received (${booking.referenceCode})`,
+      eyebrow: "BOOKING PENDING",
+      heading: `Thanks, ${payload.guestName}!`,
       intro:
-        "Your stay at your-private-resort has been confirmed. Keep your reference code below — you'll need it to unlock turn-by-turn directions to the resort.",
+        "We've received your booking request and are holding your dates. To confirm it, please send us your invoice PDF on Facebook Messenger — the instructions are printed on it. Keep your reference code below too; you'll need it once confirmed to unlock turn-by-turn directions.",
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
       bodyMessage: invoiceUrl
-        ? `Download your invoice here: ${invoiceUrl}`
-        : "Your invoice with the reference code above is also available on the booking confirmation page.",
+        ? `Download your invoice (with confirmation instructions) here: ${invoiceUrl}`
+        : "Your invoice with the reference code and confirmation instructions is also available on the booking page.",
     });
   } catch (error) {
     console.error("[api/bookings] Failed to send confirmation email:", error.message);
@@ -299,6 +315,6 @@ export async function POST(request) {
   return NextResponse.json({
     success: true,
     data: { booking, quote },
-    message: "Booking confirmed! We'll see you soon.",
+    message: "Booking request received! Send your invoice on Messenger to confirm your dates.",
   });
 }

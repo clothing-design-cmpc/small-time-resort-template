@@ -35,6 +35,7 @@
  */
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { getResortLocationMapImage } from "./directions";
+import { buildMessengerLink } from "@/utils/messagingLinks";
 
 // Falls back to a placeholder only if NEXT_PUBLIC_SITE_URL was never
 // configured — the link still renders (never blocks PDF generation),
@@ -115,7 +116,7 @@ function drawWatermark(page, text, { font, size, color, opacity, angleDegrees, c
  *   the "Included in this Package" section is skipped entirely.
  */
 export async function generateInvoicePdf(booking, location = {}, packageInclusions = []) {
-  const { resortLatitude = null, resortLongitude = null } = location;
+  const { resortLatitude = null, resortLongitude = null, resortMessengerUsername = null } = location;
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -165,6 +166,32 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
     color: MUTED,
     gap: 28,
   });
+
+  // --- Next Step: Confirm on Messenger — only shown while this
+  // invoice is still "pending" (no PayMongo integration yet, so the
+  // owner manually reviews and confirms every booking). Guides the
+  // guest to send THIS PDF (with its PENDING watermark, drawn last
+  // below) to the resort's Facebook Page so the owner can approve it
+  // from Super-Admin > Bookings, matching the flow in
+  // app/api/admin/bookings/[id]/confirm/route.js. Skipped entirely
+  // once status flips to "confirmed"/"cancelled"/"expired". ---
+  if (booking.status === "pending") {
+    const messengerLink = buildMessengerLink(resortMessengerUsername);
+    writeLine("Next Step: Confirm Your Booking", { font: fontBold, size: 12, color: rgb(0.85, 0.55, 0.1), gap: 20 });
+    writeLine("This is not yet a confirmed reservation.", { size: 10, gap: 15 });
+    writeLine("1. Save or screenshot this PDF (it shows a PENDING watermark).", { size: 9, gap: 14 });
+    writeLine("2. Send it to us on Facebook Messenger using the link below.", { size: 9, gap: 14 });
+    if (messengerLink) {
+      writeLine(messengerLink, { size: 9, color: ACCENT, gap: 18 });
+    } else {
+      writeLine("Facebook Messenger link not yet set up — please contact us directly.", {
+        size: 9,
+        color: MUTED,
+        gap: 18,
+      });
+    }
+    writeLine("3. We'll confirm your booking once we've reviewed it with you there.", { size: 9, gap: 26 });
+  }
 
   // --- Guest & stay details ---
   writeLine("Guest Information", { font: fontBold, size: 12, gap: 20 });
@@ -242,21 +269,43 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
 
   // --- Watermark — drawn LAST so it sits on top of every other
   // element, including the map image (see drawWatermark's comment for
-  // why). Priority: CANCELLED > REBOOK > CONFIRMED — a cancelled
-  // booking always shows CANCELLED even if it was rebooked before it
-  // was later cancelled; otherwise a booking moved via the
-  // self-service Rebook flow (rebookedAt set — see schema comment on
-  // Booking.rebookedAt) shows REBOOK so staff and the guest can see at
-  // a glance this invoice reflects moved dates, not the original
-  // booking. Sized relative to the page so it reads clearly at a
-  // glance without a print, and opacity is high enough to stay legible
-  // over the map image while still reading as a background stamp. ---
+  // why). Priority: CANCELLED > EXPIRED > PENDING > REBOOK > CONFIRMED
+  // — a cancelled booking always shows CANCELLED even if it was
+  // rebooked before it was later cancelled. PENDING marks an invoice
+  // the guest is meant to screenshot/show on Messenger BEFORE the
+  // owner has approved it (Rule: no PayMongo integration yet — see
+  // app/api/bookings/route.js and app/api/admin/bookings/[id]/confirm/
+  // route.js) so it's visually unmistakable that this is not yet a
+  // confirmed reservation. EXPIRED marks one the owner never
+  // confirmed within the 8-hour hold window (see
+  // Booking.pendingExpiresAt / app/api/cron/booking-expiry/route.js).
+  // Otherwise a booking moved via the self-service Rebook flow
+  // (rebookedAt set — see schema comment on Booking.rebookedAt) shows
+  // REBOOK so staff and the guest can see at a glance this invoice
+  // reflects moved dates, not the original booking. Sized relative to
+  // the page so it reads clearly at a glance without a print, and
+  // opacity is high enough to stay legible over the map image while
+  // still reading as a background stamp. ---
   const watermarkText =
-    booking.status === "cancelled" ? "CANCELLED" : booking.rebookedAt ? "REBOOK" : "CONFIRMED";
+    booking.status === "cancelled"
+      ? "CANCELLED"
+      : booking.status === "expired"
+        ? "EXPIRED"
+        : booking.status === "pending"
+          ? "PENDING"
+          : booking.rebookedAt
+            ? "REBOOK"
+            : "CONFIRMED";
+  const watermarkColor =
+    booking.status === "cancelled" || booking.status === "expired"
+      ? rgb(0.75, 0.15, 0.15)
+      : booking.status === "pending"
+        ? rgb(0.85, 0.55, 0.1)
+        : ACCENT;
   drawWatermark(page, watermarkText, {
     font: fontBold,
     size: 108,
-    color: booking.status === "cancelled" ? rgb(0.75, 0.15, 0.15) : ACCENT,
+    color: watermarkColor,
     opacity: 0.16,
     angleDegrees: 35,
     centerX: PAGE_WIDTH / 2,

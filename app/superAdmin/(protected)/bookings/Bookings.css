@@ -90,9 +90,38 @@
   color: var(--color-success);
 }
 
+.bookingsStatusBadge--pending {
+  background-color: rgba(245, 158, 11, 0.13);
+  color: var(--color-warning);
+}
+
+.bookingsStatusBadge--expired {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted);
+}
+
 .bookingsStatusBadge--cancelled {
   background-color: rgba(239, 68, 68, 0.13);
   color: var(--color-error);
+}
+
+.bookingsConfirmButton {
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  border-radius: 6px;
+  border: 1px solid var(--color-success);
+  background-color: transparent;
+  color: var(--color-success);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast);
+}
+
+.bookingsConfirmButton:hover,
+.bookingsConfirmButton:focus-visible {
+  background-color: rgba(16, 185, 129, 0.1);
 }
 
 .bookingsCancelButton {
@@ -232,6 +261,27 @@
   background-color: var(--color-primary-light);
   border-color: var(--color-primary);
   color: var(--color-primary);
+  font-weight: 700;
+}
+
+/*
+ * .bookingsFilterBadge
+ * Small pending-count pill inside the "Pending" filter button, so an
+ * admin sees at a glance how many bookings are awaiting confirmation
+ * without needing to click into the tab first.
+ */
+.bookingsFilterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  margin-left: var(--space-xs);
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background-color: var(--color-warning);
+  color: #09090b;
+  font-size: 0.7rem;
   font-weight: 700;
 }
 

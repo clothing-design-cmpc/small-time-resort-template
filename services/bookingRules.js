@@ -17,6 +17,13 @@
  */
 import { prisma } from "@/services/prisma";
 
+// How long a "pending" booking holds its dates before the owner must
+// confirm it on Messenger (no PayMongo integration yet — see
+// app/api/bookings/route.js, app/api/cron/booking-expiry/route.js, and
+// Booking.pendingExpiresAt). Shared here so every call site agrees on
+// the same window instead of hardcoding "8" in three different files.
+export const PENDING_HOLD_HOURS = 8;
+
 const ALLOW_FIELD_BY_TYPE = {
   overnight: "allowOvernightStay",
   day_tour: "allowDayTour",

@@ -98,7 +98,8 @@ export default function BookingsPage() {
         showToast("✕ " + result.message, "error");
         return;
       }
-      showToast(`✓ Booking for ${bookingPendingCancel.guestName} cancelled.`, "success");
+      const wasPending = bookingPendingCancel.status === "pending";
+      showToast(`✓ Booking for ${bookingPendingCancel.guestName} ${wasPending ? "rejected" : "cancelled"}.`, "success");
       refetch();
     } catch {
       showToast("✕ Network error — please try again.", "error");
@@ -126,6 +127,28 @@ export default function BookingsPage() {
       setBookingPendingDelete(null);
     }
   }, [bookingPendingDelete, showToast, refetch]);
+
+  /* Approves a "pending" booking (Confirm booking button) — direct
+     action, no ConfirmationModal, since approving isn't destructive
+     (Rule 34.4 only requires that gate for destructive/irreversible
+     actions like Cancel/Delete above). */
+  const handleConfirmBooking = useCallback(
+    async (booking) => {
+      try {
+        const response = await fetch(`/api/admin/bookings/${booking.id}/confirm`, { method: "POST" });
+        const result = await response.json();
+        if (!result.success) {
+          showToast("✕ " + result.message, "error");
+          return;
+        }
+        showToast(`✓ Booking for ${booking.guestName} confirmed.`, "success");
+        refetch();
+      } catch {
+        showToast("✕ Network error — please try again.", "error");
+      }
+    },
+    [showToast, refetch]
+  );
 
   /* Sends the PUT full-edit request for whichever booking BookingEditModal currently has open */
   async function handleSubmitEdit(formData) {
@@ -179,6 +202,7 @@ export default function BookingsPage() {
         <div className="bookingsPanelsGrid">
           <BookingsListPanel
             bookings={bookings}
+            onConfirmClick={handleConfirmBooking}
             onCancelClick={setBookingPendingCancel}
             onEditClick={setEditingBooking}
           />
@@ -207,13 +231,15 @@ export default function BookingsPage() {
 
       <ConfirmationModal
         isOpen={bookingPendingCancel !== null}
-        title="Cancel booking?"
+        title={bookingPendingCancel?.status === "pending" ? "Reject booking?" : "Cancel booking?"}
         description={
           bookingPendingCancel
-            ? `Are you sure you want to cancel ${bookingPendingCancel.guestName}'s booking? This frees up those dates for other guests and cannot be undone.`
+            ? bookingPendingCancel.status === "pending"
+              ? `Are you sure you want to reject ${bookingPendingCancel.guestName}'s pending booking request? This frees up those dates for other guests and cannot be undone.`
+              : `Are you sure you want to cancel ${bookingPendingCancel.guestName}'s booking? This frees up those dates for other guests and cannot be undone.`
             : ""
         }
-        confirmLabel="Cancel booking"
+        confirmLabel={bookingPendingCancel?.status === "pending" ? "Reject" : "Cancel booking"}
         onConfirm={handleConfirmCancel}
         onCancel={() => setBookingPendingCancel(null)}
       />

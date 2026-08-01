@@ -47,6 +47,7 @@ import { z } from "zod";
 import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import { formatTime12Hour } from "@/utils/formatTime";
+import { buildMessengerLink } from "@/utils/messagingLinks";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import "./BookingForm.css";
@@ -75,7 +76,7 @@ function formatDateText(dateKey) {
   return FULL_DATE.format(new Date(`${dateKey}T00:00:00`));
 }
 
-export default function TourReservationSummaryClient({ checkInDate, bookingType, resortPhone }) {
+export default function TourReservationSummaryClient({ checkInDate, bookingType, resortPhone, resortMessengerUsername }) {
   const { bookingRules, isLoading: isRulesLoading, error: rulesError } = usePublicBookingRules();
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
   const { toasts, showToast, dismissToast } = useToast();
@@ -170,18 +171,20 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
   /* ─── Confirmation panel — replaces the page entirely on success ───── */
   if (confirmedBooking) {
     const { quote: confirmedQuote, booking: confirmedBookingRecord } = confirmedBooking;
+    const messengerLink = buildMessengerLink(resortMessengerUsername);
     return (
       <div className="bookingConfirmPanel">
-        <span className="bookingConfirmBadge">✓ Booking Confirmed</span>
+        <span className="bookingConfirmBadge bookingConfirmBadge--pending">⏳ Booking Pending</span>
         <p className="bookingConfirmMessage">
-          Thank you! We've reserved your spot and sent a confirmation to your email.
+          We've received your booking request and are holding your spot. To confirm it, download your
+          invoice below and send it to us on Facebook Messenger.
         </p>
         {confirmedBookingRecord?.referenceCode && (
           <div className="bookingConfirmReferenceBox">
             <span className="bookingConfirmReferenceLabel">Your Reference Code</span>
             <span className="bookingConfirmReferenceCode">{confirmedBookingRecord.referenceCode}</span>
             <p className="bookingConfirmReferenceHint">
-              Keep this code — you&apos;ll need it to unlock turn-by-turn directions to the resort.
+              Keep this code — you&apos;ll need it to unlock turn-by-turn directions once confirmed.
             </p>
             <a
               className="bookingConfirmInvoiceLink"
@@ -191,6 +194,21 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
             >
               Download Invoice (PDF)
             </a>
+            {messengerLink ? (
+              <a
+                className="bookingConfirmMessengerLink"
+                href={messengerLink}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Send Invoice on Messenger to Confirm
+              </a>
+            ) : (
+              <p className="bookingConfirmReferenceHint">
+                Please contact us directly at <a href={`tel:${resortPhone.replace(/[^\d+]/g, "")}`}>{resortPhone}</a>{" "}
+                to confirm your booking.
+              </p>
+            )}
           </div>
         )}
         <dl className="bookingConfirmSummary">

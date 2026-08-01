@@ -42,13 +42,17 @@ const statements = [
   // '[)' means check-in is inclusive, check-out is exclusive — so a
   // checkout on 2026-08-10 and a check-in on 2026-08-10 do NOT overlap
   // (matches the existing app-level "checkIn < checkOut" logic).
-  // WHERE clause scopes the constraint to confirmed bookings only —
-  // a cancelled booking's old dates must never block a new one.
+  // WHERE clause scopes the constraint to confirmed AND pending
+  // bookings — a pending booking holds its dates (8-hour soft-hold,
+  // see Booking.pendingExpiresAt) exactly like a confirmed one, so a
+  // second guest can't take the same dates while the owner is still
+  // reviewing the first request on Messenger. Cancelled/expired
+  // bookings' old dates must never block a new one.
   `alter table bookings add constraint no_overlapping_bookings
      exclude using gist (
        room_id with =,
        daterange(check_in_date, check_out_date, '[)') with &&
-     ) where (status = 'confirmed');`,
+     ) where (status in ('confirmed', 'pending'));`,
 ];
 
 /**

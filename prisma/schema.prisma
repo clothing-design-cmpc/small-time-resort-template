@@ -174,7 +174,23 @@ model Booking {
   totalAmount    Decimal  @default(0) @map("total_amount") @db.Decimal(10, 2)
   depositAmount  Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
   notes          String?
-  status         String   @default("confirmed") // confirmed | cancelled
+  // pending | confirmed | cancelled | expired — new bookings start
+  // "pending" (no PayMongo integration yet, so the owner confirms
+  // manually via Messenger — see services/invoicePdf.js's PENDING
+  // watermark and app/api/admin/bookings/[id]/confirm/route.js).
+  // "pending" is treated the same as "confirmed" for overlap/exclusion
+  // purposes (see addBookingExclusionConstraint.js, services/
+  // bookingPricing.js, app/api/bookings/dates/route.js) so the slot is
+  // held while awaiting owner confirmation. If the owner never confirms
+  // within pendingExpiresAt, the cron below flips it to "expired" and
+  // the slot re-opens automatically.
+  status         String   @default("pending")
+  // Only set when status is "pending" — now() + 8 hours at creation
+  // time (services/bookingRules.js's PENDING_HOLD_HOURS constant).
+  // app/api/cron/booking-expiry/route.js sweeps every "pending" row
+  // past this timestamp and flips it to "expired", freeing the dates.
+  pendingExpiresAt DateTime? @map("pending_expires_at")
+
 
   // --- Invoice-Gated Directions (villa-azure-ai-insight-and-directions-plan.txt, Part 2) ---
   // Unique code printed on the generated invoice. Format "VAR-YYYYMMDD-XXXXX"

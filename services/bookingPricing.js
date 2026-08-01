@@ -316,7 +316,10 @@ export async function validateAndQuoteBooking({
   // buffer check further down — Villa Azure is one exclusive private villa,
   // so both checks look at every confirmed booking regardless of type.
   const existingBookings = await client.booking.findMany({
-    where: { status: "confirmed" },
+    // "pending" holds the same as "confirmed" (8-hour soft-hold —
+    // see Booking.pendingExpiresAt) so a second guest can't slip into
+    // a room another guest is already awaiting owner confirmation for.
+    where: { status: { in: ["confirmed", "pending"] } },
     select: {
       checkInDate: true,
       checkOutDate: true,
@@ -478,7 +481,7 @@ export async function validateAndQuoteBooking({
     // a date with no real conflict.
     const conflictingOvernightStay = await client.booking.findFirst({
       where: {
-        status: "confirmed",
+        status: { in: ["confirmed", "pending"] },
         bookingType: "overnight",
         checkInDate: { lte: toUtcMidnight(checkIn) },
         checkOutDate: { [checkoutDateOperator]: toUtcMidnight(checkIn) },

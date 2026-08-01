@@ -111,6 +111,9 @@ export async function POST(request) {
       guestFirstName: booking.guestName.split(" ")[0],
       status: booking.status,
       hoursRemaining,
+      pendingExpiresAt: booking.status === "pending" && booking.pendingExpiresAt
+        ? booking.pendingExpiresAt.toISOString()
+        : null,
     },
     message: "Booking found.",
   });

@@ -21,7 +21,9 @@
  *    in the past
  * 3. Bulk-updates them to status "expired", pendingExpiresAt untouched
  *    (kept as a historical record of when the hold was supposed to end)
- * 4. Logs one summary security event so an admin can see sweep activity
+ * 4. Best-effort auto-cancellation email sent to each guest with an
+ *    email on file — never blocks the sweep or the other guests' sends
+ * 5. Logs one summary security event so an admin can see sweep activity
  *    in Security Logs without a row per expired booking
  */
 export const dynamic = "force-dynamic";
@@ -29,6 +31,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
+import { sendGeneralEmail } from "@/services/emailjs";
+
+const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 export async function GET(request) {
   // Vercel Cron requests carry this header — reject anything else so
@@ -47,7 +52,14 @@ export async function GET(request) {
 
     const expiredBookings = await prisma.booking.findMany({
       where: { status: "pending", pendingExpiresAt: { lt: now } },
-      select: { id: true, guestName: true, referenceCode: true },
+      select: {
+        id: true,
+        guestName: true,
+        guestEmail: true,
+        referenceCode: true,
+        checkInDate: true,
+        checkOutDate: true,
+      },
     });
 
     if (expiredBookings.length === 0) {
@@ -58,6 +70,36 @@ export async function GET(request) {
       where: { id: { in: expiredBookings.map((b) => b.id) } },
       data: { status: "expired" },
     });
+
+    // Best-effort auto-cancellation email per guest — the guest asked for
+    // this on the Booking Progress widget's countdown (never got a heads
+    // up before, only Security Logs saw it happen). A failed send for one
+    // guest must never block the others or the sweep itself, same pattern
+    // as every other best-effort email in this codebase.
+    await Promise.all(
+      expiredBookings.map(async (booking) => {
+        if (!booking.guestEmail) return;
+        try {
+          await sendGeneralEmail({
+            toEmail: booking.guestEmail,
+            subject: `your-private-resort — Booking Automatically Cancelled (${booking.referenceCode})`,
+            eyebrow: "BOOKING AUTO-CANCELLED",
+            heading: `Hi ${booking.guestName}, your hold has expired`,
+            intro:
+              "We didn't receive your DP and receipt within the hold window, so this booking request has been automatically cancelled and the dates have been released. If you'd still like to stay with us, you're welcome to submit a new booking request anytime.",
+            highlightLine1: `Reference code: ${booking.referenceCode}`,
+            highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
+            bodyMessage:
+              "No further action is needed on this request. If you already sent your DP and this is a mistake, please contact us right away with your reference code.",
+          });
+        } catch (error) {
+          console.error(
+            `[api/cron/booking-expiry] Failed to send auto-cancellation email for ${booking.referenceCode}:`,
+            error.message
+          );
+        }
+      })
+    );
 
     await logSecurityEvent({
       eventType: "admin_action",

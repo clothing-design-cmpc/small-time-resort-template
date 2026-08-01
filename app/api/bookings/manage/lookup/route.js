@@ -97,12 +97,15 @@ export async function POST(request) {
     },
   });
 
-  if (!booking || booking.status !== "confirmed") {
+  // A "confirmed" OR "pending" booking is manageable (see docblock above);
+  // anything else (cancelled/expired) or an unknown code has nothing left
+  // to manage.
+  if (!booking || (booking.status !== "confirmed" && booking.status !== "pending")) {
     return NextResponse.json({
       success: true,
       data: { found: false },
       message: booking
-        ? "This booking has already been cancelled."
+        ? "This booking has already been cancelled or expired."
         : "That reference code wasn't found. Please check your invoice and try again.",
     });
   }

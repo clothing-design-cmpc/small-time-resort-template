@@ -67,6 +67,9 @@ export default function BookingDetailsModal({
         </div>
 
         <dl className="bookingDetailsGrid">
+          <dt>Booked by</dt>
+          <dd>{booking.guestName}</dd>
+
           <dt>Reference code</dt>
           <dd>{booking.referenceCode}</dd>
 
@@ -82,8 +85,19 @@ export default function BookingDetailsModal({
           <dt>Check-out</dt>
           <dd>{formatDate(booking.checkOutDate)}</dd>
 
-          <dt>Guests</dt>
-          <dd>{booking.numberOfGuests}</dd>
+          <dt>Total pax</dt>
+          <dd>
+            {booking.numberOfGuests} guest{booking.numberOfGuests === 1 ? "" : "s"} booked
+            {booking.packageMaxPax != null && (
+              <>
+                {" "}
+                <span className="bookingDetailsPaxHint">
+                  (package: {booking.packageAllowedGuests ?? "—"} included in price, up to {booking.packageMaxPax}{" "}
+                  max pax)
+                </span>
+              </>
+            )}
+          </dd>
 
           <dt>Email</dt>
           <dd>{booking.guestEmail || "—"}</dd>

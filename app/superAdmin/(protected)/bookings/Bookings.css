@@ -617,6 +617,14 @@
   word-break: break-word;
 }
 
+.bookingDetailsPaxHint {
+  display: block;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
 .bookingDetailsModalActions {
   flex-wrap: wrap;
 }

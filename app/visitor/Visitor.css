@@ -14,12 +14,29 @@
  * .visitorContent
  * Wraps all page content below the sticky header.
  * padding-top offsets the header's real rendered height via
- * --header-height (set by Header.jsx on mount/resize) so no content
- * is hidden behind it and no extra gap is left below it either.
- * The 68px fallback only applies before JS has measured on first
- * paint. flex-grow:1 pushes the footer to the bottom.
+ * --header-height (set by Header.jsx on mount/resize), plus the
+ * maintenance banner's height via --maintenance-banner-height (set by
+ * MaintenanceBanner.jsx, 0px when the banner isn't rendered at all) —
+ * so no content is ever hidden behind either strip and no extra gap is
+ * left below them. The 68px fallback only applies before JS has
+ * measured on first paint. flex-grow:1 pushes the footer to the bottom.
  */
 .visitorContent {
   flex-grow: 1;
-  padding-top: var(--header-height, 68px);
+  padding-top: calc(var(--header-height, 68px) + var(--maintenance-banner-height, 0px));
+}
+
+/*
+ * .visitorInteractiveArea--disabled
+ * Applied to the wrapper around Header + content + Footer + floating
+ * widgets (app/visitor/layout.jsx) while Maintenance Mode is on, in
+ * addition to that wrapper's `inert` attribute. `inert` alone already
+ * removes click/keyboard/focus/screen-reader access — this class adds
+ * the visual cue (desaturated, slightly dimmed) so a sighted guest can
+ * tell at a glance the page isn't just slow to respond, it's disabled
+ * on purpose. Content itself stays fully visible underneath, matching
+ * a real "under maintenance" read rather than a blank/broken page.
+ */
+.visitorInteractiveArea--disabled {
+  filter: grayscale(55%) opacity(0.7);
 }

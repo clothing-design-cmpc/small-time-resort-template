@@ -1,14 +1,21 @@
 /*
  * .maintenanceBanner
- * Sticky, high-contrast strip pinned above the Header on every visitor
- * page. Uses the error/warning token, not the resort's teal/gold
- * palette, so it never blends in with normal branding — it must always
- * read as "something is wrong," never as a themed promo banner.
+ * Fixed, high-contrast strip pinned to the very top of the viewport —
+ * above the Header (z-index: var(--z-drawer) is higher than the
+ * header's var(--z-sticky)), so the two never fight for the same
+ * top:0 spot. Header.css reads --maintenance-banner-height (set by
+ * this component in MaintenanceBanner.jsx) to push itself down below
+ * this strip instead of overlapping it. Uses the error/warning token,
+ * not the resort's teal/gold palette, so it never blends in with
+ * normal branding — it must always read as "something is wrong,"
+ * never as a themed promo banner.
  */
 .maintenanceBanner {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: var(--z-sticky);
+  left: 0;
+  right: 0;
+  z-index: var(--z-drawer);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -38,4 +45,27 @@
 
 .maintenanceBannerText strong {
   font-size: 0.9rem;
+}
+
+/*
+ * .maintenanceWatermarkOverlay
+ * Fixed, full-viewport layer tiled with a repeating "UNDER
+ * MAINTENANCE" pattern via an inline SVG background-image — this is
+ * what makes the notice read as a watermark across every section
+ * (Rooms, Amenities, Gallery, etc.) instead of only the strip up top
+ * that scrolls out of view. pointer-events: none so it never
+ * intercepts clicks itself; the actual click/keyboard lockout comes
+ * from the `inert` attribute app/visitor/layout.jsx applies to the
+ * rest of the page. Sits above ordinary section content (--z-dropdown
+ * = 100 > --z-base/--z-raised) but below the header and banner strip
+ * (--z-sticky = 200, --z-drawer = 300) so it never covers those.
+ */
+.maintenanceWatermarkOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+  background-repeat: repeat;
+  background-size: 340px 170px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='170'%3E%3Ctext x='-20' y='100' font-family='sans-serif' font-size='26' font-weight='700' fill='%23ef4444' fill-opacity='0.10' transform='rotate(-20 170 85)'%3EUNDER MAINTENANCE%3C/text%3E%3C/svg%3E");
 }

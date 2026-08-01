@@ -1,13 +1,16 @@
 /*
  * .siteHeader
- * Sticky bar fixed to the top of the viewport at all times.
+ * Sticky bar fixed to the top of the viewport at all times — except
+ * while Maintenance Mode is on, when it's pushed down by
+ * --maintenance-banner-height (set by MaintenanceBanner.jsx) so the
+ * banner strip and the header no longer render on top of each other.
  * Frosted-glass effect via backdrop-filter so page content scrolling
  * underneath stays readable. z-index: var(--z-sticky) keeps it above
- * all content except modals and toasts.
+ * all content except the maintenance banner/drawer, modals, and toasts.
  */
 .siteHeader {
   position: fixed;
-  top: 0;
+  top: var(--maintenance-banner-height, 0px);
   left: 0;
   right: 0;
   z-index: var(--z-sticky);

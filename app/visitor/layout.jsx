@@ -173,24 +173,43 @@ export default async function VisitorLayout({ children }) {
           instead of the browser restoring a previous scroll position */}
       <ScrollToTopOnLoad />
       {maintenanceMode && <MaintenanceBanner message={maintenanceMessage} />}
-      <Header resortName={resortName} />
-      {/* pt-[header height] so page content is never hidden behind the sticky header */}
-      <div className="visitorContent">
-        {children}
+      {/*
+        Everything a guest could otherwise click, tap, or tab into —
+        nav links, the Book Now CTA, the availability calendar cells,
+        footer links, the floating chat/booking/location widgets —
+        lives inside this wrapper. While maintenanceMode is on, `inert`
+        removes real click/keyboard/focus/screen-reader access from all
+        of it in one place (rather than disabling dozens of individual
+        buttons/links one by one), and the --disabled class dims it so
+        the "why won't anything respond" reason is visually obvious.
+        Content itself stays fully rendered underneath — this is a
+        soft, reversible lockdown, distinct from the full-page
+        breachLockdown/postWipeLockdown takeovers above which already
+        returned before this point and never reach this wrapper at all.
+      */}
+      <div
+        className={maintenanceMode ? "visitorInteractiveArea visitorInteractiveArea--disabled" : "visitorInteractiveArea"}
+        inert={maintenanceMode || undefined}
+      >
+        <Header resortName={resortName} />
+        {/* pt-[header height] so page content is never hidden behind the sticky header */}
+        <div className="visitorContent">
+          {children}
+        </div>
+        <Footer />
+        {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
+        <WalkInChatWidget
+          whatsapp={messageUsChannels.whatsapp}
+          viber={messageUsChannels.viber}
+          messengerUsername={messageUsChannels.messengerUsername}
+        />
+        {/* Floating "manage/cancel my booking" icon — stacked directly above WalkInChatWidget's button */}
+        <ManageBookingWidget />
+        {/* Floating "resort location" icon — stacked directly above ManageBookingWidget's button */}
+        <ResortLocationWidget />
+        {/* Floating scheduled-maintenance heads-up icon — bottom-left, paired with WalkInChatWidget's bottom-right */}
+        <ScheduledMaintenanceIcon />
       </div>
-      <Footer />
-      {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
-      <WalkInChatWidget
-        whatsapp={messageUsChannels.whatsapp}
-        viber={messageUsChannels.viber}
-        messengerUsername={messageUsChannels.messengerUsername}
-      />
-      {/* Floating "manage/cancel my booking" icon — stacked directly above WalkInChatWidget's button */}
-      <ManageBookingWidget />
-      {/* Floating "resort location" icon — stacked directly above ManageBookingWidget's button */}
-      <ResortLocationWidget />
-      {/* Floating scheduled-maintenance heads-up icon — bottom-left, paired with WalkInChatWidget's bottom-right */}
-      <ScheduledMaintenanceIcon />
     </div>
   );
 }

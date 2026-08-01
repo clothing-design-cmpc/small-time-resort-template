@@ -19,6 +19,7 @@ import Header from "@/components/shared/Header";
 import Footer from "@/components/shared/Footer";
 import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
+import MaintenanceLoginLink from "@/components/shared/MaintenanceLoginLink";
 import BreachLockdownScreen from "@/components/shared/BreachLockdownScreen";
 import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownScreen";
 import ScheduledMaintenanceIcon from "@/components/shared/ScheduledMaintenanceIcon";
@@ -173,6 +174,10 @@ export default async function VisitorLayout({ children }) {
           instead of the browser restoring a previous scroll position */}
       <ScrollToTopOnLoad />
       {maintenanceMode && <MaintenanceBanner message={maintenanceMessage} />}
+      {/* The one interactive element allowed during maintenance mode —
+          rendered outside the `inert` wrapper below so it stays real
+          and clickable while everything else is locked down. */}
+      {maintenanceMode && <MaintenanceLoginLink />}
       {/*
         Everything a guest could otherwise click, tap, or tab into —
         nav links, the Book Now CTA, the availability calendar cells,
@@ -191,7 +196,7 @@ export default async function VisitorLayout({ children }) {
         className={maintenanceMode ? "visitorInteractiveArea visitorInteractiveArea--disabled" : "visitorInteractiveArea"}
         inert={maintenanceMode || undefined}
       >
-        <Header resortName={resortName} />
+        <Header resortName={resortName} maintenanceMode={maintenanceMode} />
         {/* pt-[header height] so page content is never hidden behind the sticky header */}
         <div className="visitorContent">
           {children}

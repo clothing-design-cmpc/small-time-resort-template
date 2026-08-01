@@ -316,10 +316,19 @@ export async function validateAndQuoteBooking({
   // buffer check further down — Villa Azure is one exclusive private villa,
   // so both checks look at every confirmed booking regardless of type.
   const existingBookings = await client.booking.findMany({
-    // "pending" holds the same as "confirmed" (8-hour soft-hold —
-    // see Booking.pendingExpiresAt) so a second guest can't slip into
-    // a room another guest is already awaiting owner confirmation for.
-    where: { status: { in: ["confirmed", "pending"] } },
+    // "pending" holds the same as "confirmed" (DP Countdown soft-hold —
+    // see Booking.pendingExpiresAt) so a second guest can't slip into a
+    // room another guest is already awaiting owner confirmation for.
+    // But a "pending" row past its own pendingExpiresAt is stale — only
+    // still "pending" because the cron sweep (app/api/cron/
+    // booking-expiry/route.js) hasn't run yet — so it's excluded here
+    // too, same reasoning as app/api/bookings/dates/route.js.
+    where: {
+      OR: [
+        { status: "confirmed" },
+        { status: "pending", pendingExpiresAt: { gt: new Date() } },
+      ],
+    },
     select: {
       checkInDate: true,
       checkOutDate: true,
@@ -481,7 +490,14 @@ export async function validateAndQuoteBooking({
     // a date with no real conflict.
     const conflictingOvernightStay = await client.booking.findFirst({
       where: {
-        status: { in: ["confirmed", "pending"] },
+        // Same stale-pending exclusion as the shared fetch above — a
+        // "pending" row past its own pendingExpiresAt must not count
+        // here either, or a guest can get wrongly blocked by a hold
+        // the cron just hasn't swept yet.
+        OR: [
+          { status: "confirmed" },
+          { status: "pending", pendingExpiresAt: { gt: new Date() } },
+        ],
         bookingType: "overnight",
         checkInDate: { lte: toUtcMidnight(checkIn) },
         checkOutDate: { [checkoutDateOperator]: toUtcMidnight(checkIn) },

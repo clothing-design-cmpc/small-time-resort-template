@@ -87,11 +87,26 @@ function expandOvernightRange(checkIn, checkOut) {
 export async function GET() {
   try {
     const bookings = await prisma.booking.findMany({
-      // "pending" holds these dates the same as "confirmed" (8-hour
-      // soft-hold — see Booking.pendingExpiresAt) so the visitor
-      // calendar shows them as unavailable while awaiting owner
-      // confirmation, not just after it.
-      where: { status: { in: ["confirmed", "pending"] } },
+      // "pending" holds these dates the same as "confirmed" (DP
+      // Countdown soft-hold — see Booking.pendingExpiresAt) so the
+      // visitor calendar shows them as unavailable while awaiting
+      // owner confirmation, not just after it. But a "pending" row
+      // whose pendingExpiresAt has already passed is stale — it's only
+      // still "pending" in the DB because app/api/cron/booking-expiry/
+      // route.js hasn't swept it to "expired" YET (runs every 15
+      // minutes in production; doesn't run at all outside a deployed
+      // Vercel Cron, e.g. local dev). Never trust the cron to have
+      // already run before deciding what's actually blocking a
+      // date — same defense-in-depth reasoning as the DB-level EXCLUDE
+      // constraint backing up the app-level overlap check. A genuinely
+      // still-open hold (pendingExpiresAt in the future) still blocks
+      // normally.
+      where: {
+        OR: [
+          { status: "confirmed" },
+          { status: "pending", pendingExpiresAt: { gt: new Date() } },
+        ],
+      },
       select: { checkInDate: true, checkOutDate: true, bookingType: true },
     });
 

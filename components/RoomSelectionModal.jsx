@@ -24,11 +24,29 @@
 "use client";
 
 import { useEffect } from "react";
+import StatusBadge from "@/components/superAdmin/StatusBadge";
+import { useExistingBookingsOnDate } from "@/hooks/useExistingBookingsOnDate";
 import "./RoomSelectionModal.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
+const BOOKING_TYPE_LABELS = {
+  overnight: "Overnight",
+  day_tour: "Day Tour",
+  night_tour: "Night Tour",
+};
+
 export default function RoomSelectionModal({ isOpen, checkInDate, checkOutDate, rooms, isLoading, error, onSelectRoom, onClose }) {
+  // Existing pending/confirmed booking(s) on the same date(s) — shown
+  // as a small context banner above the room grid so a second guest
+  // browsing the same date can see who else already has a booking
+  // there (name, status, tour type), before picking their own room.
+  // Only fetches while the modal is actually open, on real dates.
+  const { existingBookings } = useExistingBookingsOnDate(
+    isOpen ? checkInDate : null,
+    isOpen ? checkOutDate : null
+  );
+
   // Close on Escape — same keyboard-accessibility expectation as every
   // other modal in this project (Rule 33.3 focus-visible spirit).
   useEffect(() => {
@@ -60,6 +78,25 @@ export default function RoomSelectionModal({ isOpen, checkInDate, checkOutDate, 
             </svg>
           </button>
         </div>
+
+        {existingBookings.length > 0 && (
+          <div className="roomSelectionExistingBookings">
+            <p className="roomSelectionExistingBookingsLabel">
+              {existingBookings.length === 1
+                ? "There's already a booking on this date:"
+                : `There are already ${existingBookings.length} bookings on this date:`}
+            </p>
+            {existingBookings.map((existingBooking, index) => (
+              <div key={index} className="roomSelectionExistingBookingRow">
+                <span className="roomSelectionExistingBookingName">{existingBooking.guestName}</span>
+                <span className="roomSelectionExistingBookingType">
+                  {BOOKING_TYPE_LABELS[existingBooking.bookingType] ?? existingBooking.bookingType}
+                </span>
+                <StatusBadge status={existingBooking.status} />
+              </div>
+            ))}
+          </div>
+        )}
 
         {isLoading && (
           <div className="roomSelectionGrid">

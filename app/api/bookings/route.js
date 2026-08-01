@@ -295,6 +295,7 @@ export async function POST(request) {
     // A failed send must never fail an already-confirmed booking.
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${booking.id}/invoice` : null;
+    const directionsUrl = siteUrl ? `${siteUrl}/visitor/directions` : null;
     await sendGeneralEmail({
       toEmail: payload.guestEmail,
       subject: `your-private-resort — Booking Request Received (${booking.referenceCode})`,
@@ -304,9 +305,16 @@ export async function POST(request) {
         "We've received your booking request and are holding your dates. To confirm it, please send us your invoice PDF on Facebook Messenger — the instructions are printed on it. Keep your reference code below too; you'll need it once confirmed to unlock turn-by-turn directions.",
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
-      bodyMessage: invoiceUrl
-        ? `Download your invoice (with confirmation instructions) here: ${invoiceUrl}`
-        : "Your invoice with the reference code and confirmation instructions is also available on the booking page.",
+      bodyMessage: [
+        invoiceUrl
+          ? `Download your invoice (with confirmation instructions) here: ${invoiceUrl}`
+          : "Your invoice with the reference code and confirmation instructions is also available on the booking page.",
+        directionsUrl
+          ? `Once your booking is confirmed, get turn-by-turn directions here: ${directionsUrl} (enter your reference code when prompted).`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
     });
   } catch (error) {
     console.error("[api/bookings] Failed to send confirmation email:", error.message);

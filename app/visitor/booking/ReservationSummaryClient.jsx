@@ -87,6 +87,28 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
   const [quoteError, setQuoteError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  // Guards against firing the auto-download more than once (e.g. a
+  // parent re-render) — only the very first time a booking gets
+  // confirmed should trigger it.
+  const hasAutoDownloadedInvoice = useRef(false);
+
+  // Auto-downloads the invoice PDF the moment the confirmation panel
+  // appears, so the guest doesn't have to find and click the
+  // "Download Invoice" button themselves before heading to Messenger.
+  // Triggered via a hidden <a download> click (not window.open) so it
+  // never gets blocked as a popup and never navigates the tab away —
+  // the server's Content-Disposition: attachment header does the rest.
+  useEffect(() => {
+    if (!confirmedBooking?.booking?.id || hasAutoDownloadedInvoice.current) return;
+    hasAutoDownloadedInvoice.current = true;
+
+    const link = document.createElement("a");
+    link.href = `/api/bookings/${confirmedBooking.booking.id}/invoice`;
+    link.download = `invoice-${confirmedBooking.booking.referenceCode || confirmedBooking.booking.id}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [confirmedBooking]);
   // Tracks the last quote-conflict message already toasted, so the
   // debounced quote refetch below doesn't re-toast the identical
   // message on every re-render — only a genuinely NEW conflict fires.
@@ -184,6 +206,9 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
             >
               Download Invoice (PDF)
             </a>
+            <p className="bookingConfirmReferenceHint">
+              Your invoice downloads automatically — click the button above again if you don&apos;t see it.
+            </p>
             {messengerLink ? (
               <a
                 className="bookingConfirmMessengerLink"

@@ -228,6 +228,12 @@ export async function POST(request) {
   }
 
   let bookingResult;
+  // Hoisted to function scope (not just inside the try block below) —
+  // the confirmation-email try block further down also needs this same
+  // value for its mergeVars. It was previously declared with `const`
+  // inside that first try block, which made it inaccessible there and
+  // threw "pendingHoldHours is not defined" on every booking submit.
+  let pendingHoldHours;
   try {
     // Resolved once, before the transaction — geolocation is a local
     // MaxMind read (services/geoip.js), never blocking or external, but
@@ -246,7 +252,7 @@ export async function POST(request) {
     // services/pendingHoldHours.js for why reading it here (rather than
     // re-reading it later) is what makes a super-admin's later change to
     // this setting safe to apply mid-flight.
-    const pendingHoldHours = await getGlobalPendingHoldHours();
+    pendingHoldHours = await getGlobalPendingHoldHours();
 
     bookingResult = await createBookingInTransaction(payload, requestMeta, pendingHoldHours);
   } catch (error) {
@@ -349,4 +355,4 @@ export async function POST(request) {
     data: { booking, quote },
     message: "Booking request received! Send your invoice on Messenger to confirm your dates.",
   });
-} 
+}

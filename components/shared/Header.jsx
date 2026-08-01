@@ -15,12 +15,6 @@
  *    Server Component, so it can read the singleton SystemSettings
  *    row) — this Client Component can't fetch it directly. Editable
  *    by the super-admin under Content > Homepage > Brand Identity.
- * 4. maintenanceMode is also passed from app/visitor/layout.jsx. While
- *    true, this whole Header renders inside the `inert` wrapper (see
- *    that layout), so its own Login links would be unclickable anyway
- *    — they're hidden here instead of left dead, and
- *    components/shared/MaintenanceLoginLink.jsx renders a real,
- *    clickable Login link outside the inert tree in the same spot.
  */
 "use client";
 
@@ -51,7 +45,7 @@ const navLinks = [
   { label: "Contact", href: "/visitor#contact" },
 ];
 
-export default function Header({ resortName = "your-private-resort", maintenanceMode = false }) {
+export default function Header({ resortName = "your-private-resort" }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const headerRef = useRef(null);
 
@@ -100,14 +94,13 @@ export default function Header({ resortName = "your-private-resort", maintenance
         <div className="headerActions">
           {/* Staff/admin login — desktop. Kept visually quiet (text link,
               not a filled button) so it never competes with the Book Now CTA.
-              Hidden during maintenance — this link lives inside the `inert`
-              wrapper and would be dead; MaintenanceLoginLink.jsx renders the
-              real clickable one on top of this same spot instead. */}
-          {!maintenanceMode && (
-            <Link href="/superAdmin/login" className="headerLoginLink">
-              Login
-            </Link>
-          )}
+              Always rendered, even during maintenance — this exact element
+              is `inert` (dead) then, but MaintenanceLoginLink.jsx measures
+              its position and overlays a real clickable Login in the same
+              spot, so nothing needs to be hidden here. */}
+          <Link href="/superAdmin/login" className="headerLoginLink">
+            Login
+          </Link>
 
           {/* Book Now CTA — desktop. Scrolls to the homepage's "How to Book"
               availability calendar (HowToBookSection) rather than jumping
@@ -162,15 +155,13 @@ export default function Header({ resortName = "your-private-resort", maintenance
           >
             Book Now
           </Link>
-          {!maintenanceMode && (
-            <Link
-              href="/superAdmin/login"
-              className="headerMobileLoginLink"
-              onClick={() => setMenuOpen(false)}
-            >
-              Login
-            </Link>
-          )}
+          <Link
+            href="/superAdmin/login"
+            className="headerMobileLoginLink"
+            onClick={() => setMenuOpen(false)}
+          >
+            Login
+          </Link>
         </nav>
       )}
     </header>

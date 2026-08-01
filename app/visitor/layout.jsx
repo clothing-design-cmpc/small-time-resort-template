@@ -196,7 +196,7 @@ export default async function VisitorLayout({ children }) {
         className={maintenanceMode ? "visitorInteractiveArea visitorInteractiveArea--disabled" : "visitorInteractiveArea"}
         inert={maintenanceMode || undefined}
       >
-        <Header resortName={resortName} maintenanceMode={maintenanceMode} />
+        <Header resortName={resortName} />
         {/* pt-[header height] so page content is never hidden behind the sticky header */}
         <div className="visitorContent">
           {children}

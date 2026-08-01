@@ -1,38 +1,29 @@
 /*
  * .maintenanceLoginLink
- * Fixed pill positioned just below the maintenance banner strip, on
- * the right — the same corner the Header's own Login link sits in
- * during normal operation. Placed outside the `inert` wrapper (see
- * app/visitor/layout.jsx), so it stays the one real, clickable
- * element while everything else on the visitor site is locked down.
+ * Positioned via inline style (top/left/width/height) set in
+ * MaintenanceLoginLink.jsx, copied from the real Header's ".headerLoginLink"
+ * bounding box every render — this file only handles the visual and
+ * interactive treatment, never the placement itself.
  * z-index: var(--z-modal) — above the header (--z-sticky), the
  * banner strip (--z-drawer), and the watermark (--z-dropdown), so it
  * is never visually covered by any of them.
  */
 .maintenanceLoginLink {
   position: fixed;
-  top: calc(var(--maintenance-banner-height, 0px) + var(--space-md));
-  right: var(--space-lg);
   z-index: var(--z-modal);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0.5rem 1.1rem;
-  border-radius: 999px;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--color-text-primary);
   text-decoration: none;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  border-radius: 6px;
+  transition: background-color var(--transition-fast), text-decoration-color var(--transition-fast);
 }
 
 .maintenanceLoginLink:hover,
 .maintenanceLoginLink:focus-visible {
+  text-decoration: underline;
   background-color: var(--color-surface-hover);
-  border-color: var(--color-border-hover);
 }

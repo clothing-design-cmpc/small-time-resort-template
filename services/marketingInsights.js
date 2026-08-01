@@ -94,27 +94,60 @@ async function getTopPerformingRooms() {
  * guestPhone — matches how the same person would realistically be
  * recognized across separate booking form submissions (no login
  * account exists for guests in this schema). Returns the count of
- * distinct guests, how many of them have 2+ confirmed bookings, and
- * the resulting percentage.
+ * distinct guests, how many of them have 2+ confirmed bookings, the
+ * resulting percentage, AND — for the dashboard's Repeat Guest Rate
+ * table (name + total price spent) — the full list of repeat guests
+ * themselves, sorted by total spend so the owner sees the highest-value
+ * repeat guests first. Pagination (10 per page) is handled client-side
+ * in MarketingInsightsClient.jsx since this list is already small.
  */
 async function getRepeatGuestRate() {
   const confirmedBookings = await prisma.booking.findMany({
     where: { status: "confirmed" },
-    select: { guestEmail: true, guestPhone: true },
+    select: { guestName: true, guestEmail: true, guestPhone: true, totalAmount: true },
   });
 
-  const bookingCountByGuestKey = new Map();
+  // Accumulate per-guest stats (booking count + total spend) keyed by the
+  // same email-first, phone-fallback identity used everywhere else in
+  // this file, so a guest who booked 3 times is counted once here with
+  // their combined total price across all 3 bookings.
+  const guestStatsByKey = new Map();
   for (const booking of confirmedBookings) {
     const guestKey = booking.guestEmail?.trim() || booking.guestPhone?.trim();
     if (!guestKey) continue; // no usable identifier — can't attribute to a guest
-    bookingCountByGuestKey.set(guestKey, (bookingCountByGuestKey.get(guestKey) ?? 0) + 1);
+
+    const existingStats = guestStatsByKey.get(guestKey);
+    if (existingStats) {
+      existingStats.bookingCount += 1;
+      existingStats.totalAmount += Number(booking.totalAmount);
+    } else {
+      guestStatsByKey.set(guestKey, {
+        guestName: booking.guestName,
+        bookingCount: 1,
+        totalAmount: Number(booking.totalAmount),
+      });
+    }
   }
 
-  const totalDistinctGuests = bookingCountByGuestKey.size;
-  const repeatGuestCount = [...bookingCountByGuestKey.values()].filter((count) => count >= 2).length;
+  const totalDistinctGuests = guestStatsByKey.size;
+
+  // Only guests with 2+ confirmed bookings are "repeat guests" — this is
+  // the exact list the dashboard table displays (name + total price),
+  // highest spender first.
+  const repeatGuests = [...guestStatsByKey.entries()]
+    .filter(([, stats]) => stats.bookingCount >= 2)
+    .map(([guestKey, stats]) => ({
+      guestKey,
+      guestName: stats.guestName,
+      bookingCount: stats.bookingCount,
+      totalAmount: stats.totalAmount,
+    }))
+    .sort((a, b) => b.totalAmount - a.totalAmount);
+
+  const repeatGuestCount = repeatGuests.length;
   const repeatGuestPercent = totalDistinctGuests === 0 ? 0 : Math.round((repeatGuestCount / totalDistinctGuests) * 100);
 
-  return { totalDistinctGuests, repeatGuestCount, repeatGuestPercent };
+  return { totalDistinctGuests, repeatGuestCount, repeatGuestPercent, repeatGuests };
 }
 
 /**

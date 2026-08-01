@@ -21,9 +21,15 @@
  */
 "use client";
 
+import { useEffect, useState } from "react";
 import { useMarketingInsights } from "@/hooks/useMarketingInsights";
 import DataTable from "@/components/superAdmin/DataTable";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
+
+// Repeat Guest Rate table shows 10 guests per page, paginated entirely
+// client-side (the full repeat-guest list already arrives in one
+// response — no extra network round-trip needed per page).
+const REPEAT_GUESTS_PAGE_SIZE = 10;
 
 /**
  * formatDate
@@ -42,6 +48,11 @@ function formatDate(value) {
 
 export default function MarketingInsightsClient() {
   const { data, isLoading, error, refetchInsights } = useMarketingInsights();
+
+  // Current page for the Repeat Guest Rate table — resets to page 1
+  // whenever a fresh repeat-guest list arrives (e.g. after Retry) so the
+  // owner never lands on a now-out-of-range page.
+  const [repeatGuestPage, setRepeatGuestPage] = useState(1);
 
   const bookingColumns = [
     { key: "guestName", label: "Guest" },
@@ -64,6 +75,31 @@ export default function MarketingInsightsClient() {
   const maxRoomRevenue = Math.max(1, ...topRooms.map((room) => room.revenue));
   const repeatGuestRate = data?.repeatGuestRate;
 
+  // --- Repeat Guest Rate table: name + total price, 10 per page ---
+  const repeatGuestList = repeatGuestRate?.repeatGuests ?? [];
+  const repeatGuestTotalPages = Math.max(1, Math.ceil(repeatGuestList.length / REPEAT_GUESTS_PAGE_SIZE));
+  // Clamp in render (not just in the effect below) so a stale page number
+  // can never slice past the end of a shorter, freshly-loaded list.
+  const repeatGuestSafePage = Math.min(repeatGuestPage, repeatGuestTotalPages);
+  const repeatGuestColumns = [
+    { key: "guestName", label: "Guest" },
+    { key: "price", label: "Total Price", align: "right" },
+  ];
+  const repeatGuestRows = repeatGuestList
+    .slice((repeatGuestSafePage - 1) * REPEAT_GUESTS_PAGE_SIZE, repeatGuestSafePage * REPEAT_GUESTS_PAGE_SIZE)
+    .map((guest) => ({
+      id: guest.guestKey,
+      guestName: guest.guestName,
+      price: `₱${guest.totalAmount.toLocaleString("en-US")}`,
+    }));
+
+  // Auto-reset to page 1 whenever the underlying repeat-guest list
+  // changes size (fresh fetch/refetch) — prevents landing on a blank
+  // page 3 after a retry returns fewer guests than before.
+  useEffect(() => {
+    setRepeatGuestPage(1);
+  }, [repeatGuestList.length]);
+
   return (
     <section className="marketingInsightsSection">
       <div className="dashboardHeaderRow">
@@ -80,24 +116,36 @@ export default function MarketingInsightsClient() {
         </div>
       )}
 
+      {/* --- Repeat Guest Rate: summary stat + paginated name/price table --- */}
+      {!error && (
+        <div className="marketingInsightsPanel marketingInsightsPanel--fullWidth">
+          <h3 className="analyticsPanelTitle">Repeat Guest Rate</h3>
+          {isLoading ? (
+            <div className="skeletonBlock marketingInsightsStatSkeleton" aria-hidden="true" />
+          ) : (
+            <>
+              <span className="marketingInsightsStatValue">{repeatGuestRate?.repeatGuestPercent ?? 0}%</span>
+              <p className="bookingRulesHint">
+                {repeatGuestRate?.repeatGuestCount ?? 0} of {repeatGuestRate?.totalDistinctGuests ?? 0} guests have
+                booked more than once.
+              </p>
+              <DataTable
+                columns={repeatGuestColumns}
+                rows={repeatGuestRows}
+                emptyMessage="No repeat guests yet."
+                page={repeatGuestSafePage}
+                totalPages={repeatGuestTotalPages}
+                totalCount={repeatGuestList.length}
+                pageSize={REPEAT_GUESTS_PAGE_SIZE}
+                onPageChange={setRepeatGuestPage}
+              />
+            </>
+          )}
+        </div>
+      )}
+
       {!error && (
         <div className="marketingInsightsGrid">
-          {/* --- Repeat Guest Rate --- */}
-          <div className="marketingInsightsPanel">
-            <h3 className="analyticsPanelTitle">Repeat Guest Rate</h3>
-            {isLoading ? (
-              <div className="skeletonBlock marketingInsightsStatSkeleton" aria-hidden="true" />
-            ) : (
-              <>
-                <span className="marketingInsightsStatValue">{repeatGuestRate?.repeatGuestPercent ?? 0}%</span>
-                <p className="bookingRulesHint">
-                  {repeatGuestRate?.repeatGuestCount ?? 0} of {repeatGuestRate?.totalDistinctGuests ?? 0} guests have
-                  booked more than once.
-                </p>
-              </>
-            )}
-          </div>
-
           {/* --- Top Performing Rooms (current calendar month) --- */}
           <div className="marketingInsightsPanel">
             <h3 className="analyticsPanelTitle">Top Performing Rooms (This Month)</h3>

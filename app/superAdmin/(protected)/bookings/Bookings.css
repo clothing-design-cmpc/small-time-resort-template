@@ -579,3 +579,59 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ============================================================
+ * BOOKING DETAILS MODAL — read-only view opened by clicking a row
+ * in BookingsListPanel (Rule 23.10-style card spacing applied to the
+ * definition-list grid below)
+ * ============================================================ */
+.bookingDetailsModalDialog {
+  max-width: 560px;
+}
+
+.bookingDetailsModalHeader {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.bookingDetailsGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-sm) var(--space-lg);
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.bookingDetailsGrid dt {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.bookingDetailsGrid dd {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.bookingDetailsModalActions {
+  flex-wrap: wrap;
+}
+
+/*
+ * .bookingsRowClickable
+ * Clicking anywhere on a booking row opens BookingDetailsModal — this
+ * just signals that intent visually (pointer cursor + subtle hover),
+ * matching the card-hover pattern the rest of the admin UI already uses.
+ */
+.bookingsRowClickable {
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.bookingsRowClickable:hover {
+  background-color: var(--color-surface-hover);
+}

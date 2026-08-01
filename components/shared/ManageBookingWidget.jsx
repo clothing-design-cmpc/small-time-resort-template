@@ -13,7 +13,8 @@
  * DATA FLOW:
  * 1. Click the floating icon -> opens this modal in "code" step
  * 2. Guest submits their reference code -> POST /api/bookings/manage/lookup
- * 3. Found + confirmed -> "summary" step, showing Rebook / Cancel
+ * 3. Found + confirmed/pending -> "summary" step, showing Cancel (and
+ *    Rebook only when already confirmed — see the summary step below)
  * 4. Cancel -> inline confirm -> POST /api/bookings/manage/cancel -> "cancelled" step
  * 5. Rebook -> this modal closes, RebookCalendarModal opens with the
  *    looked-up booking's details (see that component for the actual
@@ -269,6 +270,12 @@ export default function ManageBookingWidget() {
             {step === STEP_SUMMARY && booking && (
               <div>
                 <h2 id="manageBookingTitle" className="manageBookingTitle">Hi, {booking.guestFirstName}!</h2>
+                {booking.status === "pending" && (
+                  <p className="manageBookingPendingNote">
+                    This booking is still pending owner confirmation — you can cancel it below if you no
+                    longer need these dates.
+                  </p>
+                )}
                 <dl className="manageBookingSummary">
                   <dt>Package</dt>
                   <dd>{BOOKING_TYPE_LABELS[booking.bookingType] ?? booking.bookingType}</dd>
@@ -313,9 +320,16 @@ export default function ManageBookingWidget() {
                 {errorMessage && <p className="manageBookingError" role="alert">{errorMessage}</p>}
 
                 <div className="manageBookingActions">
-                  <button type="button" className="manageBookingRebookButton" onClick={handleRebookClick}>
-                    Rebook (change dates)
-                  </button>
+                  {/* Rebook (date change) only makes sense for a booking the
+                      owner has already approved — a pending request hasn't
+                      been reviewed yet, so the clearer path is to cancel
+                      and submit a fresh request instead of rescheduling
+                      one that was never confirmed in the first place. */}
+                  {booking.status === "confirmed" && (
+                    <button type="button" className="manageBookingRebookButton" onClick={handleRebookClick}>
+                      Rebook (change dates)
+                    </button>
+                  )}
                   <button type="button" className="manageBookingCancelButton" onClick={() => setStep(STEP_CONFIRM_CANCEL)}>
                     Cancel booking
                   </button>

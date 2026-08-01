@@ -15,8 +15,10 @@
  * DATA FLOW:
  * 1. ManageBookingWidget POSTs { referenceCode }
  * 2. Rate limited to 10 attempts per 15 minutes per IP (Rule 32.1)
- * 3. Booking looked up by referenceCode; only a "confirmed" booking is
- *    considered manageable (a cancelled one has nothing left to do)
+ * 3. Booking looked up by referenceCode; a "confirmed" OR "pending"
+ *    booking is considered manageable (a guest can cancel a request
+ *    that's still awaiting owner approval too — see manage/cancel/
+ *    route.js); "cancelled"/"expired" have nothing left to do
  * 4. Returns the display-safe summary the widget needs — never the
  *    full Booking row (no guestEmail/guestPhone/notes exposed here)
  */
@@ -126,6 +128,7 @@ export async function POST(request) {
       found: true,
       booking: {
         referenceCode: booking.referenceCode,
+        status: booking.status,
         guestFirstName: booking.guestName.split(" ")[0],
         bookingType: booking.bookingType,
         checkInDate: booking.checkInDate.toISOString().slice(0, 10),

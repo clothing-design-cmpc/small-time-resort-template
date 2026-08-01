@@ -16,8 +16,12 @@
  * 2. Rate limited to 10 attempts per 15 minutes per IP (Rule 32.1) —
  *    same limiter family as lookup/verify-reference, since this is
  *    just as sensitive an action gated by the same credential
- * 3. Only a "confirmed" booking can be cancelled this way — already-
- *    cancelled or unknown codes get a friendly, non-revealing message
+ * 3. Both a "confirmed" and a "pending" booking can be cancelled this
+ *    way — a guest waiting on owner approval can back out too, which
+ *    immediately frees the held dates (see Booking.pendingExpiresAt /
+ *    the exclusion constraint) instead of leaving them held until the
+ *    8-hour auto-expiry. Already-cancelled/expired or unknown codes
+ *    get a friendly, non-revealing message.
  */
 export const dynamic = "force-dynamic";
 
@@ -67,9 +71,9 @@ export async function POST(request) {
       select: { id: true, status: true, guestName: true, directionsMapImageKey: true },
     });
 
-    if (!booking || booking.status !== "confirmed") {
+    if (!booking || (booking.status !== "confirmed" && booking.status !== "pending")) {
       return NextResponse.json(
-        { success: false, data: null, message: "That reference code wasn't found or is already cancelled." },
+        { success: false, data: null, message: "That reference code wasn't found or is no longer active." },
         { status: 404 }
       );
     }

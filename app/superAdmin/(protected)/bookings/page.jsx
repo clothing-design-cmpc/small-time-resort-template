@@ -26,6 +26,7 @@ import { useToast } from "@/components/superAdmin/shared/useToast";
 import BookingsListPanel from "./BookingsListPanel";
 import BookingsCalendarPanel from "./BookingsCalendarPanel";
 import BookingDayModal from "./BookingDayModal";
+import BookingDetailsModal from "./BookingDetailsModal";
 import BookingEditModal from "./BookingEditModal";
 import "./Bookings.css";
 
@@ -41,6 +42,9 @@ export default function BookingsPage() {
   const [bookingPendingDelete, setBookingPendingDelete] = useState(null);
   // Bookings for a clicked calendar day (BookingDayModal) — null means closed
   const [selectedDayBookings, setSelectedDayBookings] = useState(null);
+  // Which booking the read-only Details modal is currently showing —
+  // opened by clicking anywhere on a BookingsListPanel row. null means closed.
+  const [viewingBooking, setViewingBooking] = useState(null);
   // Single booking currently open in the full edit form — null means closed
   const [editingBooking, setEditingBooking] = useState(null);
 
@@ -202,6 +206,7 @@ export default function BookingsPage() {
         <div className="bookingsPanelsGrid">
           <BookingsListPanel
             bookings={bookings}
+            onRowClick={setViewingBooking}
             onConfirmClick={handleConfirmBooking}
             onCancelClick={setBookingPendingCancel}
             onEditClick={setEditingBooking}
@@ -212,6 +217,24 @@ export default function BookingsPage() {
           />
         </div>
       )}
+
+      <BookingDetailsModal
+        isOpen={viewingBooking !== null}
+        booking={viewingBooking}
+        onClose={() => setViewingBooking(null)}
+        onConfirmClick={(booking) => {
+          setViewingBooking(null);
+          handleConfirmBooking(booking);
+        }}
+        onCancelClick={(booking) => {
+          setViewingBooking(null);
+          setBookingPendingCancel(booking);
+        }}
+        onEditClick={(booking) => {
+          setViewingBooking(null);
+          setEditingBooking(booking);
+        }}
+      />
 
       <BookingDayModal
         isOpen={selectedDayBookings !== null}

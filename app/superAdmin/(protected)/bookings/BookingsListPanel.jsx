@@ -12,7 +12,9 @@
  * DATA FLOW:
  * 1. Receives the already-fetched `bookings` array from the parent page
  * 2. Applies the locally-held statusFilter before rendering rows
- * 3. "Confirm booking", "Reject", "Cancel booking", and "Edit" buttons
+ * 3. Clicking anywhere on a row (except its action buttons, which stop
+ *    propagation) calls onRowClick, which opens BookingDetailsModal
+ * 4. "Confirm booking", "Reject", "Cancel booking", and "Edit" buttons
  *    call back up to the parent via onConfirmClick / onCancelClick /
  *    onEditClick — this panel owns no booking mutation logic itself,
  *    only the filter UI and the table markup. "Reject" reuses the same
@@ -50,7 +52,7 @@ const STATUS_FILTERS = [
   { value: "expired", label: "Expired" },
 ];
 
-export default function BookingsListPanel({ bookings, onConfirmClick, onCancelClick, onEditClick }) {
+export default function BookingsListPanel({ bookings, onRowClick, onConfirmClick, onCancelClick, onEditClick }) {
   // Defaults to "Pending" so a returning admin sees what needs their
   // attention first, instead of the full historical list.
   const [statusFilter, setStatusFilter] = useState("pending");
@@ -108,7 +110,11 @@ export default function BookingsListPanel({ bookings, onConfirmClick, onCancelCl
             </thead>
             <tbody>
               {filteredBookings.map((booking) => (
-                <tr key={booking.id}>
+                <tr
+                  key={booking.id}
+                  className="bookingsRowClickable"
+                  onClick={() => onRowClick(booking)}
+                >
                   <td>{booking.guestName}</td>
                   <td>{booking.room?.name ?? "—"}</td>
                   <td>{formatDate(booking.checkInDate)}</td>
@@ -118,7 +124,7 @@ export default function BookingsListPanel({ bookings, onConfirmClick, onCancelCl
                       {STATUS_LABELS[booking.status] ?? booking.status}
                     </span>
                   </td>
-                  <td className="bookingsActionsCell">
+                  <td className="bookingsActionsCell" onClick={(event) => event.stopPropagation()}>
                     <div className="bookingsRowActions">
                       <button
                         type="button"

@@ -263,6 +263,20 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   if (confirmedBooking) {
     const { quote: confirmedQuote, booking: confirmedBookingRecord } = confirmedBooking;
     const messengerLink = buildMessengerLink(resortMessengerUsername);
+
+    // How many hours the guest actually has to send their DP, derived from
+    // the two timestamps Prisma already returned on the created row
+    // (createdAt / pendingExpiresAt) rather than hardcoding the number here
+    // — stays correct even if services/bookingRules.js's PENDING_HOLD_HOURS
+    // changes later, without needing a second constant kept in sync.
+    const pendingHoldHours =
+      confirmedBookingRecord?.createdAt && confirmedBookingRecord?.pendingExpiresAt
+        ? Math.round(
+            (new Date(confirmedBookingRecord.pendingExpiresAt) - new Date(confirmedBookingRecord.createdAt)) /
+              (60 * 60 * 1000)
+          )
+        : null;
+
     return (
       <div className="bookingConfirmPanel">
         <span className="bookingConfirmBadge bookingConfirmBadge--pending">⏳ Booking Pending</span>
@@ -270,6 +284,23 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
           We&apos;ve received your booking request and are holding your dates. To confirm it, download your
           invoice below and send it to us on Facebook Messenger.
         </p>
+        <div className="bookingConfirmNextSteps">
+          <p className="bookingConfirmNextStepsTitle">What happens next</p>
+          <ol className="bookingConfirmNextStepsList">
+            <li>Make your down payment (DP).</li>
+            <li>Send the payment receipt to us on Facebook Messenger.</li>
+            <li>
+              Wait for the resort owner to confirm your booking
+              {pendingHoldHours
+                ? ` — you have ${pendingHoldHours} hours from now to send your DP before these dates are released`
+                : ""}
+              .
+            </li>
+          </ol>
+          <p className="bookingConfirmNextStepsFooter">
+            Don&apos;t worry — once your booking is confirmed, you&apos;ll receive an email automatically.
+          </p>
+        </div>
         {confirmedBookingRecord?.referenceCode && (
           <div className="bookingConfirmReferenceBox">
             <span className="bookingConfirmReferenceLabel">Your Reference Code</span>
@@ -352,8 +383,9 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
           ({confirmedQuote.refundPercentage}% refund).
         </p>
         <p className="bookingConfirmCancelNote">
-          Need to cancel or change this booking? Call us at{" "}
-          <a href={`tel:${resortPhone.replace(/[^\d+]/g, "")}`}>{resortPhone}</a> and have your reference code ready.
+          Need to change or cancel? Go to the homepage, click the{" "}
+          <strong>&quot;Cancellation&quot;</strong> icon at the bottom-right of the screen, then enter your
+          reference code there to cancel your booking.
         </p>
       </div>
     );

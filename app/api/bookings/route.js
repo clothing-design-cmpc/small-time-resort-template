@@ -306,12 +306,16 @@ export async function POST(request) {
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
       bodyMessage: [
+        `What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have ${PENDING_HOLD_HOURS} hours from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.`,
         invoiceUrl
           ? `Download your invoice (with confirmation instructions) here: ${invoiceUrl}`
           : "Your invoice with the reference code and confirmation instructions is also available on the booking page.",
         directionsUrl
           ? `Once your booking is confirmed, get turn-by-turn directions here: ${directionsUrl} (enter your reference code when prompted).`
           : null,
+        siteUrl
+          ? `Need to change or cancel? Go to ${siteUrl}/visitor, click the "Cancellation" icon at the bottom-right of the screen, then enter your reference code (${booking.referenceCode}) there.`
+          : `Need to change or cancel? Go to our homepage, click the "Cancellation" icon at the bottom-right of the screen, then enter your reference code (${booking.referenceCode}) there.`,
       ]
         .filter(Boolean)
         .join("\n\n"),

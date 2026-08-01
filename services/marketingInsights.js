@@ -57,14 +57,27 @@ async function getRecentBookings() {
  * Ranks active rooms by confirmed-booking revenue for the current
  * calendar month — the number an owner needs to decide which
  * rooms/villas to feature in ads or promo bundles.
+ *
+ * Uses checkInDate (when the stay actually happens), not createdAt
+ * (when the booking record was entered). Guests routinely book weeks
+ * or months ahead of their stay, so gating on createdAt meant this
+ * panel went blank the moment no *new* booking had been created since
+ * the 1st of the month — even while rooms were actively occupied and
+ * earning revenue this month from bookings made earlier. checkInDate
+ * is the correct "is this room performing this month" signal.
  */
 async function getTopPerformingRooms() {
   const now = new Date();
   const startOfThisMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const startOfNextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
   const grouped = await prisma.booking.groupBy({
     by: ["roomId"],
-    where: { status: "confirmed", createdAt: { gte: startOfThisMonth }, roomId: { not: null } },
+    where: {
+      status: "confirmed",
+      checkInDate: { gte: startOfThisMonth, lt: startOfNextMonth },
+      roomId: { not: null },
+    },
     _sum: { totalAmount: true },
     _count: { id: true },
     orderBy: { _sum: { totalAmount: "desc" } },

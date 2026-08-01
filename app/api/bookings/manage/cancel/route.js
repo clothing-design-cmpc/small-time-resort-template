@@ -5,11 +5,16 @@
  *
  * PURPOSE:
  * Self-service cancellation: a guest who supplies a valid, still-
- * confirmed reference code can cancel their own booking directly —
- * same soft-cancel (status -> "cancelled") the super-admin's Bookings
- * page "Cancel booking" action performs
- * (app/api/admin/bookings/[id]/route.js's PATCH), just reached by
- * reference code instead of an admin session.
+ * confirmed or still-pending reference code can cancel their own
+ * booking directly. Unlike the super-admin's soft-cancel (status ->
+ * "cancelled" — app/api/admin/bookings/[id]/route.js's PATCH), this
+ * HARD-DELETES the row entirely: a guest cancelling their own booking
+ * has no further need of that record, and removing it outright
+ * guarantees the dates re-open immediately (the row is gone, so it
+ * can't be caught by the exclusion constraint or any overlap check —
+ * see prisma/addBookingExclusionConstraint.js, services/
+ * bookingPricing.js, app/api/bookings/dates/route.js) without waiting
+ * on any status-based filtering to agree.
  *
  * DATA FLOW:
  * 1. Widget POSTs { referenceCode } after the guest confirms in-modal
@@ -17,11 +22,11 @@
  *    same limiter family as lookup/verify-reference, since this is
  *    just as sensitive an action gated by the same credential
  * 3. Both a "confirmed" and a "pending" booking can be cancelled this
- *    way — a guest waiting on owner approval can back out too, which
- *    immediately frees the held dates (see Booking.pendingExpiresAt /
- *    the exclusion constraint) instead of leaving them held until the
- *    8-hour auto-expiry. Already-cancelled/expired or unknown codes
- *    get a friendly, non-revealing message.
+ *    way — a guest waiting on owner approval can back out too.
+ *    Already-cancelled/expired-and-gone or unknown codes get a
+ *    friendly, non-revealing message.
+ * 4. Row is deleted; its R2 directions image (if any) is cleaned up
+ * 5. Best-effort cancellation email confirms it to the guest
  */
 export const dynamic = "force-dynamic";
 
@@ -31,6 +36,7 @@ import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { deleteFromR2 } from "@/services/r2";
+import { sendGeneralEmail } from "@/services/emailjs";
 
 const CANCEL_MAX_ATTEMPTS = 10;
 const CANCEL_WINDOW_MS = 15 * 60 * 1000;
@@ -38,6 +44,8 @@ const CANCEL_WINDOW_MS = 15 * 60 * 1000;
 const cancelSchema = z.object({
   referenceCode: z.string().trim().min(1).max(40),
 });
+
+const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 export async function POST(request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -68,7 +76,16 @@ export async function POST(request) {
   try {
     const booking = await prisma.booking.findUnique({
       where: { referenceCode: payload.referenceCode.toUpperCase() },
-      select: { id: true, status: true, guestName: true, directionsMapImageKey: true },
+      select: {
+        id: true,
+        status: true,
+        guestName: true,
+        guestEmail: true,
+        referenceCode: true,
+        checkInDate: true,
+        checkOutDate: true,
+        directionsMapImageKey: true,
+      },
     });
 
     if (!booking || (booking.status !== "confirmed" && booking.status !== "pending")) {
@@ -78,27 +95,52 @@ export async function POST(request) {
       );
     }
 
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: "cancelled",
-        // Cancelled bookings no longer need their saved route image —
-        // clear the DB pointer alongside the R2 delete below so a
-        // cancelled booking never shows a stale/deleted map URL.
-        directionsMapImageUrl: null,
-        directionsMapImageKey: null,
-      },
-    });
+    // Hard delete — not a soft-cancel — so the dates are immediately
+    // and unambiguously free again, with nothing left in the table for
+    // any status-based check to consider.
+    await prisma.booking.delete({ where: { id: booking.id } });
 
     // Delete the saved route PNG from Cloudflare R2 (Rule 35.6) so a
-    // cancelled booking doesn't leave an orphaned image behind. Never
-    // let a failed R2 delete block the cancellation itself — the
-    // booking status change above already succeeded.
+    // deleted booking doesn't leave an orphaned image behind. Never
+    // let a failed R2 delete block the cancellation itself — the row
+    // is already gone.
     if (booking.directionsMapImageKey) {
       try {
         await deleteFromR2(booking.directionsMapImageKey);
       } catch (error) {
         console.error("[api/bookings/manage/cancel] Failed to delete R2 directions image:", error.message);
+      }
+    }
+
+    // Audit trail — a guest just permanently removed a booking record
+    // via reference code, worth a security log entry same as any other
+    // data-deleting action, even though no admin session was involved.
+    await logSecurityEvent({
+      eventType: "admin_action",
+      actor: `guest:${booking.guestEmail || booking.referenceCode}`,
+      request,
+      details: `Guest self-service cancelled and deleted booking ${booking.referenceCode} (${booking.checkInDate
+        .toISOString()
+        .slice(0, 10)} – ${booking.checkOutDate.toISOString().slice(0, 10)}).`,
+    });
+
+    // Best-effort cancellation email — never blocks the cancellation
+    // itself, same pattern as the booking-confirmation email in
+    // app/api/bookings/route.js.
+    if (booking.guestEmail) {
+      try {
+        await sendGeneralEmail({
+          toEmail: booking.guestEmail,
+          subject: `your-private-resort — Booking Cancelled (${booking.referenceCode})`,
+          eyebrow: "BOOKING CANCELLED",
+          heading: `Your booking has been cancelled`,
+          intro: `Hi ${booking.guestName}, this confirms your booking has been cancelled at your request and the dates have been released. If this wasn't you, please contact us right away.`,
+          highlightLine1: `Reference code: ${booking.referenceCode}`,
+          highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
+          bodyMessage: "No further action is needed. We'd love to have you another time — feel free to book again whenever you're ready.",
+        });
+      } catch (error) {
+        console.error("[api/bookings/manage/cancel] Failed to send cancellation email:", error.message);
       }
     }
 

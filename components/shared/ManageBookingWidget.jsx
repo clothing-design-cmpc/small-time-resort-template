@@ -25,6 +25,7 @@
 import { useEffect, useRef, useState } from "react";
 import RebookCalendarModal from "./RebookCalendarModal";
 import { formatTime12Hour } from "@/utils/formatTime";
+import { BOOKED_DATES_CHANGED_EVENT } from "@/hooks/useBookedDates";
 import "./ManageBookingWidget.css";
 
 const PESO = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
@@ -98,15 +99,16 @@ export default function ManageBookingWidget() {
 
   /**
    * handleCancelledClose
-   * Closing the "Booking cancelled" success screen reloads the page —
-   * not just resetAndClose()'s state reset — so the calendars elsewhere
-   * on the page (HowToBookSection, BookedDatesSection) show the newly
-   * freed date immediately. Both fetch their booked-dates data via a
-   * client-side hook on mount only, so nothing else would prompt them
-   * to refetch after this widget's own cancel request succeeds.
+   * Closing the "Booking cancelled" success screen used to reload the
+   * whole page so the calendars elsewhere (HowToBookSection,
+   * BookedDatesSection) would show the newly freed date. useBookedDates
+   * now listens for BOOKED_DATES_CHANGED_EVENT and refetches instantly
+   * on its own (dispatched right after the cancel succeeded, in
+   * handleConfirmCancel below) — so this just resets the widget's own
+   * state and closes the modal, no reload needed.
    */
   function handleCancelledClose() {
-    window.location.reload();
+    resetAndClose();
   }
 
   function handleOpen() {
@@ -164,6 +166,10 @@ export default function ManageBookingWidget() {
         setStep(STEP_SUMMARY);
         return;
       }
+      // Tells every mounted useBookedDates instance on this page to
+      // refetch right now — no waiting for the poll interval, and no
+      // full page reload needed (see BOOKED_DATES_CHANGED_EVENT).
+      window.dispatchEvent(new Event(BOOKED_DATES_CHANGED_EVENT));
       setStep(STEP_CANCELLED);
     } catch {
       setErrorMessage("We couldn't reach the server. Check your connection and try again.");

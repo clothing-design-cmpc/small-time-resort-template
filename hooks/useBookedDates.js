@@ -14,11 +14,14 @@
  * ELSE (a different visitor, or the super-admin) while this page stayed
  * open — the only workaround was ManageBookingWidget forcing a full
  * page reload after the CURRENT guest's own action. This hook now also
- * silently re-polls in the background on an interval, AND immediately
+ * silently re-polls in the background on an interval, immediately
  * re-fetches whenever the tab regains focus/visibility (covers the
  * common case of a guest tabbing away, finishing a booking or rebook in
- * another tab/device, then tabbing back) — so the calendar catches up
- * to the bookings table on its own without needing a manual reload.
+ * another tab/device, then tabbing back), AND immediately re-fetches
+ * the moment it hears the "villaAzure:bookedDatesChanged" window event
+ * — dispatched by ManageBookingWidget right after its OWN cancel
+ * succeeds, so that guest sees the freed date update instantly instead
+ * of waiting out the poll interval or needing a page reload at all.
  *
  * overnightBlocksDayTourDates (and its Set form,
  * overnightBlocksDayTourSet) is the one that matters for hiding Day
@@ -36,6 +39,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const EMPTY = [];
+
+// Custom window event name — dispatched by any client component that
+// just changed booking data itself (e.g. ManageBookingWidget's
+// self-service cancel) so every mounted useBookedDates instance can
+// refetch immediately instead of waiting out POLL_INTERVAL_MS below.
+// Exported so dispatchers don't have to hardcode the string.
+export const BOOKED_DATES_CHANGED_EVENT = "villaAzure:bookedDatesChanged";
 
 // How often to silently re-check the bookings table in the background.
 // Short enough that a guest sees another visitor's booking/rebook
@@ -102,10 +112,19 @@ export function useBookedDates() {
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Instant catch-up when this same tab just changed booking data
+    // itself (see BOOKED_DATES_CHANGED_EVENT's docblock above) —
+    // doesn't wait for the poll interval or a visibility change.
+    function handleBookedDatesChanged() {
+      if (!isCancelled) fetchBookedDates(false);
+    }
+    window.addEventListener(BOOKED_DATES_CHANGED_EVENT, handleBookedDatesChanged);
+
     return () => {
       isCancelled = true;
       clearInterval(pollId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener(BOOKED_DATES_CHANGED_EVENT, handleBookedDatesChanged);
     };
   }, [fetchBookedDates]);
 

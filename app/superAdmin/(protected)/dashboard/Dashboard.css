@@ -494,3 +494,153 @@
   line-height: 1.6;
   color: var(--color-text-primary);
 }
+
+/*
+ * .weatherCacheWidget
+ * Dashboard card for the homepage weather forecast cache — same
+ * elevated-card treatment as .aiInsightWidget above, kept visually
+ * consistent since both are "automatic + manual override" cron cards.
+ */
+.weatherCacheWidget {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.weatherCacheHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.weatherCacheEyebrow {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.weatherCacheTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.weatherCacheRefreshButton {
+  min-height: 44px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.weatherCacheRefreshButton:hover,
+.weatherCacheRefreshButton:focus-visible {
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.weatherCacheRefreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.weatherCacheSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.weatherCacheSkeletonLine {
+  height: 16px;
+  border-radius: 4px;
+}
+
+.weatherCacheSkeletonLineShort {
+  height: 16px;
+  width: 60%;
+  border-radius: 4px;
+}
+
+.weatherCacheErrorState,
+.weatherCacheEmptyState {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.weatherCacheRetryButton {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.weatherCacheBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.weatherCacheTimestamp {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.weatherCacheDayList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.weatherCacheDayRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-surface-hover);
+}
+
+.weatherCacheDayDate {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.weatherCacheDayCondition {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.weatherCacheDayTemps {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}

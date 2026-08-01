@@ -21,6 +21,7 @@ import DashboardStatsClient from "./DashboardStatsClient";
 import MaintenanceToggleClient from "./MaintenanceToggleClient";
 import MarketingInsightsClient from "./MarketingInsightsClient";
 import AiInsightWidgetClient from "./AiInsightWidgetClient";
+import WeatherCacheWidgetClient from "./WeatherCacheWidgetClient";
 
 export default function DashboardPage() {
   return (
@@ -35,6 +36,9 @@ export default function DashboardPage() {
 
       {/* AI Sales Insight — daily automatic (6:00 AM) + manual "Regenerate now" */}
       <AiInsightWidgetClient />
+
+      {/* Weather Forecast Cache — 3x/day automatic (5AM/12PM/8PM) + manual "Refresh now" */}
+      <WeatherCacheWidgetClient />
 
       {/* Task 4 breach response — site-wide maintenance banner toggle */}
       <MaintenanceToggleClient />

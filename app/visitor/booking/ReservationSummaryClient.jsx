@@ -44,6 +44,7 @@ import { formatTime12Hour } from "@/utils/formatTime";
 import { buildMessengerLink } from "@/utils/messagingLinks";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
+import RebookingPolicyNote from "@/components/shared/RebookingPolicyNote";
 import "./BookingForm.css";
 import "./ReservationSummary.css";
 
@@ -276,6 +277,7 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
           Need to cancel or change this booking? Call us at{" "}
           <a href={`tel:${resortPhone.replace(/[^\d+]/g, "")}`}>{resortPhone}</a> and have your reference code ready.
         </p>
+        <RebookingPolicyNote />
       </div>
     );
   }

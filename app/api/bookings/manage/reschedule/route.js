@@ -42,6 +42,7 @@ import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { getActiveBookingRule } from "@/services/bookingRules";
+import { getRebookingPolicy, evaluateRebookingEligibility } from "@/services/rebookingPolicy";
 
 // Same per-type start/end time fields the manage lookup route reads.
 const START_TIME_FIELD_BY_TYPE = {
@@ -128,6 +129,36 @@ export async function POST(request) {
         { success: false, data: null, message: "That reference code wasn't found or is already cancelled." },
         { status: 404 }
       );
+    }
+
+    // --- Global Rebooking Policy enforcement ---
+    // Checked BEFORE any date validation below — a booking that's out of
+    // rebookings (or already forfeited) shouldn't get a confusing "please
+    // pick different dates" style error; the guest needs to know the real
+    // reason up front. See services/rebookingPolicy.js for the exact rules.
+    const rebookingPolicy = await getRebookingPolicy();
+    const eligibility = evaluateRebookingEligibility(booking, rebookingPolicy);
+
+    if (!eligibility.allowed) {
+      if (eligibility.shouldForfeit) {
+        // Limit action is "forfeit" — this attempt is what pushes the
+        // booking over the edge. Cancel it and mark it forfeited (deposit
+        // kept, dates released for other guests) instead of just refusing
+        // silently, so the record reflects what actually happened.
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: {
+            status: "cancelled",
+            isForfeited: true,
+            forfeitedAt: new Date(),
+            forfeitedReason: `Reached the maximum of ${rebookingPolicy.maxRebookingsAllowed} rebooking(s) allowed.`,
+            isDepositNonRefundable: true,
+            depositNonRefundableAt: new Date(),
+            depositNonRefundableReason: "Booking forfeited after reaching the rebooking limit.",
+          },
+        });
+      }
+      return NextResponse.json({ success: false, data: null, message: eligibility.reason }, { status: 409 });
     }
 
     const today = startOfDay(new Date());
@@ -234,7 +265,17 @@ export async function POST(request) {
 
     const updatedBooking = await prisma.booking.update({
       where: { id: booking.id },
-      data: { checkInDate: newCheckIn, checkOutDate: newCheckOut, rebookedAt: new Date() },
+      data: {
+        checkInDate: newCheckIn,
+        checkOutDate: newCheckOut,
+        rebookedAt: new Date(),
+        rebookCount: { increment: 1 },
+        ...(eligibility.willBecomeNonRefundable && {
+          isDepositNonRefundable: true,
+          depositNonRefundableAt: new Date(),
+          depositNonRefundableReason: "Deposit becomes non-refundable after the first rebooking.",
+        }),
+      },
     });
 
     // Same permanent, live-generated invoice link pattern as the booking
@@ -286,6 +327,9 @@ export async function POST(request) {
           checkOutTime,
         },
         invoiceUrl,
+        rebookCount: updatedBooking.rebookCount,
+        remainingRebookings: eligibility.remainingRebookings,
+        isDepositNonRefundable: updatedBooking.isDepositNonRefundable,
       },
       message: "Your booking has been moved to the new dates.",
     });

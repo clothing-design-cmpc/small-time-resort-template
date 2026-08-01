@@ -273,6 +273,40 @@ model Booking {
   geoCity    String? @map("geo_city")
   geoCountry String? @map("geo_country") // ISO country code, e.g. "PH"
 
+  // --- Rebooking Limit (Global Rebooking Policy — SystemSettings below) ---
+  // rebookedAt is already written by app/api/bookings/manage/reschedule/
+  // route.js (stamped on every successful self-service reschedule) but
+  // was missing from this model — every rebook attempt was silently
+  // throwing a Prisma "Unknown argument" error. Added here alongside the
+  // new counter fields needed to enforce SystemSettings.maxRebookingsAllowed.
+  rebookedAt DateTime? @map("rebooked_at")
+  // How many times THIS booking has been successfully rebooked (moved to
+  // new dates via the self-service reschedule route). Compared against
+  // SystemSettings.maxRebookingsAllowed on every new reschedule attempt —
+  // see services/rebookingPolicy.js.
+  rebookCount Int @default(0) @map("rebook_count")
+
+  // Set the moment this booking's deposit becomes non-refundable because
+  // of the rebooking policy (either immediately on the 1st rebook, if
+  // SystemSettings.rebookingNonRefundableOnFirst is true, or when the
+  // guest hits the rebooking limit under the "non_refundable" limit
+  // action). Independent of the resort's normal cancellation-window
+  // refund schedule — this flag means "no refund regardless of when
+  // cancelled," and is surfaced back to the guest on the manage-booking
+  // widget and the booking confirmation/policies pages.
+  isDepositNonRefundable     Boolean   @default(false) @map("is_deposit_non_refundable")
+  depositNonRefundableAt     DateTime? @map("deposit_non_refundable_at")
+  depositNonRefundableReason String?   @map("deposit_non_refundable_reason")
+
+  // Set only when SystemSettings.rebookingLimitAction is "forfeit" AND the
+  // guest attempts to rebook again after already reaching
+  // maxRebookingsAllowed. The booking is cancelled and the deposit is
+  // kept — see services/rebookingPolicy.js's evaluateRebookingEligibility()
+  // and the reschedule route's enforcement of it.
+  isForfeited     Boolean   @default(false) @map("is_forfeited")
+  forfeitedAt     DateTime? @map("forfeited_at")
+  forfeitedReason String?   @map("forfeited_reason")
+
   createdAt      DateTime @default(now()) @map("created_at")
 
   room Room? @relation(fields: [roomId], references: [id])
@@ -1147,6 +1181,39 @@ model SystemSettings {
   // column on purpose so `prisma db push` treats this as a straight
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
+
+  // --- Global Rebooking Policy (Section 8, Booking Rules list page —
+  // see RebookingPolicySection.jsx) --- ONE resort-wide policy shared by
+  // every booking, same pattern as cleaningHours/pendingHoldHours above.
+  // Read/written exclusively through services/rebookingPolicy.js so
+  // every caller (the reschedule route, the admin settings page, the
+  // visitor Policies page, and the booking confirmation pages) agrees
+  // on the same values.
+  //
+  // maxRebookingsAllowed — how many times a single booking can be moved
+  // to new dates via the self-service Rebook flow before the limit
+  // action below kicks in. Null = unlimited (default — a fresh
+  // deployment is never accidentally locked down).
+  maxRebookingsAllowed Int? @map("max_rebookings_allowed")
+
+  // rebookingNonRefundableOnFirst — when true, the VERY FIRST successful
+  // rebooking on a booking immediately flips Booking.isDepositNonRefundable
+  // to true, regardless of the normal cancellation-window refund
+  // schedule. When false, the deposit's refundability is untouched by
+  // rebooking alone (only the limit action below can still flip it).
+  rebookingNonRefundableOnFirst Boolean @default(false) @map("rebooking_non_refundable_on_first")
+
+  // rebookingLimitAction — what happens the moment a guest tries to
+  // rebook AGAIN after already reaching maxRebookingsAllowed:
+  //   "non_refundable" — the reschedule request is refused, the booking
+  //                       stays confirmed as-is, and the deposit is
+  //                       marked non-refundable (if not already).
+  //   "forfeit"         — the reschedule request is refused AND the
+  //                       booking itself is cancelled/forfeited — the
+  //                       deposit is kept, the dates are freed for other
+  //                       guests, and Booking.isForfeited is set.
+  // Only meaningful once maxRebookingsAllowed is set (not null).
+  rebookingLimitAction String @default("non_refundable") @map("rebooking_limit_action")
 
   // --- Contact Info ---
   resortPhone   String? @map("resort_phone")

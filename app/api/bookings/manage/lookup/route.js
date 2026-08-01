@@ -30,6 +30,7 @@ import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { getActiveBookingRule } from "@/services/bookingRules";
+import { getRebookingPolicy, evaluateRebookingEligibility } from "@/services/rebookingPolicy";
 
 // Same per-type start/end time fields services/bookingPricing.js already
 // reads off the active BookingRule — kept in one place so this route and
@@ -93,6 +94,9 @@ export async function POST(request) {
       depositAmount: true,
       notes: true,
       roomId: true,
+      rebookCount: true,
+      isForfeited: true,
+      isDepositNonRefundable: true,
       room: { select: { name: true, bedType: true, amenityIds: true } },
     },
   });
@@ -125,6 +129,13 @@ export async function POST(request) {
   const checkInTime = rules[START_TIME_FIELD_BY_TYPE[booking.bookingType]] ?? null;
   const checkOutTime = rules[END_TIME_FIELD_BY_TYPE[booking.bookingType]] ?? null;
 
+  // Rebooking eligibility only matters for a "confirmed" booking — a
+  // "pending" one never shows the Rebook button in the first place (see
+  // ManageBookingWidget's status === "confirmed" guard), so there's
+  // nothing meaningful to evaluate against the limit yet.
+  const rebookingPolicy = booking.status === "confirmed" ? await getRebookingPolicy() : null;
+  const eligibility = rebookingPolicy ? evaluateRebookingEligibility(booking, rebookingPolicy) : null;
+
   return NextResponse.json({
     success: true,
     data: {
@@ -146,6 +157,10 @@ export async function POST(request) {
         roomName: booking.room?.name ?? null,
         roomBedType: booking.room?.bedType ?? null,
         includedAmenities: includedAmenities.map((amenity) => amenity.name),
+        isDepositNonRefundable: booking.isDepositNonRefundable,
+        canRebook: eligibility ? eligibility.allowed : null,
+        rebookBlockedReason: eligibility && !eligibility.allowed ? eligibility.reason : null,
+        remainingRebookings: eligibility ? eligibility.remainingRebookings : null,
       },
     },
     message: "Booking found.",

@@ -426,6 +426,25 @@
   color: var(--color-on-accent);
 }
 
+/*
+ * .bookingConfirmPolicyNote
+ * Muted footnote on the booking confirmation panel explaining the
+ * resort's current rebooking policy — same wording as the Policies
+ * page, fetched live from GET /api/booking-rules/rebooking-policy.
+ */
+.bookingConfirmPolicyNote {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.bookingConfirmPolicyNote strong {
+  color: var(--color-text-primary);
+}
+
 .bookingConfirmMessengerLink {
   align-self: flex-start;
   margin-top: var(--space-xs);

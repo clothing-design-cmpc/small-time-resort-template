@@ -323,6 +323,21 @@ export default function ManageBookingWidget() {
                   )}
                 </dl>
 
+                {booking.isDepositNonRefundable && (
+                  <p className="manageBookingError" role="status">
+                    ⚠ Your deposit for this booking is non-refundable.
+                  </p>
+                )}
+
+                {booking.status === "confirmed" && !booking.canRebook && booking.rebookBlockedReason && (
+                  <p className="manageBookingError" role="alert">{booking.rebookBlockedReason}</p>
+                )}
+                {booking.status === "confirmed" && booking.canRebook && booking.remainingRebookings !== null && (
+                  <p className="manageBookingSubtitle">
+                    You can rebook this reservation {booking.remainingRebookings} more time{booking.remainingRebookings === 1 ? "" : "s"}.
+                  </p>
+                )}
+
                 {errorMessage && <p className="manageBookingError" role="alert">{errorMessage}</p>}
 
                 <div className="manageBookingActions">
@@ -332,7 +347,13 @@ export default function ManageBookingWidget() {
                       and submit a fresh request instead of rescheduling
                       one that was never confirmed in the first place. */}
                   {booking.status === "confirmed" && (
-                    <button type="button" className="manageBookingRebookButton" onClick={handleRebookClick}>
+                    <button
+                      type="button"
+                      className="manageBookingRebookButton"
+                      onClick={handleRebookClick}
+                      disabled={!booking.canRebook}
+                      title={!booking.canRebook ? booking.rebookBlockedReason : undefined}
+                    >
                       Rebook (change dates)
                     </button>
                   )}
@@ -381,6 +402,17 @@ export default function ManageBookingWidget() {
                 <p className="manageBookingSuccessSubtitle">
                   Your updated invoice is downloading now. Your reference code stays the same.
                 </p>
+
+                {rebookedInfo.isDepositNonRefundable && (
+                  <p className="manageBookingError" role="status">
+                    ⚠ Your deposit for this booking is now non-refundable.
+                  </p>
+                )}
+                {rebookedInfo.remainingRebookings !== null && (
+                  <p className="manageBookingSubtitle">
+                    You can rebook this reservation {rebookedInfo.remainingRebookings} more time{rebookedInfo.remainingRebookings === 1 ? "" : "s"}.
+                  </p>
+                )}
 
                 {booking && (
                   <dl className="manageBookingSummary">

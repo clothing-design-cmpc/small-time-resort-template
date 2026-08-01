@@ -24,6 +24,7 @@ import "./Policies.css";
 import Link from "next/link";
 import { prisma } from "@/services/prisma";
 import { DEFAULT_HOUSE_RULES } from "@/utils/defaultHouseRules";
+import { getRebookingPolicy, buildRebookingPolicySummary } from "@/services/rebookingPolicy";
 
 export const metadata = {
   title: "Policies | your-private-resort",
@@ -131,6 +132,18 @@ export default async function PoliciesPage() {
   // under Content > Policies. Fails safe to null so this public page
   // never 500s just because the row hasn't been created yet.
   const settings = await prisma.systemSettings.findUnique({ where: { id: "singleton" } }).catch(() => null);
+
+  // Rebooking policy is read live (never hardcoded) so this page always
+  // reflects whatever the super-admin actually configured under
+  // Settings > Booking Rules > Section 8 — see services/rebookingPolicy.js.
+  // Fails safe to the original static rp-7 copy if the lookup errors.
+  const rebookingPolicy = await getRebookingPolicy().catch(() => null);
+  const rebookingSummary = rebookingPolicy ? buildRebookingPolicySummary(rebookingPolicy) : null;
+  const refundPoliciesToRender = rebookingSummary
+    ? refundPolicies.map((item) =>
+        item.id === "rp-7" ? { ...item, title: rebookingSummary.title, body: rebookingSummary.body } : item
+      )
+    : refundPolicies;
 
   const houseRulesText = renderTextBlock(settings?.houseRules);
   const bookingPoliciesText = renderTextBlock(settings?.bookingPolicies);
@@ -257,7 +270,7 @@ export default async function PoliciesPage() {
                 <div className="policiesItem">{cancellationPolicyText}</div>
               ) : (
                 <ul className="policiesList">
-                  {refundPolicies.map((item) => (
+                  {refundPoliciesToRender.map((item) => (
                     <li key={item.id} className="policiesItem">
                       <h3 className="policiesItemTitle">{item.title}</h3>
                       <p className="policiesItemBody">{item.body}</p>

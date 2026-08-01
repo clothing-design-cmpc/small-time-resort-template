@@ -4,22 +4,24 @@
  *
  * PURPOSE:
  * Homepage that renders all visitor sections in sequence:
- * Hero → About → Featured Rooms → Amenities → Mini Store →
- * Testimonials → Activities → Gallery Preview → How to Book →
- * Booked Dates
+ * Hero → About → Weather Forecast → Featured Rooms → Amenities →
+ * Mini Store → Testimonials → Activities → Gallery Preview →
+ * How to Book → Booked Dates
  *
  * DATA FLOW:
  * 1. Visitor hits "/visitor"
- * 2. Hero, About, AmenitiesHighlightSection, TestimonialsSection,
- *    ActivitiesHighlightSection, and GalleryPreviewSection are all
- *    Server Components that read their data directly via Prisma —
- *    same pattern app/visitor/policies/page.jsx uses. MiniStoreSection
- *    is a Client Component that fetches from /api/shop.
+ * 2. Hero, About, WeatherForecastSection, AmenitiesHighlightSection,
+ *    TestimonialsSection, ActivitiesHighlightSection, and
+ *    GalleryPreviewSection are all Server Components that read their
+ *    data directly via Prisma — same pattern app/visitor/policies/page.jsx
+ *    uses. MiniStoreSection is a Client Component that fetches from
+ *    /api/shop.
  * 3. BookedDatesSection is a Client Component — it owns interactive
  *    calendar state locally, no SSR data needed
  */
 import Hero from "@/components/Hero";
 import About from "@/components/About";
+import WeatherForecastSection from "@/components/sections/WeatherForecastSection";
 import FeaturedRoomsSection from "@/components/sections/FeaturedRoomsSection";
 import AmenitiesHighlightSection from "@/components/sections/AmenitiesHighlightSection";
 import MiniStoreSection from "@/components/sections/MiniStoreSection";
@@ -44,6 +46,7 @@ export default function VisitorHomePage() {
     <main>
       <Hero />
       <About />
+      <WeatherForecastSection />
       <FeaturedRoomsSection />
       <AmenitiesHighlightSection />
       <MiniStoreSection />

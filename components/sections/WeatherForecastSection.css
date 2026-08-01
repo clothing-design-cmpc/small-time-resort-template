@@ -1,0 +1,146 @@
+/*
+ * .weatherForecastSection
+ * Homepage weather forecast section, placed right after About.
+ */
+.weatherForecastSection {
+  /* Offsets the fixed header so jumping here via the nav (#anchor) never hides the section title underneath it. */
+  scroll-margin-top: 96px;
+  width: 100%;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.weatherForecastContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.weatherForecastHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.weatherForecastEyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.weatherForecastTitle {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.weatherForecastSubtitle {
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+  max-width: 50ch;
+}
+
+/*
+ * .weatherForecastGrid
+ * Auto-fill grid of day cards — reflows column count on its own with
+ * no breakpoints needed (Rule 23.2).
+ */
+.weatherForecastGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-md);
+  width: 100%;
+}
+
+/*
+ * .weatherForecastCard
+ * One day's forecast. Centered column layout, subtle border + surface,
+ * matches the card standard (Rule 23.10) — padding on all sides, clear
+ * edge, never flush against neighbors.
+ */
+.weatherForecastCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-lg) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+  transition: background-color var(--transition-base, 0.25s ease), border-color var(--transition-base, 0.25s ease);
+}
+
+.weatherForecastCard:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
+.weatherForecastDayLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.weatherForecastIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  margin: var(--space-xs) 0;
+}
+
+.weatherForecastCondition {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.weatherForecastTemps {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.weatherForecastTempMax {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.weatherForecastTempMin {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.weatherForecastPrecip {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/*
+ * .weatherForecastEmptyState
+ * Shown before the first cron run has populated the cache, or if every
+ * attempt so far has failed with nothing to fall back to (Rule 25.3).
+ */
+.weatherForecastEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  text-align: center;
+}

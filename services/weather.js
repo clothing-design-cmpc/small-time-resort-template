@@ -83,3 +83,71 @@ export async function getResortWeatherForecast(latitude, longitude, days = 3) {
     return null;
   }
 }
+
+/**
+ * getVisitorWeatherForecast
+ * Fetches a 4-day structured forecast (today + next 3 days) for the
+ * homepage weather widget. Separate from getResortWeatherForecast
+ * above on purpose: that one returns a plain-English paragraph meant
+ * for a Gemini prompt; this one returns plain data
+ * (condition/temps/rain chance per day) so the widget component can
+ * render its own cards, icons, and layout instead of parsing prose.
+ *
+ * Only ever called from app/api/cron/weather/route.js (3x/day, see
+ * vercel.json) — never from a page request. The homepage widget reads
+ * the cached row that route writes, so a visitor page load never
+ * triggers a Google API call.
+ *
+ * @param {number} latitude
+ * @param {number} longitude
+ * @returns {Promise<Array<{date: string, conditionText: string, conditionType: string, minTemp: number|null, maxTemp: number|null, precipChance: number|null}>|null>}
+ *   null if the API key/coordinates are missing or the request fails —
+ *   caller (the cron route) must keep the previous cached row rather
+ *   than overwrite good data with nothing.
+ */
+export async function getVisitorWeatherForecast(latitude, longitude) {
+  const apiKey = process.env.GOOGLE_WEATHER_API_KEY;
+  if (!apiKey || !latitude || !longitude) {
+    console.error("[weather] GOOGLE_WEATHER_API_KEY or resort coordinates missing — skipping visitor forecast.");
+    return null;
+  }
+
+  const url = `${WEATHER_FORECAST_URL}?key=${apiKey}&location.latitude=${latitude}&location.longitude=${longitude}&days=4`;
+
+  try {
+    const response = await fetch(url);
+
+    // Same fire-and-forget usage tracking as getResortWeatherForecast,
+    // but tagged with a distinct action name so the API Usage page can
+    // tell the two call sites apart (cron widget refresh vs AI insight).
+    recordApiCall("google_weather", "public_forecast_lookup", response.ok);
+
+    if (!response.ok) {
+      console.error(`[weather] Google Weather API responded ${response.status} (visitor widget)`);
+      return null;
+    }
+
+    const data = await response.json();
+    const forecastDays = data.forecastDays ?? [];
+    if (forecastDays.length === 0) return null;
+
+    return forecastDays.map((day) => {
+      const date = `${day.displayDate?.year}-${String(day.displayDate?.month).padStart(2, "0")}-${String(
+        day.displayDate?.day
+      ).padStart(2, "0")}`;
+      const weatherCondition = day.daytimeForecast?.weatherCondition;
+
+      return {
+        date,
+        conditionText: weatherCondition?.description?.text ?? "Unknown",
+        conditionType: weatherCondition?.type ?? "UNKNOWN",
+        minTemp: day.minTemperature?.degrees ?? null,
+        maxTemp: day.maxTemperature?.degrees ?? null,
+        precipChance: day.daytimeForecast?.precipitation?.probability?.percent ?? null,
+      };
+    });
+  } catch (error) {
+    console.error("[weather] Visitor forecast request failed:", error.message);
+    return null;
+  }
+}

@@ -930,6 +930,39 @@ model GalleryImage {
 // Contact Info & SEO — blueprint Pages 3, 8, 9)
 // ============================================================
 // Singleton table — the app always reads/writes the single row with
+// ============================================================
+// MODEL: WeatherForecastCache  (singleton, id "singleton")
+// ============================================================
+// Holds the last successfully fetched Google Weather API forecast for
+// the resort's coordinates, so the visitor-facing homepage widget
+// (components/sections/WeatherForecastSection.jsx) never calls Google
+// on a page request — it only ever reads this cached row. The actual
+// API call happens 3x/day from app/api/cron/weather/route.js (see
+// vercel.json's crons entries), which upserts this same row every run.
+// Same singleton id pattern as SystemSettings/BookingRules above —
+// only one forecast is ever needed at a time, no history is kept here.
+model WeatherForecastCache {
+  id String @id @default("singleton")
+
+  // Structured forecast days as JSON — see services/weather.js's
+  // getVisitorWeatherForecast() for the exact shape written here
+  // ({ date, conditionText, conditionType, minTemp, maxTemp,
+  // precipChance }[]). Kept as Json (not separate rows) since this is
+  // always read/written as one whole cache entry, never queried by
+  // individual day.
+  forecastDays Json? @map("forecast_days")
+
+  // "ok" | "error" — lets the widget show a graceful stale/error state
+  // instead of pretending a failed cron run still has fresh data.
+  status String @default("ok")
+
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("weather_forecast_cache")
+}
+
+// SystemSettings row's id uses the same singleton convention:
 // the well-known id "singleton" (same pattern as BookingRules above),
 // never creates a second row.
 model SystemSettings {

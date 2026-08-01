@@ -33,6 +33,7 @@ import StatusBadge from "@/components/superAdmin/StatusBadge";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import SeasonalPricingSection from "./SeasonalPricingSection";
 import RoomStatusSection from "./RoomStatusSection";
+import PendingHoldSection from "./PendingHoldSection";
 
 export default function BookingRulesListClient({ rooms }) {
   const router = useRouter();
@@ -177,6 +178,7 @@ export default function BookingRulesListClient({ rooms }) {
 
       <SeasonalPricingSection rooms={rooms} showToast={showToast} />
       <RoomStatusSection showToast={showToast} />
+      <PendingHoldSection showToast={showToast} />
     </section>
   );
 }

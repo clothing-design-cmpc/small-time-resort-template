@@ -4,8 +4,9 @@
  *
  * PURPOSE:
  * Sweeps every "pending" Booking whose pendingExpiresAt has passed
- * (PENDING_HOLD_HOURS after creation — see services/bookingRules.js)
- * and flips it to "expired". This is what actually re-opens the dates:
+ * (the DP Countdown window in effect when it was created — see
+ * services/pendingHoldHours.js) and flips it to "expired". This is
+ * what actually re-opens the dates:
  * the DB-level EXCLUDE constraint (prisma/addBookingExclusionConstraint.js)
  * and every overlap check (services/bookingPricing.js, app/api/bookings/
  * dates/route.js) only hold dates for "confirmed" and "pending" rows —
@@ -13,7 +14,7 @@
  *
  * Scheduled frequently (every 15 minutes — see vercel.json) so a guest
  * who never confirms on Messenger doesn't hold a room far past the
- * 8-hour window in practice.
+ * DP Countdown window in practice.
  *
  * DATA FLOW:
  * 1. Vercel Cron hits this route on schedule
@@ -105,7 +106,7 @@ export async function GET(request) {
       eventType: "admin_action",
       actor: "system:booking-expiry-cron",
       request: null,
-      details: `Auto-expired ${expiredBookings.length} pending booking(s) past their 8-hour hold: ${expiredBookings
+      details: `Auto-expired ${expiredBookings.length} pending booking(s) past their DP Countdown hold: ${expiredBookings
         .map((b) => b.referenceCode)
         .join(", ")}.`,
     });

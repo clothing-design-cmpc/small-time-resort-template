@@ -8,9 +8,9 @@
  * alone — a second guest could have taken the room in between). This
  * is the only place a Booking row actually gets written from the
  * visitor side. No PayMongo integration yet, so the booking is not
- * auto-confirmed: it holds its dates for PENDING_HOLD_HOURS while the
- * guest sends their invoice PDF to the resort's Facebook Page and the
- * owner approves it from Super-Admin > Bookings (see services/
+ * auto-confirmed: it holds its dates for the DP Countdown window while
+ * the guest sends their invoice PDF to the resort's Facebook Page and
+ * the owner approves it from Super-Admin > Bookings (see services/
  * bookingRules.js, services/invoicePdf.js, app/api/admin/bookings/
  * [id]/confirm/route.js, and app/api/cron/booking-expiry/route.js).
  *
@@ -53,7 +53,7 @@ import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { generateUniqueReferenceCode } from "@/services/referenceCode";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { isExclusionViolation, isSerializationFailure } from "@/services/pgErrorCodes";
-import { PENDING_HOLD_HOURS } from "@/services/bookingRules";
+import { getGlobalPendingHoldHours } from "@/services/pendingHoldHours";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -82,7 +82,7 @@ const MAX_SERIALIZATION_RETRIES = 1;
  * Postgres aborting one of two genuinely conflicting transactions is
  * expected, correct behavior under Serializable isolation, not a bug.
  */
-async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
+async function createBookingInTransaction(payload, requestMeta, pendingHoldHours, attempt = 0) {
   try {
     return await prisma.$transaction(
       async (tx) => {
@@ -132,8 +132,9 @@ async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
             cleaningHoursSnapshot: quote.cleaningHours,
             notes: payload.notes || null,
             // No PayMongo integration yet — every new booking starts
-            // "pending" and holds its dates for PENDING_HOLD_HOURS
-            // (see services/bookingRules.js) while the guest is
+            // "pending" and holds its dates for the DP Countdown window
+            // (SystemSettings.pendingHoldHours, resolved above — see
+            // services/pendingHoldHours.js) while the guest is
             // expected to confirm via Messenger (invoice PDF's PENDING
             // watermark + instructions — services/invoicePdf.js) and
             // the owner approves it from Super-Admin > Bookings
@@ -141,7 +142,12 @@ async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
             // never confirmed in time, app/api/cron/booking-expiry/
             // route.js flips it to "expired" and frees the dates.
             status: "pending",
-            pendingExpiresAt: new Date(Date.now() + PENDING_HOLD_HOURS * 60 * 60 * 1000),
+            // Computed ONCE, right now, from whatever the DP Countdown
+            // setting (SystemSettings.pendingHoldHours) currently is, and
+            // saved directly on this row. If a super-admin changes that
+            // setting later, THIS booking's hold window never moves —
+            // see services/pendingHoldHours.js for why that's safe.
+            pendingExpiresAt: new Date(Date.now() + pendingHoldHours * 60 * 60 * 1000),
             referenceCode,
             // Device/location capture — resolved server-side before this
             // transaction started (see POST handler below), never trusted
@@ -159,7 +165,7 @@ async function createBookingInTransaction(payload, requestMeta, attempt = 0) {
     );
   } catch (error) {
     if (isSerializationFailure(error) && attempt < MAX_SERIALIZATION_RETRIES) {
-      return createBookingInTransaction(payload, requestMeta, attempt + 1);
+      return createBookingInTransaction(payload, requestMeta, pendingHoldHours, attempt + 1);
     }
     throw error;
   }
@@ -234,7 +240,14 @@ export async function POST(request) {
       geoCountry: location.countryCode,
     };
 
-    bookingResult = await createBookingInTransaction(payload, requestMeta);
+    // Resolved once, before the transaction, same as requestMeta above —
+    // this is the DP Countdown value THIS booking will be held for. See
+    // services/pendingHoldHours.js for why reading it here (rather than
+    // re-reading it later) is what makes a super-admin's later change to
+    // this setting safe to apply mid-flight.
+    const pendingHoldHours = await getGlobalPendingHoldHours();
+
+    bookingResult = await createBookingInTransaction(payload, requestMeta, pendingHoldHours);
   } catch (error) {
     // Either guard rejected this booking because another guest just took
     // the same room/dates — the DB-level EXCLUDE constraint (23P01) or
@@ -306,7 +319,7 @@ export async function POST(request) {
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
       bodyMessage: [
-        `What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have ${PENDING_HOLD_HOURS} hours from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.`,
+        `What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have ${pendingHoldHours} hours from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.`,
         invoiceUrl
           ? `Download your invoice (with confirmation instructions) here: ${invoiceUrl}`
           : "Your invoice with the reference code and confirmation instructions is also available on the booking page.",

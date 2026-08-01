@@ -1092,6 +1092,22 @@ model SystemSettings {
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
 
+  // --- DP (Down Payment) Countdown / Pending Hold Window ---
+  // ONE resort-wide value: how many hours a "pending" Booking holds its
+  // dates before app/api/cron/booking-expiry/route.js auto-expires it.
+  // Replaces the old hardcoded PENDING_HOLD_HOURS constant in
+  // services/bookingRules.js — see services/pendingHoldHours.js for the
+  // read/write helpers, and app/api/superAdmin/settings/pending-hold-hours/
+  // route.js for the super-admin PUT endpoint. Editing THIS value never
+  // affects a booking that's already pending: Booking.pendingExpiresAt is
+  // computed ONCE at booking-creation time from whatever this value was
+  // back then and stored directly on that row (app/api/bookings/route.js)
+  // — every already-pending booking keeps counting down against its own
+  // saved pendingExpiresAt, never against this live setting, so changing
+  // this number mid-flight can never error out or reset an active hold.
+  pendingHoldHours Int @default(8) @map("pending_hold_hours")
+
+
   // --- Contact Info ---
   resortPhone   String? @map("resort_phone")
   resortEmail   String? @map("resort_email")

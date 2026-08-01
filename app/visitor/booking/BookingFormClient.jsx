@@ -267,8 +267,9 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     // How many hours the guest actually has to send their DP, derived from
     // the two timestamps Prisma already returned on the created row
     // (createdAt / pendingExpiresAt) rather than hardcoding the number here
-    // — stays correct even if services/bookingRules.js's PENDING_HOLD_HOURS
-    // changes later, without needing a second constant kept in sync.
+    // — stays correct even if the super-admin's DP Countdown setting
+    // (SystemSettings.pendingHoldHours) changes later, without needing a
+    // second constant kept in sync.
     const pendingHoldHours =
       confirmedBookingRecord?.createdAt && confirmedBookingRecord?.pendingExpiresAt
         ? Math.round(

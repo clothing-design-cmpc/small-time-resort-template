@@ -1182,6 +1182,17 @@ model SystemSettings {
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
 
+  // --- DP Countdown (Section 7, Booking Rules list page) --- ONE
+  // resort-wide value: how many hours a newly-created "pending"
+  // Booking holds its dates before it auto-expires. Read/written
+  // exclusively through services/pendingHoldHours.js so
+  // app/api/bookings/route.js, app/api/cron/booking-expiry/route.js,
+  // and app/api/superAdmin/settings/pending-hold-hours/route.js all
+  // agree on the exact same value. This field was missing from the
+  // schema entirely, which broke this singleton row's upsert for
+  // every caller sharing it (including cleaningHours above).
+  pendingHoldHours Int @default(8) @map("pending_hold_hours")
+
   // --- Global Rebooking Policy (Section 8, Booking Rules list page —
   // see RebookingPolicySection.jsx) --- ONE resort-wide policy shared by
   // every booking, same pattern as cleaningHours/pendingHoldHours above.

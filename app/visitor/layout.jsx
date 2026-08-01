@@ -25,6 +25,7 @@ import MaintenanceLockdownScreen from "@/components/shared/MaintenanceLockdownSc
 import ScheduledMaintenanceIcon from "@/components/shared/ScheduledMaintenanceIcon";
 import WalkInChatWidget from "@/components/shared/WalkInChatWidget";
 import ManageBookingWidget from "@/components/shared/ManageBookingWidget";
+import BookingProgressWidget from "@/components/shared/BookingProgressWidget";
 import ResortLocationWidget from "@/components/shared/ResortLocationWidget";
 
 // Forces this layout to always re-run getMaintenanceStatus() on every
@@ -210,7 +211,9 @@ export default async function VisitorLayout({ children }) {
         />
         {/* Floating "manage/cancel my booking" icon — stacked directly above WalkInChatWidget's button */}
         <ManageBookingWidget />
-        {/* Floating "resort location" icon — stacked directly above ManageBookingWidget's button */}
+        {/* Floating "booking progress" icon — stacked directly above ManageBookingWidget's Cancellation button */}
+        <BookingProgressWidget />
+        {/* Floating "resort location" icon — stacked directly above BookingProgressWidget's button */}
         <ResortLocationWidget />
         {/* Floating scheduled-maintenance heads-up icon — bottom-left, paired with WalkInChatWidget's bottom-right */}
         <ScheduledMaintenanceIcon />

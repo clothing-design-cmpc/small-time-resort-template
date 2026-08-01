@@ -8,7 +8,7 @@
 .resortLocationButton {
   position: fixed;
   right: var(--space-lg);
-  bottom: calc(var(--space-lg) + (56px + var(--space-sm)) * 2);
+  bottom: calc(var(--space-lg) + (56px + var(--space-sm)) * 3);
   width: 56px;
   height: 56px;
   min-width: 44px;

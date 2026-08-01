@@ -1,0 +1,248 @@
+/*
+ * .bookingProgressButton
+ * Floating circular icon fixed to the bottom-right corner, directly
+ * above ManageBookingWidget's Cancellation button (56px button +
+ * space-sm gap, one level higher in the stack). ResortLocationWidget
+ * shifts up one more level to make room for this one — see its own
+ * .resortLocationButton bottom offset.
+ */
+.bookingProgressButton {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: calc(var(--space-lg) + (56px + var(--space-sm)) * 2);
+  width: 56px;
+  height: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: var(--shadow-card-hover);
+  z-index: var(--z-sticky);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  will-change: transform;
+}
+
+.bookingProgressButton:hover,
+.bookingProgressButton:focus-visible,
+.bookingProgressButton:active {
+  background-color: var(--color-accent-hover);
+  transform: scale(1.05);
+}
+
+/*
+ * .bookingProgressTooltip
+ * "Booking Progress" label shown on hover/focus only — same pattern as
+ * .manageBookingTooltip.
+ */
+.bookingProgressTooltip {
+  position: absolute;
+  right: calc(100% + var(--space-sm));
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background-color: var(--color-text-primary);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+.bookingProgressButton:hover .bookingProgressTooltip,
+.bookingProgressButton:focus-visible .bookingProgressTooltip {
+  opacity: 1;
+}
+
+/* ============================================================
+ * MODAL — same centered-dialog pattern as ManageBookingWidget.css
+ * ============================================================ */
+.bookingProgressBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(28, 43, 32, 0.45);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.bookingProgressModal {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-xl);
+  z-index: var(--z-modal);
+}
+
+.bookingProgressCloseButton {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.bookingProgressCloseButton:hover,
+.bookingProgressCloseButton:focus-visible,
+.bookingProgressCloseButton:active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.bookingProgressTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.bookingProgressSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.bookingProgressField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+
+.bookingProgressField input {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+}
+
+.bookingProgressError {
+  font-size: 0.85rem;
+  color: var(--color-error);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.bookingProgressReferenceLine {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+/*
+ * .bookingProgressStage
+ * The single stage card — pending (amber, DP window) or confirmed
+ * (green, booked). Only one renders per result, chosen by the API's
+ * status field.
+ */
+.bookingProgressStage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: 10px;
+  margin: 0 0 var(--space-lg) 0;
+}
+
+.bookingProgressStage--pending {
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--color-warning);
+}
+
+.bookingProgressStage--confirmed {
+  background-color: rgba(47, 158, 91, 0.1);
+  border: 1px solid var(--color-success);
+}
+
+.bookingProgressStageLabel {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.bookingProgressStageText {
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.bookingProgressStageHint {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.bookingProgressSubmitButton,
+.bookingProgressNeutralButton {
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.bookingProgressSubmitButton {
+  border: none;
+  background-color: var(--color-accent);
+  color: #ffffff;
+}
+
+.bookingProgressSubmitButton:hover,
+.bookingProgressSubmitButton:focus-visible {
+  background-color: var(--color-accent-hover);
+}
+
+.bookingProgressSubmitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bookingProgressNeutralButton {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.bookingProgressNeutralButton:hover,
+.bookingProgressNeutralButton:focus-visible {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}

@@ -37,6 +37,7 @@ import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { deleteFromR2 } from "@/services/r2";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 
 const CANCEL_MAX_ATTEMPTS = 10;
 const CANCEL_WINDOW_MS = 15 * 60 * 1000;
@@ -129,15 +130,20 @@ export async function POST(request) {
     // app/api/bookings/route.js.
     if (booking.guestEmail) {
       try {
+        // Admin-editable copy (super-admin > Content > Booking Email
+        // Templates > Booking Cancelled).
+        const cancelledTemplate = await getOrCreateEmailTemplate("cancelled");
+        const mergeVars = { guestName: booking.guestName };
+
         await sendGeneralEmail({
           toEmail: booking.guestEmail,
           subject: `your-private-resort — Booking Cancelled (${booking.referenceCode})`,
-          eyebrow: "BOOKING CANCELLED",
-          heading: `Your booking has been cancelled`,
-          intro: `Hi ${booking.guestName}, this confirms your booking has been cancelled at your request and the dates have been released. If this wasn't you, please contact us right away.`,
+          eyebrow: renderTemplateText(cancelledTemplate.eyebrowText, mergeVars),
+          heading: renderTemplateText(cancelledTemplate.headingText, mergeVars),
+          intro: renderTemplateText(cancelledTemplate.introMessage, mergeVars),
           highlightLine1: `Reference code: ${booking.referenceCode}`,
           highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
-          bodyMessage: "No further action is needed. We'd love to have you another time — feel free to book again whenever you're ready.",
+          bodyMessage: renderTemplateText(cancelledTemplate.bodyMessage, mergeVars),
         });
       } catch (error) {
         console.error("[api/bookings/manage/cancel] Failed to send cancellation email:", error.message);

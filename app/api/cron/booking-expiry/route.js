@@ -33,6 +33,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -77,21 +78,27 @@ export async function GET(request) {
     // up before, only Security Logs saw it happen). A failed send for one
     // guest must never block the others or the sweep itself, same pattern
     // as every other best-effort email in this codebase.
+    //
+    // Admin-editable copy (super-admin > Content > Booking Email
+    // Templates > Auto-Cancelled) is fetched ONCE outside the loop —
+    // it's the same row for every guest in this sweep, so re-fetching
+    // it per booking would just be redundant DB load.
+    const autoCancelledTemplate = await getOrCreateEmailTemplate("auto_cancelled");
+
     await Promise.all(
       expiredBookings.map(async (booking) => {
         if (!booking.guestEmail) return;
         try {
+          const mergeVars = { guestName: booking.guestName };
           await sendGeneralEmail({
             toEmail: booking.guestEmail,
             subject: `your-private-resort — Booking Automatically Cancelled (${booking.referenceCode})`,
-            eyebrow: "BOOKING AUTO-CANCELLED",
-            heading: `Hi ${booking.guestName}, your hold has expired`,
-            intro:
-              "We didn't receive your DP and receipt within the hold window, so this booking request has been automatically cancelled and the dates have been released. If you'd still like to stay with us, you're welcome to submit a new booking request anytime.",
+            eyebrow: renderTemplateText(autoCancelledTemplate.eyebrowText, mergeVars),
+            heading: renderTemplateText(autoCancelledTemplate.headingText, mergeVars),
+            intro: renderTemplateText(autoCancelledTemplate.introMessage, mergeVars),
             highlightLine1: `Reference code: ${booking.referenceCode}`,
             highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
-            bodyMessage:
-              "No further action is needed on this request. If you already sent your DP and this is a mistake, please contact us right away with your reference code.",
+            bodyMessage: renderTemplateText(autoCancelledTemplate.bodyMessage, mergeVars),
           });
         } catch (error) {
           console.error(

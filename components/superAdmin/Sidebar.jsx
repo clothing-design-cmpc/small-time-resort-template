@@ -55,7 +55,7 @@ const navGroups = [
       { label: "Gallery", href: "/superAdmin/content/gallery" },
       { label: "Homepage", href: "/superAdmin/content/homepage" },
       { label: "Policies", href: "/superAdmin/content/policies" },
-      { label: "Booking Confirmation Email", href: "/superAdmin/content/booking-confirmation-email" },
+      { label: "Booking Email Templates", href: "/superAdmin/content/booking-confirmation-email" },
     ],
   },
   {

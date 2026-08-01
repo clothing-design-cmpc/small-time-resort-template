@@ -15,7 +15,7 @@ export default function BookingConfirmationEmailError({ error, reset }) {
   return (
     <section className="bceSection">
       <h1 className="bceTitle">Something went wrong</h1>
-      <p>We couldn&apos;t load the Booking Confirmation Email page. Please try again.</p>
+      <p>We couldn&apos;t load the Booking Email Templates page. Please try again.</p>
       <button type="button" className="bceSaveButton" onClick={reset}>
         Try again
       </button>

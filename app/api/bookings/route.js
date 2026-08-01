@@ -52,6 +52,7 @@ import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { generateUniqueReferenceCode } from "@/services/referenceCode";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 import { isExclusionViolation, isSerializationFailure } from "@/services/pgErrorCodes";
 import { getGlobalPendingHoldHours } from "@/services/pendingHoldHours";
 
@@ -309,17 +310,23 @@ export async function POST(request) {
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${booking.id}/invoice` : null;
     const directionsUrl = siteUrl ? `${siteUrl}/visitor/directions` : null;
+
+    // Admin-editable copy (super-admin > Content > Booking Email
+    // Templates > Booking Pending). Merge tags are filled in below
+    // before this text is sent — see services/bookingEmailTemplates.js.
+    const pendingTemplate = await getOrCreateEmailTemplate("pending");
+    const mergeVars = { guestName: payload.guestName, pendingHoldHours };
+
     await sendGeneralEmail({
       toEmail: payload.guestEmail,
       subject: `your-private-resort — Booking Request Received (${booking.referenceCode})`,
-      eyebrow: "BOOKING PENDING",
-      heading: `Thanks, ${payload.guestName}!`,
-      intro:
-        "We've received your booking request and are holding your dates. To confirm it, please send us your invoice PDF on Facebook Messenger — the instructions are printed on it. Keep your reference code below too; you'll need it once confirmed to unlock turn-by-turn directions.",
+      eyebrow: renderTemplateText(pendingTemplate.eyebrowText, mergeVars),
+      heading: renderTemplateText(pendingTemplate.headingText, mergeVars),
+      intro: renderTemplateText(pendingTemplate.introMessage, mergeVars),
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${quote.checkInDate} → ${quote.checkOutDate}`,
       bodyMessage: [
-        `What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have ${pendingHoldHours} hours from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.`,
+        renderTemplateText(pendingTemplate.bodyMessage, mergeVars),
         invoiceUrl
           ? `Download your invoice (with confirmation instructions) here: ${invoiceUrl}`
           : "Your invoice with the reference code and confirmation instructions is also available on the booking page.",

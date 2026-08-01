@@ -41,6 +41,7 @@ import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 import { getActiveBookingRule } from "@/services/bookingRules";
 import { getRebookingPolicy, evaluateRebookingEligibility } from "@/services/rebookingPolicy";
 
@@ -296,17 +297,25 @@ export async function POST(request) {
       // moved booking. Mirrors the confirmation email sent at booking
       // creation, but calls out that this is an updated invoice for
       // rebooked dates.
+      // Admin-editable copy (super-admin > Content > Booking Email
+      // Templates > Booking Rebooked). bodyMessage is an optional extra
+      // note the admin can add above the (always dynamic) invoice link.
+      const rebookedTemplate = await getOrCreateEmailTemplate("rebooked");
+      const mergeVars = { guestName: updatedBooking.guestName };
+      const adminBodyNote = renderTemplateText(rebookedTemplate.bodyMessage, mergeVars);
+      const invoiceLine = invoiceUrl
+        ? `Download your updated invoice here: ${invoiceUrl}`
+        : "Your updated invoice with the reference code above is also available on the booking confirmation page.";
+
       await sendGeneralEmail({
         toEmail: updatedBooking.guestEmail,
         subject: `your-private-resort — Booking Rebooked (${updatedBooking.referenceCode})`,
-        eyebrow: "BOOKING REBOOKED",
-        heading: `Your dates have been updated, ${updatedBooking.guestName}!`,
-        intro: "Your stay at your-private-resort has been moved to the new dates below. Your reference code stays the same.",
+        eyebrow: renderTemplateText(rebookedTemplate.eyebrowText, mergeVars),
+        heading: renderTemplateText(rebookedTemplate.headingText, mergeVars),
+        intro: renderTemplateText(rebookedTemplate.introMessage, mergeVars),
         highlightLine1: `Reference code: ${updatedBooking.referenceCode}`,
         highlightLine2: `${payload.checkInDate} → ${payload.checkOutDate}`,
-        bodyMessage: invoiceUrl
-          ? `Download your updated invoice here: ${invoiceUrl}`
-          : "Your updated invoice with the reference code above is also available on the booking confirmation page.",
+        bodyMessage: [adminBodyNote, invoiceLine].filter(Boolean).join("\n\n"),
       });
     } catch (error) {
       console.error("[api/bookings/manage/reschedule] Failed to send rebooked confirmation email:", error.message);

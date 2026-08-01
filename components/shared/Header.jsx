@@ -4,7 +4,9 @@
  *
  * PURPOSE:
  * Sticky top navigation. Logo on left, nav links in center, Book Now CTA on right.
- * Mobile: hamburger menu toggles a dropdown nav. Desktop: full horizontal bar.
+ * Mobile + tablet (up to 1023px): hamburger menu toggles a dropdown nav.
+ * Desktop (1024px+): full horizontal bar. Breakpoint lives in
+ * app/styles/mediaQueries.css, not here.
  *
  * DATA FLOW:
  * 1. Rendered inside app/visitor/layout.jsx above {children}

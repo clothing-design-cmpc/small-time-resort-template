@@ -17,7 +17,40 @@
  * 768px — Tablet / landscape phones
  * ============================================================ */
 @media (min-width: 768px) {
-  /* Header — show desktop nav, hide hamburger */
+  /* Hero */
+  .heroTitle {
+    font-size: 3rem;
+  }
+
+  /* Footer grid — two columns on tablet */
+  .footerContainer {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ============================================================
+ * HEADER — hamburger stays through tablet sizes.
+ * Mobile + tablet (up to 1023px): hamburger menu only.
+ * 1024px+ (small laptop/desktop): full horizontal nav + Book Now.
+ * Kept in its own block, separate from the general 768px/1024px
+ * blocks above, so this breakpoint can move independently of the
+ * hero/footer tablet overrides.
+ * ============================================================ */
+@media (max-width: 1023px) {
+  .headerNav {
+    display: none;
+  }
+
+  .headerBookButton {
+    display: none;
+  }
+
+  .headerHamburger {
+    display: flex;
+  }
+}
+
+@media (min-width: 1024px) {
   .headerHamburger {
     display: none !important;
   }
@@ -32,16 +65,6 @@
 
   .headerMobileMenu {
     display: none !important;
-  }
-
-  /* Hero */
-  .heroTitle {
-    font-size: 3rem;
-  }
-
-  /* Footer grid — two columns on tablet */
-  .footerContainer {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -71,21 +94,10 @@
 
 /* ============================================================
  * Mobile-only overrides (max-width: 767px)
- * Header: hide desktop nav + book button, show hamburger
+ * (Header hamburger/nav toggle now lives in its own block above,
+ * scoped to max-width: 1023px so it also covers tablet sizes.)
  * ============================================================ */
 @media (max-width: 767px) {
-  .headerNav {
-    display: none;
-  }
-
-  .headerBookButton {
-    display: none;
-  }
-
-  .headerHamburger {
-    display: flex;
-  }
-
   /* Admin top bar — Date/Time/Event/Season badges take up too much
      width alongside the session timer + user menu on narrow screens;
      hidden here rather than shrunk further, since truncated versions

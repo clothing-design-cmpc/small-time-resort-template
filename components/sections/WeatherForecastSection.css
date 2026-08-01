@@ -52,12 +52,15 @@
 
 /*
  * .weatherForecastGrid
- * Auto-fill grid of day cards — reflows column count on its own with
- * no breakpoints needed (Rule 23.2).
+ * Flex-wrap row of day cards, centered as a group — same pattern as
+ * .amenitiesHighlightGrid — so 4 cards (or any count) sit centered
+ * instead of hugging the left edge like an auto-fill grid track would.
  */
 .weatherForecastGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-md);
   width: 100%;
 }
@@ -79,6 +82,8 @@
   background-color: var(--color-surface);
   box-shadow: var(--shadow-card);
   text-align: center;
+  flex: 1 1 160px;
+  max-width: 220px;
   transition: background-color var(--transition-base, 0.25s ease), border-color var(--transition-base, 0.25s ease);
 }
 

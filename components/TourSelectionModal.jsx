@@ -32,6 +32,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { formatTime12Hour } from "@/utils/formatTime";
 import "./TourSelectionModal.css";
 
 const OPTIONS = [
@@ -39,16 +40,22 @@ const OPTIONS = [
     value: "overnight",
     label: "Overnight Stay",
     description: "Keep the room you just picked for the night.",
+    startTimeKey: "checkInTime",
+    endTimeKey: "checkOutTime",
   },
   {
     value: "day_tour",
     label: "Day Tour",
     description: "A same-day visit — no overnight stay.",
+    startTimeKey: "dayTourStartTime",
+    endTimeKey: "dayTourEndTime",
   },
   {
     value: "night_tour",
     label: "Night Tour",
     description: "An evening visit — no overnight stay.",
+    startTimeKey: "nightTourStartTime",
+    endTimeKey: "nightTourEndTime",
   },
 ];
 
@@ -60,6 +67,7 @@ export default function TourSelectionModal({
   allowDayTour,
   allowNightTour,
   checkoutNotice,
+  timeWindows,
   onSelectType,
   onClose,
 }) {
@@ -123,17 +131,32 @@ export default function TourSelectionModal({
           </div>
         ) : (
           <div className="tourSelectionGrid">
-            {availableOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className="tourSelectionCard"
-                onClick={() => onSelectType(option.value)}
-              >
-                <p className="tourSelectionCardName">{option.label}</p>
-                <p className="tourSelectionCardDescription">{option.description}</p>
-              </button>
-            ))}
+            {availableOptions.map((option) => {
+              // Each option's own start/end "HH:mm" straight off the
+              // active rule(s), formatted for display — never shown if
+              // the rule fetch hasn't resolved yet or the field is
+              // genuinely missing, so a still-loading state never
+              // flashes a broken "undefined – undefined" range.
+              const startTime = timeWindows?.[option.startTimeKey];
+              const endTime = timeWindows?.[option.endTimeKey];
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="tourSelectionCard"
+                  onClick={() => onSelectType(option.value)}
+                >
+                  <p className="tourSelectionCardName">{option.label}</p>
+                  <p className="tourSelectionCardDescription">{option.description}</p>
+                  {startTime && endTime && (
+                    <p className="tourSelectionCardTimeRange">
+                      {formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

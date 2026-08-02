@@ -188,6 +188,19 @@ export default function HowToBookSection() {
   // of an existing overnight stay, so visitors know why a Tour option
   // might be unavailable that day before they even tap Continue.
   const [checkOutTime, setCheckOutTime] = useState(null);
+  // Every booking type's check-in/check-out window, straight off the
+  // active rule(s) — passed to TourSelectionModal (Step 3) so each
+  // option can show its actual time range, not just a plain-English
+  // description. Same "HH:mm" shape the rule stores; formatted for
+  // display inside TourSelectionModal via utils/formatTime.js.
+  const [tourTimeWindows, setTourTimeWindows] = useState({
+    checkInTime: null,
+    checkOutTime: null,
+    dayTourStartTime: null,
+    dayTourEndTime: null,
+    nightTourStartTime: null,
+    nightTourEndTime: null,
+  });
 
   // Set only once the Overnight rule check in handleContinue() below has
   // passed for the visitor's selected dates — opens RoomSelectionModal
@@ -226,6 +239,14 @@ export default function HowToBookSection() {
         if (isCancelled) return;
         setAllowOvernightStay(Boolean(response.data?.data?.allowOvernightStay));
         setCheckOutTime(response.data?.data?.checkOutTime ?? null);
+        setTourTimeWindows({
+          checkInTime: response.data?.data?.checkInTime ?? null,
+          checkOutTime: response.data?.data?.checkOutTime ?? null,
+          dayTourStartTime: response.data?.data?.dayTourStartTime ?? null,
+          dayTourEndTime: response.data?.data?.dayTourEndTime ?? null,
+          nightTourStartTime: response.data?.data?.nightTourStartTime ?? null,
+          nightTourEndTime: response.data?.data?.nightTourEndTime ?? null,
+        });
       } catch {
         if (!isCancelled) setAllowOvernightStay(false);
       }
@@ -765,6 +786,7 @@ export default function HowToBookSection() {
         dayTourPricePerGuest={tourSelectionRequest?.dayTourPricePerGuest}
         nightTourPricePerGuest={tourSelectionRequest?.nightTourPricePerGuest}
         checkoutNotice={tourSelectionRequest?.checkoutNotice}
+        timeWindows={tourTimeWindows}
         onSelectType={handleTourTypeSelected}
         onClose={() => setTourSelectionRequest(null)}
       />

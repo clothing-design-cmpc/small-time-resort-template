@@ -173,6 +173,13 @@
   margin: 0;
 }
 
+.tourSelectionCardTimeRange {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: var(--space-xs) 0 0;
+}
+
 .tourSelectionCardPrice {
   font-size: 0.9rem;
   font-weight: 600;

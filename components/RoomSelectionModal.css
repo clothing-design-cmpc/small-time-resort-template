@@ -130,6 +130,64 @@
   color: var(--color-text-secondary);
 }
 
+.roomSelectionExistingBookingCountdown {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-warning);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * .roomSelectionInfoIconWrapper
+ * Wraps the "!" icon so its tooltip can be positioned relative to it
+ * and revealed on hover/focus — focusable (tabIndex 0 on the parent)
+ * so keyboard users reach the same explanation mouse users get.
+ */
+.roomSelectionInfoIconWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  cursor: default;
+  transition: color var(--transition-fast);
+}
+
+.roomSelectionInfoIconWrapper:hover,
+.roomSelectionInfoIconWrapper:focus-visible {
+  color: var(--color-warning);
+}
+
+.roomSelectionInfoTooltip {
+  position: absolute;
+  bottom: calc(100% + var(--space-xs));
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 220px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  background-color: var(--color-text-primary);
+  color: var(--color-bg);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  z-index: var(--z-tooltip);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.roomSelectionInfoIconWrapper:hover .roomSelectionInfoTooltip,
+.roomSelectionInfoIconWrapper:focus-visible .roomSelectionInfoTooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /*
  * .roomSelectionGrid
  * Auto-responsive card grid — reflows without breakpoints (Rule 23.2).

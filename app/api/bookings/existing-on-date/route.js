@@ -14,10 +14,12 @@
  * purely informational, same spirit as BookedDatesSection's busy-dates
  * display, just with the specific booking's name/status/type surfaced.
  *
- * Only guestName, status, and bookingType are returned — never email,
- * phone, notes, IP, or any other field on the row (Rule 18's
- * least-exposure principle applies even though this endpoint is
- * intentionally public-facing by request).
+ * Only guestName, status, bookingType, and (for "pending" rows only)
+ * pendingExpiresAt are returned — never email, phone, notes, IP, or
+ * any other field on the row (Rule 18's least-exposure principle
+ * applies even though this endpoint is intentionally public-facing by
+ * request). pendingExpiresAt powers RoomSelectionModal.jsx's live DP
+ * Countdown display for a pending booking still waiting on payment.
  *
  * DATA FLOW:
  * 1. RoomSelectionModal calls GET /api/bookings/existing-on-date?checkin=&checkout=
@@ -84,6 +86,7 @@ export async function GET(request) {
         bookingType: true,
         checkInDate: true,
         checkOutDate: true,
+        pendingExpiresAt: true,
       },
       orderBy: { createdAt: "asc" },
     });
@@ -107,6 +110,10 @@ export async function GET(request) {
         guestName: booking.guestName,
         status: booking.status,
         bookingType: booking.bookingType,
+        // Only meaningful while status is "pending" — the DP Countdown
+        // widget in RoomSelectionModal.jsx uses this to tick down live.
+        // null for "confirmed" (nothing to wait on).
+        pendingExpiresAt: booking.status === "pending" ? booking.pendingExpiresAt : null,
       }));
 
     return NextResponse.json({

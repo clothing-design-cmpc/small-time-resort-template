@@ -27,7 +27,7 @@ import ToastStack from "@/app/superAdmin/shared/ToastStack";
 import EmailTemplateTabs from "./EmailTemplateTabs";
 import ConfirmedEmailTemplateForm from "./ConfirmedEmailTemplateForm";
 import GenericEmailTemplateForm from "./GenericEmailTemplateForm";
-import { TEMPLATE_LABELS } from "@/services/bookingEmailTemplates";
+import { TEMPLATE_LABELS } from "@/services/bookingEmailTemplateConstants";
 import "./BookingConfirmationEmail.css";
 
 // Tab order shown to the admin — mirrors the actual booking lifecycle

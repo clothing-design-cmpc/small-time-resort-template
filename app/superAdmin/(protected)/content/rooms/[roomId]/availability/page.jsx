@@ -28,16 +28,26 @@ export default async function RoomAvailabilityPage({ params }) {
     notFound();
   }
 
-  // Read-only reference list for the admin — every confirmed, not-yet-
-  // finished booking for this room, soonest first.
+  // Read-only reference list for the admin — every booking still
+  // holding a date for this room, soonest first. Includes "pending"
+  // bookings whose hold hasn't expired (or is capped, per
+  // pendingHoldCapped) alongside "confirmed" ones — matching the exact
+  // same rule app/api/bookings/dates/route.js already uses to decide
+  // what blocks a date on the public calendar. Without this, a fresh
+  // pending booking (e.g. "+1" on the Bookings sidebar badge) would
+  // occupy the date but never appear here or color the calendar cell
+  // "Booked," making it look like nothing is scheduled.
   const upcomingBookings = await prisma.booking.findMany({
     where: {
       roomId,
-      status: "confirmed",
       checkOutDate: { gte: new Date(new Date().toDateString()) },
+      OR: [
+        { status: "confirmed" },
+        { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
+      ],
     },
     orderBy: { checkInDate: "asc" },
-    select: { id: true, guestName: true, checkInDate: true, checkOutDate: true, numberOfGuests: true },
+    select: { id: true, guestName: true, checkInDate: true, checkOutDate: true, numberOfGuests: true, status: true },
   });
 
   // Dates aren't serializable as-is across the Server -> Client

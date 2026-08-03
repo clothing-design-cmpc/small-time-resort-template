@@ -86,46 +86,44 @@ function expandOvernightRange(checkIn, checkOut) {
 
 export async function GET() {
   try {
-    const bookings = await prisma.booking.findMany({
-      // "pending" holds these dates the same as "confirmed" (DP
-      // Countdown soft-hold — see Booking.pendingExpiresAt) so the
-      // visitor calendar shows them as unavailable while awaiting
-      // owner confirmation, not just after it. But a "pending" row
-      // whose pendingExpiresAt has already passed is stale — it's only
-      // still "pending" in the DB because app/api/cron/booking-expiry/
-      // route.js hasn't swept it to "expired" YET (runs every 15
-      // minutes in production; doesn't run at all outside a deployed
-      // Vercel Cron, e.g. local dev). Never trust the cron to have
-      // already run before deciding what's actually blocking a
-      // date — same defense-in-depth reasoning as the DB-level EXCLUDE
-      // constraint backing up the app-level overlap check. A genuinely
-      // still-open hold (pendingExpiresAt in the future) still blocks
-      // normally.
-      // "pending" holds these dates the same as "confirmed" (DP
-      // Countdown soft-hold — see Booking.pendingExpiresAt) so the
-      // visitor calendar shows them as unavailable while awaiting
-      // owner confirmation, not just after it. But a "pending" row
-      // whose pendingExpiresAt has already passed is stale — it's only
-      // still "pending" in the DB because app/api/cron/booking-expiry/
-      // route.js hasn't swept it to "expired" YET (runs every 15
-      // minutes in production; doesn't run at all outside a deployed
-      // Vercel Cron, e.g. local dev). Never trust the cron to have
-      // already run before deciding what's actually blocking a
-      // date — same defense-in-depth reasoning as the DB-level EXCLUDE
-      // constraint backing up the app-level overlap check. A genuinely
-      // still-open hold (pendingExpiresAt in the future) still blocks
-      // normally. EXCEPTION: a short-window (capped) hold past its
-      // scheduled start is NEVER swept by that cron — a super-admin
-      // decides manually (Booking.pendingHoldCapped) — so it must keep
-      // blocking the date even once its pendingExpiresAt is in the past.
-      where: {
-        OR: [
-          { status: "confirmed" },
-          { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
-        ],
-      },
-      select: { checkInDate: true, checkOutDate: true, bookingType: true },
-    });
+    const [bookings, blackoutDates] = await Promise.all([
+      prisma.booking.findMany({
+        // "pending" holds these dates the same as "confirmed" (DP
+        // Countdown soft-hold — see Booking.pendingExpiresAt) so the
+        // visitor calendar shows them as unavailable while awaiting
+        // owner confirmation, not just after it. But a "pending" row
+        // whose pendingExpiresAt has already passed is stale — it's only
+        // still "pending" in the DB because app/api/cron/booking-expiry/
+        // route.js hasn't swept it to "expired" YET (runs every 15
+        // minutes in production; doesn't run at all outside a deployed
+        // Vercel Cron, e.g. local dev). Never trust the cron to have
+        // already run before deciding what's actually blocking a
+        // date — same defense-in-depth reasoning as the DB-level EXCLUDE
+        // constraint backing up the app-level overlap check. A genuinely
+        // still-open hold (pendingExpiresAt in the future) still blocks
+        // normally. EXCEPTION: a short-window (capped) hold past its
+        // scheduled start is NEVER swept by that cron — a super-admin
+        // decides manually (Booking.pendingHoldCapped) — so it must keep
+        // blocking the date even once its pendingExpiresAt is in the past.
+        where: {
+          OR: [
+            { status: "confirmed" },
+            { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
+          ],
+        },
+        select: { checkInDate: true, checkOutDate: true, bookingType: true },
+      }),
+      // Admin-set blackouts (Booking Rules Section 6 / Room Availability
+      // "Block This Week" etc.) — previously never queried here at all,
+      // so a super-admin block never reflected on the visitor calendars.
+      // roomId is intentionally ignored: the public calendar is
+      // resort-wide (single villa, exclusive-use booking model — same
+      // "Overnight blocks EVERYTHING" reasoning as the file header
+      // above), so a block on ANY room takes the whole resort off the
+      // visitor calendar for that date, matching what "Blocked" means
+      // on the admin Room Availability page.
+      prisma.blackoutDate.findMany({ select: { startDate: true, endDate: true } }),
+    ]);
 
     // Tracked separately per type so the calendar can apply the
     // exclusivity rule described in the file header instead of one
@@ -158,6 +156,23 @@ export async function GET() {
         const key = toDateKey(booking.checkInDate);
         if (booking.bookingType === "day_tour") dayTourSet.add(key);
         else if (booking.bookingType === "night_tour") nightTourSet.add(key);
+      }
+    }
+
+    // Blackout ranges block every booking type equally (an admin
+    // "block" means the resort is closed that day, period) — inclusive
+    // of both startDate and endDate, unlike expandOvernightRange's
+    // checkout-exclusive convention, since a blackout has no "checkout"
+    // concept.
+    for (const blackout of blackoutDates) {
+      const cursor = new Date(blackout.startDate.getFullYear(), blackout.startDate.getMonth(), blackout.startDate.getDate());
+      const stop = new Date(blackout.endDate.getFullYear(), blackout.endDate.getMonth(), blackout.endDate.getDate());
+      while (cursor <= stop) {
+        const key = toDateKey(cursor);
+        overnightSet.add(key);
+        dayTourSet.add(key);
+        nightTourSet.add(key);
+        cursor.setDate(cursor.getDate() + 1);
       }
     }
 

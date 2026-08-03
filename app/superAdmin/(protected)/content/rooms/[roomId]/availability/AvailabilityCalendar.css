@@ -179,6 +179,27 @@
   color: var(--color-text-primary);
 }
 
+/*
+ * .availabilityBookingsPendingBadge
+ * Small inline pill next to a guest's name, flagging that this
+ * booking is holding the date but hasn't been confirmed yet (still
+ * status "pending") — distinguishes it from confirmed bookings in the
+ * same list without needing a separate section.
+ */
+.availabilityBookingsPendingBadge {
+  display: inline-block;
+  margin-left: var(--space-sm);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 999px;
+}
+
 .availabilityBookingsDates,
 .availabilityBookingsGuests {
   font-size: 0.85rem;

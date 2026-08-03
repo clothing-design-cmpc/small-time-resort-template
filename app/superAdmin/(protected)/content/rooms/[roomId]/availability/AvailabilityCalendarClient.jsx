@@ -257,7 +257,10 @@ export default function AvailabilityCalendarClient({ roomId, roomName, upcomingB
           <ul className="availabilityBookingsList">
             {upcomingBookings.map((booking) => (
               <li key={booking.id} className="availabilityBookingsRow">
-                <span className="availabilityBookingsGuest">{booking.guestName}</span>
+                <span className="availabilityBookingsGuest">
+                  {booking.guestName}
+                  {booking.status === "pending" && <span className="availabilityBookingsPendingBadge">Pending</span>}
+                </span>
                 <span className="availabilityBookingsDates">{booking.checkInDate} → {booking.checkOutDate}</span>
                 <span className="availabilityBookingsGuests">{booking.numberOfGuests} guest{booking.numberOfGuests === 1 ? "" : "s"}</span>
               </li>

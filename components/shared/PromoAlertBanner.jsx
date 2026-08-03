@@ -25,9 +25,10 @@
  * 3. Headlines the SOONEST cluster; if more clusters exist, shows a
  *    "+N more promo date(s)" tail so the banner never turns into a wall
  *    of text
- * 4. Dismissible per page-view only (plain component state, not
- *    persisted) — reappears on the next page load/reload so a
- *    still-active promo keeps getting surfaced to new visits
+ * 4. Not dismissible — as long as an active promo cluster exists, this
+ *    banner stays on screen. The message enters from the right edge
+ *    of the viewport and scrolls to a full left exit, then loops
+ *    (right-to-left "ticker" motion, not a seamless wrap-around).
  * 5. Every finished promo date is auto-deleted from the database by
  *    app/api/cron/promo-cleanup/route.js (daily), so this banner and
  *    the visitor calendar's promo dots never have to filter out stale
@@ -114,7 +115,6 @@ function formatClusterRange(cluster) {
 
 export default function PromoAlertBanner() {
   const [clusters, setClusters] = useState([]);
-  const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
@@ -137,7 +137,7 @@ export default function PromoAlertBanner() {
     };
   }, []);
 
-  if (isDismissed || clusters.length === 0) return null;
+  if (clusters.length === 0) return null;
 
   const [headlineCluster, ...restClusters] = clusters;
   const appliesToLabel = APPLIES_TO_LABEL[headlineCluster.appliesTo] ?? "bookings";
@@ -154,25 +154,15 @@ export default function PromoAlertBanner() {
   return (
     <div className="promoAlertBanner" role="status">
       <span className="promoAlertBannerIcon" aria-hidden="true">🎉</span>
-      {/* Marquee track — two copies of the same message placed
-          side-by-side and animated together so the loop reads as
-          continuous ("running text") instead of snapping back to the
-          start. Only this inner track scrolls; the icon and dismiss
-          button stay put on either side. */}
+      {/* Marquee track — a single copy of the message that enters from
+          the right edge of the viewport and exits fully past the left
+          edge, then loops (ticker-style right-to-left motion). Only
+          this inner track scrolls; the icon stays put. */}
       <div className="promoAlertBannerMarquee">
         <div className="promoAlertBannerMarqueeTrack">
           <p className="promoAlertBannerText">{messageText}</p>
-          <p className="promoAlertBannerText" aria-hidden="true">{messageText}</p>
         </div>
       </div>
-      <button
-        type="button"
-        className="promoAlertBannerDismiss"
-        onClick={() => setIsDismissed(true)}
-        aria-label="Dismiss promo alert"
-      >
-        ✕
-      </button>
     </div>
   );
 }

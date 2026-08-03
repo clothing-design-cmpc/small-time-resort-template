@@ -659,6 +659,36 @@ export default function HowToBookSection() {
     router.push(`/visitor/booking?${params.toString()}`);
   }
 
+  /**
+   * handleTourSelectionBack
+   * Fired when the visitor taps "Back" inside TourSelectionModal
+   * (Step 3) — re-opens RoomSelectionModal (Step 2) with the exact
+   * same dates/rule/allow-flags/notices that were already resolved
+   * the first time through, so the visitor can pick a different room
+   * without losing their selected date and without a full network
+   * refetch. singleDateFlow: true is restored so handleRoomSelected
+   * routes back into TourSelectionModal again afterward, same as the
+   * original forward path.
+   */
+  function handleTourSelectionBack() {
+    if (!tourSelectionRequest) return;
+    setRoomModalRequest({
+      checkInDate: tourSelectionRequest.checkInDate,
+      checkOutDate: tourSelectionRequest.checkOutDate,
+      ruleId: tourSelectionRequest.ruleId,
+      singleDateFlow: true,
+      allowOvernightStay: tourSelectionRequest.allowOvernightStay,
+      allowDayTour: tourSelectionRequest.allowDayTour,
+      allowNightTour: tourSelectionRequest.allowNightTour,
+      dayTourPricePerGuest: tourSelectionRequest.dayTourPricePerGuest,
+      nightTourPricePerGuest: tourSelectionRequest.nightTourPricePerGuest,
+      checkoutNotice: tourSelectionRequest.checkoutNotice,
+      timeWindows: tourSelectionRequest.timeWindows,
+      promoEntries: tourSelectionRequest.promoEntries,
+    });
+    setTourSelectionRequest(null);
+  }
+
   return (
     <section id="how-to-book" className="howToBookSection">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
@@ -902,6 +932,7 @@ export default function HowToBookSection() {
         checkoutNotice={tourSelectionRequest?.checkoutNotice}
         timeWindows={tourSelectionRequest?.timeWindows}
         promoEntries={tourSelectionRequest?.promoEntries}
+        onBack={handleTourSelectionBack}
         onSelectType={handleTourTypeSelected}
         onClose={() => setTourSelectionRequest(null)}
       />

@@ -20,6 +20,13 @@
  * 3. Tapping a room card calls onSelectRoom(room) — the caller is
  *    responsible for the actual navigation, this component only ever
  *    reports the choice
+ * 4. "Back" and "Close" both call onClose — the caller (HowToBookSection)
+ *    already clears roomModalRequest on close, which returns the
+ *    visitor to the Step 1 calendar with their selected date(s) still
+ *    intact (the calendar's own selection state isn't cleared just
+ *    because this modal closes). "Back" is the same action as the X,
+ *    just explicitly labeled so it reads as a step back rather than a
+ *    full cancel.
  */
 "use client";
 
@@ -142,12 +149,20 @@ export default function RoomSelectionModal({
               Available rooms for {checkInDate}{checkOutDate && checkOutDate !== checkInDate ? ` – ${checkOutDate}` : ""}
             </p>
           </div>
-          <button type="button" className="roomSelectionCloseButton" aria-label="Close" onClick={onClose}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div className="roomSelectionHeaderActions">
+            <button type="button" className="roomSelectionBackButton" onClick={onClose}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back
+            </button>
+            <button type="button" className="roomSelectionCloseButton" aria-label="Close" onClick={onClose}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {existingBookings.length > 0 && (

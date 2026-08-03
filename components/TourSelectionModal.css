@@ -61,6 +61,50 @@
   margin: 0;
 }
 
+/*
+ * .tourSelectionHeaderActions
+ * Groups the Back and Close buttons together at the top-right of the
+ * dialog so they stay visually paired regardless of viewport width.
+ */
+.tourSelectionHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+/*
+ * .tourSelectionBackButton
+ * Returns the visitor to Room Selection (Step 2) without losing their
+ * selected date(s) — distinct from the Close (X) button, which cancels
+ * the whole flow back to the calendar. Pill-shaped so it reads as a
+ * secondary action next to the round Close button.
+ */
+.tourSelectionBackButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tourSelectionBackButton:hover,
+.tourSelectionBackButton:focus-visible,
+.tourSelectionBackButton:active {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+}
+
 .tourSelectionCloseButton {
   display: flex;
   align-items: center;

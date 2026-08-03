@@ -28,6 +28,11 @@
  * 2. Tapping an option calls onSelectType(bookingType) — the caller
  *    (HowToBookSection.handleTourTypeSelected) is responsible for the
  *    actual navigation, this component only ever reports the choice
+ * 3. Tapping "Back" calls onBack() — the caller re-opens
+ *    RoomSelectionModal with the same dates so the visitor can pick a
+ *    different room without losing their selected date(s) and having
+ *    to restart from the calendar. Separate from onClose (the X
+ *    button), which cancels the whole flow back to the calendar.
  *
  * PROMO INDICATION — promoEntries:
  * Array of { discountPercent, appliesTo } for whichever Promo Dates
@@ -95,6 +100,7 @@ export default function TourSelectionModal({
   timeWindows,
   promoEntries,
   onSelectType,
+  onBack,
   onClose,
 }) {
   // Close on Escape — same keyboard-accessibility expectation as every
@@ -131,12 +137,22 @@ export default function TourSelectionModal({
               {checkInDate}{room ? ` · ${room.name}` : ""}
             </p>
           </div>
-          <button type="button" className="tourSelectionCloseButton" aria-label="Close" onClick={onClose}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div className="tourSelectionHeaderActions">
+            {onBack && (
+              <button type="button" className="tourSelectionBackButton" onClick={onBack}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back
+              </button>
+            )}
+            <button type="button" className="tourSelectionCloseButton" aria-label="Close" onClick={onClose}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {checkoutNotice && (

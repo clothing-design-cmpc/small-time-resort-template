@@ -47,6 +47,7 @@
  */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -86,6 +87,7 @@ function formatDateText(dateKey) {
 }
 
 export default function TourReservationSummaryClient({ checkInDate, bookingType, roomId, resortPhone, resortMessengerUsername }) {
+  const router = useRouter();
   const { bookingRules, isLoading: isRulesLoading, error: rulesError } = usePublicBookingRules();
   const { room, isLoading: isRoomLoading, error: roomError } = usePublicRoom(roomId);
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
@@ -326,6 +328,12 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
   return (
     <div className="reservationSummary">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
+      <button type="button" className="reservationSummaryBackLink" onClick={() => router.back()}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back
+      </button>
       {/* ─── Read-only text summary — package, date, tour time window,
           guest count, and pax/fee info. Nothing here is an editable
           input; the visitor already made these choices on the homepage

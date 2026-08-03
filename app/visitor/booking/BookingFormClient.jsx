@@ -356,6 +356,15 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
           )}
           <dt>Total</dt>
           <dd>{PESO.format(confirmedQuote.total)}</dd>
+          {confirmedQuote.promoNightsDiscounted > 0 && (
+            <>
+              <dt>Promo</dt>
+              <dd>
+                Applied on {confirmedQuote.promoNightsDiscounted}{" "}
+                {confirmedQuote.promoNightsDiscounted === 1 ? "date" : "dates"}
+              </dd>
+            </>
+          )}
           {confirmedQuote.depositRequired && (
             <>
               <dt>Deposit due</dt>
@@ -558,6 +567,21 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
       {quoteError && <p className="bookingFormQuoteError" role="alert">{quoteError}</p>}
       {quote && !quoteError && (
         <div className="bookingQuotePanel">
+          {/* Promo Date discount check (Section 5b) — bookingPricing.js
+              already silently applies this to `quote.total` below, but
+              without this banner the guest would never actually see
+              THAT a promo applied, just a total that happens to look
+              discounted with no explanation. promoNightsDiscounted is
+              a count of how many of the selected date(s) matched an
+              active promo, not the percent itself (different nights
+              can carry different discount percentages), so this stays
+              a plain confirmation rather than promising one exact %. */}
+          {quote.promoNightsDiscounted > 0 && (
+            <p className="bookingQuotePromoBanner">
+              🎉 Promo applied — discount for {quote.promoNightsDiscounted}{" "}
+              {quote.promoNightsDiscounted === 1 ? "date" : "dates"} already included in your total below.
+            </p>
+          )}
           {quote.nights > 0 && <p className="bookingQuoteRow"><span>Nights</span><span>{quote.nights}</span></p>}
           <p className="bookingQuoteRow bookingQuoteRowTotal"><span>Total</span><span>{PESO.format(quote.total)}</span></p>
           {quote.depositRequired && (

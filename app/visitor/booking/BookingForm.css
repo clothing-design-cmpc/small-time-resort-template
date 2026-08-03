@@ -176,6 +176,24 @@
   margin: 0;
 }
 
+/*
+ * .bookingQuotePromoBanner
+ * Confirms to the guest that an active Promo Date discount was applied
+ * to the total below — same pink accent as the homepage calendar's
+ * promo indicator (HowToBookSection.css) so the color language stays
+ * consistent across the whole booking flow.
+ */
+.bookingQuotePromoBanner {
+  margin: 0 0 var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ec4899;
+  background-color: rgba(236, 72, 153, 0.1);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  border-radius: 8px;
+}
+
 .bookingQuoteRowTotal {
   font-size: 1.15rem;
   font-weight: 700;

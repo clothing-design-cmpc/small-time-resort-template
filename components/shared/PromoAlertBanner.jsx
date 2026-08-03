@@ -24,7 +24,9 @@
  *    of listing every date separately
  * 3. Headlines the SOONEST cluster; if more clusters exist, shows a
  *    "+N more promo date(s)" tail so the banner never turns into a wall
- *    of text
+ *    of text. A small tag badge (Overnight / Day Tour / Night Tour /
+ *    All Types) sits right before the sentence so the tour type reads
+ *    at a glance.
  * 4. Not dismissible — as long as an active promo cluster exists, this
  *    banner stays on screen. The message enters from the right edge
  *    of the viewport and scrolls to a full left exit, then loops
@@ -34,21 +36,34 @@
  *    the visitor calendar's promo dots never have to filter out stale
  *    rows themselves beyond the date >= today check already in
  *    app/api/promo-dates/route.js
+ * 6. Renders nothing while Header's mobile hamburger dropdown is open
+ *    (shared isMobileMenuOpen from HeaderMenuContext, a sibling
+ *    provider both components sit inside in app/visitor/layout.jsx)
  */
 "use client";
 
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useHeaderMenu } from "./HeaderMenuContext";
 import "./PromoAlertBanner.css";
 
 const SHORT_DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
 const APPLIES_TO_LABEL = {
-  // Spelled out instead of the vague "all bookings" — the marquee
-  // should always name which tour type(s) the discount actually
-  // covers, even when the admin scoped it to every type at once.
-  all: "Overnight, Day Tour & Night Tour bookings",
+  all: "all bookings",
   overnight: "Overnight stays",
+  day_tour: "Day Tour",
+  night_tour: "Night Tour",
+};
+
+// Short chip label — distinct from APPLIES_TO_LABEL above (which reads
+// naturally inside the sentence, e.g. "5% OFF Overnight stays"). This
+// one sits in its own small pill right before the sentence so the tour
+// type is visible at a glance even before the marquee text scrolls
+// into view, without repeating the same phrase twice back to back.
+const APPLIES_TO_TAG = {
+  all: "All Types",
+  overnight: "Overnight",
   day_tour: "Day Tour",
   night_tour: "Night Tour",
 };
@@ -118,6 +133,7 @@ function formatClusterRange(cluster) {
 
 export default function PromoAlertBanner() {
   const [clusters, setClusters] = useState([]);
+  const { isMobileMenuOpen } = useHeaderMenu();
 
   useEffect(() => {
     let isCancelled = false;
@@ -140,13 +156,18 @@ export default function PromoAlertBanner() {
     };
   }, []);
 
-  if (clusters.length === 0) return null;
+  // Renders nothing while the Header's mobile dropdown is open — its
+  // sticky position (pinned at the COLLAPSED header height) would
+  // otherwise land visually in the middle of the taller open menu
+  // instead of below it (see HeaderMenuContext.jsx's file header).
+  if (clusters.length === 0 || isMobileMenuOpen) return null;
 
   const [headlineCluster, ...restClusters] = clusters;
   const appliesToLabel = APPLIES_TO_LABEL[headlineCluster.appliesTo] ?? "bookings";
 
   const messageText = (
     <>
+      <span className="promoAlertBannerTypeTag">{APPLIES_TO_TAG[headlineCluster.appliesTo] ?? "Promo"}</span>{" "}
       <strong>{headlineCluster.discountPercent}% OFF</strong> {appliesToLabel} — {formatClusterRange(headlineCluster)}
       {restClusters.length > 0 && (
         <span className="promoAlertBannerMore"> (+{restClusters.length} more promo date{restClusters.length > 1 ? "s" : ""})</span>

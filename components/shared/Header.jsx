@@ -9,8 +9,12 @@
  * app/styles/mediaQueries.css, not here.
  *
  * DATA FLOW:
- * 1. Rendered inside app/visitor/layout.jsx above {children}
- * 2. Local state (menuOpen) controls mobile menu visibility
+ * 1. Rendered inside app/visitor/layout.jsx above {children}, inside
+ *    <HeaderMenuProvider> alongside PromoAlertBanner (a sibling that
+ *    hides itself while the mobile dropdown is open — see
+ *    HeaderMenuContext.jsx's file header for why that's needed)
+ * 2. isMobileMenuOpen (from HeaderMenuContext) controls mobile menu
+ *    visibility, toggled by the hamburger button
  * 3. resortName is passed as a prop from app/visitor/layout.jsx (a
  *    Server Component, so it can read the singleton SystemSettings
  *    row) — this Client Component can't fetch it directly. Editable
@@ -18,8 +22,9 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { useHeaderMenu } from "./HeaderMenuContext";
 import "./Header.css";
 
 /*
@@ -46,7 +51,7 @@ const navLinks = [
 ];
 
 export default function Header({ resortName = "your-private-resort" }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { isMobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useHeaderMenu();
   const headerRef = useRef(null);
 
   // Keeps --header-height in sync with the header's actual rendered
@@ -114,11 +119,11 @@ export default function Header({ resortName = "your-private-resort" }) {
         {/* Hamburger — mobile only */}
         <button
           className="headerHamburger"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={isMobileMenuOpen}
+          onClick={toggleMobileMenu}
         >
-          {menuOpen ? (
+          {isMobileMenuOpen ? (
             /* X icon */
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -136,14 +141,14 @@ export default function Header({ resortName = "your-private-resort" }) {
       </div>
 
       {/* Mobile dropdown menu */}
-      {menuOpen && (
+      {isMobileMenuOpen && (
         <nav className="headerMobileMenu" aria-label="Mobile navigation">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className="headerMobileNavLink"
-              onClick={() => setMenuOpen(false)}
+              onClick={closeMobileMenu}
             >
               {link.label}
             </Link>
@@ -151,14 +156,14 @@ export default function Header({ resortName = "your-private-resort" }) {
           <Link
             href="/visitor#how-to-book"
             className="headerMobileBookButton"
-            onClick={() => setMenuOpen(false)}
+            onClick={closeMobileMenu}
           >
             Book Now
           </Link>
           <Link
             href="/superAdmin/login"
             className="headerMobileLoginLink"
-            onClick={() => setMenuOpen(false)}
+            onClick={closeMobileMenu}
           >
             Login
           </Link>

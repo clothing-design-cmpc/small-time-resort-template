@@ -10,12 +10,18 @@
  * DATA FLOW:
  * 1. Every route under app/visitor/ renders inside this layout's {children}
  * 2. No session check happens here — visitor pages are public by design
- * 3. Header and Footer are rendered once, shared across all visitor pages
+ * 3. Header and Footer are rendered once, shared across all visitor
+ *    pages. HeaderMenuProvider wraps Header + PromoAlertBanner/
+ *    {children} so Header's mobile hamburger dropdown and
+ *    PromoAlertBanner (which hides itself while that dropdown is open)
+ *    can share one "is it open" state despite being sibling components
+ *    — see HeaderMenuContext.jsx's file header for why that's needed.
  */
 import "./Visitor.css";
 import { prisma } from "@/services/prisma";
 import { isScheduledLockdownActive } from "@/services/scheduledLockdown";
 import Header from "@/components/shared/Header";
+import { HeaderMenuProvider } from "@/components/shared/HeaderMenuContext";
 import Footer from "@/components/shared/Footer";
 import ScrollToTopOnLoad from "@/components/shared/ScrollToTopOnLoad";
 import MaintenanceBanner from "@/components/shared/MaintenanceBanner";
@@ -198,15 +204,17 @@ export default async function VisitorLayout({ children }) {
         className={maintenanceMode ? "visitorInteractiveArea visitorInteractiveArea--disabled" : "visitorInteractiveArea"}
         inert={maintenanceMode || undefined}
       >
-        <Header resortName={resortName} />
-        {/* pt-[header height] so page content is never hidden behind the sticky header */}
-        <div className="visitorContent">
-          {/* Sticky — pinned right under the fixed Header so it stays
-              visible while the visitor scrolls, instead of scrolling
-              away after the first screenful. */}
-          <PromoAlertBanner />
-          {children}
-        </div>
+        <HeaderMenuProvider>
+          <Header resortName={resortName} />
+          {/* pt-[header height] so page content is never hidden behind the sticky header */}
+          <div className="visitorContent">
+            {/* Sticky — pinned right under the fixed Header so it stays
+                visible while the visitor scrolls, instead of scrolling
+                away after the first screenful. */}
+            <PromoAlertBanner />
+            {children}
+          </div>
+        </HeaderMenuProvider>
         <Footer />
         {/* Floating "request a callback" icon — walk-in/phone-in lead capture (audit item #11/#12) */}
         <WalkInChatWidget

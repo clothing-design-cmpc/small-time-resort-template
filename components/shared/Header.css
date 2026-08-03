@@ -164,6 +164,12 @@
  * .headerMobileMenu
  * Full-width dropdown below the header bar, mobile only.
  * Stacks nav links and Book Now button vertically.
+ *
+ * Explicit background + blur of its own (matching .siteHeader's own
+ * frosted-glass treatment) rather than relying on inheriting the
+ * parent <header>'s background — this dropdown needs to read as a
+ * solid panel over whatever page content sits underneath it, not let
+ * that content bleed through.
  */
 .headerMobileMenu {
   display: flex;
@@ -171,6 +177,9 @@
   padding: var(--space-md) var(--space-lg) var(--space-lg);
   border-top: 1px solid var(--color-border);
   gap: var(--space-xs);
+  background-color: rgba(248, 250, 243, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /*

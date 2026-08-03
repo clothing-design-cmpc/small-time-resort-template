@@ -721,15 +721,25 @@ export default function HowToBookSection() {
                 const promoDiscount = isOpen ? promoMap.get(cellKey) : undefined;
                 const isPromoDay = promoDiscount !== undefined;
 
+                // Red-circle-fill status (replaces the old tiny corner
+                // dots): a day is either fully red (completely booked —
+                // either truly unclickable Overnight via isBooked, or
+                // open-but-maxed via isFullyTourBookedDay) or half red
+                // (partially affected — a single Tour already booked,
+                // OR it's the checkout morning of a previous overnight
+                // stay). Fully takes priority over half on the rare date
+                // that could technically match both.
+                const isFullyRedDay = isFullyTourBookedDay;
+                const isHalfRedDay = !isFullyRedDay && (isCheckoutDay || isTourBookedDay);
+
                 let cls = "howToBookCalendarDay";
                 if (isBooked) cls += " howToBookCalendarDayBooked";
                 if (isPast && !isBooked) cls += " howToBookCalendarDayPast";
                 if (isToday) cls += " howToBookCalendarDayToday";
                 if (isOpen) cls += " howToBookCalendarDayOpen";
+                if (isFullyRedDay) cls += " howToBookCalendarDayFullyBooked";
+                if (isHalfRedDay) cls += " howToBookCalendarDayPartiallyBooked";
                 if (isSelected) cls += " howToBookCalendarDaySelected";
-                if (isCheckoutDay) cls += " howToBookCalendarDayCheckout";
-                if (isTourBookedDay) cls += " howToBookCalendarDayTourBooked";
-                if (isFullyTourBookedDay) cls += " howToBookCalendarDayFullyTourBooked";
                 if (isPromoDay) cls += " howToBookCalendarDayPromo";
 
                 return (
@@ -761,18 +771,15 @@ export default function HowToBookSection() {
                         : undefined
                     }
                   >
-                    {day}
-                    {isCheckoutDay && checkOutTime && (
-                      <span className="howToBookCalendarDayCheckoutBadge" aria-hidden="true" />
-                    )}
-                    {isTourBookedDay && (
-                      <span className="howToBookCalendarDayTourBookedBadge" aria-hidden="true" />
-                    )}
-                    {isFullyTourBookedDay && (
-                      <span className="howToBookCalendarDayFullyTourBookedBadge" aria-hidden="true" />
-                    )}
-                    {isPromoDay && (
-                      <span className="howToBookCalendarDayPromoBadge" aria-hidden="true" />
+                    {isPromoDay ? (
+                      <span className="howToBookCalendarDayPromoContent">
+                        <span className="howToBookCalendarDayPromoNumber">{day}</span>
+                        <span className="howToBookCalendarDayPromoDiscount" aria-hidden="true">
+                          -{promoDiscount}%
+                        </span>
+                      </span>
+                    ) : (
+                      day
                     )}
                   </button>
                 );
@@ -785,24 +792,16 @@ export default function HowToBookSection() {
                 Open — tap to select
               </span>
               <span className="howToBookCalendarLegendItem">
-                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotBooked" />
-                Booked
+                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotHalfRed" />
+                Partially booked
+              </span>
+              <span className="howToBookCalendarLegendItem">
+                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotFullRed" />
+                Fully booked
               </span>
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotToday" />
                 Today
-              </span>
-              <span className="howToBookCalendarLegendItem">
-                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotCheckout" />
-                Open, but a guest checks out that morning
-              </span>
-              <span className="howToBookCalendarLegendItem">
-                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotTourBooked" />
-                Open, but a Tour is already booked that day
-              </span>
-              <span className="howToBookCalendarLegendItem">
-                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotFullyTourBooked" />
-                Open, but Day Tour and Night Tour are both already booked
               </span>
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotPromo" />

@@ -163,11 +163,8 @@
 }
 
 /* Base day cell is a real <button> — every cell is a tap target, even
-   disabled ones, so the grid never reflows between open/closed days.
-   position: relative so the checkout-day corner marker below can be
-   absolutely positioned against the cell itself. */
+   disabled ones, so the grid never reflows between open/closed days. */
 .howToBookCalendarDay {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,8 +193,8 @@
 }
 
 .howToBookCalendarDayBooked {
-  background-color: rgba(192, 68, 42, 0.12);
-  color: #c0442a;
+  background-color: #c0442a;
+  color: #fff;
   font-weight: 600;
   cursor: not-allowed;
 }
@@ -214,101 +211,77 @@
   font-weight: 700;
 }
 
+/* Open day that's "half booked" — either it's the checkout morning of
+ * an existing overnight stay, or a single Tour (Day or Night, not
+ * both) is already booked here. Half the circle fills red so a
+ * visitor reads "partially affected" at a glance, without needing a
+ * tiny corner dot. Still fully clickable — see isHalfRedDay in
+ * HowToBookSection.jsx for exactly which two conditions map here. */
+.howToBookCalendarDayPartiallyBooked {
+  background: linear-gradient(90deg, #c0442a 50%, transparent 50%);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* Open day that's fully red — Day Tour AND Night Tour are both already
+ * booked (no Tour capacity left, and a new Overnight can't start here
+ * either). Same solid red fill as the truly-blocked
+ * .howToBookCalendarDayBooked above, but this day stays clickable
+ * (isOpen still applies) since the active rule may still allow
+ * something else here in the future. */
+.howToBookCalendarDayFullyBooked {
+  background-color: #c0442a;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Promo Date (Section 5b) — a subtle pink ring around the whole cell
+ * so it reads as "promo" even before the eye lands on the discount
+ * text inside, plus the day number and its discount stacked as one
+ * centered two-line block instead of a separate corner dot. */
+.howToBookCalendarDayPromo {
+  box-shadow: 0 0 0 1.5px #ec4899;
+}
+
+.howToBookCalendarDayPromoContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.howToBookCalendarDayPromoNumber {
+  font-size: 0.72rem;
+}
+
+.howToBookCalendarDayPromoDiscount {
+  margin-top: 1px;
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #ec4899;
+}
+
 /* Selected day — visitor has tapped this open date as part of their
-   stay range. Solid accent fill so multi-selected days read clearly
-   as a group at a glance, distinct from the outline-only Today state. */
+ * stay range. Solid accent fill so multi-selected days read clearly
+ * as a group, and deliberately placed AFTER the half/full-red and
+ * promo rules above so a visitor's own tap always wins visually over
+ * a booked/promo indicator on the same equal-specificity cell,
+ * regardless of which other states also apply to that date. */
 .howToBookCalendarDaySelected {
-  background-color: var(--color-accent);
+  background: var(--color-accent);
   color: #fff;
 }
 
 .howToBookCalendarDaySelected:hover,
 .howToBookCalendarDaySelected:focus-visible {
-  background-color: var(--color-accent);
+  background: var(--color-accent);
   opacity: 0.9;
 }
 
-/* Open day that's also the checkout day of an existing overnight stay —
- * small amber corner dot flags it without needing room for full text in
- * a ~32px cell. Full detail ("Checkout 11:00") is available via the
- * button's native title tooltip and its aria-label, and explained once
- * in the legend below. */
-.howToBookCalendarDayCheckoutBadge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background-color: var(--color-warning);
-}
-
-.howToBookCalendarLegendDotCheckout {
-  background-color: var(--color-warning);
-}
-
-/* Mirrors .howToBookCalendarDayCheckoutBadge above, but bottom-right
- * (not top-right) so it never visually collides with a checkout badge
- * on the rare date that carries both — see isTourBookedDay's comment
- * in HowToBookSection.jsx for when this applies. */
-.howToBookCalendarDayTourBookedBadge {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background-color: var(--color-info);
-}
-
-.howToBookCalendarLegendDotTourBooked {
-  background-color: var(--color-info);
-}
-
-/* Both Day Tour AND Night Tour already booked on this date — no Tour
- * capacity left. Deliberately a different color from both
- * .howToBookCalendarDayBooked (red — Overnight, fully blocked/
- * unclickable) and the single-tour blue dot above, so a visitor can
- * tell "no slots left" apart from "already fully unavailable" at a
- * glance instead of the two states reading identically. Day stays
- * clickable (howToBookCalendarDayOpen still applies) — this is purely
- * an awareness marker, same interaction pattern as the checkout and
- * single-tour-booked badges. */
-.howToBookCalendarDayFullyTourBookedBadge {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background-color: #8b5cf6;
-}
-
-.howToBookCalendarLegendDotFullyTourBooked {
-  background-color: #8b5cf6;
-}
-
-/* Promo Date (Section 5b) — top-left corner so it never collides with
- * the checkout badge (top-right) or the tour-booked badges
- * (bottom-right). Pink accent, distinct from every other status color
- * already in use on this calendar (red/amber/blue/purple). */
-.howToBookCalendarDayPromo {
-  outline: 1px dashed #ec4899;
-  outline-offset: -1px;
-}
-
-.howToBookCalendarDayPromoBadge {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background-color: #ec4899;
-}
-
-.howToBookCalendarLegendDotPromo {
-  background-color: #ec4899;
+.howToBookCalendarDaySelected .howToBookCalendarDayPromoDiscount {
+  color: #fff;
 }
 
 /* ─── Legend ─────────────────────────────────────────────────────────── */
@@ -342,12 +315,21 @@
   background-color: var(--color-accent);
 }
 
-.howToBookCalendarLegendDotBooked {
+.howToBookCalendarLegendDotHalfRed {
+  background: linear-gradient(90deg, #c0442a 50%, transparent 50%);
+  border: 1px solid rgba(192, 68, 42, 0.5);
+}
+
+.howToBookCalendarLegendDotFullRed {
   background-color: #c0442a;
 }
 
 .howToBookCalendarLegendDotToday {
   background-color: var(--color-border-hover);
+}
+
+.howToBookCalendarLegendDotPromo {
+  background-color: #ec4899;
 }
 
 /* ─── Selection row (multi-date continue) ───────────────────────────── */

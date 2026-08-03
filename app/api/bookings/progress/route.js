@@ -75,6 +75,8 @@ export async function POST(request) {
       status: true,
       createdAt: true,
       pendingExpiresAt: true,
+      pendingHoldCapped: true,
+      pendingHoldBreachedAt: true,
     },
   });
 
@@ -114,6 +116,17 @@ export async function POST(request) {
       pendingExpiresAt: booking.status === "pending" && booking.pendingExpiresAt
         ? booking.pendingExpiresAt.toISOString()
         : null,
+      // True when this hold was capped to the booking's own scheduled
+      // start (short-window, e.g. a Tour booked an hour or two before
+      // it begins) — see prisma/schema.prisma's pendingHoldCapped
+      // comment. The widget uses this to skip the "full countdown"
+      // framing and never claim the hold auto-cancels.
+      pendingHoldCapped: booking.status === "pending" ? booking.pendingHoldCapped : false,
+      // Set once the capped hold above has passed without confirmation —
+      // status stays "pending" (see app/api/cron/booking-expiry/route.js),
+      // so the widget shows "waiting on the resort" instead of a
+      // ticking-to-zero countdown.
+      pendingHoldBreached: booking.status === "pending" && Boolean(booking.pendingHoldBreachedAt),
     },
     message: "Booking found.",
   });

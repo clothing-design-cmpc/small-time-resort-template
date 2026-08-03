@@ -293,7 +293,9 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
             <li>
               Wait for the resort owner to confirm your booking
               {pendingHoldHours
-                ? ` — you have ${pendingHoldHours} hours from now to send your DP before these dates are released`
+                ? confirmedBookingRecord?.pendingHoldCapped
+                  ? ` — you have ${pendingHoldHours} hour${pendingHoldHours === 1 ? "" : "s"} from now, until your scheduled time, to send your DP`
+                  : ` — you have ${pendingHoldHours} hours from now to send your DP before these dates are released`
                 : ""}
               .
             </li>

@@ -149,10 +149,18 @@ export default function RoomSelectionModal({ isOpen, checkInDate, checkOutDate, 
                 </span>
                 <StatusBadge status={existingBooking.status} />
                 {existingBooking.status === "pending" && existingBooking.pendingExpiresAt && (
-                  <>
-                    <DPCountdown pendingExpiresAt={existingBooking.pendingExpiresAt} />
-                    <InfoTooltipIcon text="Waiting for DP & Bank Transfer confirmation." />
-                  </>
+                  existingBooking.pendingHoldBreached ? (
+                    // Short-window (capped) hold already past its scheduled
+                    // start — never auto-cancelled (Booking.pendingHoldCapped),
+                    // so no countdown to tick down to zero; a static tooltip
+                    // instead of DPCountdown avoids showing a stuck "0h 00m 00s".
+                    <InfoTooltipIcon text="Awaiting resort confirmation — this booking's scheduled time has passed." />
+                  ) : (
+                    <>
+                      <DPCountdown pendingExpiresAt={existingBooking.pendingExpiresAt} />
+                      <InfoTooltipIcon text="Waiting for DP & Bank Transfer confirmation." />
+                    </>
+                  )
                 )}
               </div>
             ))}

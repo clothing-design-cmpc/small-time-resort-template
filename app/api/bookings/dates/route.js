@@ -101,10 +101,27 @@ export async function GET() {
       // constraint backing up the app-level overlap check. A genuinely
       // still-open hold (pendingExpiresAt in the future) still blocks
       // normally.
+      // "pending" holds these dates the same as "confirmed" (DP
+      // Countdown soft-hold — see Booking.pendingExpiresAt) so the
+      // visitor calendar shows them as unavailable while awaiting
+      // owner confirmation, not just after it. But a "pending" row
+      // whose pendingExpiresAt has already passed is stale — it's only
+      // still "pending" in the DB because app/api/cron/booking-expiry/
+      // route.js hasn't swept it to "expired" YET (runs every 15
+      // minutes in production; doesn't run at all outside a deployed
+      // Vercel Cron, e.g. local dev). Never trust the cron to have
+      // already run before deciding what's actually blocking a
+      // date — same defense-in-depth reasoning as the DB-level EXCLUDE
+      // constraint backing up the app-level overlap check. A genuinely
+      // still-open hold (pendingExpiresAt in the future) still blocks
+      // normally. EXCEPTION: a short-window (capped) hold past its
+      // scheduled start is NEVER swept by that cron — a super-admin
+      // decides manually (Booking.pendingHoldCapped) — so it must keep
+      // blocking the date even once its pendingExpiresAt is in the past.
       where: {
         OR: [
           { status: "confirmed" },
-          { status: "pending", pendingExpiresAt: { gt: new Date() } },
+          { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
         ],
       },
       select: { checkInDate: true, checkOutDate: true, bookingType: true },

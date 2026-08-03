@@ -105,6 +105,26 @@
   color: var(--color-error);
 }
 
+/*
+ * .bookingsStatusBadge--breached
+ * Short-window (capped) pending hold whose scheduled start already
+ * passed without confirmation (Booking.pendingHoldBreachedAt) — never
+ * auto-cancelled, so this stays visible until a super-admin manually
+ * confirms or rejects it. Stacked below the normal Pending badge in
+ * the same cell rather than replacing it.
+ */
+.bookingsStatusBadge--breached {
+  display: block;
+  margin-top: 0.35rem;
+  background-color: rgba(239, 68, 68, 0.13);
+  color: var(--color-error);
+}
+
+/* .bookingDetailsBreachNotice — see BookingDetailsModal.jsx's pendingHoldBreachedAt block */
+.bookingDetailsBreachNotice {
+  color: var(--color-error);
+}
+
 .bookingsConfirmButton {
   padding: 0.5rem 1rem;
   min-height: 44px;

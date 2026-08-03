@@ -122,6 +122,16 @@ export default function BookingDetailsModal({
             </>
           )}
 
+          {booking.status === "pending" && booking.pendingHoldBreachedAt && (
+            <>
+              <dt>Hold status</dt>
+              <dd className="bookingDetailsBreachNotice">
+                Breached — this was a short-window hold (scheduled start was sooner than the full DP Countdown), so
+                it was never auto-cancelled. Please confirm or reject manually.
+              </dd>
+            </>
+          )}
+
           {booking.notes && (
             <>
               <dt>Notes</dt>

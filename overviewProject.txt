@@ -832,6 +832,78 @@ DEBUG POINTS:
   (LAST_MINUTE_WINDOW_DAYS). Add a real field to BookingRules if this needs
   to be admin-configurable.
 
+=== PROCESS: Short-Window (Capped) Pending Hold ===
+Booking.pendingExpiresAt is normally set to (creation time + the
+resort-wide DP Countdown hours — services/pendingHoldHours.js), the
+"full countdown". But if the booking's own scheduled start (Overnight
+check-in time, or Day/Night Tour start time — see
+services/bookingPricing.js's scheduledStartAt) falls SOONER than that
+full window — e.g. a Day Tour booked an hour or two before it begins —
+holding the room "pending" past its own start time makes no sense. In
+that case the hold is instead capped to end exactly at the scheduled
+start, and Booking.pendingHoldCapped is set true on that row.
+
+Step 1 : Visitor submits a booking whose scheduled start is sooner than
+         the full DP Countdown window
+Step 2 : app/api/bookings/route.js computes both fullExpiresAt (now +
+         pendingHoldHours) and scheduledStartAt (from the quote);
+         whichever is sooner becomes pendingExpiresAt, and
+         pendingHoldCapped is set true only when scheduledStartAt won
+Step 3 : Booking is created "pending" as normal, just with a shorter
+         effective hold
+Step 4 : Visitor-facing countdowns (BookingProgressWidget.jsx,
+         BookingFormClient.jsx's confirmation panel,
+         RoomSelectionModal.jsx's DPCountdown for OTHER guests browsing
+         the same date) all read the same pendingExpiresAt, so the
+         countdown naturally shows the shorter window with no separate
+         code path — only the copy differs (never says "dates will be
+         released" for a capped hold)
+Step 5 : If the visitor confirms before it passes -> normal confirm flow,
+         nothing capped-specific happens
+Step 6 : If it passes unconfirmed -> app/api/cron/booking-expiry/
+         route.js's sweep DELIBERATELY SKIPS auto-expiring this row
+         (its where clause requires pendingHoldCapped: false). Instead
+         it stamps Booking.pendingHoldBreachedAt once; status stays
+         "pending" — no cancellation email is sent, since nothing was
+         actually cancelled
+Step 7 : A breached-but-still-pending booking must keep blocking its
+         dates from other guests exactly like a normal active hold
+         does — every overlap/availability query that filters pending
+         bookings by "pendingExpiresAt in the future" (services/
+         bookingPricing.js x2, app/api/bookings/dates/route.js,
+         app/api/bookings/existing-on-date/route.js) was updated to
+         also treat pendingHoldCapped: true as active regardless of
+         pendingExpiresAt — otherwise a breached hold would silently
+         stop blocking the date the moment it passed, letting a second
+         guest book right on top of it
+Step 8 : Super-admin sees a red "Breached — needs review" badge next to
+         the Pending status on the Bookings list
+         (app/superAdmin/(protected)/bookings/BookingsListPanel.jsx)
+         and a matching notice in BookingDetailsModal.jsx, and manually
+         confirms (POST /api/admin/bookings/{id}/confirm) or
+         cancels/rejects it — there is no automatic resolution
+
+DEBUG POINTS:
+- A pending booking's dates got double-booked by another guest even
+  though it looked "pending" in the DB: check whether it's a capped
+  hold (pendingHoldCapped: true) whose pendingExpiresAt already passed
+  — every overlap query MUST include the `OR pendingHoldCapped: true`
+  clause described in Step 7 above, or it'll be treated as stale/expired
+  and silently stop blocking the date. This is the single most
+  important invariant of this whole feature — if a new overlap/
+  availability query is ever added elsewhere, it needs the same clause.
+- Countdown on the visitor side shows "0h 00m 00s" and never changes:
+  expected for a capped hold that has breached — that's intentional
+  (see Step 6, no auto-cancel), the UI should be showing the "waiting
+  on the resort" copy instead of the ticking countdown at that point
+  (BookingProgressWidget.jsx checks progress.pendingHoldBreached;
+  RoomSelectionModal.jsx checks existingBooking.pendingHoldBreached).
+- Guest got an auto-cancellation email for a booking that's still
+  showing "pending" in the admin panel: should never happen for a
+  capped booking (Step 6 explicitly sends no email) — if it did, check
+  app/api/cron/booking-expiry/route.js's expiredBookings query still
+  has `pendingHoldCapped: false` in its where clause.
+
 10. ENVIRONMENT VARIABLES REQUIRED
 - NEXT_PUBLIC_SUPABASE_URL       (blank — Supabase not yet connected)
 - NEXT_PUBLIC_SUPABASE_ANON_KEY  (blank — Supabase not yet connected)

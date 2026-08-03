@@ -72,12 +72,15 @@ export async function GET(request) {
     // "pending" only counts while its DP Countdown hold is still active —
     // a stale pending row (hold already expired, cron hasn't swept it
     // to "expired" yet) shouldn't be shown as if it's still occupying
-    // the date. Same defensive check app/api/bookings/dates/route.js uses.
+    // the date. Same defensive check app/api/bookings/dates/route.js
+    // uses. EXCEPTION: a short-window (capped) hold past its scheduled
+    // start is NEVER auto-expired (super-admin decides manually — see
+    // Booking.pendingHoldCapped), so it still counts as occupying here.
     const candidateBookings = await prisma.booking.findMany({
       where: {
         OR: [
           { status: "confirmed" },
-          { status: "pending", pendingExpiresAt: { gt: new Date() } },
+          { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
         ],
       },
       select: {
@@ -87,6 +90,8 @@ export async function GET(request) {
         checkInDate: true,
         checkOutDate: true,
         pendingExpiresAt: true,
+        pendingHoldCapped: true,
+        pendingHoldBreachedAt: true,
       },
       orderBy: { createdAt: "asc" },
     });
@@ -114,6 +119,11 @@ export async function GET(request) {
         // widget in RoomSelectionModal.jsx uses this to tick down live.
         // null for "confirmed" (nothing to wait on).
         pendingExpiresAt: booking.status === "pending" ? booking.pendingExpiresAt : null,
+        // Short-window (capped) hold — see Booking.pendingHoldCapped.
+        // Lets the widget skip the ticking countdown once it's already
+        // breached instead of showing a stuck "0h 00m 00s".
+        pendingHoldCapped: booking.status === "pending" ? booking.pendingHoldCapped : false,
+        pendingHoldBreached: booking.status === "pending" ? Boolean(booking.pendingHoldBreachedAt) : false,
       }));
 
     return NextResponse.json({

@@ -15,6 +15,17 @@
  *                  actually passes)
  *   - confirmed -> booked
  *
+ * SHORT-WINDOW (capped) holds — progress.pendingHoldCapped:
+ * When the booking's scheduled start was sooner than the full DP
+ * Countdown window (e.g. a Tour booked an hour or two before it
+ * begins — see services/bookingPricing.js's scheduledStartAt), the
+ * countdown here naturally ticks down to that shorter moment instead
+ * of the full hold. Once it hits 0, this booking is NEVER
+ * auto-cancelled (app/api/cron/booking-expiry/route.js skips it) — the
+ * guest instead sees a "waiting on the resort" message
+ * (progress.pendingHoldBreached) rather than the normal "dates
+ * released" framing used for an ordinary full-window hold.
+ *
  * DATA FLOW:
  * 1. Click the floating icon -> opens this modal in "code" step
  * 2. Guest submits their reference code -> POST /api/bookings/progress
@@ -256,20 +267,37 @@ export default function BookingProgressWidget() {
                     <p className="bookingProgressStageText">
                       Waiting for your DP and receipt, and the owner&apos;s bank-transfer confirmation.
                     </p>
-                    {secondsRemaining !== null ? (
+                    {progress.pendingHoldBreached ? (
+                      // Short-window hold already passed its scheduled start —
+                      // never auto-cancelled (see file header), so this never
+                      // says "released"; the guest just waits on the resort.
+                      <p className="bookingProgressStageHint">
+                        Your scheduled time has passed without confirmation. We&apos;re holding your booking as-is
+                        while the resort reviews it — please reach out on Messenger if you still want these dates.
+                      </p>
+                    ) : secondsRemaining !== null ? (
                       <p className="bookingProgressStageHint">
                         {secondsRemaining > 0
                           ? <>
                               <span className="bookingProgressCountdown">{formatCountdown(secondsRemaining)}</span>
-                              {" "}left to send your DP before these dates are released, counting from when you created this booking.
+                              {" "}left to send your DP{" "}
+                              {progress.pendingHoldCapped
+                                ? "before your scheduled time, counting from when you created this booking."
+                                : "before these dates are released, counting from when you created this booking."}
                             </>
-                          : "The DP window just closed — checking your booking's current status…"}
+                          : "That window just closed — checking your booking's current status…"}
                       </p>
                     ) : (
                       progress.hoursRemaining !== null && (
                         <p className="bookingProgressStageHint">
                           {progress.hoursRemaining > 0
-                            ? `${progress.hoursRemaining} hour${progress.hoursRemaining === 1 ? "" : "s"} left to send your DP before these dates are released, counting from when you created this booking.`
+                            ? `${progress.hoursRemaining} hour${progress.hoursRemaining === 1 ? "" : "s"} left to send your DP ${
+                                progress.pendingHoldCapped
+                                  ? "before your scheduled time, counting from when you created this booking."
+                                  : "before these dates are released, counting from when you created this booking."
+                              }`
+                            : progress.pendingHoldCapped
+                            ? "Your scheduled time has passed — please contact us if you still want these dates."
                             : "The DP window has passed — please contact us if you still want these dates."}
                         </p>
                       )

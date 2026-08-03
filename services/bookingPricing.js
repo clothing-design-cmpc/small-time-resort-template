@@ -322,11 +322,15 @@ export async function validateAndQuoteBooking({
     // But a "pending" row past its own pendingExpiresAt is stale — only
     // still "pending" because the cron sweep (app/api/cron/
     // booking-expiry/route.js) hasn't run yet — so it's excluded here
-    // too, same reasoning as app/api/bookings/dates/route.js.
+    // too, same reasoning as app/api/bookings/dates/route.js. EXCEPTION:
+    // a short-window (capped) hold past its scheduled start is NEVER
+    // auto-expired by that cron sweep (super-admin decides manually —
+    // see Booking.pendingHoldCapped) so it must still count as active
+    // here even though its pendingExpiresAt has already passed.
     where: {
       OR: [
         { status: "confirmed" },
-        { status: "pending", pendingExpiresAt: { gt: new Date() } },
+        { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
       ],
     },
     select: {
@@ -493,10 +497,12 @@ export async function validateAndQuoteBooking({
         // Same stale-pending exclusion as the shared fetch above — a
         // "pending" row past its own pendingExpiresAt must not count
         // here either, or a guest can get wrongly blocked by a hold
-        // the cron just hasn't swept yet.
+        // the cron just hasn't swept yet. Same pendingHoldCapped
+        // exception as above — a breached short-window hold is still
+        // active until a super-admin acts on it.
         OR: [
           { status: "confirmed" },
-          { status: "pending", pendingExpiresAt: { gt: new Date() } },
+          { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
         ],
         bookingType: "overnight",
         checkInDate: { lte: toUtcMidnight(checkIn) },
@@ -550,6 +556,21 @@ export async function validateAndQuoteBooking({
   const total = Math.round(subtotal * 100) / 100;
   const depositAmount = rules.depositRequired ? Math.round(total * (rules.depositPercentage / 100) * 100) / 100 : 0;
 
+  // --- Scheduled start moment (Pending-Hold Countdown capping) ---
+  // The real wall-clock moment this booking is actually scheduled to
+  // begin — reuses effectiveCheckInAt when Same-Day auto-adjust already
+  // shifted it, otherwise combines checkIn with this booking type's own
+  // start time. Returned so app/api/bookings/route.js can compare it
+  // against the full DP Countdown window (services/pendingHoldHours.js)
+  // and cap the hold at whichever comes first — a Day Tour starting in
+  // 2 hours must never advertise the full 8-hour hold.
+  const scheduledStartTimeByType = {
+    overnight: rules.checkInTime,
+    day_tour: rules.dayTourStartTime,
+    night_tour: rules.nightTourStartTime,
+  };
+  const scheduledStartAt = effectiveCheckInAt ?? combineDateAndTime(checkIn, scheduledStartTimeByType[bookingType]);
+
   return {
     nights,
     howManySelectedDates: nights,
@@ -574,6 +595,9 @@ export async function validateAndQuoteBooking({
     // them as-is so the visitor form can show "Adjusted check-in: ..."
     effectiveCheckInAt: effectiveCheckInAt ? effectiveCheckInAt.toISOString() : null,
     effectiveCheckOutAt: effectiveCheckOutAt ? effectiveCheckOutAt.toISOString() : null,
+    // See scheduledStartAt computation above — always set, unlike
+    // effectiveCheckInAt which is null unless Same-Day auto-adjust fired.
+    scheduledStartAt: scheduledStartAt.toISOString(),
     cancellationCutoffDays: rules.cancellationCutoffDays,
     refundPercentage: rules.refundPercentage,
     room: room ? { id: room.id, name: room.name, pricePerNight: Number(room.pricePerNight) } : null,

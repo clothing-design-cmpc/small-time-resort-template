@@ -191,6 +191,23 @@ model Booking {
   // past this timestamp and flips it to "expired", freeing the dates.
   pendingExpiresAt DateTime? @map("pending_expires_at")
 
+  // --- Short-Window Pending Hold (capped countdown) ---
+  // True only when this booking's scheduled start (see
+  // services/bookingPricing.js's scheduledStartAt) fell sooner than the
+  // full DP Countdown window at creation time — e.g. a Day Tour booked
+  // 2 hours before its own start time. When true, pendingExpiresAt above
+  // was capped to that scheduled start instead of the full
+  // pendingHoldHours window, and app/api/cron/booking-expiry/route.js
+  // must NOT auto-expire this row when it passes — it only stamps
+  // pendingHoldBreachedAt and leaves status "pending" for a super-admin
+  // to manually confirm or cancel. Ordinary (uncapped) pending bookings
+  // are unaffected and keep auto-expiring as before.
+  pendingHoldCapped     Boolean   @default(false) @map("pending_hold_capped")
+  // Set by the cron sweep the first time a capped booking's pendingExpiresAt
+  // passes without confirmation — never auto-changes status. Surfaced to
+  // the super-admin Bookings list as a "Breached — needs review" flag.
+  pendingHoldBreachedAt DateTime? @map("pending_hold_breached_at")
+
 
   // --- Invoice-Gated Directions (villa-azure-ai-insight-and-directions-plan.txt, Part 2) ---
   // Unique code printed on the generated invoice. Format "VAR-YYYYMMDD-XXXXX"
@@ -364,6 +381,12 @@ model AdminProfile {
   // alone, not every staff login.
   isOwner   Boolean  @default(false) @map("is_owner")
   createdAt DateTime @default(now()) @map("created_at")
+
+  // Sidebar "new bookings" badge (O) baseline — updated every time this
+  // admin opens the Bookings page. Defaults to now() so the migration
+  // itself never creates a false backlog of "new" bookings for admins
+  // who already existed before this field was added.
+  bookingsLastViewedAt DateTime @default(now()) @map("bookings_last_viewed_at")
 
   // Every currently-logged-in device/browser for this admin — see
   // AdminSession below. Cascade delete so removing an admin account
@@ -844,37 +867,6 @@ model SeasonalPrice {
 }
 
 // ============================================================
-// MODEL: PromoDate  (Booking Rules — Section 5b: Promo Dates)
-// ============================================================
-// Owner taps specific calendar dates (one row per date — mirrors the
-// tap-to-toggle pattern BookingRule.ruleDates already uses, NOT a
-// start/end range like SeasonalPrice above) and assigns a % discount
-// to each. Resort-wide (not per-room) — applies across whichever
-// booking type(s) `appliesTo` names. Deliberately separate from
-// SeasonalPrice (per-room, absolute price OVERRIDE) and from
-// BookingRule's lastMinuteDiscountPercent/groupDiscountPercent (those
-// trigger automatically off days-out/party-size, not a specific
-// calendar date the owner hand-picks). See services/bookingPricing.js
-// for how this gets applied per occupied night vs per Tour date.
-model PromoDate {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  date            DateTime @map("date") @db.Date
-  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
-  label           String? // e.g. "Anniversary Promo" — admin-facing only, never shown to visitors
-  appliesTo       String   @default("all") @map("applies_to") // "all" | "overnight" | "day_tour" | "night_tour"
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
-
-  // One discount row per date per booking-type scope — prevents the
-  // admin from accidentally double-adding the same date twice under
-  // the same scope (e.g. two "all" rows for Aug 20 with different %).
-  @@unique([date, appliesTo])
-  @@index([date])
-  @@map("promo_dates")
-}
-
-// ============================================================
 // MODEL: SeasonDefinition  (Booking Rules — Section 5, "current
 // season" reference used by Section 5's info panel AND the
 // super-admin top bar's Season display)
@@ -1233,14 +1225,6 @@ model SystemSettings {
   // column on purpose so `prisma db push` treats this as a straight
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
-
-  // --- Pending Hold Hours (DP Countdown, Section 6, Booking Rules list
-  // page) --- ONE resort-wide value: how many hours a newly-created
-  // "pending" Booking holds its dates before it auto-expires. Read via
-  // services/pendingHoldHours.js -> getGlobalPendingHoldHours(), never
-  // read directly elsewhere. Changing this only affects bookings
-  // created AFTER the change — see that file's header comment.
-  pendingHoldHours Int @default(8) @map("pending_hold_hours")
 
   // --- Global Rebooking Policy (Section 8, Booking Rules list page —
   // see RebookingPolicySection.jsx) --- ONE resort-wide policy shared by

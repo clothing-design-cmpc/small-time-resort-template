@@ -123,6 +123,15 @@ export default function BookingsListPanel({ bookings, onRowClick, onConfirmClick
                     <span className={`bookingsStatusBadge bookingsStatusBadge--${booking.status}`}>
                       {STATUS_LABELS[booking.status] ?? booking.status}
                     </span>
+                    {/* Short-window (capped) hold whose scheduled start already
+                        passed without confirmation — app/api/cron/booking-expiry/
+                        route.js deliberately never auto-cancels these, so it
+                        needs to stay visible here until a super-admin acts. */}
+                    {booking.status === "pending" && booking.pendingHoldBreachedAt && (
+                      <span className="bookingsStatusBadge bookingsStatusBadge--breached">
+                        Breached — needs review
+                      </span>
+                    )}
                   </td>
                   <td className="bookingsActionsCell" onClick={(event) => event.stopPropagation()}>
                     <div className="bookingsRowActions">

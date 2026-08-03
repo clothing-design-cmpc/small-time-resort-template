@@ -337,13 +337,44 @@
 .roomSelectionCardPriceList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   margin-top: var(--space-xs);
 }
 
-.roomSelectionCardPrice {
-  font-size: 0.9rem;
+/*
+ * .roomSelectionCardPriceTag
+ * One pill per booking type this room offers. Money icon + price
+ * text sit on the left; the booking-type icon (sun / moon / half-sun-
+ * half-moon) is pushed to the far right end via justify-content:
+ * space-between, so every tag reads left-to-right as
+ * "how much" -> "for what kind of stay" at a glance.
+ */
+.roomSelectionCardPriceTag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background-color: rgba(63, 125, 82, 0.1);
+  border: 1px solid rgba(63, 125, 82, 0.18);
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--color-accent);
   margin: 0;
+}
+
+.roomSelectionCardPriceTagLeft {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.roomSelectionCardPriceTagLeft svg {
+  flex-shrink: 0;
+}
+
+.roomSelectionCardPriceTagTypeIcon {
+  flex-shrink: 0;
+  opacity: 0.7;
 }

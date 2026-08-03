@@ -86,11 +86,10 @@ export function getCurrentSeason(seasonDefinitions, targetDate = new Date()) {
  *      `reason` field (e.g. "Maintenance," "Private") surfaces as the
  *      event, since a blackout is the most operationally relevant
  *      thing an admin glancing at the top bar would want to know.
- *   2. The currently active BookingRule's name, as a fallback so the
- *      top bar never shows a bare "—" when nothing else is happening.
- * Returns null only if there is no active BookingRule at all (a
- * misconfigured resort with zero active rule sets), which the caller
- * displays as "No active event."
+ *   2. No active blackout — falls back to simply "Weekday" or
+ *      "Weekend" (Asia/Manila) so the top bar always shows something
+ *      genuinely useful at a glance instead of an arbitrary rule-set
+ *      name that isn't really "today's event."
  */
 export async function getTodaysEvent(targetDate = new Date()) {
   const manilaDateString = targetDate.toLocaleString("en-US", { timeZone: "Asia/Manila" });
@@ -105,10 +104,9 @@ export async function getTodaysEvent(targetDate = new Date()) {
     return { label: activeBlackout.reason, type: "blackout" };
   }
 
-  const activeRule = await prisma.bookingRule.findFirst({ where: { isActive: true } });
-  if (activeRule) {
-    return { label: activeRule.name, type: "activeRule" };
-  }
+  // getDay(): 0 = Sunday, 6 = Saturday — everything else is a weekday.
+  const dayOfWeek = todayManila.getDay();
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-  return null;
+  return { label: isWeekend ? "Weekend" : "Weekday", type: "weekday" };
 }

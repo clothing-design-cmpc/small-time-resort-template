@@ -1,60 +1,34 @@
 /**
- * FILE: app/superAdmin/(protected)/settings/booking-rules/[ruleId]/page.jsx
+ * FILE: app/superAdmin/(protected)/settings/booking-rules/page.jsx
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Edit-rule-set route. Fetches the rule set, the room list, the active
- * Amenity catalog, and the active Resort Shop product catalog
- * server-side (fresh, no cache), then hands off to the shared
- * BookingRuleForm in edit mode. Calls notFound() if the rule ID doesn't
- * exist.
+ * Booking Rules list route. Fetches the room list server-side (fresh,
+ * no cache) so the Seasonal Pricing / Blackout Dates sub-sections have
+ * rooms to work against, then hands off to BookingRulesListClient which
+ * fetches and renders the rule sets themselves.
  */
-import { notFound } from "next/navigation";
 import { prisma } from "@/services/prisma";
-import BookingRuleForm from "../BookingRuleForm";
+import BookingRulesListClient from "./BookingRulesListClient";
 
-export async function generateMetadata({ params }) {
-  const { ruleId } = await params;
-  const rule = await prisma.bookingRule.findUnique({ where: { id: ruleId } });
-  return { title: rule ? `Edit ${rule.name} | Super-Admin` : "Rule Set Not Found | Super-Admin" };
-}
+export const metadata = {
+  title: "Booking Rules & Configuration | Super-Admin | your-private-resort",
+};
 
-export default async function EditBookingRulePage({ params }) {
-  const { ruleId } = await params;
-
-  const [rule, roomRecords, amenities, productRecords] = await Promise.all([
-    prisma.bookingRule.findUnique({ where: { id: ruleId } }),
-    prisma.room.findMany({ select: { id: true, name: true, pricePerNight: true }, orderBy: { sortOrder: "asc" } }),
-    prisma.amenity.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, icon: true },
-      orderBy: { sortOrder: "asc" },
-    }),
-    prisma.storeProduct.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, price: true, category: true },
-      orderBy: { sortOrder: "asc" },
-    }),
-  ]);
-
-  if (!rule) {
-    notFound();
-  }
+export default async function BookingRulesPage() {
+  const roomRecords = await prisma.room.findMany({
+    select: { id: true, name: true, pricePerNight: true },
+    orderBy: { sortOrder: "asc" },
+  });
 
   // Decimal fields from Prisma aren't serializable as-is across the
   // Server -> Client Component boundary — convert to plain numbers.
-  const serializedRule = {
-    ...rule,
-    hourlyChargeAmount: Number(rule.hourlyChargeAmount),
-    extraGuestFeePerHead: Number(rule.extraGuestFeePerHead),
-  };
   const rooms = roomRecords.map((room) => ({
     ...room,
     pricePerNight: Number(room.pricePerNight),
     dayTourPrice: Number(room.dayTourPrice),
     nightTourPrice: Number(room.nightTourPrice),
   }));
-  const products = productRecords.map((product) => ({ ...product, price: Number(product.price) }));
 
-  return <BookingRuleForm existingRule={serializedRule} rooms={rooms} amenities={amenities} products={products} />;
+  return <BookingRulesListClient rooms={rooms} />;
 }

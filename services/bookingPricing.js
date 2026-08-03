@@ -518,6 +518,45 @@ export async function validateAndQuoteBooking({
   // --- Pricing ---
   let subtotal = 0;
 
+  // --- Promo Date discount lookup (Section 5b, Booking Rules list page —
+  // see PromoDatesSection.jsx) ---
+  // PromoDate rows are per-CALENDAR-DAY, not a date range, and each may
+  // be scoped to "all" or a specific bookingType. Fetched once here as a
+  // date-key -> best-discount map so the pricing loop below can look up
+  // each individual date in O(1). Range covers every date this booking
+  // actually occupies: every night for Overnight, or just the single
+  // requested date for Day/Night Tour.
+  // If a date matches BOTH a resort-wide "all" row and a type-specific
+  // row, the higher discount wins — never let two stacked promos
+  // resolve to less than the single best offer a guest could see.
+  const promoRangeStart = toUtcMidnight(checkIn);
+  const promoRangeEnd =
+    bookingType === "overnight"
+      ? toUtcMidnight(checkOut)
+      : new Date(toUtcMidnight(checkIn).getTime() + 86400000);
+  const activePromoDates = await client.promoDate.findMany({
+    where: {
+      isActive: true,
+      appliesTo: { in: ["all", bookingType] },
+      date: { gte: promoRangeStart, lt: promoRangeEnd },
+    },
+    select: { date: true, discountPercent: true },
+  });
+  const promoDiscountByDateKey = new Map();
+  for (const promo of activePromoDates) {
+    const key = toDateKey(utcDateToLocalCalendarDay(promo.date));
+    const pct = Number(promo.discountPercent);
+    const bestSoFar = promoDiscountByDateKey.get(key);
+    if (bestSoFar === undefined || pct > bestSoFar) {
+      promoDiscountByDateKey.set(key, pct);
+    }
+  }
+  // Total promo savings across the whole stay, in percentage-points of
+  // one night/tour's own rate — surfaced on the returned quote so the
+  // visitor booking review page can show "Promo applied: -5%" instead of
+  // silently baking it into the total with no line item.
+  let promoNightsDiscounted = 0;
+
   if (bookingType === "overnight") {
     const seasonalPrices = rules.seasonalPricingEnabled && room
       ? await client.seasonalPrice.findMany({ where: { roomId: room.id } })
@@ -535,12 +574,27 @@ export async function validateAndQuoteBooking({
         nightlyRate *= 1 + rules.weekendSurchargePercent / 100;
       }
 
+      // Promo Date discount — applied per night, same pattern as the
+      // weekend surcharge above. Only the specific matching night(s) are
+      // discounted, not the whole stay.
+      const promoPercentForNight = promoDiscountByDateKey.get(toDateKey(nightDate));
+      if (promoPercentForNight) {
+        nightlyRate *= 1 - promoPercentForNight / 100;
+        promoNightsDiscounted += 1;
+      }
+
       subtotal += nightlyRate;
     }
   } else {
     const perGuestRate =
       bookingType === "day_tour" ? Number(rules.dayTourPricePerGuest) : Number(rules.nightTourPricePerGuest);
     subtotal = perGuestRate * numberOfGuests;
+
+    const promoPercentForDate = promoDiscountByDateKey.get(toDateKey(checkIn));
+    if (promoPercentForDate) {
+      subtotal *= 1 - promoPercentForDate / 100;
+      promoNightsDiscounted += 1;
+    }
   }
 
   // Last-minute discount — check-in within the next few days
@@ -582,6 +636,11 @@ export async function validateAndQuoteBooking({
     depositRequired: rules.depositRequired,
     checkInTime: rules.checkInTime,
     checkOutTime: rules.checkOutTime,
+    // How many of this booking's nights/tour-date matched an active
+    // Promo Date and had a discount applied — 0 means no promo applied.
+    // Lets the visitor booking review page show a "Promo applied" line
+    // instead of a total that just looks discounted with no explanation.
+    promoNightsDiscounted,
     // Cleaning Hours that governed THIS specific booking — the
     // resort-wide value at the moment of booking, snapshotted onto the
     // Booking row (cleaningHoursSnapshot) at create time so a later

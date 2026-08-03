@@ -318,9 +318,24 @@ export default function HowToBookSection() {
       // tell their newly-clicked day apart from the real cause.
       const conflictingKeys = rangeKeys.filter((key) => anyBookedSet.has(key));
       if (conflictingKeys.length > 0) {
-        const conflictingLabel = conflictingKeys.map(formatKeyShort).join(", ");
+        // Name WHAT is already booked on each conflicting date, not just
+        // that something is — "Aug 3 (Day Tour)" tells the visitor
+        // exactly why an Overnight range can't cross it, instead of
+        // leaving them to guess between Overnight/Day Tour/Night Tour.
+        const conflictingLabel = conflictingKeys
+          .map((key) => {
+            const typeLabel = overnightSet.has(key)
+              ? "Overnight"
+              : dayTourSet.has(key) && nightTourSet.has(key)
+              ? "Day Tour & Night Tour"
+              : dayTourSet.has(key)
+              ? "Day Tour"
+              : "Night Tour";
+            return `${formatKeyShort(key)} (${typeLabel})`;
+          })
+          .join(", ");
         showToast(
-          `✕ ${conflictingLabel} already ${conflictingKeys.length > 1 ? "have" : "has"} a booking, so this range can't include ${conflictingKeys.length > 1 ? "them" : "it"}. Please pick a different range.`,
+          `✕ ${conflictingLabel} already ${conflictingKeys.length > 1 ? "have bookings" : "has a booking"}, so this range can't include ${conflictingKeys.length > 1 ? "them" : "it"}. Please pick a different range.`,
           "error"
         );
         return;

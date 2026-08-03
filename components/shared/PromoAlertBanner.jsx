@@ -5,12 +5,19 @@
  * PURPOSE:
  * Sits at the very top of every /visitor page's content (rendered from
  * app/visitor/layout.jsx, above {children}) and tells guests right away
- * when the super-admin has a Promo Date set up — e.g. "🎉 5% OFF
- * Overnight stays — Aug 20-22". Sticky (position: sticky, pinned right
- * under the fixed Header) so it stays visible while the visitor scrolls
- * the page, and the message itself runs as a continuous marquee so a
- * longer promo line (headline + "+N more") never has to wrap or get
- * cut off in the strip's fixed height.
+ * when the super-admin has a Promo Date set up — e.g. "🎉 5% OFF All
+ * Types Starting from Aug 3 to Aug 8". Sticky (position: sticky, pinned
+ * right under the fixed Header) so it stays visible while the visitor
+ * scrolls the page, and the message runs as a continuous right-to-left
+ * ticker so a longer line never has to wrap or get cut off in the
+ * strip's fixed height.
+ *
+ * The ticker distance is measured in real pixels via getBoundingClientRect
+ * (not viewport units or bare CSS percentages) — the track starts just
+ * past the right edge of the banner's own marquee slot and finishes
+ * just past its own left edge, so it can never render off in the middle
+ * of nowhere with a huge empty gap the way a %/vw-based version can
+ * when the container and the viewport aren't the same width.
  *
  * Renders nothing at all if there are no active/upcoming promo dates —
  * this is purely additive, never a placeholder "no promos" message.
@@ -24,13 +31,12 @@
  *    of listing every date separately
  * 3. Headlines the SOONEST cluster; if more clusters exist, shows a
  *    "+N more promo date(s)" tail so the banner never turns into a wall
- *    of text. A small tag badge (Overnight / Day Tour / Night Tour /
- *    All Types) sits right before the sentence so the tour type reads
- *    at a glance.
+ *    of text.
  * 4. Not dismissible — as long as an active promo cluster exists, this
- *    banner stays on screen. The message enters from the right edge
- *    of the viewport and scrolls to a full left exit, then loops
- *    (right-to-left "ticker" motion, not a seamless wrap-around).
+ *    banner stays on screen. The message enters from the right edge of
+ *    the banner's own marquee slot and scrolls to a full left exit,
+ *    then loops (right-to-left "ticker" motion, not a seamless
+ *    wrap-around).
  * 5. Every finished promo date is auto-deleted from the database by
  *    app/api/cron/promo-cleanup/route.js (daily), so this banner and
  *    the visitor calendar's promo dots never have to filter out stale
@@ -39,34 +45,35 @@
  * 6. Renders nothing while Header's mobile hamburger dropdown is open
  *    (shared isMobileMenuOpen from HeaderMenuContext, a sibling
  *    provider both components sit inside in app/visitor/layout.jsx)
+ * 7. Measures its own rendered height on mount/resize and publishes it
+ *    as --promo-banner-height (same ResizeObserver pattern Header.jsx
+ *    uses for --header-height and MaintenanceBanner.jsx uses for
+ *    --maintenance-banner-height), resetting to 0px on unmount/hide.
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useHeaderMenu } from "./HeaderMenuContext";
 import "./PromoAlertBanner.css";
 
 const SHORT_DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
+// "Tour type" wording used directly inside the sentence per the
+// required format: "{discount}% OFF {tour type} Starting from {start}
+// to {end}".
 const APPLIES_TO_LABEL = {
-  all: "all bookings",
-  overnight: "Overnight stays",
-  day_tour: "Day Tour",
-  night_tour: "Night Tour",
-};
-
-// Short chip label — distinct from APPLIES_TO_LABEL above (which reads
-// naturally inside the sentence, e.g. "5% OFF Overnight stays"). This
-// one sits in its own small pill right before the sentence so the tour
-// type is visible at a glance even before the marquee text scrolls
-// into view, without repeating the same phrase twice back to back.
-const APPLIES_TO_TAG = {
   all: "All Types",
   overnight: "Overnight",
   day_tour: "Day Tour",
   night_tour: "Night Tour",
 };
+
+// Pixels-per-second the ticker travels at — kept constant regardless of
+// message length so a longer promo line just takes proportionally
+// longer to cross, instead of a fixed-duration animation that would
+// speed through short messages and race through long ones.
+const MARQUEE_SPEED_PX_PER_SEC = 90;
 
 /**
  * parseDateKey
@@ -121,19 +128,24 @@ function groupIntoClusters(promoDates) {
 }
 
 /**
- * formatClusterRange
- * "Aug 20" for a single day, "Aug 20-22" for a multi-day cluster.
+ * formatClusterMessage
+ * Builds the exact required sentence: "{discount}% OFF {tour type}
+ * Starting from {start date} to {end date}". A single-day cluster still
+ * reads naturally since start and end are the same date.
  */
-function formatClusterRange(cluster) {
+function formatClusterMessage(cluster) {
+  const tourType = APPLIES_TO_LABEL[cluster.appliesTo] ?? "All Types";
   const start = SHORT_DATE_FMT.format(cluster.startDate);
-  if (cluster.startDate.getTime() === cluster.endDate.getTime()) return start;
   const end = SHORT_DATE_FMT.format(cluster.endDate);
-  return `${start}–${end}`;
+  return `${cluster.discountPercent}% OFF ${tourType} Starting from ${start} to ${end}`;
 }
 
 export default function PromoAlertBanner() {
   const [clusters, setClusters] = useState([]);
   const { isMobileMenuOpen } = useHeaderMenu();
+  const bannerRef = useRef(null);
+  const marqueeSlotRef = useRef(null);
+  const marqueeTrackRef = useRef(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -156,6 +168,65 @@ export default function PromoAlertBanner() {
     };
   }, []);
 
+  // Publishes --promo-banner-height so this strip's rendered height is
+  // available the same way --header-height and
+  // --maintenance-banner-height already are.
+  useEffect(() => {
+    const bannerElement = bannerRef.current;
+    if (!bannerElement || clusters.length === 0 || isMobileMenuOpen) {
+      document.documentElement.style.setProperty("--promo-banner-height", "0px");
+      return;
+    }
+
+    function updateBannerHeightVariable() {
+      document.documentElement.style.setProperty("--promo-banner-height", `${bannerElement.offsetHeight}px`);
+    }
+
+    updateBannerHeightVariable();
+
+    const resizeObserver = new ResizeObserver(updateBannerHeightVariable);
+    resizeObserver.observe(bannerElement);
+    return () => {
+      resizeObserver.disconnect();
+      document.documentElement.style.setProperty("--promo-banner-height", "0px");
+    };
+  }, [clusters.length, isMobileMenuOpen]);
+
+  // Measures the real pixel width of the marquee slot (the clipped
+  // viewport the text scrolls through) and the text itself, then writes
+  // both as CSS variables the keyframe animation below reads via
+  // translateX(). Using real measured pixels — not 100vw or a bare %,
+  // which resolve against the wrong box — is what keeps the ticker
+  // entering right at the slot's own right edge and fully exiting past
+  // its own left edge, instead of appearing to jump in from somewhere
+  // off in the middle of the viewport. Re-measures on resize and
+  // whenever the message itself changes length.
+  useEffect(() => {
+    const slotElement = marqueeSlotRef.current;
+    const trackElement = marqueeTrackRef.current;
+    if (!slotElement || !trackElement || clusters.length === 0) return;
+
+    function updateMarqueeDistance() {
+      const slotWidth = slotElement.getBoundingClientRect().width;
+      const textWidth = trackElement.getBoundingClientRect().width;
+      const totalDistance = slotWidth + textWidth;
+
+      slotElement.style.setProperty("--marquee-start", `${slotWidth}px`);
+      slotElement.style.setProperty("--marquee-end", `-${textWidth}px`);
+      slotElement.style.setProperty(
+        "--marquee-duration",
+        `${Math.max(totalDistance / MARQUEE_SPEED_PX_PER_SEC, 6)}s`
+      );
+    }
+
+    updateMarqueeDistance();
+
+    const resizeObserver = new ResizeObserver(updateMarqueeDistance);
+    resizeObserver.observe(slotElement);
+    resizeObserver.observe(trackElement);
+    return () => resizeObserver.disconnect();
+  }, [clusters]);
+
   // Renders nothing while the Header's mobile dropdown is open — its
   // sticky position (pinned at the COLLAPSED header height) would
   // otherwise land visually in the middle of the taller open menu
@@ -163,29 +234,21 @@ export default function PromoAlertBanner() {
   if (clusters.length === 0 || isMobileMenuOpen) return null;
 
   const [headlineCluster, ...restClusters] = clusters;
-  const appliesToLabel = APPLIES_TO_LABEL[headlineCluster.appliesTo] ?? "bookings";
-
-  const messageText = (
-    <>
-      <span className="promoAlertBannerTypeTag">{APPLIES_TO_TAG[headlineCluster.appliesTo] ?? "Promo"}</span>{" "}
-      <strong>{headlineCluster.discountPercent}% OFF</strong> {appliesToLabel} — {formatClusterRange(headlineCluster)}
-      {restClusters.length > 0 && (
-        <span className="promoAlertBannerMore"> (+{restClusters.length} more promo date{restClusters.length > 1 ? "s" : ""})</span>
-      )}
-    </>
-  );
+  const message = formatClusterMessage(headlineCluster);
 
   return (
-    <div className="promoAlertBanner" role="status">
+    <div ref={bannerRef} className="promoAlertBanner" role="status">
       <span className="promoAlertBannerIcon" aria-hidden="true">🎉</span>
-      {/* Marquee track — a single copy of the message that enters from
-          the right edge of the viewport and exits fully past the left
-          edge, then loops (ticker-style right-to-left motion). Only
-          this inner track scrolls; the icon stays put. */}
-      <div className="promoAlertBannerMarquee">
-        <div className="promoAlertBannerMarqueeTrack">
-          <p className="promoAlertBannerText">{messageText}</p>
-        </div>
+      {/* Marquee slot — a fixed-width viewport that clips the track (the
+          only piece allowed to overflow horizontally). Fades both edges
+          so the text doesn't visually "pop" in/out at the clip boundary. */}
+      <div ref={marqueeSlotRef} className="promoAlertBannerMarquee">
+        <p ref={marqueeTrackRef} className="promoAlertBannerMarqueeTrack">
+          {message}
+          {restClusters.length > 0 && (
+            <span className="promoAlertBannerMore"> (+{restClusters.length} more promo date{restClusters.length > 1 ? "s" : ""})</span>
+          )}
+        </p>
       </div>
     </div>
   );

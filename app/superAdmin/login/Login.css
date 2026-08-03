@@ -275,11 +275,14 @@
   right: var(--space-xs);
   min-height: 32px;
   padding: 0 var(--space-sm);
+  border: none;
   border-radius: 6px;
+  background-color: transparent;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 

@@ -4,9 +4,12 @@
  * while Maintenance Mode is on, when it's pushed down by
  * --maintenance-banner-height (set by MaintenanceBanner.jsx) so the
  * banner strip and the header no longer render on top of each other.
- * Frosted-glass effect via backdrop-filter so page content scrolling
- * underneath stays readable. z-index: var(--z-sticky) keeps it above
- * all content except the maintenance banner/drawer, modals, and toasts.
+ * Solid white fill (not translucent) so page content and the promo
+ * banner scrolling underneath never bleed through and read as
+ * overlapping the nav — backdrop-filter is dropped along with it since
+ * there's nothing left underneath for it to blur. z-index: var(--z-sticky)
+ * keeps it above all content except the maintenance banner/drawer,
+ * modals, and toasts.
  */
 .siteHeader {
   position: fixed;
@@ -14,9 +17,7 @@
   left: 0;
   right: 0;
   z-index: var(--z-sticky);
-  background-color: rgba(248, 250, 243, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: #ffffff;
   border-bottom: 1px solid var(--color-border);
   box-shadow: 0 2px 12px rgba(28, 43, 32, 0.05);
 }

@@ -32,6 +32,7 @@ import DataTable from "@/components/superAdmin/DataTable";
 import StatusBadge from "@/components/superAdmin/StatusBadge";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
 import SeasonalPricingSection from "./SeasonalPricingSection";
+import PromoDatesSection from "./PromoDatesSection";
 import RoomStatusSection from "./RoomStatusSection";
 import PendingHoldSection from "./PendingHoldSection";
 import RebookingPolicySection from "./RebookingPolicySection";
@@ -178,6 +179,7 @@ export default function BookingRulesListClient({ rooms }) {
       />
 
       <SeasonalPricingSection rooms={rooms} showToast={showToast} />
+      <PromoDatesSection showToast={showToast} />
       <RoomStatusSection showToast={showToast} />
       <PendingHoldSection showToast={showToast} />
       <RebookingPolicySection showToast={showToast} />

@@ -850,6 +850,37 @@ model SeasonalPrice {
 }
 
 // ============================================================
+// MODEL: PromoDate  (Booking Rules — Section 5b: Promo Dates)
+// ============================================================
+// Owner taps specific calendar dates (one row per date — mirrors the
+// tap-to-toggle pattern BookingRule.ruleDates already uses, NOT a
+// start/end range like SeasonalPrice above) and assigns a % discount
+// to each. Resort-wide (not per-room) — applies across whichever
+// booking type(s) `appliesTo` names. Deliberately separate from
+// SeasonalPrice (per-room, absolute price OVERRIDE) and from
+// BookingRule's lastMinuteDiscountPercent/groupDiscountPercent (those
+// trigger automatically off days-out/party-size, not a specific
+// calendar date the owner hand-picks). See services/bookingPricing.js
+// for how this gets applied per occupied night vs per Tour date.
+model PromoDate {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date            DateTime @map("date") @db.Date
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  label           String? // e.g. "Anniversary Promo" — admin-facing only, never shown to visitors
+  appliesTo       String   @default("all") @map("applies_to") // "all" | "overnight" | "day_tour" | "night_tour"
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // One discount row per date per booking-type scope — prevents the
+  // admin from accidentally double-adding the same date twice under
+  // the same scope (e.g. two "all" rows for Aug 20 with different %).
+  @@unique([date, appliesTo])
+  @@index([date])
+  @@map("promo_dates")
+}
+
+// ============================================================
 // MODEL: SeasonDefinition  (Booking Rules — Section 5, "current
 // season" reference used by Section 5's info panel AND the
 // super-admin top bar's Season display)

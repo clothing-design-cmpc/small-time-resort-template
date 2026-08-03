@@ -5,26 +5,40 @@
  * PURPOSE:
  * Returns every currently-active Promo Date that hasn't passed yet, so
  * the visitor-facing banner can tell guests "5% off Aug 20-22!" without
- * exposing the full super-admin CRUD surface. Deliberately separate
- * from app/api/superAdmin/settings/promo-dates/route.js (that one
- * requires the admin session and returns every entry, past or future,
- * active or not — this one is public and pre-filtered).
+ * exposing the full super-admin CRUD surface. Also fetched by
+ * HowToBookSection.jsx to flag promo dates directly on the calendar.
+ * Deliberately separate from app/api/superAdmin/settings/promo-dates/
+ * route.js (that one requires the admin session and returns every
+ * entry, past or future, active or not — this one is public and
+ * pre-filtered).
  *
  * DATA FLOW:
- * 1. PromoAlertBanner.jsx fetches this on mount on every /visitor page
- * 2. Filters isActive: true AND date >= today (UTC midnight, matching
+ * 1. PromoAlertBanner.jsx and HowToBookSection.jsx both fetch this on
+ *    mount on every /visitor page
+ * 2. cleanupExpiredPromoDates() (services/promoDates.js) runs first,
+ *    hard-deleting any PromoDate whose date has already passed — see
+ *    that file's header for why this happens here rather than relying
+ *    solely on the daily app/api/cron/promo-cleanup cron job
+ * 3. Filters isActive: true AND date >= today (UTC midnight, matching
  *    the same anchor convention the write-side routes already use) so
- *    a past promo never lingers on the banner after its date has gone by
- * 3. Returns the raw list, soonest date first — the banner component
- *    itself groups consecutive dates into a readable range
+ *    a past promo never lingers after its date has gone by
+ * 4. Returns the raw list, soonest date first — callers group/format
+ *    it themselves (PromoAlertBanner clusters into ranges; the
+ *    calendar keys it by date)
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { cleanupExpiredPromoDates } from "@/services/promoDates";
 
 export async function GET() {
   try {
+    // Purge any promo whose date has already passed before reading —
+    // see services/promoDates.js for why this runs here instead of
+    // relying on the daily cron alone (works in local dev too).
+    await cleanupExpiredPromoDates();
+
     const now = new Date();
     const todayUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 

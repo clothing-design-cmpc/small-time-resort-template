@@ -22,11 +22,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { requireSuperAdmin } from "@/services/adminSession";
 import { logAuditEvent } from "@/services/auditLog";
+import { cleanupExpiredPromoDates } from "@/services/promoDates";
 
 const VALID_APPLIES_TO = ["all", "overnight", "day_tour", "night_tour"];
 
 export async function GET() {
   try {
+    // Purge any promo whose date has already passed before reading —
+    // see services/promoDates.js for why this runs here instead of
+    // relying on the daily cron alone (works in local dev too).
+    await cleanupExpiredPromoDates();
+
     const promoDates = await prisma.promoDate.findMany({
       orderBy: { date: "asc" },
     });

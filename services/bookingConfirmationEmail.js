@@ -104,12 +104,27 @@ function renderImagesBlock(images) {
  * separate seed step.
  */
 async function getOrCreateEmailSettings() {
-  return prisma.bookingConfirmationEmail.upsert({
+  const settings = await prisma.bookingConfirmationEmail.upsert({
     where: { id: "singleton" },
     update: {},
     create: { id: "singleton" },
     include: { images: { orderBy: { displayOrder: "asc" } } },
   });
+
+  // Self-heal: rows created before introMessage/footerNote had a
+  // schema-level @default would otherwise send with a blank intro/
+  // footer forever. Backfill in-memory only (no extra write) so
+  // outbound emails always carry real copy — the admin route already
+  // persists the same backfill the next time the settings page loads.
+  return {
+    ...settings,
+    introMessage:
+      settings.introMessage ||
+      "Thank you for booking with us! Here's a quick summary of your confirmed stay, along with a few resort rules to review before you arrive.",
+    footerNote:
+      settings.footerNote ||
+      "Have questions about your booking? Just reply to this email or message us on Facebook — we're happy to help.",
+  };
 }
 
 /**

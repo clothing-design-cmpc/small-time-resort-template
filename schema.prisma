@@ -1,0 +1,1701 @@
+// FILE: prisma/schema.prisma
+// PURPOSE:
+// Defines the database schema for Villa Azure Resort using Prisma ORM
+// against the Supabase Postgres database. All schema changes go through
+// `npx prisma db push` (terminal only) — never the Supabase SQL Editor.
+//
+// Connection setup (Prisma 7 — connection URLs live in prisma.config.mjs,
+// NOT in this file):
+//   prisma.config.mjs -> datasource.url = DIRECT_URL (session pooler,
+//                        port 5432) — used by the CLI for db push/generate.
+//   services/prisma.js -> runtime PrismaClient uses a driver adapter
+//                        (@prisma/adapter-pg) pointed at DATABASE_URL
+//                        (transaction pooler, port 6543).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URLs are defined in prisma.config.mjs (datasource.url),
+// NOT here. Keeping url/directUrl in this block causes P1012 validation error.
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// MODEL: Room  (Rooms & Villas section)
+// ============================================================
+model Room {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String    @unique
+  description    String?
+  pricePerNight  Decimal   @map("price_per_night") @db.Decimal(10, 2)
+  // Flat (not per-guest) Day Tour / Night Tour price for THIS room —
+  // replaces the old resort-wide BookingRule.dayTourPricePerGuest /
+  // nightTourPricePerGuest model. A Day Tour or Night Tour booking now
+  // always requires picking a room (same as Overnight), and the price
+  // charged is always this flat rate for that room, regardless of how
+  // many guests are in the party (guest count is still capped by
+  // room.capacity and the active rule's Allowed Guests/Total Pax —
+  // see services/bookingPricing.js).
+  dayTourPrice   Decimal   @default(4500) @map("day_tour_price") @db.Decimal(10, 2)
+  nightTourPrice Decimal   @default(4500) @map("night_tour_price") @db.Decimal(10, 2)
+  capacity       Int       @default(2)
+  imageUrl       String?   @map("image_url")
+  imageKey       String?   @map("image_key") // R2 object key, needed to delete the old file on replace
+  isActive       Boolean   @default(true) @map("is_active")
+  sortOrder      Int       @default(0) @map("sort_order")
+
+  // --- Content Management fields (Super-Admin Rooms Management, blueprint Page 1) ---
+  // NOTE: this model used to carry its own minNightsPerBooking /
+  // maxNightsPerBooking / minGuestsAllowed override fields ("Booking
+  // Limits" section on the room edit form). They were removed — every
+  // room silently carried a concrete default value, so editing the
+  // resort-wide Booking Rule never actually took effect unless every
+  // room was also edited by hand. Nights/guest limits now come from
+  // whichever BookingRule is marked active (see model BookingRule) —
+  // a single source of truth, never overwritten by a room's own form.
+  bedType             String    @default("King") @map("bed_type") // "King", "Twin", "Double", "Sofa Bed"
+  isFeatured          Boolean   @default(false) @map("is_featured") // shown on visitor homepage
+  amenityIds          String[]  @default([]) @map("amenity_ids") // Amenity.id values mapped to this room
+  updatedBy           String?   @map("updated_by") // super-admin user id who last saved this room
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  bookings       Booking[]
+  seasonalPrices SeasonalPrice[]
+  blackoutDates  BlackoutDate[]
+  roomImages     RoomImage[]
+
+  // Index for the visitor "Rooms" list and homepage featured-rooms query —
+  // both filter by isActive/isFeatured on every no-cache request.
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("rooms")
+}
+
+// ============================================================
+// MODEL: RoomImage  (Rooms Management — Room Gallery sub-page,
+// blueprint Page 1)
+// ============================================================
+// Multi-image gallery per room, separate from Room.imageUrl (the
+// single "Main Image" shown on cards/lists). setMain copies a
+// RoomImage's url/key onto the parent Room row; isFeatured marks an
+// image for the room's featured highlights strip on the visitor page.
+model RoomImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId       String   @map("room_id") @db.Uuid
+  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([roomId])
+  @@map("room_images")
+}
+
+// ============================================================
+// MODEL: Amenity  (Resort Amenities section)
+// ============================================================
+model Amenity {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  icon        String?  // icon identifier (e.g. lucide icon name) rendered by the frontend
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([isActive])
+  @@map("amenities")
+}
+
+// ============================================================
+// MODEL: StoreProduct  (Resort Shop — browse-only, no cart/checkout)
+// ============================================================
+model StoreProduct {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(10, 2)
+  category       String   @default("general")
+  imageUrl       String?  @map("image_url")
+  imageKey       String?  @map("image_key") // R2 object key, needed to delete the old file on replace
+  isActive       Boolean  @default(true) @map("is_active")
+  sortOrder      Int      @default(0) @map("sort_order")
+  // Shop Management form (blueprint Page 3) reads/writes these two on
+  // every create and update — see app/api/superAdmin/content/shop/route.js
+  // and ShopProductForm.jsx. Previously missing from this model, which
+  // caused every product save to fail with a Prisma "Unknown argument" error.
+  inStock        Boolean  @default(true) @map("in_stock")
+  quantityOnHand Int      @default(0) @map("quantity_on_hand")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Shop page filters by category tab and hides inactive products —
+  // both hit on every visitor no-cache request.
+  @@index([category])
+  @@index([isActive])
+  @@map("store_products")
+}
+
+// ============================================================
+// MODEL: ShopConfig  (Resort Shop — Shop Configuration panel,
+// blueprint Page 3)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "shop_config" (same pattern as BookingRules and
+// SystemSettings below), never creates a second row. Was previously
+// referenced by app/api/superAdmin/content/shop/config/route.js with
+// no matching model, which caused every config read/save to fail.
+model ShopConfig {
+  id                 String   @id @default("shop_config")
+  shopHours          String?  @map("shop_hours")
+  shopLocation       String?  @map("shop_location")
+  alcoholWarningText String?  @map("alcohol_warning_text")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("shop_config")
+}
+
+// ============================================================
+// MODEL: Booking  (Booked Dates section + Reserve Your Villa date picker)
+// ============================================================
+// A single confirmed stay: checkInDate (inclusive) through checkOutDate
+// (exclusive, standard hotel convention — the checkout day itself is not
+// "occupied" and can be someone else's check-in day). The Booked Dates
+// carousel/calendar and the Reserve Your Villa date picker both derive
+// their "already reserved" dates by expanding every active Booking's
+// range server-side (see app/api/bookings/dates/route.js) instead of the
+// old module-level BOOKED_DATES constant.
+model Booking {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId         String?  @map("room_id") @db.Uuid
+  guestName      String   @map("guest_name")
+  guestEmail     String   @default("") @map("guest_email")
+  guestPhone     String   @default("") @map("guest_phone")
+  numberOfGuests Int      @default(1) @map("number_of_guests")
+  bookingType    String   @default("overnight") @map("booking_type") // overnight | day_tour | night_tour — mirrors BookingRules.allow* flags
+  checkInDate    DateTime @map("check_in_date") @db.Date
+  checkOutDate   DateTime @map("check_out_date") @db.Date
+  totalAmount    Decimal  @default(0) @map("total_amount") @db.Decimal(10, 2)
+  depositAmount  Decimal  @default(0) @map("deposit_amount") @db.Decimal(10, 2)
+  notes          String?
+  // pending | confirmed | cancelled | expired — new bookings start
+  // "pending" (no PayMongo integration yet, so the owner confirms
+  // manually via Messenger — see services/invoicePdf.js's PENDING
+  // watermark and app/api/admin/bookings/[id]/confirm/route.js).
+  // "pending" is treated the same as "confirmed" for overlap/exclusion
+  // purposes (see addBookingExclusionConstraint.js, services/
+  // bookingPricing.js, app/api/bookings/dates/route.js) so the slot is
+  // held while awaiting owner confirmation. If the owner never confirms
+  // within pendingExpiresAt, the cron below flips it to "expired" and
+  // the slot re-opens automatically.
+  status         String   @default("pending")
+  // Only set when status is "pending" — now() + 8 hours at creation
+  // time (services/bookingRules.js's PENDING_HOLD_HOURS constant).
+  // app/api/cron/booking-expiry/route.js sweeps every "pending" row
+  // past this timestamp and flips it to "expired", freeing the dates.
+  pendingExpiresAt DateTime? @map("pending_expires_at")
+
+  // --- Short-Window Pending Hold (capped countdown) ---
+  // True only when this booking's scheduled start (see
+  // services/bookingPricing.js's scheduledStartAt) fell sooner than the
+  // full DP Countdown window at creation time — e.g. a Day Tour booked
+  // 2 hours before its own start time. When true, pendingExpiresAt above
+  // was capped to that scheduled start instead of the full
+  // pendingHoldHours window, and app/api/cron/booking-expiry/route.js
+  // must NOT auto-expire this row when it passes — it only stamps
+  // pendingHoldBreachedAt and leaves status "pending" for a super-admin
+  // to manually confirm or cancel. Ordinary (uncapped) pending bookings
+  // are unaffected and keep auto-expiring as before.
+  pendingHoldCapped     Boolean   @default(false) @map("pending_hold_capped")
+  // Set by the cron sweep the first time a capped booking's pendingExpiresAt
+  // passes without confirmation — never auto-changes status. Surfaced to
+  // the super-admin Bookings list as a "Breached — needs review" flag.
+  pendingHoldBreachedAt DateTime? @map("pending_hold_breached_at")
+
+
+  // --- Invoice-Gated Directions (villa-azure-ai-insight-and-directions-plan.txt, Part 2) ---
+  // Unique code printed on the generated invoice. Format "VAR-YYYYMMDD-XXXXX"
+  // (see services/referenceCode.js) — deliberately not sequential so it can't
+  // be guessed. Must be supplied (+ verified confirmed/not-cancelled) before
+  // the "How to Get There" widget will reveal turn-by-turn directions.
+  referenceCode  String   @unique @map("reference_code")
+
+  // Set the FIRST time this booking's directions were actually
+  // computed (app/api/directions/compute/route.js — the ONE call that
+  // spends the Geocoding/Routes/Static Maps API budget for this
+  // booking). Null = never computed yet. Once set, every later
+  // compute request for this reference code is served from
+  // directionsRouteData/directionsMapImage* below instead of calling
+  // Google Maps again — the guest can still view their directions any
+  // number of times, it just never costs another API call after the
+  // first.
+  directionsAccessedAt DateTime? @map("directions_accessed_at")
+
+  // Cached result of the one paid compute — { distanceMeters,
+  // durationSeconds, steps, originLatitude, originLongitude }. Written
+  // once alongside directionsAccessedAt, then read-only forever after.
+  // Never recomputed from this JSON — it's a snapshot of that one
+  // route, not live data.
+  directionsRouteData   Json?   @map("directions_route_data")
+
+  // Cloudflare R2 public CDN URL + object key for the Static Maps PNG
+  // rendered on that same first compute (Rule 35.6/35.8 — key kept for
+  // deleteFromR2() if this booking is ever purged). Served directly by
+  // R2's CDN on every later view — never re-requested from Google.
+  directionsMapImageUrl String? @map("directions_map_image_url")
+  directionsMapImageKey String? @map("directions_map_image_key")
+
+  // --- Multi-date rule matching (Section 1 Rule 2 on Booking Rules) ---
+  // NIGHTS actually selected by the guest (checkOutDate - checkInDate in
+  // days) — 0 for Day Tour/Night Tour. Named to match BookingRule's own
+  // column below: an admin rule set built from N selected calendar dates
+  // in the Rule Schedule picker represents N nights (see that column's
+  // comment), so this is the value the booking route matches against to
+  // find which specific rule set (e.g. "4Ds-3Ns" vs "3Ds-2Ns") actually
+  // priced this stay.
+  howManySelectedDates Int @default(0) @map("how_many_selected_dates")
+
+  // --- Same-Day Auto-Adjust snapshot (only ever set when the rule that
+  // priced this booking had sameDayPolicy = "auto_adjust" AND the guest
+  // booked today after the rule's normal start time for this booking
+  // type). Records the ACTUAL check-in/check-out moments used for THIS
+  // specific booking. Null for every booking made under "strict", or
+  // made for a future date, where the rule's own checkInTime/
+  // checkOutTime (or tour start/end times) apply unchanged. Kept on the
+  // booking itself — never on the shared BookingRule row — since the
+  // adjustment belongs to this one guest's late arrival, not a change
+  // to the rule every other guest still books under.
+  effectiveCheckInAt  DateTime? @map("effective_check_in_at")
+  effectiveCheckOutAt DateTime? @map("effective_check_out_at")
+
+  // --- Cleaning-buffer snapshot ---
+  // The Cleaning Hours value that actually applied to THIS booking's
+  // checkout, captured once at creation time. Without this snapshot,
+  // the turnover conflict check in services/bookingPricing.js would
+  // have to assume whatever Cleaning Hours is active RIGHT NOW when
+  // validating a brand-new booking against this one's checkout — which
+  // breaks the moment an owner changes Cleaning Hours after this
+  // booking was already made. Null only for bookings created before
+  // this column existed; the turnover check falls back to the
+  // current resort-wide value (SystemSettings.cleaningHours) for those
+  // old rows only.
+  cleaningHoursSnapshot Int? @map("cleaning_hours_snapshot")
+
+  // --- Booking-time device/location capture ---
+  // Captured server-side from the request that submitted THIS booking
+  // (never trusted from the client body) — separate from VisitorLog's
+  // own booking_submitted row (services/visitorLog.js), which logs the
+  // event but isn't linked back to the specific Booking row it caused.
+  // These columns let an admin see the origin of a specific booking
+  // directly on the record itself, without joining/matching by
+  // timestamp against VisitorLog.
+  ipAddress  String? @map("ip_address")
+  userAgent  String? @map("user_agent")
+  geoCity    String? @map("geo_city")
+  geoCountry String? @map("geo_country") // ISO country code, e.g. "PH"
+
+  // --- Rebooking Limit (Global Rebooking Policy — SystemSettings below) ---
+  // rebookedAt is already written by app/api/bookings/manage/reschedule/
+  // route.js (stamped on every successful self-service reschedule) but
+  // was missing from this model — every rebook attempt was silently
+  // throwing a Prisma "Unknown argument" error. Added here alongside the
+  // new counter fields needed to enforce SystemSettings.maxRebookingsAllowed.
+  rebookedAt DateTime? @map("rebooked_at")
+  // How many times THIS booking has been successfully rebooked (moved to
+  // new dates via the self-service reschedule route). Compared against
+  // SystemSettings.maxRebookingsAllowed on every new reschedule attempt —
+  // see services/rebookingPolicy.js.
+  rebookCount Int @default(0) @map("rebook_count")
+
+  // Set the moment this booking's deposit becomes non-refundable because
+  // of the rebooking policy (either immediately on the 1st rebook, if
+  // SystemSettings.rebookingNonRefundableOnFirst is true, or when the
+  // guest hits the rebooking limit under the "non_refundable" limit
+  // action). Independent of the resort's normal cancellation-window
+  // refund schedule — this flag means "no refund regardless of when
+  // cancelled," and is surfaced back to the guest on the manage-booking
+  // widget and the booking confirmation/policies pages.
+  isDepositNonRefundable     Boolean   @default(false) @map("is_deposit_non_refundable")
+  depositNonRefundableAt     DateTime? @map("deposit_non_refundable_at")
+  depositNonRefundableReason String?   @map("deposit_non_refundable_reason")
+
+  // Set only when SystemSettings.rebookingLimitAction is "forfeit" AND the
+  // guest attempts to rebook again after already reaching
+  // maxRebookingsAllowed. The booking is cancelled and the deposit is
+  // kept — see services/rebookingPolicy.js's evaluateRebookingEligibility()
+  // and the reschedule route's enforcement of it.
+  isForfeited     Boolean   @default(false) @map("is_forfeited")
+  forfeitedAt     DateTime? @map("forfeited_at")
+  forfeitedReason String?   @map("forfeited_reason")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  room Room? @relation(fields: [roomId], references: [id])
+
+  // Availability calendar and blackout checks filter by roomId + status/date
+  // range on every booking-form load — this is the hottest query path.
+  @@index([roomId])
+  @@index([status])
+  @@index([checkInDate, checkOutDate])
+  @@index([referenceCode])
+  @@map("bookings")
+}
+
+// ============================================================
+// MODEL: WalkInInquiry  (floating chat widget lead capture)
+// ============================================================
+// Captured from the visitor site's floating "Chat with us" widget —
+// a guest fills in their name and phone number (IP is captured
+// server-side, never trusted from the client) so staff can call them
+// back about a walk-in or phone-in reservation. This is a lead, not a
+// confirmed Booking — staff convert it into a real Booking manually
+// once the reservation is agreed over the call (see the Bookings admin
+// page), and mark it "converted" here for their own tracking.
+model WalkInInquiry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guestName  String   @map("guest_name")
+  guestPhone String   @map("guest_phone")
+  ipAddress  String?  @map("ip_address")
+  status     String   @default("new") // new | contacted | converted
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("walkin_inquiries")
+}
+
+// ============================================================
+// MODEL: AdminProfile  (Super Admin accounts)
+// ============================================================
+// The `id` must match an existing Supabase Auth user's UID (created via
+// Supabase Auth, not via this table). Prisma does not manage the
+// auth.users table directly — this table only stores role/profile
+// metadata for a user that already exists in Supabase Auth.
+model AdminProfile {
+  id        String   @id @db.Uuid
+  fullName  String   @map("full_name")
+  role      String   @default("super_admin")
+  // Distinguishes the actual resort owner from any other staff account
+  // that might later get a super_admin login (e.g. a front-desk
+  // manager). role alone can't do this — every admin account defaults
+  // to "super_admin" regardless of who they are. Gates access to
+  // owner-only pages like the Vault Passphrase settings page, which
+  // reveals the hidden vault recovery URL (hash-derived, changes on
+  // every rotation) — something that should stay known to the owner
+  // alone, not every staff login.
+  isOwner   Boolean  @default(false) @map("is_owner")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Every currently-logged-in device/browser for this admin — see
+  // AdminSession below. Cascade delete so removing an admin account
+  // never leaves orphaned session rows behind.
+  sessions AdminSession[]
+
+  @@map("admin_profiles")
+}
+
+// ============================================================
+// MODEL: AdminSession  (tracks currently logged-in super-admins)
+// ============================================================
+// One row per active login (one per device/browser, not per account —
+// the same admin opening a second browser creates a second row). This
+// is what makes SystemSettings.maxAdminSessions enforceable: sessions
+// are otherwise stateless JWT-style cookies with no DB record at all,
+// so without this table there is no way to know how many admins are
+// currently signed in.
+//
+// Created by app/api/auth/login/route.js the moment a login fully
+// succeeds (after Gatekeeper 1/2/3 processing). Deleted by
+// app/api/auth/logout/route.js on explicit sign-out, and by
+// SessionCloseGuard's beacon call on tab/browser close. A row can also
+// go stale if neither fires (e.g. the browser crashes) — expiresAt
+// mirrors the session cookie's own 7-day maxAge, and
+// services/adminAccessLimit.js only ever counts rows where
+// expiresAt > now, so a stale row stops counting toward the limit on
+// its own without needing a cleanup job.
+model AdminSession {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId   String       @map("admin_id") @db.Uuid
+  admin     AdminProfile @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  ipAddress String?      @map("ip_address")
+  createdAt DateTime     @default(now()) @map("created_at")
+  expiresAt DateTime     @map("expires_at")
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+// ============================================================
+// MODEL: SecurityLog  (Security event / audit log — see services/securityLog.js)
+// ============================================================
+// Append-only. Every row is one security-relevant event: a login
+// attempt (success or failure), a rate limit being hit, or a
+// super-admin performing a sensitive create/update/delete. Never
+// updated or deleted by the app itself — this is the record an admin
+// reviews after the fact to answer "what happened and who did it."
+model SecurityLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType String   @map("event_type") // login_success | login_failed | admin_login_denied | rate_limit_hit | admin_action | directions_verified | directions_accessed | directions_denied_early | directions_reuse_blocked | sql_injection_attempt | system_retention_purge | gatekeeper_breach | vault_passphrase_rotated | vault_passphrase_set | setup_key_verified | setup_key_rejected | setup_admin_created
+  actor     String?  // email attempted/used, or the admin's full name for admin_action rows
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent") @db.Text
+  details   String?  @db.Text // human-readable summary, e.g. "Cancelled booking for Juan Dela Cruz"
+
+  // --- Device Fingerprinting (Rule 38) — parsed from userAgent at write time ---
+  deviceType        String? @map("device_type") // desktop | mobile | tablet | bot | unknown
+  browserName       String? @map("browser_name")
+  osName            String? @map("os_name")
+  deviceFingerprint String? @map("device_fingerprint") // sha256(userAgent + actor), used for new-device detection
+  isNewDevice       Boolean @default(false) @map("is_new_device") // true if this fingerprint was never seen before for this actor
+
+  // --- Geolocation (Rule 38) — resolved via self-hosted MaxMind GeoIP2, see services/geoip.js ---
+  country     String? // full country name, e.g. "Philippines"
+  countryCode String? @map("country_code") // ISO 3166-1 alpha-2, e.g. "PH"
+  city        String?
+  latitude    Float?
+  longitude   Float?
+
+  // --- Anomaly Detection (Rule 38) — impossible-travel and new-device flags computed in services/securityLog.js ---
+  isAnomalous   Boolean @default(false) @map("is_anomalous")
+  anomalyReason String? @map("anomaly_reason") @db.Text // e.g. "Impossible travel: Manila -> Berlin in 4 minutes (implies 9800 km/h)"
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Speeds up the two queries the anomaly detector runs on every write:
+  // "most recent row for this actor" and "most recent fingerprint for this actor".
+  @@index([actor, createdAt])
+  @@map("security_logs")
+}
+
+// ============================================================
+// MODEL: AuditLog  (Rule 6 — content/settings change trail)
+// ============================================================
+// Separate from SecurityLog (Rule 38 — login attempts, anomalies,
+// attacks, device/geo). AuditLog answers "WHO changed WHAT content"
+// (rooms, amenities, shop products, activities, testimonials, gallery,
+// policies, homepage, booking rules) — never login/security events.
+// See /superAdmin/audit-logs vs /superAdmin/security-logs: two
+// separate pages for two separate purposes, per Rule 38.1.
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor      String? // the admin's email/name who performed the change
+  action     String // created | updated | deleted
+  targetType String   @map("target_type") // e.g. "Room", "Policy", "BookingRule"
+  targetId   String?  @map("target_id") // the affected row's id, when it still exists
+  targetName String?  @map("target_name") // human-readable label, e.g. the room's name — kept even after the row is deleted
+  details    String?  @db.Text // human-readable one-liner, e.g. "Updated room \"Azure Villa 1\" (₱5,000 -> ₱5,500)."
+  ipAddress  String?  @map("ip_address")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Speeds up "most recent changes" (default sort) and the Actor/Target Type filters.
+  @@index([createdAt])
+  @@index([actor])
+  @@index([targetType])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// MODEL: BlockedIp  (3-Gatekeeper breach response — auto/manual IP block)
+// ============================================================
+// One row per blocked IP address. Checked by middleware.js on every
+// single request (visitor + super-admin alike) before anything else
+// runs — a blocked IP gets a plain 403 and never reaches any page or
+// API route. Rows are almost always written automatically by
+// services/breachResponse.js the instant a gatekeeper trips, but the
+// `blockedBy` field also supports a manual block added directly by a
+// super-admin later if this project adds that UI.
+model BlockedIp {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ipAddress String   @unique @map("ip_address")
+  reason    String   @db.Text
+  blockedBy String   @default("system") @map("blocked_by") // "system" (auto, gatekeeper trip) or a super-admin uid
+  gatekeeper Int?    @map("gatekeeper") // 1, 2, or 3 — which gate this IP tripped, null for manual blocks
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ipAddress])
+  @@map("blocked_ips")
+}
+
+// ============================================================
+// MODEL: BreachEvent  (3-Gatekeeper breach response — incident record)
+// ============================================================
+// One row per gatekeeper trip. Drives three things at once: the red
+// takeover banner shown to guests (via SystemSettings.breachLockdown),
+// the alert banner shown to super-admin on next login, and the trail
+// the hidden recovery page reads from so a super-admin can see exactly
+// what happened before importing the pre-breach backup.
+model BreachEvent {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gatekeeper     Int       @map("gatekeeper") // 1 = login brute force, 2 = SQL injection attempt, 3 = anomalous admin login
+  ipAddress      String?   @map("ip_address")
+  details        String    @db.Text
+  backupTriggered Boolean  @default(false) @map("backup_triggered") // true once database-backup.yml was dispatched
+  emailSent      Boolean   @default(false) @map("email_sent")
+  vaultPassphraseRotated Boolean @default(false) @map("vault_passphrase_rotated") // true once a fresh vault passphrase was generated + emailed — now runs for all 3 gatekeepers, see services/breachResponse.js
+  vaultPassphraseR2Url String? @map("vault_passphrase_r2_url") // Cloudflare R2 presigned (time-limited) download link for the rotated passphrase's .txt backup, if the upload succeeded — previously a permanent Google Drive view link; see services/vaultPassphraseBackup.js
+  resolved       Boolean   @default(false) // true once a super-admin ends the lockdown from the recovery page
+  resolvedBy     String?   @map("resolved_by")
+  resolvedAt     DateTime? @map("resolved_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([resolved])
+  @@map("breach_events")
+}
+
+// ============================================================
+// MODEL: MagicLoginToken  (owner-IP recovery — see services/magicLogin.js)
+// ============================================================
+// One-time, short-lived login token issued only when a login attempt
+// from SystemSettings.ownerVerifiedIp exceeds its 5-attempt limit
+// (services/rateLimit.js). Never issued for any other IP — a non-owner
+// IP that exceeds its 3-attempt limit gets the normal Gatekeeper 1
+// breach response instead, not a token. tokenHash stores a SHA-256
+// hash of the raw token (mailed to VAULT_OWNER_EMAIL) — the raw value
+// itself is never persisted anywhere, same reasoning as a password hash.
+model MagicLoginToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  adminId   String    @map("admin_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("magic_login_tokens")
+}
+
+// ============================================================
+// MODEL: BackupLog  (Database Backup history — see scripts/runBackup.js)
+// ============================================================
+// One row per backup run, written by the standalone backup script
+// (never by the live app itself — see the "decoupled from live
+// traffic" note in scripts/runBackup.js). Lets an admin see backup
+// history and confirm R2 actually received a copy on the Backups
+// admin page.
+// ============================================================
+// MODEL: ActivityArchiveLog  (Activity Feed — 100-page auto-archive)
+// ============================================================
+// One row per automatic Activity Feed archive event. Written by
+// services/activityArchive.js the instant a VisitorLog +
+// AccountActivityLog snapshot has been uploaded to Cloudflare R2 AND
+// deleted from both source tables. The Activity Feed page reads the
+// single most recent row here to show the "just archived" banner +
+// a signed download link after a fresh archive fires.
+model ActivityArchiveLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileName      String   @map("file_name") // e.g. "JulyToAugust-activityfeed-2026.sql"
+  // Google Drive dropped (unreliable — see services/googleDrive.js's
+  // retirement note). Private Cloudflare R2 key under archives/ — the
+  // permanent CDN URL is never used for this (contains staff IPs/account
+  // ids); a signed, expiring download URL is generated on demand from
+  // this key instead (services/r2.js's getR2SignedDownloadUrl()).
+  r2Key         String   @map("r2_key")
+  recordCount   Int      @map("record_count")
+
+  rangeStart    DateTime @map("range_start")
+  rangeEnd      DateTime @map("range_end")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("activity_archive_logs")
+}
+
+model BackupLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status         String    @default("running") // running | success | failed
+  // What caused this run: "nightly" (2 AM cron), "manual" ("Run Backup
+  // Now" button or someone pressing "Run workflow" in GitHub directly),
+  // or "pre_wipe" (fired the instant a super-admin scheduled a
+  // "Back up first, then wipe" — see pre-wipe-backup.yml). Set by
+  // scripts/runBackup.js from the TRIGGER_SOURCE env var each workflow
+  // passes in — never inferred after the fact.
+  triggerSource  String    @default("manual") @map("trigger_source")
+  fileSizeBytes  Int?      @map("file_size_bytes")
+  // Task 6 — Backup integrity check. SHA-256 of the gzipped dump,
+  // computed by scripts/runBackup.js right after gzip and before
+  // upload — so it verifies the exact bytes that went to R2.
+  // Displayed on the Backups page and in the vault's "Fix SQL" step
+  // so the owner can confirm a downloaded file wasn't corrupted or
+  // tampered with before restoring it.
+  // Google Drive dropped as a backup destination (unreliable) — R2 is
+  // now the single destination; see services/googleDrive.js's header.
+  checksumSha256 String?   @map("checksum_sha256")
+  r2Key          String?   @map("r2_key")
+  r2Url          String?   @map("r2_url") @db.Text
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+
+  @@map("backup_logs")
+}
+
+// ============================================================
+// MODEL: ApiCallLog  (Super-Admin "API Usage" page)
+// ============================================================
+// One row per outbound call this app makes to a metered third-party
+// API (Google Weather, Google Maps, Gemini, GitHub, EmailJS, Google
+// Drive, Cloudflare R2). Written by services/apiUsageTracker.js from
+// inside each of those services' own call sites — never inferred
+// after the fact from application logs, since those get purged and
+// don't carry a consistent shape. Read-only from the app's own
+// perspective; there is no UI that lets an admin edit or delete a row.
+model ApiCallLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // Which provider/API this call went to — one of the keys defined in
+  // services/apiUsageTracker.js's API_CATALOG, e.g. "google_weather",
+  // "google_maps", "gemini", "github", "emailjs", "google_drive",
+  // "cloudflare_r2". Never free-text — always one of the catalog keys
+  // so the usage page can group reliably.
+  service   String
+  // Short label for which specific call this was within that service,
+  // e.g. "forecast_lookup", "geocode", "routes", "static_map",
+  // "generate_content", "workflow_dispatch", "send", "upload".
+  // Optional — some services only ever make one kind of call.
+  endpoint  String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([service])
+  @@index([createdAt])
+  @@map("api_call_logs")
+}
+
+// ============================================================
+// MODEL: SqlImportLog  (Backups page — "Import SQL to Fix Database")
+// ============================================================
+// One row per SQL restore triggered by a super-admin. The row is
+// created with status "running" by the API route the instant the
+// upload finishes, then updated to "success"/"failed" by
+// scripts/runRestore.js once GitHub Actions actually applies the file
+// against DIRECT_URL — same "decoupled from live traffic" pattern as
+// BackupLog (Rule 40.1): the actual psql restore never runs inside a
+// live Next.js request.
+model SqlImportLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status         String    @default("running") // running | success | failed
+  fileName       String    @map("file_name")
+  fileSizeBytes  Int?      @map("file_size_bytes")
+  sourceUrl      String    @map("source_url") @db.Text // R2 URL of the uploaded .sql/.sql.gz file
+  triggeredBy    String?   @map("triggered_by") // super-admin uid who uploaded the file
+  errorMessage   String?   @map("error_message") @db.Text
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+
+  @@map("sql_import_logs")
+}
+
+// ============================================================
+// MODEL: BookingRules  (Booking Rules & Configuration, blueprint Page 7)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// the well-known id "singleton" (see app/api/superAdmin/settings/
+// booking-rules/route.js), never creates a second row.
+// Previously a locked singleton (id always "singleton", exactly one row).
+// Super-admin could only ever edit "the" settings, never create another
+// set — and the confusing part was that per-room overrides on the Room
+// model could silently take precedence over whatever was configured
+// here. Now a normal multi-row model: super-admin can create as many
+// named rule sets as needed (e.g. "Regular Season", "Peak Season Rules"),
+// edit or delete any of them, and mark exactly one `isActive` — that one
+// alone is what the visitor booking flow and pricing engine read from.
+model BookingRule {
+  id     String  @id @default(cuid())
+  name   String  @unique @default("Default Rules") // e.g. "Default Rules", "Holiday Season Rules"
+  isActive Boolean @default(true) @map("is_active") // simple per-row toggle — no exclusivity enforced; multiple rule sets can be active at once
+
+  // --- Section 1: General Booking Settings ---
+  // minNightsRequired / maxNightsAllowed / advanceBookingDays are no longer
+  // editable from the Create/Edit form (removed from Section 1 per admin
+  // request — the calendar-driven flow below replaced them). Fields and
+  // their defaults are kept here so existing booking validation
+  // (services/bookingPricing.js, availability route) keeps working
+  // unchanged — only the UI stopped exposing them.
+  minNightsRequired  Int    @default(1) @map("min_nights_required")
+  maxNightsAllowed   Int    @default(30) @map("max_nights_allowed")
+  advanceBookingDays Int    @default(365) @map("advance_booking_days") // guests can book at most this many days ahead
+  checkInTime        String @default("14:00") @map("check_in_time") // 24h "HH:mm"
+  checkOutTime       String @default("11:00") @map("check_out_time") // 24h "HH:mm"
+
+  // --- Same-Day Check-In Policy — governs what happens when a guest
+  // tries to book for TODAY after this rule's normal start time for the
+  // chosen booking type has already passed (e.g. checkInTime is 14:00
+  // but the guest is submitting the booking at 16:00 today).
+  //   "strict"      — refuse the booking outright with a clear message.
+  //                   The rule's start time is never reinterpreted.
+  //   "auto_adjust" — accept the booking, treat the current moment as
+  //                   the guest's actual check-in, and push the
+  //                   checkout moment (and checkout DATE, if the shift
+  //                   crosses midnight) forward by that same delay so
+  //                   the paid duration never shrinks.
+  // Applies uniformly across Overnight, Day Tour, and Night Tour — each
+  // type is checked against its own start time (checkInTime /
+  // dayTourStartTime / nightTourStartTime respectively). See
+  // services/bookingPricing.js for the enforcement logic.
+  sameDayPolicy String @default("strict") @map("same_day_policy") // "strict" | "auto_adjust"
+
+  // --- Rule Schedule — which specific calendar dates this rule set's
+  //     Section 1 settings apply to. Stored as "YYYY-MM-DD" keys.
+  //     Empty array = no specific dates picked yet (rule set still needs
+  //     Section 1 completed before it's meaningful to activate). ---
+  ruleDates String[] @default([]) @map("rule_dates")
+
+  // Denormalized from ruleDates.length — kept as its own indexed column
+  // (rather than filtering on array length on every request) so the
+  // visitor booking flow can cheaply look up "is there an Active rule
+  // set built for exactly N selected dates" (see
+  // services/bookingRules.js -> getActiveBookingRuleForDateCount()).
+  // A rule set named "4Ds-3Ns" has ruleDates.length = 3 (per the "X
+  // petsa (X gabi)" hint on the Rule Schedule picker — the number of
+  // dates selected there IS the night count), matched against
+  // Booking.howManySelectedDates on the same nights basis. Kept in sync
+  // by the create/update routes every time ruleDates is written.
+  howManySelectedDates Int @default(0) @map("how_many_selected_dates")
+
+  // --- Allowed Guests — the guest count baked into this package's
+  //     price for EVERY booking type (Overnight, Day Tour, Night Tour
+  //     all use this the same way now). The visitor never types a guest
+  //     count anywhere — people aren't always honest about headcount
+  //     upfront, so the online price is always this fixed count, and
+  //     anyone extra is charged the flat per-head fee below once staff
+  //     verifies the actual headcount on-site. ---
+  allowedGuests Int @default(2) @map("allowed_guests")
+
+  // --- Total Pax — the MAX capacity this package can hold on-site,
+  //     distinct from allowedGuests above (the fixed count already paid
+  //     for online). This is the ceiling on how many extra guests staff
+  //     can let in beyond allowedGuests, each paying extraGuestFeePerHead
+  //     below. Enforced server-side inside validateAndQuoteBooking(). ---
+  maxPax Int @default(20) @map("max_pax")
+
+  // --- Extra Guest Fee (per head) — shown to visitors on the public
+  //     package details as a heads-up, not charged through the app: the
+  //     super-admin sets this rate, staff collects it manually on-site
+  //     for any guest beyond allowedGuests (up to the maxPax ceiling
+  //     above) once they actually see how many people showed up. ---
+  extraGuestFeePerHead Decimal @default(0) @db.Decimal(10, 2) @map("extra_guest_fee_per_head")
+
+  // --- Package Inclusions — what the super-admin says is included in
+  //     this specific rule set's package, shown to the visitor on the
+  //     read-only reservation summary page (Section: "Included in
+  //     this package"). Two separate lists on purpose: includedAmenityIds
+  //     lets the admin reuse the resort's already-managed Amenity
+  //     catalog (pool, wifi, parking, etc.) via a checklist instead of
+  //     retyping names that can drift out of sync; packageInclusions is
+  //     free text for package-specific extras that aren't a resort
+  //     amenity at all (e.g. "Welcome Drinks", "Late Checkout"). ---
+  includedAmenityIds String[] @default([]) @map("included_amenity_ids") // Amenity.id values
+  // Wires the Resort Shop into Package Inclusions — lets the admin mark
+  // specific StoreProduct rows as included in this package (e.g. a
+  // souvenir or drink bundled with a Day Tour), reusing the same
+  // checklist pattern as includedAmenityIds instead of retyping the
+  // product name as free text. Resolved to live product records (name,
+  // price) by app/api/booking-rules/route.js, same as Amenity above.
+  includedProductIds String[] @default([]) @map("included_product_ids") // StoreProduct.id values
+  packageInclusions  String[] @default([]) @map("package_inclusions") // free-text extras
+
+  // --- Booking Types (extension beyond the base blueprint, per admin request) ---
+  allowOvernightStay Boolean @default(true) @map("allow_overnight_stay")
+  allowDayTour       Boolean @default(false) @map("allow_day_tour")
+  allowNightTour     Boolean @default(false) @map("allow_night_tour")
+
+  // --- Hourly Charge — only meaningful when ruleDates has 2+ dates
+  //     selected ("Overnight (Customized)" mode in Section 1). Extra
+  //     charge applied per hour on top of the normal per-night rate. ---
+  hourlyChargeAmount Decimal @default(0) @map("hourly_charge_amount") @db.Decimal(10, 2)
+
+  // --- Day Tour settings — only meaningful when allowDayTour is true.
+  //     A Day Tour is a same-day visit that now also requires picking a
+  //     room, priced at that room's own flat dayTourPrice (see the Room
+  //     model above) — no longer a resort-wide per-guest rate. These
+  //     fields below are only the time window; dayTourPricePerGuest
+  //     is kept in the DB for backward compatibility but is no longer
+  //     read anywhere (see services/bookingPricing.js). ---
+  dayTourStartTime      String  @default("08:00") @map("day_tour_start_time") // 24h "HH:mm"
+  dayTourEndTime        String  @default("17:00") @map("day_tour_end_time") // 24h "HH:mm"
+  dayTourPricePerGuest  Decimal @default(500) @map("day_tour_price_per_guest") @db.Decimal(10, 2)
+
+  // --- Night Tour settings — only meaningful when allowNightTour is
+  //     true. Same idea as Day Tour but for an evening window — see
+  //     the comment on dayTourPricePerGuest above. ---
+  nightTourStartTime     String  @default("18:00") @map("night_tour_start_time") // 24h "HH:mm"
+  nightTourEndTime       String  @default("23:00") @map("night_tour_end_time") // 24h "HH:mm"
+  nightTourPricePerGuest Decimal @default(600) @map("night_tour_price_per_guest") @db.Decimal(10, 2)
+
+  // --- Section 2: Cancellation Policy ---
+  refundPercentage       Int @default(100) @map("refund_percentage") // % refunded if cancelled before the cutoff
+  cancellationCutoffDays Int @default(7) @map("cancellation_cutoff_days") // days before check-in for full refund
+
+  // --- Section 3: Deposit & Payment ---
+  depositRequired   Boolean @default(true) @map("deposit_required")
+  depositPercentage Int     @default(50) @map("deposit_percentage") // % of total held as deposit
+
+  // --- Section 4: Pricing Modifiers ---
+  weekendSurchargePercent   Int @default(0) @map("weekend_surcharge_percent") // extra % on Fri/Sat nights
+  lastMinuteDiscountPercent Int @default(0) @map("last_minute_discount_percent") // % off if booked within a few days
+  groupDiscountThreshold    Int @default(3) @map("group_discount_threshold") // min rooms booked together to qualify
+  groupDiscountPercent      Int @default(0) @map("group_discount_percent")
+
+  // --- Section 5: Seasonal Pricing toggle ---
+  seasonalPricingEnabled Boolean @default(true) @map("seasonal_pricing_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
+
+  // Promo Dates that are scoped to THIS rule set specifically (see
+  // PromoDate.bookingRuleId below) — a promo with bookingRuleId left
+  // null instead applies regardless of which rule set is active.
+  promoDates PromoDate[]
+
+  @@index([isActive])
+  @@index([isActive, allowOvernightStay, howManySelectedDates])
+  @@map("booking_rules")
+}
+
+// ============================================================
+// MODEL: SeasonalPrice  (Booking Rules — Section 5: Seasonal Pricing)
+// ============================================================
+model SeasonalPrice {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId        String   @map("room_id") @db.Uuid
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  seasonName    String   @map("season_name") // "Peak Season", "Shoulder", "Off-Season", etc.
+  startDate     DateTime @map("start_date") @db.Date
+  endDate       DateTime @map("end_date") @db.Date
+  pricePerNight Decimal  @map("price_per_night") @db.Decimal(10, 2) // overrides the room's default price for this range
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([roomId])
+  @@map("seasonal_prices")
+}
+
+// ============================================================
+// MODEL: SeasonDefinition  (Booking Rules — Section 5, "current
+// season" reference used by Section 5's info panel AND the
+// super-admin top bar's Season display)
+// ============================================================
+// Deliberately separate from SeasonalPrice above: SeasonalPrice is a
+// per-room, specific-date-range price OVERRIDE the admin manually adds
+// (e.g. "Villa 3, Dec 20-31, ₱8000/night"). SeasonDefinition instead
+// answers the simpler, resort-wide question "is today generally
+// Peak or Off season in the Philippines?" — a recurring (year-over-
+// year, month/day only, no specific year) reference the admin can
+// tweak, seeded with the typical PH pattern (summer + Christmas peak,
+// rainy-season off) on first load if the table is empty.
+// startMonth/startDay..endMonth/endDay can wrap the year boundary
+// (e.g. Dec 16 -> Jan 15) — services/seasonInfo.js's date-in-range
+// check handles that wrap explicitly.
+model SeasonDefinition {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  seasonType String   @map("season_type") // "peak" | "off"
+  label      String   // e.g. "Summer Peak", "Holiday Peak", "Rainy / Off-Season"
+  startMonth Int      @map("start_month") // 1-12
+  startDay   Int      @map("start_day") // 1-31
+  endMonth   Int      @map("end_month")
+  endDay     Int      @map("end_day")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("season_definitions")
+}
+
+// ============================================================
+// MODEL: BlackoutDate  (Booking Rules — Section 6: Blackout Dates)
+// ============================================================
+model BlackoutDate {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomId    String   @map("room_id") @db.Uuid
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  reason    String   @default("Custom") // "Cleaning" | "Maintenance" | "Private" | "Custom"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([roomId])
+  @@map("blackout_dates")
+}
+
+// ============================================================
+// MODEL: Activity  (Activities Management, blueprint Page 4)
+// ============================================================
+model Activity {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  description  String?
+  duration     String   @default("") // e.g. "2 hours", "Half day"
+  minGroupSize Int      @default(1) @map("min_group_size")
+  maxGroupSize Int      @default(10) @map("max_group_size")
+  imageUrl     String?  @map("image_url")
+  imageKey     String?  @map("image_key") // R2 object key, needed to delete the old file on replace
+  isActive     Boolean  @default(true) @map("is_active")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  sortOrder    Int      @default(0) @map("sort_order")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this activity
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("activities")
+}
+
+// ============================================================
+// MODEL: Testimonial  (Testimonials Management, blueprint Page 5)
+// ============================================================
+model Testimonial {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  guestName    String   @map("guest_name")
+  guestPhoto   String?  @map("guest_photo") // R2 image URL, optional
+  guestPhotoKey String? @map("guest_photo_key") // R2 object key, needed to delete the old file on replace
+  rating       Int      @default(5) // 1-5 stars
+  quote        String   @db.VarChar(500)
+  isFeatured   Boolean  @default(false) @map("is_featured") // shown on homepage
+  displayOrder Int      @default(0) @map("display_order")
+  // Visitor-submitted reviews (source: "visitor") default to isApproved:
+  // false so they stay hidden from every public query until a
+  // super-admin reviews and approves them. Admin-created rows (source:
+  // "admin") default to true so existing behavior is unchanged.
+  source       String   @default("admin") // "admin" | "visitor"
+  isApproved   Boolean  @default(true) @map("is_approved")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this testimonial
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([isFeatured])
+  @@index([displayOrder])
+  @@index([isApproved])
+  @@map("testimonials")
+}
+
+// ============================================================
+// MODEL: GalleryImage  (Gallery Management, blueprint Page 6)
+// ============================================================
+model GalleryImage {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category     String   @default("common_area") // "bedroom" | "bathroom" | "common_area" | "outdoor" | "amenity"
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  isFeatured   Boolean  @default(false) @map("is_featured") // shows on homepage/featured section
+  // When the photo was actually TAKEN, read from the file's own EXIF
+  // metadata (DateTimeOriginal) at upload time — see utils/exifReader.js.
+  // Null when the file has no EXIF data (screenshots, many downloaded/
+  // re-saved images). Distinct from createdAt below, which is only ever
+  // "when this row was uploaded" and says nothing about the photo itself.
+  capturedAt   DateTime? @map("captured_at")
+  updatedBy    String?  @map("updated_by") // super-admin user id who last saved this image
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@index([displayOrder])
+  @@index([isFeatured])
+  @@map("gallery_images")
+}
+
+// ============================================================
+// MODEL: SystemSettings  (Shop Config, Policies, Homepage,
+// Contact Info & SEO — blueprint Pages 3, 8, 9)
+// ============================================================
+// Singleton table — the app always reads/writes the single row with
+// ============================================================
+// MODEL: BookingConfirmationEmail  (singleton, id "singleton")
+// ============================================================
+// Admin-editable copy for the automatic email sent the moment a
+// booking flips from "pending" to "confirmed" (see
+// app/api/admin/bookings/[id]/confirm/route.js and
+// services/bookingConfirmationEmail.js). Resort rules text is
+// deliberately NOT duplicated here — the email always pulls the live
+// SystemSettings.houseRules at send time (single source of truth,
+// same text shown on the visitor Policies page), so an admin only
+// edits it once in Content > Policies and both places stay in sync.
+model BookingConfirmationEmail {
+  id String @id @default("singleton")
+
+  eyebrowText       String? @default("BOOKING CONFIRMED") @map("eyebrow_text")
+  headingText       String? @default("Your stay is confirmed!") @map("heading_text")
+  introMessage      String? @default("Thank you for booking with us! Here's a quick summary of your confirmed stay, along with a few resort rules to review before you arrive.") @map("intro_message")
+  resortRulesHeading String? @default("Resort Rules") @map("resort_rules_heading")
+  resortRulesIntro  String? @default("Please review these rules before your stay:") @map("resort_rules_intro")
+  closingMessage    String? @default("We look forward to welcoming you!") @map("closing_message")
+  footerNote        String? @default("Have questions about your booking? Just reply to this email or message us on Facebook — we're happy to help.") @map("footer_note")
+
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved this
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  images BookingConfirmationEmailImage[]
+
+  @@map("booking_confirmation_email")
+}
+
+// ============================================================
+// MODEL: BookingConfirmationEmailImage
+// ============================================================
+// Gallery-style images an admin attaches to the confirmation email
+// (e.g. a welcome banner, room photos). Uploaded via the shared
+// /api/superAdmin/content/upload endpoint to Cloudflare R2 first —
+// this row only stores the resulting URL/key, same pattern as
+// GalleryImage above.
+model BookingConfirmationEmailImage {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settingsId String @default("singleton") @map("settings_id")
+
+  imageUrl     String   @map("image_url")
+  imageKey     String   @map("image_key") // R2 object key, needed to delete the old file on replace
+  caption      String?
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  settings BookingConfirmationEmail @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@index([settingsId])
+  @@index([displayOrder])
+  @@map("booking_confirmation_email_images")
+}
+
+// ============================================================
+// MODEL: BookingEmailTemplate
+// ============================================================
+// Admin-editable copy for the four booking-lifecycle emails that are
+// NOT the "Booking Confirmed" email (that one keeps its own dedicated
+// BookingConfirmationEmail model above, including its images gallery).
+// One row per templateKey — id IS the templateKey, same singleton-style
+// get-or-create pattern used throughout this schema, just with four
+// fixed ids instead of one. Read by services/bookingEmailTemplates.js,
+// which also owns the DEFAULT copy each row is created with and the
+// {{mergeTag}} placeholders (guestName, referenceCode, etc.) supported
+// inside headingText/introMessage/bodyMessage.
+model BookingEmailTemplate {
+  id String @id // "pending" | "cancelled" | "auto_cancelled" | "rebooked"
+
+  eyebrowText  String? @map("eyebrow_text")
+  headingText  String? @map("heading_text")
+  introMessage String? @map("intro_message")
+  bodyMessage  String? @map("body_message")
+
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved this
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("booking_email_templates")
+}
+
+// ============================================================
+// MODEL: EmailLog
+// ============================================================
+// One row per outbound email attempt made through
+// services/emailjs.js's sendGeneralEmail() — success or failure —
+// written automatically by services/emailLogs.js's
+// recordEmailAttempt() from inside sendGeneralEmail() itself, so
+// every email type (booking confirmations, pending/cancelled/
+// auto-cancelled/rebooked notices, vault OTP codes, breach alerts,
+// magic-login links, etc.) is logged here with zero per-call-site
+// wiring beyond passing an emailType label.
+//
+// `payload` stores the exact merge-tag params sendGeneralEmail() was
+// called with (toEmail, subject, heading, eyebrow, intro, the two
+// highlight lines, bodyMessage) — this is what lets the super-admin
+// Email Logs page's "Resend" action come up fully autofilled instead
+// of the admin having to reconstruct the email by hand.
+//
+// A resend never edits this row in place — it creates a BRAND-NEW
+// EmailLog row (resendOfLogId pointing back here) so the full history
+// of every attempt is preserved, while retryCount on the original row
+// increments so the admin can see at a glance it was retried.
+model EmailLog {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  emailType        String   @default("general") @map("email_type")
+  status           String // "sent" | "failed"
+  toEmail          String   @map("to_email")
+  subject          String
+  errorMessage     String?  @map("error_message") @db.Text
+  relatedBookingId String?  @map("related_booking_id")
+
+  // Exact sendGeneralEmail() params used for this attempt — reused
+  // verbatim (with any admin edits layered on top) when resent.
+  payload Json
+
+  // Set only on rows that ARE themselves a resend of an earlier
+  // attempt — null for the original attempt.
+  resendOfLogId String? @map("resend_of_log_id")
+  retryCount    Int     @default(0) @map("retry_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([emailType])
+  @@index([toEmail])
+  @@index([relatedBookingId])
+  @@index([createdAt])
+  @@map("email_logs")
+}
+
+// ============================================================
+// MODEL: WeatherForecastCache  (singleton, id "singleton")
+// ============================================================
+// Holds the last successfully fetched Google Weather API forecast for
+// the resort's coordinates, so the visitor-facing homepage widget
+// (components/sections/WeatherForecastSection.jsx) never calls Google
+// on a page request — it only ever reads this cached row. The actual
+// API call happens 3x/day from app/api/cron/weather/route.js (see
+// vercel.json's crons entries), which upserts this same row every run.
+// Same singleton id pattern as SystemSettings/BookingRules above —
+// only one forecast is ever needed at a time, no history is kept here.
+model WeatherForecastCache {
+  id String @id @default("singleton")
+
+  // Structured forecast days as JSON — see services/weather.js's
+  // getVisitorWeatherForecast() for the exact shape written here
+  // ({ date, conditionText, conditionType, minTemp, maxTemp,
+  // precipChance }[]). Kept as Json (not separate rows) since this is
+  // always read/written as one whole cache entry, never queried by
+  // individual day.
+  forecastDays Json? @map("forecast_days")
+
+  // "ok" | "error" — lets the widget show a graceful stale/error state
+  // instead of pretending a failed cron run still has fresh data.
+  status String @default("ok")
+
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("weather_forecast_cache")
+}
+
+// ============================================================
+// MODEL: PromoDate  (Section 5b, Booking Rules list page —
+// see PromoDatesSection.jsx)
+// ============================================================
+// One row per resort-wide promo day. Read publicly (pre-filtered to
+// isActive + not-yet-past) by app/api/promo-dates/route.js for
+// PromoAlertBanner.jsx and HowToBookSection.jsx's calendar, and fully
+// by the super-admin CRUD routes under app/api/superAdmin/settings/
+// promo-dates/. Expired rows are hard-deleted by
+// services/promoDates.js -> cleanupExpiredPromoDates() on every read
+// (plus a daily cron backup) — see that file for why a promo date
+// carries no history worth keeping once its day has passed.
+model PromoDate {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // The actual promo day itself — always anchored to UTC midnight by
+  // every write-path route, never a full timestamp.
+  date DateTime @db.Date
+
+  discountPercent Decimal @db.Decimal(5, 2) @map("discount_percent")
+  label           String?
+
+  // "all" | "overnight" | "day_tour" | "night_tour" — validated against
+  // VALID_APPLIES_TO in every route that writes this field.
+  appliesTo String @default("all") @map("applies_to")
+
+  // Lets an admin temporarily hide a promo without deleting it outright;
+  // the public route always filters on this being true.
+  isActive Boolean @default(true) @map("is_active")
+
+  // Optional scope to ONE specific BookingRule set — left null (the
+  // default), the promo applies no matter which rule set is currently
+  // active, exactly like before this field existed. Set it to tie the
+  // discount to only one named rule set (e.g. "Holiday Season Rules")
+  // so the same calendar date does NOT get discounted if a different
+  // rule set (e.g. "Default Rules") ends up governing that date
+  // instead. onDelete: SetNull — deleting the rule set un-scopes the
+  // promo back to "applies to all" rather than deleting the promo too.
+  // services/bookingPricing.js's promo lookup checks this against
+  // whichever BookingRule it already resolved as active for the
+  // booking's type (OR: [{ bookingRuleId: null }, { bookingRuleId: activeRuleId }]).
+  bookingRuleId String?      @map("booking_rule_id")
+  bookingRule   BookingRule? @relation(fields: [bookingRuleId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Re-tapping an already-promo'd date for the same scope is a no-op
+  // (skipDuplicates), never a duplicate row — see the POST route's
+  // header comment. NOTE: Postgres treats NULL as distinct in unique
+  // constraints, so two unscoped (bookingRuleId: null) rows for the
+  // same date+appliesTo are NOT blocked at the DB level — the POST
+  // route's explicit re-select + skipDuplicates still covers the
+  // common case (same admin session re-tapping the same date), which
+  // is what this constraint exists to prevent.
+  @@unique([date, appliesTo, bookingRuleId])
+  @@index([bookingRuleId])
+  @@map("promo_dates")
+}
+
+// SystemSettings row's id uses the same singleton convention:
+// the well-known id "singleton" (same pattern as BookingRules above),
+// never creates a second row.
+model SystemSettings {
+  id String @id @default("singleton")
+
+  // Shop Config (hours/location/alcohol warning) lives on the ShopConfig
+  // model above, not here — see ShopConfig for that data.
+
+  // --- Maintenance Mode (breach response / planned downtime banner) ---
+  // When true, every /visitor page renders a full-site banner via
+  // components/shared/MaintenanceBanner.jsx instead of hiding the
+  // problem from guests. Toggled from the Dashboard's Maintenance Mode
+  // card — see app/api/superAdmin/settings/maintenance/route.js.
+  maintenanceMode    Boolean @default(false) @map("maintenance_mode")
+  maintenanceMessage String? @map("maintenance_message")
+
+  // --- Breach Lockdown (3-Gatekeeper system, see services/breachResponse.js) ---
+  // Separate from plain maintenanceMode above: when true, the visitor
+  // site shows a full-page breach takeover (not just a banner over a
+  // working site — see components/shared/BreachLockdownScreen.jsx) and
+  // the super-admin dashboard shows a persistent red alert until the
+  // active BreachEvent is resolved from the hidden recovery page.
+  breachLockdown      Boolean @default(false) @map("breach_lockdown")
+
+  // --- Post-Wipe Lockdown (scripts/runDatabaseWipe.js) ---
+  // Separate from breachLockdown above: flipped on ONLY by the wipe
+  // executor the instant TRUNCATE actually succeeds — never by a
+  // gatekeeper. Unlike breachLockdown, super-admin access is ALSO
+  // fully blocked (proxy.js), and the admin's session cookie is
+  // cleared on their very next request — the truncated tables include
+  // account_activity_logs, so continuing to browse as if nothing
+  // happened isn't safe to allow. Only reachable to lift from the
+  // hidden vault recovery page (app/api/admin/post-wipe-lockdown),
+  // same "works even when the regular session is untrusted" reasoning
+  // breachLockdown already relies on.
+  postWipeLockdown   Boolean   @default(false) @map("post_wipe_lockdown")
+  postWipeLockdownAt DateTime? @map("post_wipe_lockdown_at")
+  breachActiveEventId String? @map("breach_active_event_id") @db.Uuid
+
+  // --- Owner Verified IP (GK1 leniency + GK3 exemption) ---
+  // Auto-updated (never set manually) the instant any super-admin login
+  // succeeds with the correct password — see app/api/auth/login/route.js.
+  // Two effects, both read at the top of that same route:
+  //   1. Gatekeeper 1 (brute force): a login attempt from this IP gets
+  //      5 attempts instead of 3, and a one-time magic-login-link email
+  //      instead of a full breach response once exceeded.
+  //   2. Gatekeeper 3 (anomalous login): a NEW-DEVICE trip (different
+  //      browser/OS, same account) from this IP skips only the
+  //      IP-block step — the site-wide lockdown, backup, alert, and
+  //      passphrase rotation still all happen regardless. An
+  //      IMPOSSIBLE-TRAVEL trip is NEVER exempted here, no matter what
+  //      IP it came from — see services/breachResponse.js.
+  ownerVerifiedIp          String?   @map("owner_verified_ip")
+  ownerVerifiedIpUpdatedAt DateTime? @map("owner_verified_ip_updated_at")
+
+  // --- Setup Finalize Flag (Step 11 "Finished testing" button) ---
+  // THIS is now what actually locks the wizard (see
+  // services/setupWizardStatus.js's isSetupWizardLocked() — it
+  // requires arePrerequisitesMet() AND this flag). Owner AdminProfile
+  // + VaultPassphrase existing is necessary but no longer sufficient
+  // on its own — the wizard and setup guide both stay open for
+  // continued testing until the developer explicitly clicks "Finished
+  // testing" on SetupCompleteStep.jsx. Never set automatically.
+  setupFinalized   Boolean   @default(false) @map("setup_finalized")
+  setupFinalizedAt DateTime? @map("setup_finalized_at")
+
+  // --- Super-Admin Access Limit ---
+  // Caps how many devices/browsers can be simultaneously logged in as
+  // super_admin at once, counted against AdminSession (see that model
+  // for how a row is created/expired). Null means unlimited — the
+  // default, so a fresh deployment is never accidentally locked out.
+  // Read by app/api/auth/login/route.js (blocks a new login once the
+  // limit is reached) and app/api/auth/access-status/route.js (lets
+  // the public login page pre-disable its inputs before the admin even
+  // types anything).
+  maxAdminSessions          Int?      @map("max_admin_sessions")
+  maxAdminSessionsUpdatedAt DateTime? @map("max_admin_sessions_updated_at")
+  maxAdminSessionsUpdatedBy String?   @map("max_admin_sessions_updated_by") // AdminProfile.id (uid) who last saved this
+
+  // --- Policies & Pages (Page 8) — rich text / markdown content ---
+  houseRules         String? @map("house_rules")
+  bookingPolicies    String? @map("booking_policies")
+  bookingPoliciesIntro String? @map("booking_policies_intro")
+  cancellationPolicy String? @map("cancellation_policy")
+  cancellationPolicyIntro String? @map("cancellation_policy_intro")
+  termsOfService      String? @map("terms_of_service")
+  privacyPolicy       String? @map("privacy_policy")
+  aboutPageContent    String? @map("about_page_content")
+
+  // --- Refund Summary Table (Policies page — Refund & Cancellation section) ---
+  refundFullWindowDays    Int?    @default(14) @map("refund_full_window_days")
+  refundFullRefundFee     String? @default("₱500") @map("refund_full_refund_fee")
+  refundPartialWindowDays Int?    @default(7) @map("refund_partial_window_days")
+  refundPartialPercent    Int?    @default(50) @map("refund_partial_percent")
+
+  // --- Check-In / Check-Out (Policies page) ---
+  checkInTime  String? @default("2:00 PM") @map("check_in_time")
+  checkOutTime String? @default("12:00 PM") @map("check_out_time")
+  checkInNote  String? @map("check_in_note")
+  checkOutNote String? @map("check_out_note")
+
+  // --- Room Status Auto-Cleaning Window (Section 6, Booking Rules list
+  // page) --- Moved here from BookingRule.cleaningHours: now ONE
+  // resort-wide value shared by every booking type and every rule set,
+  // instead of a separate value per rule set. services/roomStatus.js
+  // and services/bookingPricing.js both read this off
+  // services/cleaningHours.js -> getGlobalCleaningHours() when computing
+  // a room's "Checked-Out — Cleaning" auto window / checking turnover
+  // conflicts. Kept name/type/default the same as the old BookingRule
+  // column on purpose so `prisma db push` treats this as a straight
+  // move rather than introducing an unrelated shape change.
+  cleaningHours Int @default(2) @map("cleaning_hours")
+
+  // --- Pending Hold Countdown ("DP Countdown", Section 7, Booking Rules
+  // list page) --- ONE resort-wide value: how many hours a newly-created
+  // "pending" Booking holds its dates before auto-expiring. Read/written
+  // exclusively through services/pendingHoldHours.js so
+  // app/api/bookings/route.js and app/api/superAdmin/settings/
+  // pending-hold-hours/route.js always agree on the same value — same
+  // singleton pattern as cleaningHours above. Default of 8 matches
+  // services/pendingHoldHours.js's DEFAULT_PENDING_HOLD_HOURS fallback.
+  pendingHoldHours Int @default(8) @map("pending_hold_hours")
+
+  // --- Global Rebooking Policy (Section 8, Booking Rules list page —
+  // see RebookingPolicySection.jsx) --- ONE resort-wide policy shared by
+  // every booking, same pattern as cleaningHours/pendingHoldHours above.
+  // Read/written exclusively through services/rebookingPolicy.js so
+  // every caller (the reschedule route, the admin settings page, the
+  // visitor Policies page, and the booking confirmation pages) agrees
+  // on the same values.
+  //
+  // maxRebookingsAllowed — how many times a single booking can be moved
+  // to new dates via the self-service Rebook flow before the limit
+  // action below kicks in. Null = unlimited (default — a fresh
+  // deployment is never accidentally locked down).
+  maxRebookingsAllowed Int? @map("max_rebookings_allowed")
+
+  // rebookingNonRefundableOnFirst — when true, the VERY FIRST successful
+  // rebooking on a booking immediately flips Booking.isDepositNonRefundable
+  // to true, regardless of the normal cancellation-window refund
+  // schedule. When false, the deposit's refundability is untouched by
+  // rebooking alone (only the limit action below can still flip it).
+  rebookingNonRefundableOnFirst Boolean @default(false) @map("rebooking_non_refundable_on_first")
+
+  // rebookingLimitAction — what happens the moment a guest tries to
+  // rebook AGAIN after already reaching maxRebookingsAllowed:
+  //   "non_refundable" — the reschedule request is refused, the booking
+  //                       stays confirmed as-is, and the deposit is
+  //                       marked non-refundable (if not already).
+  //   "forfeit"         — the reschedule request is refused AND the
+  //                       booking itself is cancelled/forfeited — the
+  //                       deposit is kept, the dates are freed for other
+  //                       guests, and Booking.isForfeited is set.
+  // Only meaningful once maxRebookingsAllowed is set (not null).
+  rebookingLimitAction String @default("non_refundable") @map("rebooking_limit_action")
+
+  // --- Contact Info ---
+  resortPhone   String? @map("resort_phone")
+  resortEmail   String? @map("resort_email")
+  resortAddress String? @map("resort_address")
+
+  // --- Message Us channels (floating "Request a callback" widget) ---
+  // Consumed by utils/messagingLinks.js to build click-to-chat deep
+  // links (wa.me, viber://chat, m.me) — see app/visitor/layout.jsx's
+  // getMessageUsChannels() and the Contact Info section of
+  // Super-Admin > Policies & Content.
+  resortWhatsapp          String? @map("resort_whatsapp")
+  resortViber             String? @map("resort_viber")
+  resortMessengerUsername String? @map("resort_messenger_username")
+
+  // --- Location Map Pin (visitor Footer) ---
+  // Placeholder default (Metro Manila) so the map always has something
+  // to render before the admin sets the resort's real coordinates from
+  // Super-Admin > Policies & Content > Contact Info.
+  resortLatitude  Float? @default(14.5995) @map("resort_latitude")
+  resortLongitude Float? @default(120.9842) @map("resort_longitude")
+
+  // --- Brand Identity (resort name + accent color, used site-wide —
+  // Header logo, Footer logo/copyright, Hero title, and <title> tag —
+  // not just the Homepage Customization page). siteTitle below doubles
+  // as the resort's display name; brandAccentColor drives --color-accent
+  // / --color-accent-hover (app/layout.jsx computes the hover shade at
+  // render time via utils/colorShade.js, so only one color is stored).
+  brandAccentColor String? @default("#3f7d52") @map("brand_accent_color")
+
+  // --- Homepage Customization (Page 9) ---
+  heroEyebrow       String? @map("hero_eyebrow")
+  heroTitle         String? @map("hero_title")
+  heroTagline       String? @default("Experience Luxury") @map("hero_tagline")
+  heroImageUrl      String? @map("hero_image_url")
+  heroImageKey      String? @map("hero_image_key") // R2 object key, needed to delete the old file on replace
+  ctaSectionHeading String? @map("cta_section_heading")
+  ctaSectionSubtext String? @map("cta_section_subtext")
+  ctaButtonText     String? @default("Plan Your Stay") @map("cta_button_text")
+  ctaSectionVisible Boolean @default(true) @map("cta_section_visible")
+
+  // Featured room selection for the homepage — up to 3 Room IDs, in order.
+  featuredRoomIds String[] @default([]) @map("featured_room_ids")
+
+  // --- About Section Differentiators (3 fixed cards under the About story) ---
+  aboutEyebrow              String? @map("about_eyebrow")
+  aboutTitle                String? @map("about_title")
+  aboutDifferentiator1Title String? @map("about_differentiator1_title")
+  aboutDifferentiator1Body  String? @map("about_differentiator1_body")
+  aboutDifferentiator2Title String? @map("about_differentiator2_title")
+  aboutDifferentiator2Body  String? @map("about_differentiator2_body")
+  aboutDifferentiator3Title String? @map("about_differentiator3_title")
+  aboutDifferentiator3Body  String? @map("about_differentiator3_body")
+
+  // --- Section Headers (eyebrow / title / subtitle shown above each
+  // homepage or standalone section's content — the data inside each
+  // section, e.g. rooms/amenities/products themselves, is separately
+  // admin-managed under its own Content page; these fields only cover
+  // the heading copy that introduces each section) ---
+  roomsEyebrow        String? @map("rooms_eyebrow")
+  roomsTitle          String? @map("rooms_title")
+  roomsSubtitle       String? @map("rooms_subtitle")
+  amenitiesEyebrow    String? @map("amenities_eyebrow")
+  amenitiesTitle      String? @map("amenities_title")
+  amenitiesSubtitle   String? @map("amenities_subtitle")
+  shopEyebrow         String? @map("shop_eyebrow")
+  shopTitle           String? @map("shop_title")
+  shopSubtitle        String? @map("shop_subtitle")
+  shopFootnote        String? @map("shop_footnote")
+  testimonialsEyebrow String? @map("testimonials_eyebrow")
+  testimonialsTitle   String? @map("testimonials_title")
+  activitiesEyebrow   String? @map("activities_eyebrow")
+  activitiesTitle     String? @map("activities_title")
+  activitiesSubtitle  String? @map("activities_subtitle")
+  galleryEyebrow      String? @map("gallery_eyebrow")
+  galleryTitle        String? @map("gallery_title")
+  bookedDatesEyebrow  String? @map("booked_dates_eyebrow")
+  bookedDatesTitle    String? @map("booked_dates_title")
+  bookedDatesSubtitle String? @map("booked_dates_subtitle")
+  policiesEyebrow     String? @map("policies_eyebrow")
+  policiesTitle       String? @map("policies_title")
+  policiesSubtitle    String? @map("policies_subtitle")
+
+  testimonialsSectionEnabled  Boolean @default(true) @map("testimonials_section_enabled")
+  testimonialsSectionCount    Int     @default(3) @map("testimonials_section_count") // 3, 6, or 9
+  testimonialsFeaturedOnly    Boolean @default(true) @map("testimonials_featured_only")
+
+  // --- SEO & Metadata ---
+  siteTitle       String? @default("Villa Azure Resort") @map("site_title")
+  siteDescription String? @map("site_description")
+  ogImageUrl      String? @map("og_image_url")
+  ogImageKey      String? @map("og_image_key") // R2 object key, needed to delete the old file on replace
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") // super-admin user id who last saved these settings
+
+  @@map("system_settings")
+}
+
+// ============================================================
+// MODEL: VisitorLog  (visitor page-view + notable-action tracking)
+// ============================================================
+// One row per tracked visitor event — either a routine page view or a
+// notable transaction (e.g. submitting a booking). Includes a
+// best-effort city/country lookup for the Visitor Logs admin page.
+model VisitorLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  path      String?
+  action    String   @default("page_view")
+  details   String?
+  city      String?
+  country   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("visitor_logs")
+}
+
+// ============================================================
+// MODEL: AccountActivityLog  (Rule 42 — Account Activity Log)
+// ============================================================
+// Per-account navigation/action trail — ONLY for authenticated accounts
+// (currently: super-admin/staff via AdminProfile). Never used for
+// anonymous public visitors — that's VisitorLog's job. accountId is
+// never nullable here: a row with no logged-in account doesn't belong
+// in this table.
+model AccountActivityLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId  String   @map("account_id")
+  action     String // page path for a simple page view, or a specific action name
+  ipAddress  String?  @map("ip_address")
+  geoCity    String?  @map("geo_city")
+  geoCountry String?  @map("geo_country")
+  deviceType String?  @map("device_type")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([accountId])
+  @@index([createdAt])
+  @@map("account_activity_logs")
+}
+
+// ============================================================
+// MODEL: PageViewDaily  (Rule 41 — Anonymized Traffic Analytics)
+// ============================================================
+// Aggregate-only counters, never a per-visitor row. Each row is one
+// unique combination of date + path + referrerHost + deviceType +
+// countryCode with a running viewCount — never a raw IP, never a
+// session id, never anything that ties a row back to one visitor.
+// Intentionally separate from VisitorLog, which already stores raw
+// per-visit IP/path/city/country rows — PageViewDaily exists for fast
+// aggregate dashboard queries without needing to scan/group
+// VisitorLog on every page load.
+model PageViewDaily {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date         DateTime @db.Date
+  path         String
+  viewCount    Int      @default(0) @map("view_count")
+  referrerHost String?  @map("referrer_host")
+  deviceType   String?  @map("device_type")
+  countryCode  String?  @map("country_code")
+  // City-level location, added for specific/accurate Analytics location
+  // tracking (super-admin Analytics page) — still aggregate/anonymized:
+  // resolved in-memory from the request IP per view (services/analytics.js),
+  // the IP itself is never stored, only the resulting city name. Rule 41
+  // still applies: city/country granularity only, never precise coordinates.
+  geoCity      String?  @map("geo_city")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([date, path, referrerHost, deviceType, countryCode, geoCity])
+  @@map("page_views_daily")
+}
+
+// ============================================================
+// MODEL: AiInsightLog  (AI Sales Insight widget — Dashboard,
+// villa-azure-ai-insight-and-directions-plan.txt Part 1)
+// ============================================================
+// One row per generation run — either the daily 6:00 AM cron
+// (app/api/cron/ai-insight/route.js) or an owner's manual "Regenerate
+// now" click. Stores the sales summary that was fed to Gemini
+// alongside its structured response, so the Dashboard widget can
+// always render the most recent row without recomputing anything.
+model AiInsightLog {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  generatedAt     DateTime @default(now()) @map("generated_at")
+  // What was fed to Gemini as of this run — kept for transparency /
+  // debugging ("why did it say that"), never shown as the headline itself.
+  salesSummary    String   @map("sales_summary") @db.Text
+  weatherSummary  String?  @map("weather_summary") @db.Text
+  observation     String   @db.Text
+  likelyCause     String   @map("likely_cause") @db.Text
+  suggestedAction String   @map("suggested_action") @db.Text
+  severity        String   @default("normal") // normal | notable | urgent
+  // "insufficient_data" | "ok" | "error" — lets the widget show a plain
+  // "not enough data yet" state instead of a fabricated-sounding insight.
+  status          String   @default("ok")
+  triggerSource   String   @default("cron") @map("trigger_source") // cron | manual
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([generatedAt])
+  @@map("ai_insight_logs")
+}
+
+// ============================================================
+// MODEL: Vault  (second-factor OTP only — id "vault")
+// ============================================================
+// passphraseHash used to live on this same row. It has been split out
+// into its own table (VaultPassphrase, below) so a truncate/wipe of
+// this table can never also take out the passphrase, and so the two
+// credentials can rotate independently of each other.
+//
+// otpCodeHash/otpExpiresAt/otpAttempts — services/vaultOtp.js's second
+//                    factor (the emailed one-time code). A successful
+//                    verify NULLS these three fields back out instead of
+//                    deleting the row — the row must survive across
+//                    verifies.
+model Vault {
+  id              String    @id @default("vault")
+  otpCodeHash     String?   @map("otp_code_hash")
+  otpExpiresAt    DateTime? @map("otp_expires_at")
+  otpAttempts     Int       @default(0) @map("otp_attempts")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("vault")
+}
+
+// ============================================================
+// MODEL: VaultPassphrase  (first factor — split out from Vault so it
+// has its own table, on one singleton row: id "vault_passphrase")
+// ============================================================
+// passphraseHash — services/vaultAuth.js's first factor. Starts out
+//                  unset (falls back to VAULT_PASSPHRASE_HASH env var)
+//                  until the first generate/rotation writes a value
+//                  here. Read by getEffectivePassphraseHash() and
+//                  written by rotateVaultPassphrase() — never read or
+//                  written anywhere else.
+// expiresAt      — set to 30 days past whenever passphraseHash was
+//                  last written (manual generate from super-admin >
+//                  vault-passphrase, OR the automatic 30-day rotation
+//                  at app/api/system-vault-setup/auto-rotate). Read by
+//                  isVaultPassphraseExpired() to decide whether the
+//                  next auto-rotate run should generate a new one.
+// urlSalt        — Task 5: rotating vault slug, INDEPENDENT of the
+//                  passphrase. computeVaultUrlSlug() now hashes
+//                  effectiveHash + urlSalt together, so forcing a new
+//                  urlSalt (rotateVaultUrlSalt(), Danger Zone button)
+//                  changes the URL immediately without touching — or
+//                  invalidating — the passphrase itself. Starts NULL
+//                  (empty string used in the hash) so an install that
+//                  has never force-rotated its URL behaves exactly as
+//                  before this field existed.
+model VaultPassphrase {
+  id              String    @id @default("vault_passphrase")
+  passphraseHash  String?   @map("passphrase_hash")
+  expiresAt       DateTime? @map("expires_at")
+  urlSalt         String?   @map("url_salt")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("vault_passphrase")
+}
+
+// ============================================================
+// MODEL: DatabaseWipeRequest  (Backups page — "Danger Zone: Wipe Database")
+// ============================================================
+// One row per wipe request. Only ever one row with status "pending" at
+// a time (enforced in services/databaseWipeRequest.js's
+// initiateWipeRequest(), not a DB constraint). A 24-hour grace period
+// sits between request and execution specifically so a super-admin has
+// time to reconsider or cancel — the actual TRUNCATE (and the pre-wipe
+// backup, if chosen) only ever runs decoupled, on GitHub Actions
+// (scripts/runDatabaseWipe.js), same "never inside a live request"
+// guarantee BackupLog already relies on (Rule 40.1).
+model DatabaseWipeRequest {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  status       String  @default("pending") // pending | cancelled | completed | failed
+  backupOption String  @map("backup_option") // "with_backup" | "without_backup" — the super-admin's own choice, never forced
+  requestedBy  String  @map("requested_by") // AdminProfile.id (uid) who initiated the wipe
+
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  scheduledAt DateTime  @map("scheduled_at") // requestedAt + 24 hours — earliest the wipe can execute
+
+  // Set only when the super-admin clicks "Continue" on the blocking
+  // grace-period modal (shown once time remaining <= 2 hours). The
+  // executor script never truncates anything until this is set —
+  // reaching scheduledAt with this still null leaves the request
+  // paused indefinitely, awaiting a super-admin to actually see and
+  // resolve the modal, rather than proceeding unattended.
+  finalConfirmedAt DateTime? @map("final_confirmed_at")
+
+  cancelledAt DateTime? @map("cancelled_at")
+  cancelledBy String?   @map("cancelled_by")
+
+  backupLogId  String?   @map("backup_log_id") @db.Uuid // set if backupOption was "with_backup" and the pre-wipe backup succeeded
+  errorMessage String?   @map("error_message") @db.Text
+  completedAt  DateTime? @map("completed_at")
+
+  // Set the moment the app itself proactively dispatches the executor
+  // workflow (see GET /api/superAdmin/wipe) — belt-and-suspenders
+  // alongside GitHub's own 15-minute `schedule:` cron, since a
+  // non-technical owner should never depend on that cron's timing (or
+  // on someone manually pressing "Run workflow" in GitHub). Prevents
+  // dispatching more than once as the status endpoint keeps getting
+  // polled every 30 seconds while the request sits due+confirmed.
+  autoDispatchedAt DateTime? @map("auto_dispatched_at")
+
+  @@map("database_wipe_requests")
+}

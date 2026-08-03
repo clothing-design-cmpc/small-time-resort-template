@@ -36,6 +36,7 @@ import PromoDatesSection from "./PromoDatesSection";
 import RoomStatusSection from "./RoomStatusSection";
 import PendingHoldSection from "./PendingHoldSection";
 import RebookingPolicySection from "./RebookingPolicySection";
+import "./BookingRules.css";
 
 export default function BookingRulesListClient({ rooms }) {
   const router = useRouter();

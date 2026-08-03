@@ -69,7 +69,8 @@ export const DEFAULT_TEMPLATE_COPY = {
     eyebrowText: "BOOKING REBOOKED",
     headingText: "Your dates have been updated, {{guestName}}!",
     introMessage: "Your stay at your-private-resort has been moved to the new dates below. Your reference code stays the same.",
-    bodyMessage: "",
+    bodyMessage:
+      "If any of these new details look wrong, or if you have any questions about your updated stay, just reply to this email or message us on Facebook and we'll sort it out right away.",
   },
 };
 
@@ -100,11 +101,29 @@ export async function getOrCreateEmailTemplate(templateKey) {
     throw new Error(`[bookingEmailTemplates] Unknown templateKey: ${templateKey}`);
   }
 
-  return prisma.bookingEmailTemplate.upsert({
+  const template = await prisma.bookingEmailTemplate.upsert({
     where: { id: templateKey },
     update: {},
     create: { id: templateKey, ...defaults },
   });
+
+  // Self-heal: a row created before its DEFAULT_TEMPLATE_COPY had real
+  // text for a given field (e.g. "rebooked" originally shipped with an
+  // empty bodyMessage) would otherwise stay blank forever, since the
+  // upsert above only seeds defaults on first-ever creation. Backfill
+  // any field that's still empty so the admin's tab always shows real
+  // starter copy instead of a blank field.
+  const backfill = {};
+  for (const field of ["eyebrowText", "headingText", "introMessage", "bodyMessage"]) {
+    if (!template[field] && defaults[field]) {
+      backfill[field] = defaults[field];
+    }
+  }
+  if (Object.keys(backfill).length > 0) {
+    return prisma.bookingEmailTemplate.update({ where: { id: templateKey }, data: backfill });
+  }
+
+  return template;
 }
 
 /**

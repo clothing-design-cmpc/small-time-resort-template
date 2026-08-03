@@ -20,12 +20,34 @@ import { logAuditEvent } from "@/services/auditLog";
 
 export async function GET() {
   try {
-    const settings = await prisma.bookingConfirmationEmail.upsert({
+    let settings = await prisma.bookingConfirmationEmail.upsert({
       where: { id: "singleton" },
       update: {},
       create: { id: "singleton" },
       include: { images: { orderBy: { displayOrder: "asc" } } },
     });
+
+    // Self-heal: rows created before introMessage/footerNote had a
+    // schema-level @default would otherwise stay blank forever, since
+    // the upsert above only seeds defaults on first-ever creation.
+    // Backfill so the admin's tab always shows real starter copy
+    // instead of a blank field.
+    const backfill = {};
+    if (!settings.introMessage) {
+      backfill.introMessage =
+        "Thank you for booking with us! Here's a quick summary of your confirmed stay, along with a few resort rules to review before you arrive.";
+    }
+    if (!settings.footerNote) {
+      backfill.footerNote =
+        "Have questions about your booking? Just reply to this email or message us on Facebook — we're happy to help.";
+    }
+    if (Object.keys(backfill).length > 0) {
+      settings = await prisma.bookingConfirmationEmail.update({
+        where: { id: "singleton" },
+        data: backfill,
+        include: { images: { orderBy: { displayOrder: "asc" } } },
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -96,6 +96,23 @@ async function createBookingInTransaction(payload, requestMeta, pendingHoldHours
         // `tx`) so the uniqueness check and the write see a consistent view.
         const referenceCode = await generateUniqueReferenceCode(tx);
 
+        // --- Pending-Hold Countdown capping (see prisma/schema.prisma's
+        // pendingHoldCapped field comment) ---
+        // The full DP Countdown window (now + pendingHoldHours) is only
+        // used as-is when this booking's scheduled start is comfortably
+        // beyond it — e.g. an Overnight stay checking in tomorrow or
+        // later. When the scheduled start (quote.scheduledStartAt) falls
+        // sooner than that — a Day/Night Tour booked an hour or two
+        // before its own start time — the hold is capped to end exactly
+        // at the scheduled start instead, since holding a room "pending"
+        // past its own start time makes no sense. The cron sweep reads
+        // pendingHoldCapped to know this booking must NOT auto-expire
+        // once that shorter window passes.
+        const fullExpiresAt = new Date(Date.now() + pendingHoldHours * 60 * 60 * 1000);
+        const scheduledStartAt = new Date(quote.scheduledStartAt);
+        const pendingHoldCapped = scheduledStartAt.getTime() < fullExpiresAt.getTime();
+        const pendingExpiresAt = pendingHoldCapped ? scheduledStartAt : fullExpiresAt;
+
         const booking = await tx.booking.create({
           data: {
             roomId: payload.roomId || null,
@@ -147,8 +164,10 @@ async function createBookingInTransaction(payload, requestMeta, pendingHoldHours
             // setting (SystemSettings.pendingHoldHours) currently is, and
             // saved directly on this row. If a super-admin changes that
             // setting later, THIS booking's hold window never moves —
-            // see services/pendingHoldHours.js for why that's safe.
-            pendingExpiresAt: new Date(Date.now() + pendingHoldHours * 60 * 60 * 1000),
+            // see services/pendingHoldHours.js for why that's safe. May be
+            // capped short of the full window — see pendingHoldCapped above.
+            pendingExpiresAt,
+            pendingHoldCapped,
             referenceCode,
             // Device/location capture — resolved server-side before this
             // transaction started (see POST handler below), never trusted

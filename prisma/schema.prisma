@@ -1240,6 +1240,14 @@ model SystemSettings {
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
 
+  // --- Pending Hold Hours (DP Countdown, Section 6, Booking Rules list
+  // page) --- ONE resort-wide value: how many hours a newly-created
+  // "pending" Booking holds its dates before it auto-expires. Read via
+  // services/pendingHoldHours.js -> getGlobalPendingHoldHours(), never
+  // read directly elsewhere. Changing this only affects bookings
+  // created AFTER the change — see that file's header comment.
+  pendingHoldHours Int @default(8) @map("pending_hold_hours")
+
   // --- Global Rebooking Policy (Section 8, Booking Rules list page —
   // see RebookingPolicySection.jsx) --- ONE resort-wide policy shared by
   // every booking, same pattern as cleaningHours/pendingHoldHours above.

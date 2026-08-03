@@ -1,0 +1,78 @@
+/*
+ * FILE: components/shared/PromoAlertBanner.css
+ * Styles for the visitor-facing promo alert strip. Scrolls with the
+ * page (not fixed/sticky like MaintenanceBanner.css), so it needs no
+ * --header-height offset coordination — it's just the first block
+ * inside the normal content flow.
+ */
+
+.promoAlertBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-lg);
+  background-color: rgba(63, 125, 82, 0.1);
+  border-bottom: 1px solid var(--color-border);
+  z-index: var(--z-raised);
+}
+
+.promoAlertBannerIcon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.promoAlertBannerText {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.promoAlertBannerText strong {
+  color: var(--color-accent);
+}
+
+/*
+ * .promoAlertBannerMore
+ * The "+N more promo date(s)" tail — deliberately muted so the
+ * headline discount/date range stays the visual focus of the strip.
+ */
+.promoAlertBannerMore {
+  color: var(--color-text-muted);
+}
+
+.promoAlertBannerDismiss {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.promoAlertBannerDismiss:hover,
+.promoAlertBannerDismiss:focus-visible {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 480px) {
+  .promoAlertBanner {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .promoAlertBannerText {
+    font-size: 0.78rem;
+  }
+}

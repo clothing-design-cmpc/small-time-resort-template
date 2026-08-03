@@ -44,7 +44,10 @@ import "./PromoAlertBanner.css";
 const SHORT_DATE_FMT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
 const APPLIES_TO_LABEL = {
-  all: "all bookings",
+  // Spelled out instead of the vague "all bookings" — the marquee
+  // should always name which tour type(s) the discount actually
+  // covers, even when the admin scoped it to every type at once.
+  all: "Overnight, Day Tour & Night Tour bookings",
   overnight: "Overnight stays",
   day_tour: "Day Tour",
   night_tour: "Night Tour",

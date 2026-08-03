@@ -80,6 +80,7 @@ const navGroups = [
     label: "Security",
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
+      { label: "Email Logs", href: "/superAdmin/email-logs" },
       { label: "Audit Logs", href: "/superAdmin/audit-logs" },
       { label: "Blocked IPs", href: "/superAdmin/blocked-ips" },
       { label: "Backups", href: "/superAdmin/backups" },

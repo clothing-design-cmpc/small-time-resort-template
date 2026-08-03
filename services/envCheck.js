@@ -172,6 +172,7 @@ export async function checkEnvironment() {
       heading: "EmailJS is working",
       intro: `This test email was sent by clicking "Run Environment Check" on the vault dashboard at ${checkedAtReadable} PHT.`,
       bodyMessage: "If you weren't expecting this, someone else with vault access just ran the check.",
+      emailType: "env_check_test",
     });
     emailjsLive = sent
       ? { status: "ok", message: `Test email sent to ${vaultOwnerEmail}.` }

@@ -316,6 +316,8 @@ export async function POST(request) {
         highlightLine1: `Reference code: ${updatedBooking.referenceCode}`,
         highlightLine2: `${payload.checkInDate} → ${payload.checkOutDate}`,
         bodyMessage: [adminBodyNote, invoiceLine].filter(Boolean).join("\n\n"),
+        emailType: "booking_rebooked",
+        relatedBookingId: updatedBooking.id,
       });
     } catch (error) {
       console.error("[api/bookings/manage/reschedule] Failed to send rebooked confirmation email:", error.message);

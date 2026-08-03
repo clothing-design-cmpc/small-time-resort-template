@@ -147,6 +147,8 @@ export async function GET(request) {
               highlightLine1: `Reference code: ${booking.referenceCode}`,
               highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
               bodyMessage: renderTemplateText(autoCancelledTemplate.bodyMessage, mergeVars),
+              emailType: "booking_auto_cancelled",
+              relatedBookingId: booking.id,
             });
           } catch (error) {
             console.error(

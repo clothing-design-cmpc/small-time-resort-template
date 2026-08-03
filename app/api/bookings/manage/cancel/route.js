@@ -144,6 +144,8 @@ export async function POST(request) {
           highlightLine1: `Reference code: ${booking.referenceCode}`,
           highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
           bodyMessage: renderTemplateText(cancelledTemplate.bodyMessage, mergeVars),
+          emailType: "booking_cancelled",
+          relatedBookingId: booking.id,
         });
       } catch (error) {
         console.error("[api/bookings/manage/cancel] Failed to send cancellation email:", error.message);

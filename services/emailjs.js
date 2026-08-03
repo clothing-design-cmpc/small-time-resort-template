@@ -45,9 +45,19 @@
  *    EMAILJS_PUBLIC_KEY, EMAILJS_PRIVATE_KEY
  *
  * Server-side only — never import this in a "use client" file.
+ *
+ * EMAIL LOG (sent/failed detection + resend):
+ * Every call below — success, failure, or skipped for missing config —
+ * writes one EmailLog row via services/emailLogs.js's
+ * recordEmailAttempt(), storing the exact params used. The super-admin
+ * Email Logs page (app/superAdmin/(protected)/email-logs) reads this
+ * table to show which emails actually went out and which failed, and
+ * its "Resend" action re-calls this same function with that row's
+ * stored payload — see services/emailLogs.js's resendEmailLog().
  */
 
 import { recordApiCall } from "./apiUsageTracker.js";
+import { recordEmailAttempt } from "./emailLogs.js";
 
 const EMAILJS_SEND_URL = "https://api.emailjs.com/api/v1.0/email/send";
 
@@ -69,6 +79,13 @@ const EMAILJS_SEND_URL = "https://api.emailjs.com/api/v1.0/email/send";
  * @param {string} [input.highlightLine1] - first highlighted-box line
  * @param {string} [input.highlightLine2] - second highlighted-box line
  * @param {string} [input.bodyMessage]    - main message content
+ * @param {string} [input.emailType]      - EmailLog category, e.g.
+ *   "booking_confirmation", "vault_otp", "breach_alert" — defaults to
+ *   "general" for any call site that doesn't pass one
+ * @param {string} [input.relatedBookingId] - links this log row back
+ *   to a Booking, so the admin can find "every email about booking X"
+ * @param {string} [input.resendOfLogId]  - set by resendEmailLog() —
+ *   marks this attempt as a resend of an earlier EmailLog row
  */
 export async function sendGeneralEmail({
   toEmail,
@@ -80,6 +97,9 @@ export async function sendGeneralEmail({
   highlightLine1 = "",
   highlightLine2 = "",
   bodyMessage = "",
+  emailType = "general",
+  relatedBookingId = null,
+  resendOfLogId = null,
 }) {
   const {
     EMAILJS_SERVICE_ID,
@@ -88,8 +108,32 @@ export async function sendGeneralEmail({
     EMAILJS_PRIVATE_KEY,
   } = process.env;
 
+  // The full set of merge-tag params this attempt used — stored as-is
+  // on the EmailLog row so a later resend has every field prefilled.
+  const payload = {
+    toEmail,
+    subject,
+    heading,
+    replyTo,
+    eyebrow,
+    intro,
+    highlightLine1,
+    highlightLine2,
+    bodyMessage,
+  };
+
   if (!EMAILJS_SERVICE_ID || !EMAILJS_GENERAL_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY || !toEmail) {
     console.error("[emailjs] EmailJS general-template env vars (or recipient) missing — skipping email.");
+    await recordEmailAttempt({
+      emailType,
+      status: "failed",
+      toEmail,
+      subject,
+      errorMessage: "EmailJS is not configured, or no recipient address was provided.",
+      relatedBookingId,
+      payload,
+      resendOfLogId,
+    });
     return false;
   }
 
@@ -121,13 +165,43 @@ export async function sendGeneralEmail({
 
     if (!response.ok) {
       const bodyText = await response.text().catch(() => "");
-      console.error(`[emailjs] EmailJS responded ${response.status}: ${bodyText}`);
+      const errorMessage = `EmailJS responded ${response.status}: ${bodyText || "(no response body)"}`;
+      console.error(`[emailjs] ${errorMessage}`);
+      await recordEmailAttempt({
+        emailType,
+        status: "failed",
+        toEmail,
+        subject,
+        errorMessage,
+        relatedBookingId,
+        payload,
+        resendOfLogId,
+      });
       return false;
     }
 
+    await recordEmailAttempt({
+      emailType,
+      status: "sent",
+      toEmail,
+      subject,
+      relatedBookingId,
+      payload,
+      resendOfLogId,
+    });
     return true;
   } catch (error) {
     console.error("[emailjs] Failed to send email:", error.message);
+    await recordEmailAttempt({
+      emailType,
+      status: "failed",
+      toEmail,
+      subject,
+      errorMessage: error.message,
+      relatedBookingId,
+      payload,
+      resendOfLogId,
+    });
     return false;
   }
 }

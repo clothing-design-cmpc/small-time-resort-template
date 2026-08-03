@@ -150,6 +150,7 @@ export async function generateAndSendVaultOtp(forceNew = true) {
     highlightLine1: plaintextCode,
     highlightLine2: `Expires in ${OTP_EXPIRY_MINUTES} minute`,
     bodyMessage: "If you did not request this, someone else has your vault passphrase — change it immediately.",
+    emailType: "vault_otp",
   });
 
   if (!emailSent) {

@@ -55,6 +55,7 @@ export async function POST(request: Request) {
     highlightLine1: `Requested by: ${requestedBy}`,
     highlightLine2: `Requested at: ${requestedAt}`,
     bodyMessage: "Sign in to the Super-Admin dashboard to review and approve this request.",
+    emailType: "vault_request_access",
   });
 
   if (!wasSent) {

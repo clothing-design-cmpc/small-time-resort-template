@@ -184,6 +184,8 @@ export async function sendBookingConfirmationEmail({ booking }) {
       highlightLine1: `Reference code: ${booking.referenceCode}`,
       highlightLine2: `${checkInDate} → ${checkOutDate}`,
       bodyMessage,
+      emailType: "booking_confirmation",
+      relatedBookingId: booking.id,
     });
   } catch (error) {
     console.error("[bookingConfirmationEmail] Failed to send:", error.message);

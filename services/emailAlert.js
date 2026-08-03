@@ -69,6 +69,7 @@ export async function sendBreachAlertEmail({ gatekeeper, ipAddress, details }) {
     highlightLine2: details,
     bodyMessage:
       "Sign in to the super-admin recovery page to review the backup and restore the database.",
+    emailType: "breach_alert",
   });
 }
 
@@ -144,6 +145,7 @@ export async function sendVaultPassphraseRotationEmail({ newPassphrase, reason }
       `${vaultRecoveryUrl}\n\n` +
       `Generating another one from the dashboard will immediately replace this one too.\n` +
       `Keep this email private — do not forward or share it outside the resort owner.`,
+    emailType: "vault_passphrase_rotation",
   });
 }
 
@@ -195,6 +197,7 @@ export async function sendVaultUrlRotationEmail(newVaultRecoveryUrl) {
       `Save this new link somewhere safe immediately: it will not be shown on-screen or emailed again ` +
       `after this message.\n\n` +
       `Keep this email private — do not forward or share it outside the resort owner.`,
+    emailType: "vault_url_rotation",
   });
 }
 /**
@@ -230,6 +233,7 @@ export async function sendOwnerMagicLoginEmail({ magicLoginUrl }) {
       "If you did not attempt to sign in, someone else may know part of your password — " +
       "change it as soon as you're back in the dashboard.\n\n" +
       "Keep this email private — do not forward or share it outside the resort owner.",
+    emailType: "magic_login",
   });
 }
 
@@ -271,5 +275,6 @@ export async function sendOwnerIpUpdatedEmail({ newIp }) {
       "This is expected if you changed routers, switched ISPs, or are signing in from a new " +
       "location. If this wasn't you, someone has your correct password — change it immediately " +
       "from the dashboard's Account Security settings.",
+    emailType: "owner_ip_updated",
   });
 }

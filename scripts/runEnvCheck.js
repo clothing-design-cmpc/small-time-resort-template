@@ -165,6 +165,7 @@ async function main() {
     heading: "Something needs attention",
     intro: `The nightly environment check ran at ${checkedAtReadable} and found the following:`,
     bodyMessage,
+    emailType: "env_check_alert",
   });
 
   if (!sent) {

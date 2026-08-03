@@ -45,6 +45,13 @@
     display: none;
   }
 
+  /* Already duplicated as .headerMobileLoginLink inside the dropdown
+     menu below — showing both here left "Login" text sitting right
+     next to the hamburger icon on every mobile/tablet screen. */
+  .headerLoginLink {
+    display: none;
+  }
+
   .headerHamburger {
     display: flex;
   }
@@ -60,6 +67,10 @@
   }
 
   .headerBookButton {
+    display: inline-flex !important;
+  }
+
+  .headerLoginLink {
     display: inline-flex !important;
   }
 
@@ -259,5 +270,69 @@
     width: 40px;
     height: 40px;
     font-size: 1.25rem;
+  }
+}
+
+/* ============================================================
+ * SUPER-ADMIN SIDEBAR + HEADER — same 1024px hamburger cutover
+ * convention as the visitor Header above.
+ * Mobile + tablet (up to 1023px): Sidebar becomes an off-canvas
+ * drawer (hidden by default, slid in via .adminSidebar--open),
+ * AdminHeader shows a hamburger to toggle it, and content no longer
+ * reserves the 260px sidebar gutter.
+ * 1024px+ (small laptop/desktop): Sidebar stays permanently visible
+ * exactly as before, hamburger hidden, content keeps its 260px gutter.
+ * ============================================================ */
+@media (max-width: 1023px) {
+  .adminSidebar {
+    transform: translateX(-100%);
+    /* Above regular sticky content (header/backdrop) while sliding
+       in as a true overlay drawer, not a permanent column. */
+    z-index: var(--z-drawer);
+  }
+
+  .adminSidebar.adminSidebar--open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-xl);
+  }
+
+  /* No more permanent 260px gutter to reserve — the drawer now
+     overlays content instead of sitting beside it. */
+  .superAdminBody {
+    margin-left: 0;
+  }
+
+  .adminHeaderHamburger {
+    display: flex;
+  }
+
+  /* Date/Time/Event/Season badges — four wide pills that have no
+     room left once the hamburger is added to an already-tight mobile
+     header; hidden here rather than left to wrap into a second row
+     that pushes the user menu around. */
+  .adminHeaderInfoGroup {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .adminSidebar {
+    transform: none !important;
+  }
+
+  .adminSidebarBackdrop {
+    display: none !important;
+  }
+
+  .superAdminBody {
+    margin-left: 260px !important;
+  }
+
+  .adminHeaderHamburger {
+    display: none !important;
+  }
+
+  .adminHeaderInfoGroup {
+    display: flex !important;
   }
 }

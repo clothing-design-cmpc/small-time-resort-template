@@ -3,21 +3,36 @@
  * ROLE: Super-admin — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Fixed left navigation for the entire super-admin account. Never
- * collapses on desktop; hidden behind a hamburger on mobile. Highlights
- * the active route so admins always know where they are.
+ * Fixed left navigation for the entire super-admin account. Permanent
+ * on desktop (1024px+) — the mobile drawer transform is force-disabled
+ * there (see mediaQueries.css). Below that, it's an off-canvas drawer:
+ * hidden by default, slid into view only while isSidebarOpen (from
+ * SidebarContext) is true, with a click-to-close backdrop behind it.
+ * Highlights the active route so admins always know where they are.
  *
  * DATA FLOW:
- * 1. Rendered once inside app/superAdmin/layout.jsx
- * 2. usePathname() reads the current route to mark the active nav link
- * 3. No data fetching — navLinks is fully static
+ * 1. Rendered once inside app/superAdmin/(protected)/layout.jsx,
+ *    inside <SidebarProvider> alongside AdminHeader (the hamburger
+ *    that actually toggles isSidebarOpen — see SidebarContext.jsx)
+ * 2. usePathname() reads the current route to mark the active nav
+ *    link, AND to auto-close the mobile drawer the moment the route
+ *    changes — without this, tapping a link would navigate but leave
+ *    the drawer covering the new page until the admin taps the
+ *    backdrop or hamburger themselves.
+ * 3. Tapping the backdrop, or tapping any nav link directly, also
+ *    closes the drawer immediately (before the route-change effect
+ *    even fires) so the transition feels instant rather than waiting
+ *    on navigation to complete.
+ * 4. No data fetching — navLinks is fully static
  */
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AlertCircle, Plus } from "lucide-react";
 import { useNavBadges } from "@/hooks/useNavBadges";
+import { useSidebar } from "./SidebarContext";
 import "./Sidebar.css";
 
 // Maps a nav link's href to which badge counter (from useNavBadges)
@@ -80,7 +95,6 @@ const navGroups = [
     label: "Security",
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
-      { label: "Email Logs", href: "/superAdmin/email-logs" },
       { label: "Audit Logs", href: "/superAdmin/audit-logs" },
       { label: "Blocked IPs", href: "/superAdmin/blocked-ips" },
       { label: "Backups", href: "/superAdmin/backups" },
@@ -91,6 +105,15 @@ const navGroups = [
 export default function Sidebar({ isOwner = false }) {
   const pathname = usePathname();
   const badgeCounts = useNavBadges();
+  const { isSidebarOpen, closeSidebar } = useSidebar();
+
+  // Closes the mobile drawer the instant the route actually changes —
+  // covers the back/forward-button case and any programmatic
+  // navigation that doesn't go through a nav link's own onClick below.
+  useEffect(() => {
+    closeSidebar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // Vault passphrase generation/rotation and recovery-channel testing
   // are deliberately NOT exposed anywhere in this dashboard, even to
@@ -101,48 +124,62 @@ export default function Sidebar({ isOwner = false }) {
   const visibleNavGroups = navGroups;
 
   return (
-    <nav className="adminSidebar" aria-label="Super-admin navigation">
-      <div className="adminSidebarLogo">your-private-resort Admin</div>
+    <>
+      {/* Click-to-close backdrop — only ever visible on mobile widths
+          (mediaQueries.css hides it entirely at 1024px+) and only
+          rendered at all while the drawer is open, so it never sits
+          in the DOM intercepting clicks the rest of the time. */}
+      {isSidebarOpen && (
+        <div className="adminSidebarBackdrop" onClick={closeSidebar} aria-hidden="true" />
+      )}
 
-      {visibleNavGroups.map((group) => (
-        <div key={group.label} className="adminSidebarGroup">
-          <span className="adminSidebarGroupLabel">{group.label}</span>
-          <ul className="adminSidebarNav">
-            {group.links.map((link) => {
-              // Marks the current page's nav link so the admin always
-              // knows where they are in the control center.
-              const isActive = pathname === link.href;
+      <nav
+        className={`adminSidebar${isSidebarOpen ? " adminSidebar--open" : ""}`}
+        aria-label="Super-admin navigation"
+      >
+        <div className="adminSidebarLogo">your-private-resort Admin</div>
 
-              // Look up whether this link has a live badge counter
-              // (Walk-in Inquiries -> urgent AlertCircle, Bookings ->
-              // update Plus) and only render it once that counter is
-              // above zero.
-              const badgeRule = BADGE_RULES[link.href];
-              const badgeCount = badgeRule ? badgeCounts[badgeRule.countKey] : 0;
+        {visibleNavGroups.map((group) => (
+          <div key={group.label} className="adminSidebarGroup">
+            <span className="adminSidebarGroupLabel">{group.label}</span>
+            <ul className="adminSidebarNav">
+              {group.links.map((link) => {
+                // Marks the current page's nav link so the admin always
+                // knows where they are in the control center.
+                const isActive = pathname === link.href;
 
-              return (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={`adminSidebarLink${isActive ? " adminSidebarLink--active" : ""}`}
-                  >
-                    <span className="adminSidebarLinkLabel">{link.label}</span>
-                    {badgeRule && badgeCount > 0 && (
-                      <span
-                        className={`adminSidebarBadge adminSidebarBadge--${badgeRule.variant}`}
-                        aria-label={badgeRule.ariaLabel(badgeCount)}
-                      >
-                        <badgeRule.Icon size={11} strokeWidth={2.75} aria-hidden="true" />
-                        {badgeCount > 99 ? "99+" : badgeCount}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-    </nav>
+                // Look up whether this link has a live badge counter
+                // (Walk-in Inquiries -> urgent AlertCircle, Bookings ->
+                // update Plus) and only render it once that counter is
+                // above zero.
+                const badgeRule = BADGE_RULES[link.href];
+                const badgeCount = badgeRule ? badgeCounts[badgeRule.countKey] : 0;
+
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className={`adminSidebarLink${isActive ? " adminSidebarLink--active" : ""}`}
+                      onClick={closeSidebar}
+                    >
+                      <span className="adminSidebarLinkLabel">{link.label}</span>
+                      {badgeRule && badgeCount > 0 && (
+                        <span
+                          className={`adminSidebarBadge adminSidebarBadge--${badgeRule.variant}`}
+                          aria-label={badgeRule.ariaLabel(badgeCount)}
+                        >
+                          <badgeRule.Icon size={11} strokeWidth={2.75} aria-hidden="true" />
+                          {badgeCount > 99 ? "99+" : badgeCount}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </>
   );
 }

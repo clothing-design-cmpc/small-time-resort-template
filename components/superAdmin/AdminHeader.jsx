@@ -37,8 +37,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import axios from "axios";
-import { LogOut, ChevronDown, Clock, Calendar, Sparkles, Sun } from "lucide-react";
+import { LogOut, ChevronDown, Clock, Calendar, Sparkles, Sun, Menu, X } from "lucide-react";
 import { clearIdleDeadline } from "@/hooks/useIdleTimeout";
+import { useSidebar } from "./SidebarContext";
 import "./AdminHeader.css";
 
 // Season/event rarely change within a session, so this only re-fetches
@@ -117,6 +118,7 @@ export default function AdminHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const menuRef = useRef(null);
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
 
   const [adminName, setAdminName] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -221,7 +223,23 @@ export default function AdminHeader() {
 
   return (
     <header className="adminHeader">
-      <span className="adminHeaderTitle">{pageTitle}</span>
+      <div className="adminHeaderLeft">
+        {/* Hamburger — mobile/tablet only (hidden at 1024px+ via
+            mediaQueries.css, same breakpoint the Sidebar drawer
+            itself uses). Toggles the shared isSidebarOpen state from
+            SidebarContext, which Sidebar.jsx reads to slide itself
+            into view and render its click-to-close backdrop. */}
+        <button
+          type="button"
+          className="adminHeaderHamburger"
+          aria-label={isSidebarOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={isSidebarOpen}
+          onClick={toggleSidebar}
+        >
+          {isSidebarOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
+        </button>
+        <span className="adminHeaderTitle">{pageTitle}</span>
+      </div>
 
       <div className="adminHeaderRight">
         {/* Date, Time, Event, Season — glanceable resort context without

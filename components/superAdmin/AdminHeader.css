@@ -27,8 +27,37 @@
 
 .adminHeaderLeft {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * .adminHeaderHamburger
+ * Mobile/tablet-only toggle for the Sidebar drawer — hidden entirely
+ * on desktop via mediaQueries.css (same 1024px+ breakpoint the drawer
+ * itself locks open at). Matches the visitor Header's hamburger
+ * treatment: borderless, icon-only, 44px+ touch target.
+ */
+.adminHeaderHamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  touch-action: manipulation;
+  padding: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.adminHeaderHamburger:hover,
+.adminHeaderHamburger:focus-visible {
+  background-color: var(--color-surface-hover);
 }
 
 /*

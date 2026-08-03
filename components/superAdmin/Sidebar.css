@@ -21,6 +21,28 @@
   z-index: var(--z-sticky);
   display: flex;
   flex-direction: column;
+  /* Slide transform only actually moves anything below the 1024px
+     breakpoint (see mediaQueries.css) — harmless no-op on desktop,
+     where transform is force-reset to none there. */
+  transition: transform var(--transition-slow);
+  will-change: transform;
+}
+
+/*
+ * .adminSidebarBackdrop
+ * Click-to-close scrim behind the mobile drawer. Only ever rendered
+ * in the DOM while the drawer is open (see Sidebar.jsx), and only
+ * ever visible below the 1024px breakpoint — mediaQueries.css hides
+ * it outright on desktop as a second line of defense in case it's
+ * ever rendered there by mistake.
+ */
+.adminSidebarBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(9, 9, 11, 0.55);
+  /* One below the drawer's own z-index so the sidebar still renders
+     on top of this scrim instead of being covered by it. */
+  z-index: calc(var(--z-drawer) - 1);
 }
 
 /*

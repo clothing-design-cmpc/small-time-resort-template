@@ -11,7 +11,11 @@
  *
  * DATA FLOW:
  * 1. Every route under app/superAdmin/(protected)/ renders inside this layout's {children}
- * 2. AdminHeader is rendered once, shared across all admin pages
+ * 2. AdminHeader is rendered once, shared across all admin pages.
+ *    SidebarProvider wraps Sidebar + AdminHeader/{children} so the
+ *    header's mobile hamburger button and the sidebar drawer it opens
+ *    can share one "is it open" state despite being sibling components
+ *    — see SidebarContext.jsx's file header for why that's needed.
  * 3. No session check happens here — proxy.js already blocked anyone
  *    without a valid superAdmin session before this layout ever renders
  * 4. SessionCloseGuard signs the admin out on tab/browser close;
@@ -33,6 +37,7 @@
 import "../SuperAdmin.css";
 import Sidebar from "@/components/superAdmin/Sidebar";
 import AdminHeader from "@/components/superAdmin/AdminHeader";
+import { SidebarProvider } from "@/components/superAdmin/SidebarContext";
 import AccountActivityBeacon from "@/components/superAdmin/AccountActivityBeacon";
 import SessionCloseGuard from "@/components/superAdmin/SessionCloseGuard";
 import IdleSessionProvider from "@/components/superAdmin/IdleSessionProvider";
@@ -77,13 +82,15 @@ export default async function SuperAdminLayout({ children }) {
         <a href="#mainContent" className="superAdminSkipLink">
           Skip to main content
         </a>
-        <Sidebar />
-        <div className="superAdminBody">
-          <AdminHeader />
-          <main id="mainContent" className="superAdminContent">
-            {children}
-          </main>
-        </div>
+        <SidebarProvider>
+          <Sidebar />
+          <div className="superAdminBody">
+            <AdminHeader />
+            <main id="mainContent" className="superAdminContent">
+              {children}
+            </main>
+          </div>
+        </SidebarProvider>
       </IdleSessionProvider>
     </div>
   );

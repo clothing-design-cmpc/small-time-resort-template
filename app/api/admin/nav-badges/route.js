@@ -6,17 +6,21 @@
  * Feeds the Sidebar's two nav badges (Sidebar.jsx):
  *   - Walk-in Inquiries -> "!" urgent badge -> count of inquiries still
  *     awaiting a reply (status "new")
- *   - Bookings -> "O" update badge -> count of bookings placed since
- *     THIS admin last opened the Bookings page (informational only,
- *     never treated as urgent)
+ *   - Bookings -> "O" update badge -> count of bookings still awaiting
+ *     admin action (status "pending"). Same pattern as the walk-in
+ *     badge above: tied to an unresolved status, never to a
+ *     per-admin "last viewed" timestamp, so it correctly stays lit as
+ *     long as ANY pending booking exists — opening the Bookings page
+ *     no longer silently clears it while requests still need a
+ *     Confirm/Reject decision.
  *
  * DATA FLOW:
  * 1. hooks/useNavBadges.js polls this route on an interval from Sidebar.jsx
  * 2. requireSuperAdmin() decodes the session cookie (route is outside
  *    middleware.js's page-only matcher, same pattern as every other
  *    /api/admin/* route)
- * 3. Reads this admin's own AdminProfile.bookingsLastViewedAt as the
- *    baseline, counts inquiries/bookings against it, returns both counts
+ * 3. Counts inquiries with status "new" and bookings with status
+ *    "pending" directly — no per-admin baseline lookup needed
  */
 export const dynamic = "force-dynamic";
 
@@ -34,19 +38,9 @@ export async function GET(request) {
   }
 
   try {
-    const adminProfile = await prisma.adminProfile.findUnique({
-      where: { id: session.uid },
-      select: { bookingsLastViewedAt: true },
-    });
-
-    // Fall back to "now" if the profile lookup somehow misses — never
-    // let a missing baseline balloon the badge count into every booking
-    // that has ever existed.
-    const bookingsBaseline = adminProfile?.bookingsLastViewedAt ?? new Date();
-
     const [pendingWalkInCount, newBookingsCount] = await Promise.all([
       prisma.walkInInquiry.count({ where: { status: "new" } }),
-      prisma.booking.count({ where: { createdAt: { gt: bookingsBaseline } } }),
+      prisma.booking.count({ where: { status: "pending" } }),
     ]);
 
     return NextResponse.json({

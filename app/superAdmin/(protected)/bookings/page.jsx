@@ -10,8 +10,7 @@
  *
  * DATA FLOW:
  * 1. On mount, fetches GET /api/admin/bookings (all statuses, ascending
- *    by check-in) and fires POST /api/admin/bookings/mark-viewed
- *    (fire-and-forget) so the Sidebar's "new bookings" badge clears
+ *    by check-in)
  * 2. List panel's "Cancel booking" -> ConfirmationModal -> PATCH
  * 3. Either panel's "Edit" -> BookingEditModal -> PUT
  * 4. Either panel's "Delete" -> ConfirmationModal -> DELETE
@@ -82,13 +81,6 @@ export default function BookingsPage() {
       isCancelled = true;
     };
   }, [reloadToken]);
-
-  /* Resets this admin's "new bookings" sidebar badge baseline the moment they open this page — fire-and-forget, never blocks the list fetch above */
-  useEffect(() => {
-    fetch("/api/admin/bookings/mark-viewed", { method: "POST" }).catch(() => {
-      // Non-critical — worst case the badge count stays slightly stale until the next successful call
-    });
-  }, []);
 
   const refetch = useCallback(() => setReloadToken((token) => token + 1), []);
 

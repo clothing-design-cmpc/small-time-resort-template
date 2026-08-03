@@ -25,8 +25,8 @@ import "./Sidebar.css";
 // lookup instead of hardcoding hrefs inline below, so adding a badge to
 // a future nav item is a one-line change here.
 const BADGE_RULES = {
-  "/superAdmin/walkin-inquiries": { countKey: "pendingWalkInCount", variant: "urgent", Icon: AlertCircle },
-  "/superAdmin/bookings": { countKey: "newBookingsCount", variant: "update", Icon: Plus },
+  "/superAdmin/walkin-inquiries": { countKey: "pendingWalkInCount", variant: "urgent", Icon: AlertCircle, ariaLabel: (count) => `${count} awaiting reply` },
+  "/superAdmin/bookings": { countKey: "newBookingsCount", variant: "update", Icon: Plus, ariaLabel: (count) => `${count} pending` },
 };
 
 /* Add entries here as new admin pages are built. Grouped into sections
@@ -129,11 +129,7 @@ export default function Sidebar({ isOwner = false }) {
                     {badgeRule && badgeCount > 0 && (
                       <span
                         className={`adminSidebarBadge adminSidebarBadge--${badgeRule.variant}`}
-                        aria-label={
-                          badgeRule.variant === "urgent"
-                            ? `${badgeCount} awaiting reply`
-                            : `${badgeCount} new`
-                        }
+                        aria-label={badgeRule.ariaLabel(badgeCount)}
                       >
                         <badgeRule.Icon size={11} strokeWidth={2.75} aria-hidden="true" />
                         {badgeCount > 99 ? "99+" : badgeCount}

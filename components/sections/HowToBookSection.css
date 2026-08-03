@@ -288,6 +288,29 @@
   background-color: #8b5cf6;
 }
 
+/* Promo Date (Section 5b) — top-left corner so it never collides with
+ * the checkout badge (top-right) or the tour-booked badges
+ * (bottom-right). Pink accent, distinct from every other status color
+ * already in use on this calendar (red/amber/blue/purple). */
+.howToBookCalendarDayPromo {
+  outline: 1px dashed #ec4899;
+  outline-offset: -1px;
+}
+
+.howToBookCalendarDayPromoBadge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: #ec4899;
+}
+
+.howToBookCalendarLegendDotPromo {
+  background-color: #ec4899;
+}
+
 /* ─── Legend ─────────────────────────────────────────────────────────── */
 .howToBookCalendarLegend {
   display: flex;

@@ -1,31 +1,84 @@
 /*
  * FILE: components/shared/PromoAlertBanner.css
- * Styles for the visitor-facing promo alert strip. Scrolls with the
- * page (not fixed/sticky like MaintenanceBanner.css), so it needs no
- * --header-height offset coordination — it's just the first block
- * inside the normal content flow.
+ * Styles for the visitor-facing promo alert strip. Sticky — pinned to
+ * the top of the viewport right under the fixed Header (see
+ * --header-height, set by Header.jsx) so it stays visible while the
+ * page scrolls, same offset math app/visitor/Visitor.css's
+ * .visitorContent padding-top already uses. Bigger padding/font than
+ * a plain thin strip so it reads clearly at a glance, and the message
+ * itself runs as a looping marquee instead of wrapping or truncating.
  */
 
 .promoAlertBanner {
+  position: sticky;
+  top: calc(var(--header-height, 68px) + var(--maintenance-banner-height, 0px));
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
   width: 100%;
-  padding: var(--space-sm) var(--space-lg);
-  background-color: rgba(63, 125, 82, 0.1);
+  padding: var(--space-md) var(--space-lg);
+  background-color: rgba(63, 125, 82, 0.14);
   border-bottom: 1px solid var(--color-border);
-  z-index: var(--z-raised);
+  z-index: var(--z-sticky);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .promoAlertBannerIcon {
   flex-shrink: 0;
-  font-size: 1rem;
+  font-size: 1.4rem;
+}
+
+/*
+ * .promoAlertBannerMarquee
+ * Fixed-width viewport that clips the track — the only piece that's
+ * allowed to overflow horizontally. Fades both edges so the text
+ * doesn't visually "pop" in/out at the clip boundary.
+ */
+.promoAlertBannerMarquee {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+
+/*
+ * .promoAlertBannerMarqueeTrack
+ * Holds two copies of the same message back-to-back and slides the
+ * whole track left by exactly one copy's width (-50%) on a loop, so
+ * the moment the first copy scrolls fully offscreen, the second copy
+ * is sitting in the exact spot the first one started — reads as one
+ * continuous, seamless "running text" line rather than a jump-cut.
+ * transform (not left/margin) so this stays GPU-accelerated.
+ */
+.promoAlertBannerMarqueeTrack {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  will-change: transform;
+  animation: promoAlertBannerScroll 18s linear infinite;
+}
+
+.promoAlertBannerMarquee:hover .promoAlertBannerMarqueeTrack {
+  animation-play-state: paused;
+}
+
+@keyframes promoAlertBannerScroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
 }
 
 .promoAlertBannerText {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin: 0;
-  font-size: 0.85rem;
+  padding-right: 3.5rem;
+  white-space: nowrap;
+  font-size: 1.05rem;
   color: var(--color-text-primary);
   line-height: 1.4;
 }
@@ -48,14 +101,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   border: none;
   border-radius: 999px;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   cursor: pointer;
   touch-action: manipulation;
   transition: background-color var(--transition-fast), color var(--transition-fast);
@@ -67,12 +120,33 @@
   color: var(--color-text-primary);
 }
 
+/* Respect reduced-motion preferences — the marquee freezes on its
+   first copy instead of forcing continuous motion on visitors who've
+   asked their OS to minimize it. */
+@media (prefers-reduced-motion: reduce) {
+  .promoAlertBannerMarqueeTrack {
+    animation: none;
+  }
+}
+
 @media (max-width: 480px) {
   .promoAlertBanner {
     padding: var(--space-sm) var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  .promoAlertBannerIcon {
+    font-size: 1.15rem;
   }
 
   .promoAlertBannerText {
-    font-size: 0.78rem;
+    font-size: 0.9rem;
+    padding-right: 2.5rem;
+  }
+
+  .promoAlertBannerDismiss {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
   }
 }

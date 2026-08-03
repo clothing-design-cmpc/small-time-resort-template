@@ -201,9 +201,9 @@ export default async function VisitorLayout({ children }) {
         <Header resortName={resortName} />
         {/* pt-[header height] so page content is never hidden behind the sticky header */}
         <div className="visitorContent">
-          {/* Scrolls with the page (not fixed) — first thing inside the
-              content flow, right under the sticky Header, so a visitor
-              sees any active promo before anything else on the page. */}
+          {/* Sticky — pinned right under the fixed Header so it stays
+              visible while the visitor scrolls, instead of scrolling
+              away after the first screenful. */}
           <PromoAlertBanner />
           {children}
         </div>

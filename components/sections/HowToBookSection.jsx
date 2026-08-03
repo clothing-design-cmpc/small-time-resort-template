@@ -200,6 +200,34 @@ export default function HowToBookSection() {
   // of an existing overnight stay, so visitors know why a Tour option
   // might be unavailable that day before they even tap Continue.
   const [checkOutTime, setCheckOutTime] = useState(null);
+  // Promo Dates (super-admin Booking Rules Section 5b) — a Map of
+  // "YYYY-MM-DD" -> discountPercent for every active, not-yet-past
+  // promo date, so the calendar can flag "5% OFF" days the same way it
+  // already flags checkout/tour-booked days. Fetched from the same
+  // public GET /api/promo-dates PromoAlertBanner.jsx uses.
+  const [promoMap, setPromoMap] = useState(new Map());
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchPromoDates() {
+      try {
+        const response = await axios.get("/api/promo-dates");
+        if (isCancelled) return;
+        const entries = response.data?.data ?? [];
+        setPromoMap(new Map(entries.map((entry) => [entry.date.slice(0, 10), Number(entry.discountPercent)])));
+      } catch {
+        // Fails silently — a broken promo lookup should never block the
+        // calendar itself; it just means no promo dots show.
+        if (!isCancelled) setPromoMap(new Map());
+      }
+    }
+
+    fetchPromoDates();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   // Set only once the Overnight rule check in handleContinue() below has
   // passed for the visitor's selected dates — opens RoomSelectionModal
@@ -686,6 +714,12 @@ export default function HowToBookSection() {
                 // misled into thinking a slot is still free.
                 const isFullyTourBookedDay = isOpen && dayTourSet.has(cellKey) && nightTourSet.has(cellKey);
                 const isTourBookedDay = isOpen && !isFullyTourBookedDay && (dayTourSet.has(cellKey) || nightTourSet.has(cellKey));
+                // Promo Dates (Section 5b) — flagged on any open day that
+                // has an active discount, so a visitor spots it before
+                // tapping Continue instead of only finding out once
+                // pricing is computed on the booking form.
+                const promoDiscount = isOpen ? promoMap.get(cellKey) : undefined;
+                const isPromoDay = promoDiscount !== undefined;
 
                 let cls = "howToBookCalendarDay";
                 if (isBooked) cls += " howToBookCalendarDayBooked";
@@ -696,6 +730,7 @@ export default function HowToBookSection() {
                 if (isCheckoutDay) cls += " howToBookCalendarDayCheckout";
                 if (isTourBookedDay) cls += " howToBookCalendarDayTourBooked";
                 if (isFullyTourBookedDay) cls += " howToBookCalendarDayFullyTourBooked";
+                if (isPromoDay) cls += " howToBookCalendarDayPromo";
 
                 return (
                   <button
@@ -708,12 +743,16 @@ export default function HowToBookSection() {
                       isOpen
                         ? `${isSelected ? "Deselect" : "Select"} ${cellKey}${
                             isCheckoutDay && checkOutTime ? ` — previous guests check out ${formatTime12Hour(checkOutTime)}` : ""
-                          }${isFullyTourBookedDay ? " — Day Tour and Night Tour are both already booked this day" : isTourBookedDay ? " — a Tour is already booked this day" : ""}`
+                          }${isFullyTourBookedDay ? " — Day Tour and Night Tour are both already booked this day" : isTourBookedDay ? " — a Tour is already booked this day" : ""}${
+                            isPromoDay ? ` — ${promoDiscount}% OFF promo` : ""
+                          }`
                         : undefined
                     }
                     onClick={() => handleDayClick(cellKey, isPast, isBooked)}
                     title={
-                      isCheckoutDay && checkOutTime
+                      isPromoDay
+                        ? `${promoDiscount}% OFF promo`
+                        : isCheckoutDay && checkOutTime
                         ? `Checkout ${formatTime12Hour(checkOutTime)}`
                         : isFullyTourBookedDay
                         ? "Day Tour and Night Tour are both already booked this day"
@@ -731,6 +770,9 @@ export default function HowToBookSection() {
                     )}
                     {isFullyTourBookedDay && (
                       <span className="howToBookCalendarDayFullyTourBookedBadge" aria-hidden="true" />
+                    )}
+                    {isPromoDay && (
+                      <span className="howToBookCalendarDayPromoBadge" aria-hidden="true" />
                     )}
                   </button>
                 );
@@ -761,6 +803,10 @@ export default function HowToBookSection() {
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotFullyTourBooked" />
                 Open, but Day Tour and Night Tour are both already booked
+              </span>
+              <span className="howToBookCalendarLegendItem">
+                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotPromo" />
+                Promo discount available
               </span>
             </div>
 

@@ -6,10 +6,11 @@
  * Sits at the very top of every /visitor page's content (rendered from
  * app/visitor/layout.jsx, above {children}) and tells guests right away
  * when the super-admin has a Promo Date set up — e.g. "🎉 5% OFF
- * Overnight stays — Aug 20-22". Scrolls with the page (not a fixed
- * strip like MaintenanceBanner) so it never needs the
- * --header-height-style offset dance; it's just the first thing inside
- * the normal content flow.
+ * Overnight stays — Aug 20-22". Sticky (position: sticky, pinned right
+ * under the fixed Header) so it stays visible while the visitor scrolls
+ * the page, and the message itself runs as a continuous marquee so a
+ * longer promo line (headline + "+N more") never has to wrap or get
+ * cut off in the strip's fixed height.
  *
  * Renders nothing at all if there are no active/upcoming promo dates —
  * this is purely additive, never a placeholder "no promos" message.
@@ -27,6 +28,11 @@
  * 4. Dismissible per page-view only (plain component state, not
  *    persisted) — reappears on the next page load/reload so a
  *    still-active promo keeps getting surfaced to new visits
+ * 5. Every finished promo date is auto-deleted from the database by
+ *    app/api/cron/promo-cleanup/route.js (daily), so this banner and
+ *    the visitor calendar's promo dots never have to filter out stale
+ *    rows themselves beyond the date >= today check already in
+ *    app/api/promo-dates/route.js
  */
 "use client";
 
@@ -136,15 +142,29 @@ export default function PromoAlertBanner() {
   const [headlineCluster, ...restClusters] = clusters;
   const appliesToLabel = APPLIES_TO_LABEL[headlineCluster.appliesTo] ?? "bookings";
 
+  const messageText = (
+    <>
+      <strong>{headlineCluster.discountPercent}% OFF</strong> {appliesToLabel} — {formatClusterRange(headlineCluster)}
+      {restClusters.length > 0 && (
+        <span className="promoAlertBannerMore"> (+{restClusters.length} more promo date{restClusters.length > 1 ? "s" : ""})</span>
+      )}
+    </>
+  );
+
   return (
     <div className="promoAlertBanner" role="status">
       <span className="promoAlertBannerIcon" aria-hidden="true">🎉</span>
-      <p className="promoAlertBannerText">
-        <strong>{headlineCluster.discountPercent}% OFF</strong> {appliesToLabel} — {formatClusterRange(headlineCluster)}
-        {restClusters.length > 0 && (
-          <span className="promoAlertBannerMore"> (+{restClusters.length} more promo date{restClusters.length > 1 ? "s" : ""})</span>
-        )}
-      </p>
+      {/* Marquee track — two copies of the same message placed
+          side-by-side and animated together so the loop reads as
+          continuous ("running text") instead of snapping back to the
+          start. Only this inner track scrolls; the icon and dismiss
+          button stay put on either side. */}
+      <div className="promoAlertBannerMarquee">
+        <div className="promoAlertBannerMarqueeTrack">
+          <p className="promoAlertBannerText">{messageText}</p>
+          <p className="promoAlertBannerText" aria-hidden="true">{messageText}</p>
+        </div>
+      </div>
       <button
         type="button"
         className="promoAlertBannerDismiss"

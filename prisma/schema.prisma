@@ -843,6 +843,11 @@ model BookingRule {
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
   updatedBy String?  @map("updated_by") // super-admin user id who last saved these rules
 
+  // Promo Dates that are scoped to THIS rule set specifically (see
+  // PromoDate.bookingRuleId below) — a promo with bookingRuleId left
+  // null instead applies regardless of which rule set is active.
+  promoDates PromoDate[]
+
   @@index([isActive])
   @@index([isActive, allowOvernightStay, howManySelectedDates])
   @@map("booking_rules")
@@ -1142,13 +1147,33 @@ model PromoDate {
   // the public route always filters on this being true.
   isActive Boolean @default(true) @map("is_active")
 
+  // Optional scope to ONE specific BookingRule set — left null (the
+  // default), the promo applies no matter which rule set is currently
+  // active, exactly like before this field existed. Set it to tie the
+  // discount to only one named rule set (e.g. "Holiday Season Rules")
+  // so the same calendar date does NOT get discounted if a different
+  // rule set (e.g. "Default Rules") ends up governing that date
+  // instead. onDelete: SetNull — deleting the rule set un-scopes the
+  // promo back to "applies to all" rather than deleting the promo too.
+  // services/bookingPricing.js's promo lookup checks this against
+  // whichever BookingRule it already resolved as active for the
+  // booking's type (OR: [{ bookingRuleId: null }, { bookingRuleId: activeRuleId }]).
+  bookingRuleId String?      @map("booking_rule_id")
+  bookingRule   BookingRule? @relation(fields: [bookingRuleId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Re-tapping an already-promo'd date for the same scope is a no-op
   // (skipDuplicates), never a duplicate row — see the POST route's
-  // header comment.
-  @@unique([date, appliesTo])
+  // header comment. NOTE: Postgres treats NULL as distinct in unique
+  // constraints, so two unscoped (bookingRuleId: null) rows for the
+  // same date+appliesTo are NOT blocked at the DB level — the POST
+  // route's explicit re-select + skipDuplicates still covers the
+  // common case (same admin session re-tapping the same date), which
+  // is what this constraint exists to prevent.
+  @@unique([date, appliesTo, bookingRuleId])
+  @@index([bookingRuleId])
   @@map("promo_dates")
 }
 

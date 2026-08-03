@@ -43,6 +43,21 @@ export async function PUT(request, { params }) {
       );
     }
 
+    // Optional rule-set scope — same "" / undefined / null = unscoped
+    // convention as the batch-create route. `bookingRuleId` explicitly
+    // present in the body (even as "") means "use this value"; when the
+    // key is missing entirely, keep whatever the entry already had.
+    const bookingRuleId = "bookingRuleId" in body ? body.bookingRuleId || null : existingEntry.bookingRuleId;
+    if (bookingRuleId) {
+      const ruleExists = await prisma.bookingRule.findUnique({ where: { id: bookingRuleId }, select: { id: true } });
+      if (!ruleExists) {
+        return NextResponse.json(
+          { success: false, data: null, message: "Selected booking rule set was not found." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Same UTC-midnight anchor convention as the batch-create route —
     // keeps a single edited date from drifting off the day the admin
     // actually picked in the date input.
@@ -58,8 +73,10 @@ export async function PUT(request, { params }) {
         discountPercent: body.discountPercent,
         label: body.label || null,
         appliesTo,
+        bookingRuleId,
         isActive: body.isActive ?? existingEntry.isActive,
       },
+      include: { bookingRule: { select: { id: true, name: true } } },
     });
 
     // Audit trail (Rule 6) — promo discounts directly affect revenue.
@@ -71,7 +88,7 @@ export async function PUT(request, { params }) {
       targetId: updatedEntry.id,
       targetName: updatedEntry.label || updatedEntry.date.toISOString().slice(0, 10),
       request,
-      details: `Updated promo date (${existingEntry.discountPercent}% → ${updatedEntry.discountPercent}%, applies to "${updatedEntry.appliesTo}").`,
+      details: `Updated promo date (${existingEntry.discountPercent}% → ${updatedEntry.discountPercent}%, applies to "${updatedEntry.appliesTo}", rule set: ${updatedEntry.bookingRule?.name ?? "All rule sets"}).`,
     });
 
     return NextResponse.json({ success: true, data: updatedEntry, message: "Promo date updated successfully." });

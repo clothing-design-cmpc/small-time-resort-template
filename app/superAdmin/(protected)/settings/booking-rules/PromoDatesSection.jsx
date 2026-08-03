@@ -13,6 +13,16 @@
  * resort-wide, individual tapped dates, and a PERCENTAGE off whatever
  * the normal price would already be.
  *
+ * Each promo may optionally be scoped to ONE specific Booking Rule set
+ * (Section 5b's "Booking Rule Set" field) via PromoDate.bookingRuleId.
+ * Left as "All rule sets" (null), a promo applies no matter which rule
+ * set governs the date, same as before this field existed. Scoped to a
+ * rule set, it only discounts a date while THAT rule set is the one
+ * actually active for the booking's type — see the OR clause in
+ * services/bookingPricing.js's promo lookup. `bookingRules` (the same
+ * list BookingRulesListClient already fetched) is passed down from
+ * there purely to populate this dropdown.
+ *
  * DATA FLOW:
  * 1. usePromoDates() fetches all entries on mount
  * 2. "Add Promo Dates" opens AddPromoDatesModal — reuses
@@ -59,9 +69,12 @@ const addPromoDatesSchema = z.object({
   discountPercent: z.coerce.number().min(0.01, "Discount must be more than 0.").max(100, "Discount can't exceed 100%."),
   label: z.string().optional(),
   appliesTo: z.enum(["all", "overnight", "day_tour", "night_tour"]),
+  // Empty string means "unscoped — applies no matter which rule set is
+  // active"; a non-empty value ties the promo to that one rule set.
+  bookingRuleId: z.string().optional(),
 });
 
-function AddPromoDatesModal({ isOpen, onSubmit, onCancel }) {
+function AddPromoDatesModal({ isOpen, bookingRules, onSubmit, onCancel }) {
   const [selectedDates, setSelectedDates] = useState(new Set());
 
   const {
@@ -71,7 +84,7 @@ function AddPromoDatesModal({ isOpen, onSubmit, onCancel }) {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(addPromoDatesSchema),
-    defaultValues: { discountPercent: 5, label: "", appliesTo: "all" },
+    defaultValues: { discountPercent: 5, label: "", appliesTo: "all", bookingRuleId: "" },
   });
 
   // Anchor+range auto-fill — same click behavior as BookingRuleForm.jsx's
@@ -142,6 +155,19 @@ function AddPromoDatesModal({ isOpen, onSubmit, onCancel }) {
           </div>
 
           <div className="bookingRulesFormField">
+            <label htmlFor="promoBookingRuleId">Booking Rule Set</label>
+            <select id="promoBookingRuleId" {...register("bookingRuleId")}>
+              <option value="">All rule sets (applies no matter which rule set is active)</option>
+              {bookingRules.map((rule) => (
+                <option key={rule.id} value={rule.id}>{rule.name}</option>
+              ))}
+            </select>
+            <p className="bookingRulesHint">
+              Optional — tie this promo to one specific rule set so it only discounts a date while THAT rule set governs it.
+            </p>
+          </div>
+
+          <div className="bookingRulesFormField">
             <label htmlFor="promoLabel">Label (optional)</label>
             <input id="promoLabel" type="text" placeholder="Anniversary Promo…" {...register("label")} />
             <p className="bookingRulesHint">For your own reference in this table only — visitors never see this.</p>
@@ -170,9 +196,10 @@ const editPromoDateSchema = z.object({
   discountPercent: z.coerce.number().min(0.01, "Discount must be more than 0.").max(100, "Discount can't exceed 100%."),
   label: z.string().optional(),
   appliesTo: z.enum(["all", "overnight", "day_tour", "night_tour"]),
+  bookingRuleId: z.string().optional(),
 });
 
-function EditPromoDateModal({ isOpen, existingEntry, onSubmit, onCancel }) {
+function EditPromoDateModal({ isOpen, existingEntry, bookingRules, onSubmit, onCancel }) {
   const {
     register,
     handleSubmit,
@@ -184,6 +211,7 @@ function EditPromoDateModal({ isOpen, existingEntry, onSubmit, onCancel }) {
       discountPercent: existingEntry?.discountPercent ?? 5,
       label: existingEntry?.label ?? "",
       appliesTo: existingEntry?.appliesTo ?? "all",
+      bookingRuleId: existingEntry?.bookingRuleId ?? "",
     },
   });
 
@@ -218,6 +246,19 @@ function EditPromoDateModal({ isOpen, existingEntry, onSubmit, onCancel }) {
           </div>
 
           <div className="bookingRulesFormField">
+            <label htmlFor="editPromoBookingRuleId">Booking Rule Set</label>
+            <select id="editPromoBookingRuleId" {...register("bookingRuleId")}>
+              <option value="">All rule sets (applies no matter which rule set is active)</option>
+              {bookingRules.map((rule) => (
+                <option key={rule.id} value={rule.id}>{rule.name}</option>
+              ))}
+            </select>
+            <p className="bookingRulesHint">
+              Optional — tie this promo to one specific rule set so it only discounts a date while THAT rule set governs it.
+            </p>
+          </div>
+
+          <div className="bookingRulesFormField">
             <label htmlFor="editPromoLabel">Label (optional)</label>
             <input id="editPromoLabel" type="text" {...register("label")} />
           </div>
@@ -236,7 +277,7 @@ function EditPromoDateModal({ isOpen, existingEntry, onSubmit, onCancel }) {
   );
 }
 
-export default function PromoDatesSection({ showToast }) {
+export default function PromoDatesSection({ showToast, bookingRules }) {
   const { promoDates, isLoading, error, createPromoDates, updatePromoDate, deletePromoDate } = usePromoDates();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -280,6 +321,7 @@ export default function PromoDatesSection({ showToast }) {
     { key: "date", label: "Date" },
     { key: "discount", label: "Discount", align: "right", mono: true },
     { key: "appliesTo", label: "Applies To" },
+    { key: "ruleSet", label: "Rule Set" },
     { key: "label", label: "Label" },
     { key: "actions", label: "Actions", align: "right" },
   ];
@@ -289,6 +331,7 @@ export default function PromoDatesSection({ showToast }) {
     date: toDateInputValue(entry.date),
     discount: `${Number(entry.discountPercent)}%`,
     appliesTo: appliesToLabel(entry.appliesTo),
+    ruleSet: entry.bookingRule?.name ?? "All rule sets",
     label: entry.label || "—",
     actions: (
       <div className="bookingRulesRowActions">
@@ -326,12 +369,18 @@ export default function PromoDatesSection({ showToast }) {
         emptyMessage="No promo dates set yet. Click “Add Promo Dates” to create the first one."
       />
 
-      <AddPromoDatesModal isOpen={isAddModalOpen} onSubmit={handleAddSubmit} onCancel={() => setIsAddModalOpen(false)} />
+      <AddPromoDatesModal
+        isOpen={isAddModalOpen}
+        bookingRules={bookingRules}
+        onSubmit={handleAddSubmit}
+        onCancel={() => setIsAddModalOpen(false)}
+      />
 
       <EditPromoDateModal
         key={editTarget?.id ?? "closed"}
         isOpen={Boolean(editTarget)}
         existingEntry={editTarget}
+        bookingRules={bookingRules}
         onSubmit={handleEditSubmit}
         onCancel={() => setEditTarget(null)}
       />

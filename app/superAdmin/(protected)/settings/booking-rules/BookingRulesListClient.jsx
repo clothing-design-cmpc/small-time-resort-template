@@ -179,7 +179,7 @@ export default function BookingRulesListClient({ rooms }) {
       />
 
       <SeasonalPricingSection rooms={rooms} showToast={showToast} />
-      <PromoDatesSection showToast={showToast} />
+      <PromoDatesSection showToast={showToast} bookingRules={bookingRules} />
       <RoomStatusSection showToast={showToast} />
       <PendingHoldSection showToast={showToast} />
       <RebookingPolicySection showToast={showToast} />

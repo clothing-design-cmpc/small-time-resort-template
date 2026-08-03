@@ -10,11 +10,17 @@
  *         discountPercent/label/appliesTo, so this accepts a `dates`
  *         array instead of a single `date` (contrast with PUT in
  *         [promoId]/route.js, which edits exactly one existing row).
- *         Duplicate (date, appliesTo) pairs are silently skipped
- *         (skipDuplicates) rather than erroring the whole batch — the
- *         @@unique([date, appliesTo]) constraint in schema.prisma is
- *         the actual backstop; re-tapping an already-promo'd date just
- *         leaves the existing entry untouched instead of failing loud.
+ *         Duplicate (date, appliesTo, bookingRuleId) triples are
+ *         silently skipped (skipDuplicates) rather than erroring the
+ *         whole batch — the @@unique([date, appliesTo, bookingRuleId])
+ *         constraint in schema.prisma is the actual backstop;
+ *         re-tapping an already-promo'd date/scope just leaves the
+ *         existing entry untouched instead of failing loud.
+ *
+ *         bookingRuleId (optional) scopes the promo to ONE specific
+ *         Booking Rule set — omit it (or send null) to keep the promo
+ *         applying no matter which rule set governs the date, same as
+ *         before this field existed.
  */
 export const dynamic = "force-dynamic";
 
@@ -35,6 +41,7 @@ export async function GET() {
 
     const promoDates = await prisma.promoDate.findMany({
       orderBy: { date: "asc" },
+      include: { bookingRule: { select: { id: true, name: true } } },
     });
     return NextResponse.json({
       success: true,
@@ -75,6 +82,21 @@ export async function POST(request) {
       );
     }
 
+    // Optional rule-set scope — "" / undefined / null all mean "applies
+    // to every rule set" (unscoped). Validate that a non-empty value
+    // actually points to a real BookingRule before writing it, so a
+    // stale/deleted rule ID never gets silently saved.
+    const bookingRuleId = body.bookingRuleId || null;
+    if (bookingRuleId) {
+      const ruleExists = await prisma.bookingRule.findUnique({ where: { id: bookingRuleId }, select: { id: true } });
+      if (!ruleExists) {
+        return NextResponse.json(
+          { success: false, data: null, message: "Selected booking rule set was not found." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Anchor every date at UTC midnight before handing to Prisma's
     // @db.Date column — matches the same write-path convention already
     // used for Booking.checkInDate (see app/api/bookings/route.js) so a
@@ -94,6 +116,7 @@ export async function POST(request) {
         discountPercent: body.discountPercent,
         label: body.label || null,
         appliesTo,
+        bookingRuleId,
       })),
       skipDuplicates: true,
     });
@@ -102,8 +125,9 @@ export async function POST(request) {
     // now in the DB for these dates — createMany itself only returns a
     // count, not the rows, and some may have been skipped as duplicates.
     const createdEntries = await prisma.promoDate.findMany({
-      where: { date: { in: parsedDates }, appliesTo },
+      where: { date: { in: parsedDates }, appliesTo, bookingRuleId },
       orderBy: { date: "asc" },
+      include: { bookingRule: { select: { id: true, name: true } } },
     });
 
     // Audit trail (Rule 6) — promo discounts directly affect revenue.
@@ -115,7 +139,7 @@ export async function POST(request) {
       targetId: createdEntries.map((entry) => entry.id).join(","),
       targetName: body.label || `${dates.length} promo date(s)`,
       request,
-      details: `Added ${createdEntries.length} promo date(s) (${body.discountPercent}% off, applies to "${appliesTo}").`,
+      details: `Added ${createdEntries.length} promo date(s) (${body.discountPercent}% off, applies to "${appliesTo}", rule set: ${createdEntries[0]?.bookingRule?.name ?? "All rule sets"}).`,
     });
 
     return NextResponse.json(

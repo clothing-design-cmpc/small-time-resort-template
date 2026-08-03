@@ -529,6 +529,14 @@ export async function validateAndQuoteBooking({
   // If a date matches BOTH a resort-wide "all" row and a type-specific
   // row, the higher discount wins — never let two stacked promos
   // resolve to less than the single best offer a guest could see.
+  //
+  // bookingRuleId scope (see PromoDate.bookingRuleId in schema.prisma):
+  // a promo with bookingRuleId left null applies no matter which rule
+  // set is active; a promo scoped to a specific rule set only applies
+  // when THAT rule set is the one `rules` above actually resolved to
+  // for this booking type — so an owner can tie a discount to e.g.
+  // "Holiday Season Rules" only, and it silently stops applying the
+  // moment a different rule set takes over that date.
   const promoRangeStart = toUtcMidnight(checkIn);
   const promoRangeEnd =
     bookingType === "overnight"
@@ -539,6 +547,7 @@ export async function validateAndQuoteBooking({
       isActive: true,
       appliesTo: { in: ["all", bookingType] },
       date: { gte: promoRangeStart, lt: promoRangeEnd },
+      OR: [{ bookingRuleId: null }, { bookingRuleId: rules.id }],
     },
     select: { date: true, discountPercent: true },
   });

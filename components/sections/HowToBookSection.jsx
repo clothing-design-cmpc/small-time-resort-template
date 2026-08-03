@@ -201,10 +201,16 @@ export default function HowToBookSection() {
   // might be unavailable that day before they even tap Continue.
   const [checkOutTime, setCheckOutTime] = useState(null);
   // Promo Dates (super-admin Booking Rules Section 5b) — a Map of
-  // "YYYY-MM-DD" -> discountPercent for every active, not-yet-past
-  // promo date, so the calendar can flag "5% OFF" days the same way it
-  // already flags checkout/tour-booked days. Fetched from the same
-  // public GET /api/promo-dates PromoAlertBanner.jsx uses.
+  // "YYYY-MM-DD" -> array of { discountPercent, appliesTo } for every
+  // active, not-yet-past promo date, so the calendar can flag "5% OFF"
+  // days the same way it already flags checkout/tour-booked days, AND
+  // TourSelectionModal can show which specific tour type(s) a promo on
+  // the selected date actually covers. An array (not a single value)
+  // because the same date can carry more than one promo scoped to
+  // different tour types (e.g. a Day Tour-only promo AND a separate
+  // Night Tour-only promo on the same day) — collapsing to one entry
+  // would silently drop whichever wasn't fetched last. Fetched from
+  // the same public GET /api/promo-dates PromoAlertBanner.jsx uses.
   const [promoMap, setPromoMap] = useState(new Map());
 
   useEffect(() => {
@@ -215,7 +221,14 @@ export default function HowToBookSection() {
         const response = await axios.get("/api/promo-dates");
         if (isCancelled) return;
         const entries = response.data?.data ?? [];
-        setPromoMap(new Map(entries.map((entry) => [entry.date.slice(0, 10), Number(entry.discountPercent)])));
+        const grouped = new Map();
+        for (const entry of entries) {
+          const dateKey = entry.date.slice(0, 10);
+          const list = grouped.get(dateKey) ?? [];
+          list.push({ discountPercent: Number(entry.discountPercent), appliesTo: entry.appliesTo });
+          grouped.set(dateKey, list);
+        }
+        setPromoMap(grouped);
       } catch {
         // Fails silently — a broken promo lookup should never block the
         // calendar itself; it just means no promo dots show.
@@ -493,6 +506,23 @@ export default function HowToBookSection() {
             dayTourPricePerGuest: rule.dayTourPricePerGuest,
             nightTourPricePerGuest: rule.nightTourPricePerGuest,
             checkoutNotice,
+            // Each option's own check-in/out (or start/end) time —
+            // TourSelectionModal reads these by key (checkInTime/
+            // checkOutTime, dayTourStartTime/dayTourEndTime,
+            // nightTourStartTime/nightTourEndTime) to show a time range
+            // on each card.
+            timeWindows: {
+              checkInTime: rule.checkInTime,
+              checkOutTime: rule.checkOutTime,
+              dayTourStartTime: rule.dayTourStartTime,
+              dayTourEndTime: rule.dayTourEndTime,
+              nightTourStartTime: rule.nightTourStartTime,
+              nightTourEndTime: rule.nightTourEndTime,
+            },
+            // Promo entries active on THIS specific date (if any) — lets
+            // TourSelectionModal badge whichever option(s) the promo's
+            // appliesTo scope actually covers.
+            promoEntries: promoMap.get(checkInKey) ?? [],
           });
           return;
         }
@@ -574,6 +604,8 @@ export default function HowToBookSection() {
         dayTourPricePerGuest: roomModalRequest.dayTourPricePerGuest,
         nightTourPricePerGuest: roomModalRequest.nightTourPricePerGuest,
         checkoutNotice: roomModalRequest.checkoutNotice,
+        timeWindows: roomModalRequest.timeWindows,
+        promoEntries: roomModalRequest.promoEntries,
       });
       setRoomModalRequest(null);
       return;
@@ -717,9 +749,17 @@ export default function HowToBookSection() {
                 // Promo Dates (Section 5b) — flagged on any open day that
                 // has an active discount, so a visitor spots it before
                 // tapping Continue instead of only finding out once
-                // pricing is computed on the booking form.
-                const promoDiscount = isOpen ? promoMap.get(cellKey) : undefined;
-                const isPromoDay = promoDiscount !== undefined;
+                // pricing is computed on the booking form. A date can
+                // carry more than one promo entry (different tour-type
+                // scopes) — the dot just shows the highest % among them,
+                // TourSelectionModal's per-option badges (below) show the
+                // full per-type breakdown once a type-ambiguous single
+                // date is actually being booked.
+                const promoEntriesForDay = isOpen ? promoMap.get(cellKey) : undefined;
+                const isPromoDay = Boolean(promoEntriesForDay?.length);
+                const promoDiscount = isPromoDay
+                  ? Math.max(...promoEntriesForDay.map((entry) => entry.discountPercent))
+                  : undefined;
 
                 // Red-circle-fill status (replaces the old tiny corner
                 // dots): a day is either fully red (completely booked —
@@ -849,6 +889,8 @@ export default function HowToBookSection() {
         dayTourPricePerGuest={tourSelectionRequest?.dayTourPricePerGuest}
         nightTourPricePerGuest={tourSelectionRequest?.nightTourPricePerGuest}
         checkoutNotice={tourSelectionRequest?.checkoutNotice}
+        timeWindows={tourSelectionRequest?.timeWindows}
+        promoEntries={tourSelectionRequest?.promoEntries}
         onSelectType={handleTourTypeSelected}
         onClose={() => setTourSelectionRequest(null)}
       />

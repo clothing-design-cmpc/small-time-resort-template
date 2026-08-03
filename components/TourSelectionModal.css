@@ -180,6 +180,25 @@
   margin: var(--space-xs) 0 0;
 }
 
+/*
+ * .tourSelectionCardPromoBadge
+ * Shown at the top of a card only when an active Promo Date (Section
+ * 5b) covers this specific tour type on the selected date — tells the
+ * visitor which option(s) the discount applies to before they pick
+ * one, rather than only surfacing it after pricing is computed.
+ */
+.tourSelectionCardPromoBadge {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--color-accent);
+  background-color: rgba(63, 125, 82, 0.12);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  margin-bottom: var(--space-xs);
+}
+
 .tourSelectionCardPrice {
   font-size: 0.9rem;
   font-weight: 600;

@@ -28,6 +28,16 @@
  * 2. Tapping an option calls onSelectType(bookingType) — the caller
  *    (HowToBookSection.handleTourTypeSelected) is responsible for the
  *    actual navigation, this component only ever reports the choice
+ *
+ * PROMO INDICATION — promoEntries:
+ * Array of { discountPercent, appliesTo } for whichever Promo Dates
+ * (super-admin Booking Rules Section 5b) are active on THIS single
+ * selected date — passed straight through from HowToBookSection's
+ * promoMap. Each option card checks its own value against every
+ * entry's appliesTo ("all" always matches) and, if any match, shows a
+ * "X% OFF" badge — so the visitor sees exactly which of these three
+ * choices the discount actually covers before picking one, instead of
+ * only finding out once pricing is computed on the next screen.
  */
 "use client";
 
@@ -59,6 +69,21 @@ const OPTIONS = [
   },
 ];
 
+/**
+ * promoForOption
+ * Finds the best-matching promo entry (highest %) for a given option
+ * value out of every promo active on the selected date — an entry
+ * matches when its appliesTo is "all" or equals this option's own
+ * value. Returns null when nothing matches (no badge shown).
+ */
+function promoForOption(promoEntries, optionValue) {
+  const matches = (promoEntries ?? []).filter(
+    (entry) => entry.appliesTo === "all" || entry.appliesTo === optionValue
+  );
+  if (matches.length === 0) return null;
+  return matches.reduce((best, entry) => (entry.discountPercent > best.discountPercent ? entry : best));
+}
+
 export default function TourSelectionModal({
   isOpen,
   checkInDate,
@@ -68,6 +93,7 @@ export default function TourSelectionModal({
   allowNightTour,
   checkoutNotice,
   timeWindows,
+  promoEntries,
   onSelectType,
   onClose,
 }) {
@@ -139,6 +165,7 @@ export default function TourSelectionModal({
               // flashes a broken "undefined – undefined" range.
               const startTime = timeWindows?.[option.startTimeKey];
               const endTime = timeWindows?.[option.endTimeKey];
+              const promo = promoForOption(promoEntries, option.value);
 
               return (
                 <button
@@ -147,6 +174,9 @@ export default function TourSelectionModal({
                   className="tourSelectionCard"
                   onClick={() => onSelectType(option.value)}
                 >
+                  {promo && (
+                    <span className="tourSelectionCardPromoBadge">🎉 {promo.discountPercent}% OFF</span>
+                  )}
                   <p className="tourSelectionCardName">{option.label}</p>
                   <p className="tourSelectionCardDescription">{option.description}</p>
                   {startTime && endTime && (

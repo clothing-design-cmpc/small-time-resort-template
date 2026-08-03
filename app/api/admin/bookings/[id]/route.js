@@ -8,7 +8,9 @@
  * the admin history, and its dates immediately free up on the visitor
  * site's Booked Dates section + Reserve Your Villa picker, since both
  * only read /api/bookings/dates, which only expands status: "confirmed"
- * bookings.
+ * bookings. Also sends the guest a best-effort "Booking Cancelled"
+ * email — covers both an admin rejecting a still-"pending" booking and
+ * cancelling an already-"confirmed" one.
  *
  * DATA FLOW:
  * 1. Admin clicks "Cancel booking" on a row -> confirms in the
@@ -16,6 +18,9 @@
  * 2. requireSuperAdmin() verifies the session
  * 3. Booking is looked up by id; 404 if it doesn't exist
  * 4. status is updated to "cancelled"
+ * 5. If the booking has a guestEmail, sends the "cancelled" template
+ *    email (super-admin > Content > Booking Email Templates) — never
+ *    blocks the cancellation itself if the send fails
  */
 export const dynamic = "force-dynamic";
 
@@ -25,6 +30,10 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
 import { deleteFromR2 } from "@/services/r2";
+import { sendGeneralEmail } from "@/services/emailjs";
+import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
+
+const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
 /**
  * PUT — full edit
@@ -229,6 +238,38 @@ export async function PATCH(request, { params }) {
       request,
       details: `Cancelled booking for ${existingBooking.guestName} (${existingBooking.checkInDate.toISOString().slice(0, 10)} – ${existingBooking.checkOutDate.toISOString().slice(0, 10)}).`,
     });
+
+    // Best-effort cancellation email — never blocks the cancellation
+    // itself, same pattern as app/api/bookings/manage/cancel/route.js's
+    // guest self-cancel email. Covers BOTH cases this PATCH handles:
+    // the admin rejecting a still-"pending" booking, and cancelling an
+    // already-"confirmed" one — this was previously missing entirely,
+    // so a guest never found out their booking was rejected/cancelled
+    // unless the admin told them some other way.
+    if (existingBooking.guestEmail) {
+      try {
+        // Admin-editable copy (super-admin > Content > Booking Email
+        // Templates > Booking Cancelled). Its default wording reads
+        // "cancelled at your request," written for the guest
+        // self-cancel flow — reword it in that page if you want
+        // different copy for an admin-initiated rejection specifically.
+        const cancelledTemplate = await getOrCreateEmailTemplate("cancelled");
+        const mergeVars = { guestName: existingBooking.guestName };
+
+        await sendGeneralEmail({
+          toEmail: existingBooking.guestEmail,
+          subject: `your-private-resort — Booking Cancelled (${existingBooking.referenceCode})`,
+          eyebrow: renderTemplateText(cancelledTemplate.eyebrowText, mergeVars),
+          heading: renderTemplateText(cancelledTemplate.headingText, mergeVars),
+          intro: renderTemplateText(cancelledTemplate.introMessage, mergeVars),
+          highlightLine1: `Reference code: ${existingBooking.referenceCode}`,
+          highlightLine2: `${FULL_DATE.format(existingBooking.checkInDate)} → ${FULL_DATE.format(existingBooking.checkOutDate)}`,
+          bodyMessage: renderTemplateText(cancelledTemplate.bodyMessage, mergeVars),
+        });
+      } catch (error) {
+        console.error("[api/admin/bookings/[id]] Failed to send cancellation email:", error.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,

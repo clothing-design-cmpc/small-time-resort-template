@@ -85,6 +85,8 @@ export async function PUT(request, { params }) {
         slug: slug || existingRoom.slug,
         description: body.description ?? null,
         pricePerNight: body.pricePerNight,
+        dayTourPrice: body.dayTourPrice ?? existingRoom.dayTourPrice,
+        nightTourPrice: body.nightTourPrice ?? existingRoom.nightTourPrice,
         capacity: body.capacity,
         bedType: body.bedType,
         imageUrl: body.imageUrl ?? existingRoom.imageUrl,

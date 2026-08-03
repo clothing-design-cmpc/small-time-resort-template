@@ -213,14 +213,12 @@ const bookingRuleSchema = z.object({
     "Day Tour check-in must be between 1:00 AM and 11:59 AM."
   ),
   dayTourEndTime: z.string().min(1),
-  dayTourPricePerGuest: z.coerce.number().min(0),
   // Night Tour check-in must fall between 1:00 PM and 11:59 PM.
   nightTourStartTime: z.string().min(1).refine(
     (value) => value >= "13:00" && value <= "23:59",
     "Night Tour check-in must be between 1:00 PM and 11:59 PM."
   ),
   nightTourEndTime: z.string().min(1),
-  nightTourPricePerGuest: z.coerce.number().min(0),
   hourlyChargeAmount: z.coerce.number().min(0),
   refundPercentage: z.coerce.number().int().min(0).max(100),
   cancellationCutoffDays: z.coerce.number().int().min(0),
@@ -256,10 +254,8 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   allowNightTour: false,
   dayTourStartTime: "08:00",
   dayTourEndTime: "17:00",
-  dayTourPricePerGuest: 500,
   nightTourStartTime: "18:00",
   nightTourEndTime: "23:00",
-  nightTourPricePerGuest: 600,
   hourlyChargeAmount: 0,
   refundPercentage: 100,
   cancellationCutoffDays: 7,
@@ -306,10 +302,8 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           allowNightTour: existingRule.allowNightTour,
           dayTourStartTime: existingRule.dayTourStartTime,
           dayTourEndTime: existingRule.dayTourEndTime,
-          dayTourPricePerGuest: existingRule.dayTourPricePerGuest,
           nightTourStartTime: existingRule.nightTourStartTime,
           nightTourEndTime: existingRule.nightTourEndTime,
-          nightTourPricePerGuest: existingRule.nightTourPricePerGuest,
           hourlyChargeAmount: existingRule.hourlyChargeAmount ?? 0,
           refundPercentage: existingRule.refundPercentage,
           cancellationCutoffDays: existingRule.cancellationCutoffDays,
@@ -945,9 +939,9 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                     )}
                   </div>
                   <div className="bookingRulesFormField">
-                    <label htmlFor="dayTourPricePerGuest">Bayad Kada Guest (₱)</label>
-                    <input id="dayTourPricePerGuest" type="number" step="0.01" {...register("dayTourPricePerGuest")} />
-                    {errors.dayTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.dayTourPricePerGuest.message}</span>}
+                    <p className="bookingRulesHint">
+                      Ang presyo ng Day Tour ay naka-set na per Room ngayon — puntahan ang Content &gt; Rooms para i-edit.
+                    </p>
                   </div>
                 </div>
               )}
@@ -992,9 +986,9 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                     )}
                   </div>
                   <div className="bookingRulesFormField">
-                    <label htmlFor="nightTourPricePerGuest">Bayad Kada Guest (₱)</label>
-                    <input id="nightTourPricePerGuest" type="number" step="0.01" {...register("nightTourPricePerGuest")} />
-                    {errors.nightTourPricePerGuest && <span role="alert" className="bookingRulesFormError">{errors.nightTourPricePerGuest.message}</span>}
+                    <p className="bookingRulesHint">
+                      Ang presyo ng Night Tour ay naka-set na per Room ngayon — puntahan ang Content &gt; Rooms para i-edit.
+                    </p>
                   </div>
                 </div>
               )}

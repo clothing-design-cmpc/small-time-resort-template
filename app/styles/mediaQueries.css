@@ -35,25 +35,33 @@
  * Kept in its own block, separate from the general 768px/1024px
  * blocks above, so this breakpoint can move independently of the
  * hero/footer tablet overrides.
+ * Every rule here uses !important on BOTH sides of the toggle —
+ * Header.css's own base rules (.headerNav display:flex,
+ * .headerBookButton display:inline-flex, etc.) load AFTER this file
+ * in Next.js's actual CSS bundle order (component-level CSS loads
+ * after root-level CSS regardless of import position in this file),
+ * so a plain override here would silently lose the cascade and the
+ * "mobile" nav would render in full, overflowing off-screen instead
+ * of collapsing into the hamburger.
  * ============================================================ */
 @media (max-width: 1023px) {
   .headerNav {
-    display: none;
+    display: none !important;
   }
 
   .headerBookButton {
-    display: none;
+    display: none !important;
   }
 
   /* Already duplicated as .headerMobileLoginLink inside the dropdown
      menu below — showing both here left "Login" text sitting right
      next to the hamburger icon on every mobile/tablet screen. */
   .headerLoginLink {
-    display: none;
+    display: none !important;
   }
 
   .headerHamburger {
-    display: flex;
+    display: flex !important;
   }
 }
 
@@ -275,7 +283,11 @@
 
 /* ============================================================
  * SUPER-ADMIN SIDEBAR + HEADER — same 1024px hamburger cutover
- * convention as the visitor Header above.
+ * convention as the visitor Header above, and the SAME reason every
+ * rule uses !important on both sides: Sidebar.css/AdminHeader.css's
+ * own base rules load after this file in Next.js's real bundle
+ * order, so a plain override here would silently lose the cascade
+ * (see the HEADER block's comment above for the full explanation).
  * Mobile + tablet (up to 1023px): Sidebar becomes an off-canvas
  * drawer (hidden by default, slid in via .adminSidebar--open),
  * AdminHeader shows a hamburger to toggle it, and content no longer
@@ -285,25 +297,25 @@
  * ============================================================ */
 @media (max-width: 1023px) {
   .adminSidebar {
-    transform: translateX(-100%);
+    transform: translateX(-100%) !important;
     /* Above regular sticky content (header/backdrop) while sliding
        in as a true overlay drawer, not a permanent column. */
-    z-index: var(--z-drawer);
+    z-index: var(--z-drawer) !important;
   }
 
   .adminSidebar.adminSidebar--open {
-    transform: translateX(0);
-    box-shadow: var(--shadow-xl);
+    transform: translateX(0) !important;
+    box-shadow: var(--shadow-xl) !important;
   }
 
   /* No more permanent 260px gutter to reserve — the drawer now
      overlays content instead of sitting beside it. */
   .superAdminBody {
-    margin-left: 0;
+    margin-left: 0 !important;
   }
 
   .adminHeaderHamburger {
-    display: flex;
+    display: flex !important;
   }
 
   /* Date/Time/Event/Season badges — four wide pills that have no
@@ -311,7 +323,7 @@
      header; hidden here rather than left to wrap into a second row
      that pushes the user menu around. */
   .adminHeaderInfoGroup {
-    display: none;
+    display: none !important;
   }
 }
 

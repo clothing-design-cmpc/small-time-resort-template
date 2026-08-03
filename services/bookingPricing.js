@@ -121,7 +121,9 @@ function findSeasonalRate(date, seasonalPrices) {
  * handlers turn straight into a 400 JSON response.
  *
  * @param {object} input
- * @param {string|null} input.roomId
+ * @param {string|null} input.roomId — required for every booking type
+ *   now (Overnight, Day Tour, Night Tour) since Day/Night Tour pricing
+ *   comes from the room's own dayTourPrice/nightTourPrice
  * @param {string} input.bookingType   "overnight" | "day_tour" | "night_tour"
  * @param {string} input.checkInDate  "YYYY-MM-DD"
  * @param {string|null} input.checkOutDate "YYYY-MM-DD" (overnight only)
@@ -214,16 +216,21 @@ export async function validateAndQuoteBooking({
     throw new Error(`This package allows a maximum of ${rules.maxPax} pax.`);
   }
 
-  // --- Room lookup (overnight requires one; tours may optionally reference one for capacity context) ---
-  let room = null;
-  if (roomId) {
-    room = await client.room.findUnique({ where: { id: roomId } });
-    if (!room || !room.isActive) {
-      throw new Error("The selected room is no longer available.");
-    }
-    if (numberOfGuests > room.capacity) {
-      throw new Error(`This room fits up to ${room.capacity} guest(s).`);
-    }
+  // --- Room lookup — every booking type now requires one. Overnight
+  // needs it for the room itself; Day Tour / Night Tour need it because
+  // their price is now the ROOM's own flat dayTourPrice/nightTourPrice
+  // (see prisma/schema.prisma), not a resort-wide per-guest rate. ---
+  if (!roomId) {
+    throw new Error(
+      bookingType === "overnight" ? "Please select a room for an overnight stay." : "Please select a room for this tour."
+    );
+  }
+  const room = await client.room.findUnique({ where: { id: roomId } });
+  if (!room || !room.isActive) {
+    throw new Error("The selected room is no longer available.");
+  }
+  if (numberOfGuests > room.capacity) {
+    throw new Error(`This room fits up to ${room.capacity} guest(s).`);
   }
 
   // --- Overnight-only: nights range, room availability ---
@@ -231,7 +238,6 @@ export async function validateAndQuoteBooking({
   let nights = 0;
 
   if (bookingType === "overnight") {
-    if (!roomId) throw new Error("Please select a room for an overnight stay.");
     if (!checkOutDate) throw new Error("Please select a check-out date.");
 
     checkOut = startOfDay(new Date(`${checkOutDate}T00:00:00`));
@@ -595,9 +601,11 @@ export async function validateAndQuoteBooking({
       subtotal += nightlyRate;
     }
   } else {
-    const perGuestRate =
-      bookingType === "day_tour" ? Number(rules.dayTourPricePerGuest) : Number(rules.nightTourPricePerGuest);
-    subtotal = perGuestRate * numberOfGuests;
+    // Flat rate for the room the visitor picked — not multiplied by
+    // numberOfGuests. The party size is still capped above (room
+    // capacity) and by the active rule's Allowed Guests/Total Pax, but
+    // it no longer changes the price itself.
+    subtotal = bookingType === "day_tour" ? Number(room.dayTourPrice) : Number(room.nightTourPrice);
 
     const promoPercentForDate = promoDiscountByDateKey.get(toDateKey(checkIn));
     if (promoPercentForDate) {
@@ -668,6 +676,14 @@ export async function validateAndQuoteBooking({
     scheduledStartAt: scheduledStartAt.toISOString(),
     cancellationCutoffDays: rules.cancellationCutoffDays,
     refundPercentage: rules.refundPercentage,
-    room: room ? { id: room.id, name: room.name, pricePerNight: Number(room.pricePerNight) } : null,
+    room: room
+      ? {
+          id: room.id,
+          name: room.name,
+          pricePerNight: Number(room.pricePerNight),
+          dayTourPrice: Number(room.dayTourPrice),
+          nightTourPrice: Number(room.nightTourPrice),
+        }
+      : null,
   };
 }

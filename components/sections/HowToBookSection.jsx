@@ -545,7 +545,15 @@ export default function HowToBookSection() {
         // The visitor picks a room there; handleRoomSelected() below
         // does the actual navigation once they do (singleDateFlow is
         // false here, so it routes straight through as Overnight).
-        setRoomModalRequest({ checkInDate: checkInKey, checkOutDate: checkOutKey, ruleId: rule.matchedRuleId, singleDateFlow: false });
+        setRoomModalRequest({
+          checkInDate: checkInKey,
+          checkOutDate: checkOutKey,
+          ruleId: rule.matchedRuleId,
+          singleDateFlow: false,
+          allowOvernightStay: true,
+          allowDayTour: false,
+          allowNightTour: false,
+        });
         return;
       } else {
         // Single-date selection — at least one Tour type must be enabled.
@@ -646,7 +654,7 @@ export default function HowToBookSection() {
       return;
     }
 
-    const params = new URLSearchParams({ checkin: checkInDate, type });
+    const params = new URLSearchParams({ checkin: checkInDate, type, roomId: room.id });
     setTourSelectionRequest(null);
     router.push(`/visitor/booking?${params.toString()}`);
   }
@@ -877,6 +885,9 @@ export default function HowToBookSection() {
         error={availableRoomsError}
         onSelectRoom={handleRoomSelected}
         onClose={() => setRoomModalRequest(null)}
+        allowOvernightStay={roomModalRequest?.allowOvernightStay ?? true}
+        allowDayTour={roomModalRequest?.allowDayTour ?? false}
+        allowNightTour={roomModalRequest?.allowNightTour ?? false}
       />
 
       <TourSelectionModal

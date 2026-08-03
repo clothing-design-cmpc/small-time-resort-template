@@ -91,7 +91,23 @@ function DPCountdown({ pendingExpiresAt }) {
   return <span className="roomSelectionExistingBookingCountdown">{formatCountdown(msRemaining)}</span>;
 }
 
-export default function RoomSelectionModal({ isOpen, checkInDate, checkOutDate, rooms, isLoading, error, onSelectRoom, onClose }) {
+export default function RoomSelectionModal({
+  isOpen,
+  checkInDate,
+  checkOutDate,
+  rooms,
+  isLoading,
+  error,
+  onSelectRoom,
+  onClose,
+  // Which booking type(s) this room choice could still become — controls
+  // which price line(s) show on each room card. All default to true so
+  // any caller that doesn't pass these (none currently do) keeps the old
+  // "always show price/night" behavior instead of showing nothing.
+  allowOvernightStay = true,
+  allowDayTour = true,
+  allowNightTour = true,
+}) {
   // Existing pending/confirmed booking(s) on the same date(s) — shown
   // as a small context banner above the room grid so a second guest
   // browsing the same date can see who else already has a booking
@@ -205,7 +221,17 @@ export default function RoomSelectionModal({ isOpen, checkInDate, checkOutDate, 
                       {room.amenities.map((amenity) => amenity.name).join(" · ")}
                     </p>
                   )}
-                  <p className="roomSelectionCardPrice">{PESO.format(room.pricePerNight)}/night</p>
+                  <div className="roomSelectionCardPriceList">
+                    {allowOvernightStay && (
+                      <p className="roomSelectionCardPrice">{PESO.format(room.pricePerNight)}/night</p>
+                    )}
+                    {allowDayTour && (
+                      <p className="roomSelectionCardPrice">{PESO.format(room.dayTourPrice)} — Day Tour</p>
+                    )}
+                    {allowNightTour && (
+                      <p className="roomSelectionCardPrice">{PESO.format(room.nightTourPrice)} — Night Tour</p>
+                    )}
+                  </div>
                 </div>
               </button>
             ))}

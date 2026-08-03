@@ -80,6 +80,8 @@ export async function POST(request) {
         slug,
         description: body.description || null,
         pricePerNight: body.pricePerNight,
+        dayTourPrice: body.dayTourPrice ?? 4500,
+        nightTourPrice: body.nightTourPrice ?? 4500,
         capacity: body.capacity ?? 2,
         bedType: body.bedType || "King",
         imageUrl: body.imageUrl || null,

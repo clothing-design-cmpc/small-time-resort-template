@@ -37,6 +37,8 @@ const roomSchema = z.object({
   slug: z.string().min(1, "Slug is required."),
   description: z.string().optional(),
   pricePerNight: z.coerce.number().min(0, "Price must be 0 or more."),
+  dayTourPrice: z.coerce.number().min(0, "Price must be 0 or more."),
+  nightTourPrice: z.coerce.number().min(0, "Price must be 0 or more."),
   capacity: z.coerce.number().min(1, "Max guests must be at least 1."),
   bedType: z.string().min(1),
   isFeatured: z.boolean(),
@@ -78,6 +80,8 @@ export default function RoomForm({ existingRoom, amenities }) {
       slug: existingRoom?.slug ?? "",
       description: existingRoom?.description ?? "",
       pricePerNight: existingRoom?.pricePerNight ?? 0,
+      dayTourPrice: existingRoom?.dayTourPrice ?? 4500,
+      nightTourPrice: existingRoom?.nightTourPrice ?? 4500,
       capacity: existingRoom?.capacity ?? 2,
       bedType: existingRoom?.bedType ?? "King",
       isFeatured: existingRoom?.isFeatured ?? false,
@@ -237,6 +241,22 @@ export default function RoomForm({ existingRoom, amenities }) {
                 ))}
               </select>
               <p className="roomFormHint">The main bed configuration shown on the room card.</p>
+            </div>
+          </div>
+
+          <div className="roomFormRow">
+            <div className="roomFormField">
+              <label htmlFor="roomDayTourPrice">Day Tour Price (₱) <span aria-hidden="true">*</span></label>
+              <input id="roomDayTourPrice" type="number" step="0.01" {...register("dayTourPrice")} />
+              <p className="roomFormHint">Flat price for a Day Tour booking of this room — not per guest.</p>
+              {errors.dayTourPrice && <span role="alert" className="roomFormError">{errors.dayTourPrice.message}</span>}
+            </div>
+
+            <div className="roomFormField">
+              <label htmlFor="roomNightTourPrice">Night Tour Price (₱) <span aria-hidden="true">*</span></label>
+              <input id="roomNightTourPrice" type="number" step="0.01" {...register("nightTourPrice")} />
+              <p className="roomFormHint">Flat price for a Night Tour booking of this room — not per guest.</p>
+              {errors.nightTourPrice && <span role="alert" className="roomFormError">{errors.nightTourPrice.message}</span>}
             </div>
           </div>
         </div>

@@ -6,35 +6,42 @@
  * The Day Tour / Night Tour counterpart to ReservationSummaryClient.jsx.
  * Once a visitor picks "Day Tour" or "Night Tour" inside
  * components/TourSelectionModal.jsx (only reachable when exactly one
- * date was selected on the homepage calendar), the booking TYPE and
- * DATE are already locked in — this page only ever DISPLAYS those
- * (package name, date, tour time window, price per guest, Allowed
+ * date was selected on the homepage calendar, right after picking a
+ * room in RoomSelectionModal), the booking TYPE, DATE, and ROOM are
+ * already locked in — this page only ever DISPLAYS those (package
+ * name, date, tour time window, room, flat room price, Allowed
  * Guests, Total Pax, and the Extra Guest Fee heads-up) as plain text,
- * same as the Overnight summary does for room/dates. There is no guest
- * count input anywhere on this page anymore — headcount isn't always
- * declared honestly upfront, so the online price always covers exactly
- * Allowed Guests, and anyone beyond that (up to Total Pax) pays the
- * Extra Guest Fee to staff once they're actually at the resort. The
- * only thing left for the visitor to fill in is their contact info,
- * before submitting the same /api/bookings endpoint every other
- * booking path uses.
+ * same as the Overnight summary does for room/dates. Price is now the
+ * ROOM's own flat dayTourPrice/nightTourPrice (prisma/schema.prisma) —
+ * never multiplied by guest count. There is no guest count input
+ * anywhere on this page anymore — headcount isn't always declared
+ * honestly upfront, so the online price always covers exactly Allowed
+ * Guests, and anyone beyond that (up to Total Pax) pays the Extra
+ * Guest Fee to staff once they're actually at the resort. The only
+ * thing left for the visitor to fill in is their contact info, before
+ * submitting the same /api/bookings endpoint every other booking path
+ * uses.
  *
  * DATA FLOW:
- * 1. app/visitor/booking/page.jsx passes checkInDate/bookingType
- *    straight through from the URL (?checkin=&type=day_tour|night_tour)
+ * 1. app/visitor/booking/page.jsx passes checkInDate/bookingType/roomId
+ *    straight through from the URL
+ *    (?checkin=&type=day_tour|night_tour&roomId=)
  * 2. usePublicBookingRules() loads the active rule for both tour types
- *    (package time window, price per guest, Allowed Guests, Total Pax,
- *    Extra Guest Fee) — Day Tour and Night Tour each resolve their own
+ *    (package time window, Allowed Guests, Total Pax, Extra Guest Fee,
+ *    inclusions) — Day Tour and Night Tour each resolve their own
  *    independent active rule regardless of nights, so nightsSelected
- *    is never passed here
+ *    is never passed here. usePublicRoom(roomId) loads the room itself
+ *    (name, capacity, dayTourPrice, nightTourPrice) for the price and
+ *    room-name display.
  * 3. A live quote (useBookingSubmission.fetchQuote) fetches once rules
- *    have loaded, using the matched rule's own Allowed Guests as the
- *    fixed numberOfGuests — never refetches from user input since
- *    there's no longer a guest-count field to change
+ *    AND the room have loaded, passing roomId through and using the
+ *    matched rule's own Allowed Guests as the fixed numberOfGuests —
+ *    never refetches from user input since there's no longer a
+ *    guest-count field to change
  * 4. On submit, React Hook Form validates only contact info
  *    client-side, then submitBooking() POSTs to /api/bookings with
- *    roomId/checkOutDate both null and numberOfGuests fixed to the
- *    matched rule's Allowed Guests
+ *    roomId locked to the room picked upstream, checkOutDate null, and
+ *    numberOfGuests fixed to the matched rule's Allowed Guests
  * 5. On success, the page is replaced with the same confirmation panel
  *    shape BookingFormClient.jsx / ReservationSummaryClient.jsx use
  */
@@ -45,6 +52,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
+import { usePublicRoom } from "@/hooks/usePublicRoom";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import { formatTime12Hour } from "@/utils/formatTime";
 import { buildMessengerLink } from "@/utils/messagingLinks";
@@ -77,8 +85,9 @@ function formatDateText(dateKey) {
   return FULL_DATE.format(new Date(`${dateKey}T00:00:00`));
 }
 
-export default function TourReservationSummaryClient({ checkInDate, bookingType, resortPhone, resortMessengerUsername }) {
+export default function TourReservationSummaryClient({ checkInDate, bookingType, roomId, resortPhone, resortMessengerUsername }) {
   const { bookingRules, isLoading: isRulesLoading, error: rulesError } = usePublicBookingRules();
+  const { room, isLoading: isRoomLoading, error: roomError } = usePublicRoom(roomId);
   const { fetchQuote, submitBooking, isSubmitting } = useBookingSubmission();
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -117,7 +126,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
   const isAllowed = bookingType === "day_tour" ? bookingRules?.allowDayTour : bookingRules?.allowNightTour;
   const startTime = bookingType === "day_tour" ? bookingRules?.dayTourStartTime : bookingRules?.nightTourStartTime;
   const endTime = bookingType === "day_tour" ? bookingRules?.dayTourEndTime : bookingRules?.nightTourEndTime;
-  const pricePerGuest = bookingType === "day_tour" ? bookingRules?.dayTourPricePerGuest : bookingRules?.nightTourPricePerGuest;
+  const roomPrice = room ? (bookingType === "day_tour" ? room.dayTourPrice : room.nightTourPrice) : null;
   // Total Pax — max on-site capacity for this tour type's matched rule.
   const maxPax = bookingType === "day_tour" ? bookingRules?.dayTourMaxPax : bookingRules?.nightTourMaxPax;
   // Allowed Guests — the fixed count baked into the online price. No
@@ -139,7 +148,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
   // count) has loaded. Never refetches from user input since there's
   // no guest-count field on this page anymore.
   useEffect(() => {
-    if (!checkInDate || !bookingType || !numberOfGuests || numberOfGuests < 1) {
+    if (!checkInDate || !bookingType || !roomId || !numberOfGuests || numberOfGuests < 1) {
       setQuote(null);
       return;
     }
@@ -148,7 +157,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
       try {
         const result = await fetchQuote({
           bookingType,
-          roomId: null,
+          roomId,
           checkInDate,
           checkOutDate: null,
           numberOfGuests,
@@ -172,7 +181,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [checkInDate, bookingType, numberOfGuests, fetchQuote]);
+  }, [checkInDate, bookingType, roomId, numberOfGuests, fetchQuote]);
 
   async function onSubmit(formValues) {
     setSubmitError(null);
@@ -180,7 +189,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
       const result = await submitBooking({
         ...formValues,
         bookingType,
-        roomId: null,
+        roomId,
         checkInDate,
         checkOutDate: null,
         numberOfGuests,
@@ -240,6 +249,8 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
         <dl className="bookingConfirmSummary">
           <dt>Date</dt>
           <dd>{FULL_DATE.format(new Date(`${confirmedQuote.checkInDate}T00:00:00`))} at {formatTime12Hour(confirmedQuote.checkInTime)}</dd>
+          <dt>Room</dt>
+          <dd>{confirmedQuote.room?.name ?? room?.name ?? "—"}</dd>
           <dt>Total</dt>
           <dd>{PESO.format(confirmedQuote.total)}</dd>
           {confirmedQuote.depositRequired && (
@@ -281,7 +292,7 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
   }
 
   /* ─── Loading / error states (Rule 25) ──────────────────────────────── */
-  if (isRulesLoading) {
+  if (isRulesLoading || isRoomLoading) {
     return <p className="bookingFormLoadingText">Loading your reservation details…</p>;
   }
 
@@ -289,6 +300,15 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
     return (
       <div className="reservationSummaryErrorState">
         <p>We couldn't load your reservation's package details. Please try again.</p>
+        <a className="reservationSummaryErrorLink" href="/visitor">Back to Availability</a>
+      </div>
+    );
+  }
+
+  if (!roomId || roomError || !room) {
+    return (
+      <div className="reservationSummaryErrorState">
+        <p>{roomError || "Please pick a room for this tour first."}</p>
         <a className="reservationSummaryErrorLink" href="/visitor">Back to Availability</a>
       </div>
     );
@@ -321,8 +341,11 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
         <dt>Time</dt>
         <dd>{formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}</dd>
 
-        <dt>Price per Guest</dt>
-        <dd>{PESO.format(Number(pricePerGuest) || 0)}</dd>
+        <dt>Room</dt>
+        <dd>{room.name}</dd>
+
+        <dt>Price</dt>
+        <dd>{PESO.format(Number(roomPrice) || 0)}</dd>
 
         <dt>Max Number of Guests</dt>
         <dd>{numberOfGuests ?? "—"}</dd>

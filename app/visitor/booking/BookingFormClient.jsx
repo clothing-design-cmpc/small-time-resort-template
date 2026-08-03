@@ -64,7 +64,7 @@ const bookingFormSchema = z
     guestPhone: z.string().trim().min(7, "Enter a valid phone number."),
     notes: z.string().trim().max(500).optional(),
   })
-  .refine((data) => data.bookingType !== "overnight" || !!data.roomId, {
+  .refine((data) => !!data.roomId, {
     message: "Please select a room.",
     path: ["roomId"],
   })
@@ -178,7 +178,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
   const { bookingRules, isLoading: rulesLoading } = usePublicBookingRules(nightsSelected);
 
-  const { availability } = useRoomAvailability(bookingType === "overnight" ? roomId : null);
+  const { availability } = useRoomAvailability(roomId || null);
 
   // Which booking types the super-admin currently allows — drives the pill selector below
   const enabledTypes = useMemo(() => {
@@ -206,7 +206,8 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
       bookingType &&
       checkInDate &&
       numberOfGuests > 0 &&
-      (bookingType !== "overnight" || (roomId && checkOutDate));
+      roomId &&
+      (bookingType !== "overnight" || checkOutDate);
 
     if (!hasMinimumInputs) {
       setQuote(null);
@@ -218,7 +219,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
       try {
         const result = await fetchQuote({
           bookingType,
-          roomId: bookingType === "overnight" ? roomId : null,
+          roomId,
           checkInDate,
           checkOutDate: bookingType === "overnight" ? checkOutDate : null,
           numberOfGuests,
@@ -250,7 +251,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     try {
       const result = await submitBooking({
         ...formValues,
-        roomId: formValues.bookingType === "overnight" ? formValues.roomId : null,
+        roomId: formValues.roomId,
         checkOutDate: formValues.bookingType === "overnight" ? formValues.checkOutDate : null,
       });
       setConfirmedBooking(result);
@@ -458,21 +459,28 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
         )}
       </div>
 
-      {/* Overnight-only: room select */}
-      {bookingType === "overnight" && (
-        <div className="bookingFormField">
-          <label className="bookingFormLabel" htmlFor="roomId">Room / Villa <span aria-hidden="true">*</span></label>
-          <select id="roomId" className="bookingFormInput" {...register("roomId")} disabled={roomsLoading}>
-            <option value="">{roomsLoading ? "Loading rooms…" : "Select a room"}</option>
-            {rooms.map((room) => (
+      {/* Room select — now required for every booking type, since Day
+          Tour / Night Tour pricing follows the room's own flat rate
+          too (see services/bookingPricing.js). */}
+      <div className="bookingFormField">
+        <label className="bookingFormLabel" htmlFor="roomId">Room / Villa <span aria-hidden="true">*</span></label>
+        <select id="roomId" className="bookingFormInput" {...register("roomId")} disabled={roomsLoading}>
+          <option value="">{roomsLoading ? "Loading rooms…" : "Select a room"}</option>
+          {rooms.map((room) => {
+            const roomPrice =
+              bookingType === "day_tour" ? room.dayTourPrice
+              : bookingType === "night_tour" ? room.nightTourPrice
+              : room.pricePerNight;
+            const priceSuffix = bookingType === "overnight" ? "/night" : "";
+            return (
               <option key={room.id} value={room.id}>
-                {room.name} — {PESO.format(room.pricePerNight)}/night (up to {room.capacity} guests)
+                {room.name} — {PESO.format(roomPrice)}{priceSuffix} (up to {room.capacity} guests)
               </option>
-            ))}
-          </select>
-          {errors.roomId && <span className="bookingFormError" role="alert">{errors.roomId.message}</span>}
-        </div>
-      )}
+            );
+          })}
+        </select>
+        {errors.roomId && <span className="bookingFormError" role="alert">{errors.roomId.message}</span>}
+      </div>
 
       {/* Dates */}
       <div className="bookingFormRow">

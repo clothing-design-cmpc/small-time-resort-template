@@ -46,8 +46,6 @@ export default async function EditBookingRulePage({ params }) {
   const serializedRule = {
     ...rule,
     hourlyChargeAmount: Number(rule.hourlyChargeAmount),
-    dayTourPricePerGuest: Number(rule.dayTourPricePerGuest),
-    nightTourPricePerGuest: Number(rule.nightTourPricePerGuest),
     extraGuestFeePerHead: Number(rule.extraGuestFeePerHead),
   };
   const rooms = roomRecords.map((room) => ({ ...room, pricePerNight: Number(room.pricePerNight) }));

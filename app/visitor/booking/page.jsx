@@ -6,24 +6,25 @@
  * Real booking entry point for the "Book Now" header CTA and the
  * homepage Availability calendar (HowToBookSection). Branches into one
  * of three experiences depending on how the visitor arrived:
- *   - roomId present (HowToBookSection's RoomSelectionModal or
- *     TourSelectionModal's Overnight choice already confirmed a
- *     matching rule AND a room) -> ReservationSummaryClient, a
- *     read-only package summary + guest info form, no editable
+ *   - type is "day_tour" / "night_tour" (TourSelectionModal's Tour
+ *     choice for a single selected date, room already picked in
+ *     RoomSelectionModal just before it) -> TourReservationSummaryClient,
+ *     a read-only package summary (date, tour time, room, flat room
+ *     price) with only contact info left to fill in. Checked BEFORE
+ *     roomId below — Day/Night Tour bookings now carry a roomId too
+ *     (price follows the room — see services/bookingPricing.js), so
+ *     roomId alone can no longer be used to infer "this is Overnight".
+ *   - roomId present (and type isn't a tour type) -> ReservationSummaryClient,
+ *     a read-only package summary + guest info form, no editable
  *     room/date/type selectors.
- *   - roomId absent but type is "day_tour" / "night_tour"
- *     (TourSelectionModal's Tour choice for a single selected date)
- *     -> TourReservationSummaryClient, the Tour equivalent: a
- *     read-only package summary (date, tour time, price per guest)
- *     with only guest count + contact info left to fill in.
  *   - Neither present (the header's plain "Book Now" link) -> the
  *     original fully interactive BookingFormClient, unchanged.
  *
  * DATA FLOW:
  * 1. Visitor arrives here from Header's "Book Now" link (no query
  *    params), HowToBookSection's TourSelectionModal for a single-date
- *    Day/Night Tour choice (?checkin=&type=day_tour|night_tour), or
- *    HowToBookSection's RoomSelectionModal / TourSelectionModal
+ *    Day/Night Tour choice (?checkin=&type=day_tour|night_tour&roomId=),
+ *    or HowToBookSection's RoomSelectionModal / TourSelectionModal
  *    Overnight choice (?checkin=&checkout=&roomId=&ruleId=)
  * 2. All actual data fetching (room, rule, availability, quote,
  *    submission) happens client-side in whichever client component
@@ -57,8 +58,11 @@ export default async function BookingPage({ searchParams }) {
   // Set only when TourSelectionModal's Day Tour / Night Tour option was
   // picked for a single selected date — used below to route into
   // TourReservationSummaryClient instead of the full interactive form.
+  // No longer gated on "!roomId" — Day/Night Tour bookings now carry a
+  // roomId too (their price comes from that room's own flat rate), so
+  // roomId alone can't distinguish a tour from an Overnight booking.
   const initialBookingType = typeof params?.type === "string" ? params.type : null;
-  const isLockedTourType = !roomId && (initialBookingType === "day_tour" || initialBookingType === "night_tour");
+  const isLockedTourType = initialBookingType === "day_tour" || initialBookingType === "night_tour";
 
   // .catch(() => null) means a DB hiccup falls back to the placeholder
   // number below instead of breaking the whole booking page.
@@ -81,19 +85,20 @@ export default async function BookingPage({ searchParams }) {
             : "Pick your dates and confirm — no phone call needed."}
         </p>
 
-        {roomId ? (
+        {isLockedTourType ? (
+          <TourReservationSummaryClient
+            checkInDate={initialCheckInDate}
+            bookingType={initialBookingType}
+            roomId={roomId}
+            resortPhone={resortPhone}
+            resortMessengerUsername={resortMessengerUsername}
+          />
+        ) : roomId ? (
           <ReservationSummaryClient
             checkInDate={initialCheckInDate}
             checkOutDate={initialCheckOutDate}
             roomId={roomId}
             ruleId={ruleId}
-            resortPhone={resortPhone}
-            resortMessengerUsername={resortMessengerUsername}
-          />
-        ) : isLockedTourType ? (
-          <TourReservationSummaryClient
-            checkInDate={initialCheckInDate}
-            bookingType={initialBookingType}
             resortPhone={resortPhone}
             resortMessengerUsername={resortMessengerUsername}
           />

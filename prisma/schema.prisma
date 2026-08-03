@@ -31,6 +31,16 @@ model Room {
   slug           String    @unique
   description    String?
   pricePerNight  Decimal   @map("price_per_night") @db.Decimal(10, 2)
+  // Flat (not per-guest) Day Tour / Night Tour price for THIS room —
+  // replaces the old resort-wide BookingRule.dayTourPricePerGuest /
+  // nightTourPricePerGuest model. A Day Tour or Night Tour booking now
+  // always requires picking a room (same as Overnight), and the price
+  // charged is always this flat rate for that room, regardless of how
+  // many guests are in the party (guest count is still capped by
+  // room.capacity and the active rule's Allowed Guests/Total Pax —
+  // see services/bookingPricing.js).
+  dayTourPrice   Decimal   @default(4500) @map("day_tour_price") @db.Decimal(10, 2)
+  nightTourPrice Decimal   @default(4500) @map("night_tour_price") @db.Decimal(10, 2)
   capacity       Int       @default(2)
   imageUrl       String?   @map("image_url")
   imageKey       String?   @map("image_key") // R2 object key, needed to delete the old file on replace
@@ -803,15 +813,19 @@ model BookingRule {
   hourlyChargeAmount Decimal @default(0) @map("hourly_charge_amount") @db.Decimal(10, 2)
 
   // --- Day Tour settings — only meaningful when allowDayTour is true.
-  //     A Day Tour is a same-day, no-room, no-overnight visit (guest
-  //     uses the pool/facilities during these hours only, at a flat
-  //     per-guest rate — not the room's per-night price). ---
+  //     A Day Tour is a same-day visit that now also requires picking a
+  //     room, priced at that room's own flat dayTourPrice (see the Room
+  //     model above) — no longer a resort-wide per-guest rate. These
+  //     fields below are only the time window; dayTourPricePerGuest
+  //     is kept in the DB for backward compatibility but is no longer
+  //     read anywhere (see services/bookingPricing.js). ---
   dayTourStartTime      String  @default("08:00") @map("day_tour_start_time") // 24h "HH:mm"
   dayTourEndTime        String  @default("17:00") @map("day_tour_end_time") // 24h "HH:mm"
   dayTourPricePerGuest  Decimal @default(500) @map("day_tour_price_per_guest") @db.Decimal(10, 2)
 
   // --- Night Tour settings — only meaningful when allowNightTour is
-  //     true. Same idea as Day Tour but for an evening window. ---
+  //     true. Same idea as Day Tour but for an evening window — see
+  //     the comment on dayTourPricePerGuest above. ---
   nightTourStartTime     String  @default("18:00") @map("night_tour_start_time") // 24h "HH:mm"
   nightTourEndTime       String  @default("23:00") @map("night_tour_end_time") // 24h "HH:mm"
   nightTourPricePerGuest Decimal @default(600) @map("night_tour_price_per_guest") @db.Decimal(10, 2)

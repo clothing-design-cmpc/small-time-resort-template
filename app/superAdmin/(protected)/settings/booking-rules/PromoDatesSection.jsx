@@ -33,7 +33,7 @@ import { z } from "zod";
 import { usePromoDates } from "@/hooks/usePromoDates";
 import DataTable from "@/components/superAdmin/DataTable";
 import ConfirmationModal from "@/components/superAdmin/ConfirmationModal";
-import RuleDatesCalendar from "./RuleDatesCalendar";
+import RuleDatesCalendar, { getDateRangeKeys } from "./RuleDatesCalendar";
 
 const APPLIES_TO_OPTIONS = [
   { value: "all", label: "All booking types" },
@@ -74,17 +74,26 @@ function AddPromoDatesModal({ isOpen, onSubmit, onCancel }) {
     defaultValues: { discountPercent: 5, label: "", appliesTo: "all" },
   });
 
-  // Plain toggle — no anchor+range auto-fill (unlike
-  // BookingRuleForm.jsx's own handleToggleDate): promo dates are
-  // usually a scattered handful of specific days (a long weekend, a
-  // holiday), not a single continuous stay, so each tap only ever
-  // affects that one date.
+  // Anchor+range auto-fill — same click behavior as BookingRuleForm.jsx's
+  // Section 1 calendar and the visitor-facing How-to-Book calendar:
+  //   - No date selected yet -> selects just the clicked date (anchor).
+  //   - Exactly one date already selected -> clicking the SAME date
+  //     deselects it; clicking a DIFFERENT date fills in every date
+  //     between the anchor and this click, inclusive.
+  //   - A range is already selected -> clicking any date starts a
+  //     fresh selection with just that date as the new anchor.
   function handleToggleDate(dateKey) {
-    setSelectedDates((current) => {
-      const next = new Set(current);
-      if (next.has(dateKey)) next.delete(dateKey);
-      else next.add(dateKey);
-      return next;
+    setSelectedDates((previousDates) => {
+      if (previousDates.size === 0) {
+        return new Set([dateKey]);
+      }
+      if (previousDates.size === 1) {
+        const [anchorKey] = previousDates;
+        return anchorKey === dateKey
+          ? new Set()
+          : new Set(getDateRangeKeys(anchorKey, dateKey));
+      }
+      return new Set([dateKey]);
     });
   }
 

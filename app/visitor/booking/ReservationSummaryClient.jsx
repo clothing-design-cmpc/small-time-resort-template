@@ -246,6 +246,15 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
           )}
           <dt>Total</dt>
           <dd>{PESO.format(confirmedQuote.total)}</dd>
+          {confirmedQuote.promoNightsDiscounted > 0 && (
+            <>
+              <dt>Promo</dt>
+              <dd>
+                Applied on {confirmedQuote.promoNightsDiscounted}{" "}
+                {confirmedQuote.promoNightsDiscounted === 1 ? "date" : "dates"}
+              </dd>
+            </>
+          )}
           {confirmedQuote.depositRequired && (
             <>
               <dt>Deposit due</dt>
@@ -367,6 +376,17 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
       {quoteError && <p className="bookingFormQuoteError" role="alert">{quoteError}</p>}
       {quote && !quoteError && (
         <div className="bookingQuotePanel">
+          {/* Promo Date discount check (Section 5b / Task 3) — mirrors
+              the same banner in BookingFormClient.jsx so a promo
+              applied to this stay is never silently baked into the
+              total with no explanation, regardless of which of the
+              three booking-confirm pages the guest lands on. */}
+          {quote.promoNightsDiscounted > 0 && (
+            <p className="bookingQuotePromoBanner">
+              🎉 Promo applied — discount for {quote.promoNightsDiscounted}{" "}
+              {quote.promoNightsDiscounted === 1 ? "date" : "dates"} already included in your total below.
+            </p>
+          )}
           {quote.nights > 0 && <p className="bookingQuoteRow"><span>Nights</span><span>{quote.nights}</span></p>}
           <p className="bookingQuoteRow bookingQuoteRowTotal"><span>Total</span><span>{PESO.format(quote.total)}</span></p>
           {quote.depositRequired && (

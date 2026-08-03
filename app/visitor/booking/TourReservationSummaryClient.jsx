@@ -255,6 +255,12 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
           <dd>{confirmedQuote.room?.name ?? room?.name ?? "—"}</dd>
           <dt>Total</dt>
           <dd>{PESO.format(confirmedQuote.total)}</dd>
+          {confirmedQuote.promoNightsDiscounted > 0 && (
+            <>
+              <dt>Promo</dt>
+              <dd>Applied</dd>
+            </>
+          )}
           {confirmedQuote.depositRequired && (
             <>
               <dt>Deposit due</dt>
@@ -398,6 +404,16 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
       {quoteError && <p className="bookingFormQuoteError" role="alert">{quoteError}</p>}
       {quote && !quoteError && (
         <div className="bookingQuotePanel">
+          {/* Promo Date discount check (Section 5b / Task 3) — mirrors
+              the same banner in BookingFormClient.jsx so a promo
+              applied to this date is never silently baked into the
+              total with no explanation, regardless of which of the
+              three booking-confirm pages the guest lands on. */}
+          {quote.promoNightsDiscounted > 0 && (
+            <p className="bookingQuotePromoBanner">
+              🎉 Promo applied — discount for this date already included in your total below.
+            </p>
+          )}
           <p className="bookingQuoteRow bookingQuoteRowTotal"><span>Total</span><span>{PESO.format(quote.total)}</span></p>
           {quote.depositRequired && (
             <p className="bookingQuoteRow"><span>Deposit due now</span><span>{PESO.format(quote.depositAmount)}</span></p>

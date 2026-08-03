@@ -1112,6 +1112,46 @@ model WeatherForecastCache {
   @@map("weather_forecast_cache")
 }
 
+// ============================================================
+// MODEL: PromoDate  (Section 5b, Booking Rules list page —
+// see PromoDatesSection.jsx)
+// ============================================================
+// One row per resort-wide promo day. Read publicly (pre-filtered to
+// isActive + not-yet-past) by app/api/promo-dates/route.js for
+// PromoAlertBanner.jsx and HowToBookSection.jsx's calendar, and fully
+// by the super-admin CRUD routes under app/api/superAdmin/settings/
+// promo-dates/. Expired rows are hard-deleted by
+// services/promoDates.js -> cleanupExpiredPromoDates() on every read
+// (plus a daily cron backup) — see that file for why a promo date
+// carries no history worth keeping once its day has passed.
+model PromoDate {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  // The actual promo day itself — always anchored to UTC midnight by
+  // every write-path route, never a full timestamp.
+  date DateTime @db.Date
+
+  discountPercent Int     @map("discount_percent")
+  label           String?
+
+  // "all" | "overnight" | "day_tour" | "night_tour" — validated against
+  // VALID_APPLIES_TO in every route that writes this field.
+  appliesTo String @default("all") @map("applies_to")
+
+  // Lets an admin temporarily hide a promo without deleting it outright;
+  // the public route always filters on this being true.
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Re-tapping an already-promo'd date for the same scope is a no-op
+  // (skipDuplicates), never a duplicate row — see the POST route's
+  // header comment.
+  @@unique([date, appliesTo])
+  @@map("promo_dates")
+}
+
 // SystemSettings row's id uses the same singleton convention:
 // the well-known id "singleton" (same pattern as BookingRules above),
 // never creates a second row.
@@ -1225,6 +1265,16 @@ model SystemSettings {
   // column on purpose so `prisma db push` treats this as a straight
   // move rather than introducing an unrelated shape change.
   cleaningHours Int @default(2) @map("cleaning_hours")
+
+  // --- Pending Hold Countdown ("DP Countdown", Section 7, Booking Rules
+  // list page) --- ONE resort-wide value: how many hours a newly-created
+  // "pending" Booking holds its dates before auto-expiring. Read/written
+  // exclusively through services/pendingHoldHours.js so
+  // app/api/bookings/route.js and app/api/superAdmin/settings/
+  // pending-hold-hours/route.js always agree on the same value — same
+  // singleton pattern as cleaningHours above. Default of 8 matches
+  // services/pendingHoldHours.js's DEFAULT_PENDING_HOLD_HOURS fallback.
+  pendingHoldHours Int @default(8) @map("pending_hold_hours")
 
   // --- Global Rebooking Policy (Section 8, Booking Rules list page —
   // see RebookingPolicySection.jsx) --- ONE resort-wide policy shared by

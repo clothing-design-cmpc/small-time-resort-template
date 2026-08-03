@@ -163,17 +163,23 @@ export async function GET() {
     // "block" means the resort is closed that day, period) — inclusive
     // of both startDate and endDate, unlike expandOvernightRange's
     // checkout-exclusive convention, since a blackout has no "checkout"
-    // concept.
+    // concept. Tracked in its own set (NOT merged into overnight/day/
+    // night here) so the frontend can tell "under maintenance" apart
+    // from an actual guest booking — merged into the per-type sets
+    // further below only for blocking purposes.
+    const maintenanceSet = new Set();
     for (const blackout of blackoutDates) {
       const cursor = new Date(blackout.startDate.getFullYear(), blackout.startDate.getMonth(), blackout.startDate.getDate());
       const stop = new Date(blackout.endDate.getFullYear(), blackout.endDate.getMonth(), blackout.endDate.getDate());
       while (cursor <= stop) {
-        const key = toDateKey(cursor);
-        overnightSet.add(key);
-        dayTourSet.add(key);
-        nightTourSet.add(key);
+        maintenanceSet.add(toDateKey(cursor));
         cursor.setDate(cursor.getDate() + 1);
       }
+    }
+    for (const key of maintenanceSet) {
+      overnightSet.add(key);
+      dayTourSet.add(key);
+      nightTourSet.add(key);
     }
 
     // Backward-compatible flat list — "any booking of any type exists
@@ -199,6 +205,10 @@ export async function GET() {
         overnightBlocksDayTourDates: Array.from(overnightBlocksDayTourSet).sort(),
         dayTourBookedDates: Array.from(dayTourSet).sort(),
         nightTourBookedDates: Array.from(nightTourSet).sort(),
+        // Admin-set blackout dates only (subset of the sets above) —
+        // lets the visitor calendars show "Under Maintenance" (yellow)
+        // instead of "Fully Booked" (red) for these specific dates.
+        maintenanceDates: Array.from(maintenanceSet).sort(),
       },
       message: "Booked dates fetched successfully.",
     });

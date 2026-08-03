@@ -52,6 +52,7 @@ export default function BookedDatesSection() {
    * calMonthOffset — how many months the visitor has paged from the selected date's month
    */
   const [bookedDates, setBookedDates]       = useState([]);
+  const [maintenanceDates, setMaintenanceDates] = useState([]);
   const [isLoading, setIsLoading]           = useState(true);
   const [loadError, setLoadError]           = useState(null);
   const [activeIndex, setActiveIndex]       = useState(0);
@@ -88,6 +89,7 @@ export default function BookedDatesSection() {
         }
 
         setBookedDates(result.data.bookedDates);
+        setMaintenanceDates(result.data.maintenanceDates ?? []);
         setActiveIndex(0);
       } catch {
         if (!isCancelled) {
@@ -114,6 +116,7 @@ export default function BookedDatesSection() {
     [bookedDates]
   );
   const bookedSet = useMemo(() => new Set(bookedDates), [bookedDates]);
+  const maintenanceSet = useMemo(() => new Set(maintenanceDates), [maintenanceDates]);
 
   const selectedDate = bookedDateObjects[activeIndex];
   const selectedKey  = selectedDate ? toKey(selectedDate) : null;
@@ -365,15 +368,28 @@ export default function BookedDatesSection() {
                   const isBooked = bookedSet.has(cellKey);
                   const isToday  = cellKey === TODAY_KEY;
                   const isHigh   = cellKey === selectedKey;
+                  const isMaintenance = maintenanceSet.has(cellKey);
 
                   let cls = "miniCalendarDay";
                   if (isBooked) cls += " miniCalendarDayBooked";
                   if (isToday)  cls += " miniCalendarDayToday";
                   if (isHigh)   cls += " miniCalendarDayHighlighted";
+                  if (isMaintenance) cls += " miniCalendarDayMaintenance";
 
                   return (
-                    <span key={cellKey} className={cls}>
-                      {day}
+                    <span
+                      key={cellKey}
+                      className={cls}
+                      title={isMaintenance ? "Resort is undergoing maintenance." : undefined}
+                    >
+                      {isMaintenance ? (
+                        <span className="miniCalendarDayMaintenanceContent">
+                          {day}
+                          <span className="miniCalendarDayMaintenanceIcon" aria-hidden="true">!</span>
+                        </span>
+                      ) : (
+                        day
+                      )}
                     </span>
                   );
                 })}
@@ -383,6 +399,10 @@ export default function BookedDatesSection() {
                 <span className="miniCalendarLegendItem">
                   <span className="miniCalendarLegendDot miniCalendarLegendDotBooked" />
                   Booked
+                </span>
+                <span className="miniCalendarLegendItem">
+                  <span className="miniCalendarLegendDot miniCalendarLegendDotMaintenance" />
+                  Under Maintenance
                 </span>
                 <span className="miniCalendarLegendItem">
                   <span className="miniCalendarLegendDot miniCalendarLegendDotToday" />

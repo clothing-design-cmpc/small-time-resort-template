@@ -335,6 +335,45 @@
   font-weight: 700;
 }
 
+/*
+ * .miniCalendarDayMaintenance
+ * Admin-set blackout ("resort under maintenance") — solid amber fill,
+ * distinct from the booked-red above, plus a small "!" badge so it
+ * reads as "closed for a reason" rather than just another reserved
+ * date. Comes after .miniCalendarDayBooked in the cascade so it takes
+ * priority on a date that matches both.
+ */
+.miniCalendarDayMaintenance {
+  background-color: #f59e0b;
+  color: #1a1200;
+  font-weight: 700;
+  cursor: help;
+}
+
+.miniCalendarDayMaintenanceContent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.miniCalendarDayMaintenanceIcon {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background-color: #1a1200;
+  color: #f59e0b;
+  font-size: 0.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 /* ─── Legend ─────────────────────────────────────────────────────────── */
 .miniCalendarLegend {
   display: flex;
@@ -363,6 +402,10 @@
 
 .miniCalendarLegendDotBooked {
   background-color: #c0442a;
+}
+
+.miniCalendarLegendDotMaintenance {
+  background-color: #f59e0b;
 }
 
 .miniCalendarLegendDotToday {

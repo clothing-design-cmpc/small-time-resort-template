@@ -182,6 +182,7 @@ export default function HowToBookSection() {
     nightTourSet,
     overnightCheckoutSet,
     overnightBlocksDayTourSet,
+    maintenanceSet,
     anyBookedSet,
     isLoading,
     error: loadError,
@@ -809,6 +810,12 @@ export default function HowToBookSection() {
                 // that could technically match both.
                 const isFullyRedDay = isFullyTourBookedDay;
                 const isHalfRedDay = !isFullyRedDay && (isCheckoutDay || isTourBookedDay);
+                // Admin-set blackout ("resort under maintenance") — takes
+                // visual priority over the ordinary red booked/partially-
+                // booked treatment above, since this isn't a guest
+                // booking at all and the visitor should know WHY the
+                // date is closed, not think it's just fully reserved.
+                const isMaintenanceDay = maintenanceSet.has(cellKey);
 
                 let cls = "howToBookCalendarDay";
                 if (isBooked) cls += " howToBookCalendarDayBooked";
@@ -819,6 +826,7 @@ export default function HowToBookSection() {
                 if (isHalfRedDay) cls += " howToBookCalendarDayPartiallyBooked";
                 if (isSelected) cls += " howToBookCalendarDaySelected";
                 if (isPromoDay) cls += " howToBookCalendarDayPromo";
+                if (isMaintenanceDay) cls += " howToBookCalendarDayMaintenance";
 
                 return (
                   <button
@@ -828,7 +836,9 @@ export default function HowToBookSection() {
                     disabled={!isOpen}
                     aria-pressed={isOpen ? isSelected : undefined}
                     aria-label={
-                      isOpen
+                      isMaintenanceDay
+                        ? `${cellKey} — resort is undergoing maintenance`
+                        : isOpen
                         ? `${isSelected ? "Deselect" : "Select"} ${cellKey}${
                             isCheckoutDay && checkOutTime ? ` — previous guests check out ${formatTime12Hour(checkOutTime)}` : ""
                           }${isFullyTourBookedDay ? " — Day Tour and Night Tour are both already booked this day" : isTourBookedDay ? " — a Tour is already booked this day" : ""}${
@@ -838,7 +848,9 @@ export default function HowToBookSection() {
                     }
                     onClick={() => handleDayClick(cellKey, isPast, isBooked)}
                     title={
-                      isPromoDay
+                      isMaintenanceDay
+                        ? "Resort is undergoing maintenance."
+                        : isPromoDay
                         ? `${promoDiscount}% OFF promo`
                         : isCheckoutDay && checkOutTime
                         ? `Checkout ${formatTime12Hour(checkOutTime)}`
@@ -849,7 +861,12 @@ export default function HowToBookSection() {
                         : undefined
                     }
                   >
-                    {isPromoDay ? (
+                    {isMaintenanceDay ? (
+                      <span className="howToBookCalendarDayMaintenanceContent">
+                        <span className="howToBookCalendarDayMaintenanceNumber">{day}</span>
+                        <span className="howToBookCalendarDayMaintenanceIcon" aria-hidden="true">!</span>
+                      </span>
+                    ) : isPromoDay ? (
                       <span className="howToBookCalendarDayPromoContent">
                         <span className="howToBookCalendarDayPromoNumber">{day}</span>
                         <span className="howToBookCalendarDayPromoDiscount" aria-hidden="true">
@@ -876,6 +893,10 @@ export default function HowToBookSection() {
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotFullRed" />
                 Fully booked
+              </span>
+              <span className="howToBookCalendarLegendItem">
+                <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotMaintenance" />
+                Under Maintenance
               </span>
               <span className="howToBookCalendarLegendItem">
                 <span className="howToBookCalendarLegendDot howToBookCalendarLegendDotToday" />

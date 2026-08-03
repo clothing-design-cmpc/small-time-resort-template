@@ -133,6 +133,11 @@ export function useBookedDates() {
   const nightTourSet = useMemo(() => new Set(data?.nightTourBookedDates ?? EMPTY), [data]);
   const overnightCheckoutSet = useMemo(() => new Set(data?.overnightCheckoutDates ?? EMPTY), [data]);
   const overnightBlocksDayTourSet = useMemo(() => new Set(data?.overnightBlocksDayTourDates ?? EMPTY), [data]);
+  // Admin-set blackout dates ("resort under maintenance") — a subset of
+  // the sets above, exposed separately so the calendar UI can flag
+  // these dates differently (yellow, "!" tooltip) instead of showing
+  // them as an ordinary guest booking.
+  const maintenanceSet = useMemo(() => new Set(data?.maintenanceDates ?? EMPTY), [data]);
   const anyBookedSet = useMemo(
     () => new Set([...overnightSet, ...dayTourSet, ...nightTourSet]),
     [overnightSet, dayTourSet, nightTourSet]
@@ -149,6 +154,7 @@ export function useBookedDates() {
     nightTourSet,
     overnightCheckoutSet,
     overnightBlocksDayTourSet,
+    maintenanceSet,
     anyBookedSet,
   };
 }

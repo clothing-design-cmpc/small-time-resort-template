@@ -235,6 +235,44 @@
   font-weight: 600;
 }
 
+/* Admin-set blackout ("resort under maintenance") — solid yellow/amber
+ * fill, taking visual priority over the ordinary red booked/partially-
+ * booked treatment above (comes later in the cascade so it wins on any
+ * date that happens to also match those classes), plus an "!" icon so
+ * a visitor can tell at a glance this isn't just a fully-booked date. */
+.howToBookCalendarDayMaintenance {
+  background-color: #f59e0b;
+  color: #1a1200;
+  font-weight: 600;
+}
+
+.howToBookCalendarDayMaintenanceContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.howToBookCalendarDayMaintenanceNumber {
+  font-size: 0.72rem;
+}
+
+.howToBookCalendarDayMaintenanceIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background-color: #1a1200;
+  color: #f59e0b;
+  font-size: 0.55rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 /* Promo Date (Section 5b) — a subtle pink ring around the whole cell
  * so it reads as "promo" even before the eye lands on the discount
  * text inside, plus the day number and its discount stacked as one
@@ -322,6 +360,10 @@
 
 .howToBookCalendarLegendDotFullRed {
   background-color: #c0442a;
+}
+
+.howToBookCalendarLegendDotMaintenance {
+  background-color: #f59e0b;
 }
 
 .howToBookCalendarLegendDotToday {

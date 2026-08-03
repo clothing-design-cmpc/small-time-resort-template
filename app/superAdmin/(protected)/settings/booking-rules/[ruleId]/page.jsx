@@ -48,7 +48,12 @@ export default async function EditBookingRulePage({ params }) {
     hourlyChargeAmount: Number(rule.hourlyChargeAmount),
     extraGuestFeePerHead: Number(rule.extraGuestFeePerHead),
   };
-  const rooms = roomRecords.map((room) => ({ ...room, pricePerNight: Number(room.pricePerNight) }));
+  const rooms = roomRecords.map((room) => ({
+    ...room,
+    pricePerNight: Number(room.pricePerNight),
+    dayTourPrice: Number(room.dayTourPrice),
+    nightTourPrice: Number(room.nightTourPrice),
+  }));
   const products = productRecords.map((product) => ({ ...product, price: Number(product.price) }));
 
   return <BookingRuleForm existingRule={serializedRule} rooms={rooms} amenities={amenities} products={products} />;

@@ -31,7 +31,12 @@ export default async function EditRoomPage({ params }) {
 
   // Decimal fields from Prisma aren't serializable as-is across the
   // Server -> Client Component boundary — convert to a plain number.
-  const serializedRoom = { ...room, pricePerNight: Number(room.pricePerNight) };
+  const serializedRoom = {
+    ...room,
+    pricePerNight: Number(room.pricePerNight),
+    dayTourPrice: Number(room.dayTourPrice),
+    nightTourPrice: Number(room.nightTourPrice),
+  };
 
   return <RoomForm existingRoom={serializedRoom} amenities={amenities} />;
 }

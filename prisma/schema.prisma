@@ -1131,7 +1131,7 @@ model PromoDate {
   // every write-path route, never a full timestamp.
   date DateTime @db.Date
 
-  discountPercent Int     @map("discount_percent")
+  discountPercent Decimal @db.Decimal(5, 2) @map("discount_percent")
   label           String?
 
   // "all" | "overnight" | "day_tour" | "night_tour" — validated against

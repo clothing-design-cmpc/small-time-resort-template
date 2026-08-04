@@ -864,7 +864,7 @@ export default function HowToBookSection() {
                   >
                     {isMaintenanceDay ? (
                       <span className="howToBookCalendarDayMaintenanceContent">
-                        {day}
+                        <span className="howToBookCalendarDayMaintenanceNumber">{day}</span>
                         <span className="howToBookCalendarDayMaintenanceIcon" aria-hidden="true">!</span>
                       </span>
                     ) : isPromoDay ? (

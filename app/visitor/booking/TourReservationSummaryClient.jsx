@@ -56,7 +56,7 @@ import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { usePublicRoom } from "@/hooks/usePublicRoom";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import { formatTime12Hour } from "@/utils/formatTime";
-import { buildMessengerLink } from "@/utils/messagingLinks";
+import { buildMessengerLink, isMobileUserAgent } from "@/utils/messagingLinks";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import RebookingPolicyNote from "@/components/shared/RebookingPolicyNote";
@@ -187,6 +187,13 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
 
   async function onSubmit(formValues) {
     setSubmitError(null);
+
+    // Same auto-open pattern as BookingFormClient.jsx — see the detailed
+    // comment there.
+    const messengerLink = buildMessengerLink(resortMessengerUsername);
+    const isMobile = isMobileUserAgent();
+    const messengerWindow = messengerLink && !isMobile ? window.open("", "_blank") : null;
+
     try {
       const result = await submitBooking({
         ...formValues,
@@ -197,8 +204,17 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
         numberOfGuests,
       });
       setConfirmedBooking(result);
+
+      if (messengerLink) {
+        if (isMobile) {
+          window.location.href = messengerLink;
+        } else if (messengerWindow) {
+          messengerWindow.location.href = messengerLink;
+        }
+      }
     } catch (error) {
       setSubmitError(error.message);
+      if (messengerWindow) messengerWindow.close();
     }
   }
 

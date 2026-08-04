@@ -69,3 +69,20 @@ export function buildMessengerLink(pageUsername) {
 
   return `https://m.me/${cleaned}`;
 }
+
+/**
+ * isMobileUserAgent
+ * Lightweight client-side check (no server round trip, no ua-parser-js
+ * dependency) used only to decide HOW to open a messaging deep link —
+ * same-tab redirect on phones (so the OS hands off to the installed
+ * app) vs a new browser tab on desktop (so the guest doesn't lose the
+ * booking confirmation page). Not used anywhere security-sensitive —
+ * services/deviceFingerprint.js's server-side ua-parser-js parsing is
+ * the source of truth for anything that matters (Rule 38).
+ *
+ * @returns {boolean}
+ */
+export function isMobileUserAgent() {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}

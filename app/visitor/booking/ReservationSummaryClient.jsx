@@ -42,7 +42,7 @@ import { usePublicRoom } from "@/hooks/usePublicRoom";
 import { usePublicBookingRules } from "@/hooks/usePublicBookingRules";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import { formatTime12Hour } from "@/utils/formatTime";
-import { buildMessengerLink } from "@/utils/messagingLinks";
+import { buildMessengerLink, isMobileUserAgent } from "@/utils/messagingLinks";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import RebookingPolicyNote from "@/components/shared/RebookingPolicyNote";
@@ -168,6 +168,15 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
 
   async function onSubmit(guestInfo) {
     setSubmitError(null);
+
+    // Same auto-open pattern as BookingFormClient.jsx — see the detailed
+    // comment there. Blank tab opened synchronously (before the await)
+    // so desktop browsers don't block it; mobile redirects the current
+    // tab so the OS hands off straight to the Facebook/Messenger app.
+    const messengerLink = buildMessengerLink(resortMessengerUsername);
+    const isMobile = isMobileUserAgent();
+    const messengerWindow = messengerLink && !isMobile ? window.open("", "_blank") : null;
+
     try {
       const result = await submitBooking({
         ...guestInfo,
@@ -178,8 +187,17 @@ export default function ReservationSummaryClient({ checkInDate, checkOutDate, ro
         numberOfGuests,
       });
       setConfirmedBooking(result);
+
+      if (messengerLink) {
+        if (isMobile) {
+          window.location.href = messengerLink;
+        } else if (messengerWindow) {
+          messengerWindow.location.href = messengerLink;
+        }
+      }
     } catch (error) {
       setSubmitError(error.message);
+      if (messengerWindow) messengerWindow.close();
     }
   }
 

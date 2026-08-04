@@ -33,7 +33,7 @@ import { useRoomAvailability } from "@/hooks/useRoomAvailability";
 import { useBookingSubmission } from "@/hooks/useBookingSubmission";
 import RoomAvailabilityCalendar from "./RoomAvailabilityCalendar";
 import { formatTime12Hour } from "@/utils/formatTime";
-import { buildMessengerLink } from "@/utils/messagingLinks";
+import { buildMessengerLink, isMobileUserAgent } from "@/utils/messagingLinks";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import "./BookingForm.css";
@@ -248,6 +248,29 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
 
   async function onSubmit(formValues) {
     setSubmitError(null);
+
+    // Auto-redirect to Facebook Messenger right after a successful
+    // booking, so the guest lands straight in the app/chat to send
+    // their invoice instead of having to find and tap the "Send
+    // Invoice on Messenger" link themselves.
+    //
+    // The blank tab below is opened synchronously, inside this click
+    // handler, BEFORE the "await submitBooking(...)" call — most
+    // browsers (desktop Chrome/Firefox/Safari, and iOS Safari
+    // especially) only allow window.open() without a popup-blocker
+    // prompt when it happens in direct response to a user gesture;
+    // once an `await` has run, that gesture is no longer "fresh" and
+    // a window.open() call after it gets silently blocked. Opening a
+    // blank tab now and just changing ITS .location once the booking
+    // succeeds sidesteps that entirely, since setting .location on an
+    // already-open window is never treated as a new popup.
+    const messengerLink = buildMessengerLink(resortMessengerUsername);
+    const isMobile = isMobileUserAgent();
+    // Only pre-open a tab on desktop — on mobile we redirect the
+    // CURRENT tab instead (see below), so there is nothing to
+    // pre-open there.
+    const messengerWindow = messengerLink && !isMobile ? window.open("", "_blank") : null;
+
     try {
       const result = await submitBooking({
         ...formValues,
@@ -255,8 +278,29 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
         checkOutDate: formValues.bookingType === "overnight" ? formValues.checkOutDate : null,
       });
       setConfirmedBooking(result);
+
+      if (messengerLink) {
+        if (isMobile) {
+          // Same-tab redirect — m.me is registered as a universal/app
+          // link, so the OS hands this off straight to the installed
+          // Facebook or Messenger app (whichever claims it) instead of
+          // opening in the mobile browser. Falls back to Messenger's
+          // own mobile web chat if neither app is installed.
+          window.location.href = messengerLink;
+        } else if (messengerWindow) {
+          // Desktop: the pre-opened tab now navigates to Messenger's
+          // web chat, keeping this tab on the confirmation page (with
+          // the invoice download and reference code) instead of
+          // losing it to a full-page redirect.
+          messengerWindow.location.href = messengerLink;
+        }
+      }
     } catch (error) {
       setSubmitError(error.message);
+      // Booking failed — nothing to hand off to Messenger for, so
+      // close the pre-opened blank tab instead of leaving a stray
+      // empty tab open.
+      if (messengerWindow) messengerWindow.close();
     }
   }
 

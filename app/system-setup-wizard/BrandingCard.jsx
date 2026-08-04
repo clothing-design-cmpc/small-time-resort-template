@@ -8,9 +8,16 @@
  * Footer.jsx, Hero.jsx, and app/styles/globals.css. Fully optional and
  * never blocks progressing to Step 4 — both fields already have
  * schema-level defaults (SystemSettings.siteTitle /
- * .brandAccentColor) if this card is skipped entirely. The same two
- * fields stay editable later from Super-Admin > Content > Homepage >
- * Brand Identity.
+ * .brandAccentColor) if this card is skipped entirely. THIS IS THE
+ * ONLY PLACE these two fields are ever editable through the UI — the
+ * wizard itself only ever runs once (isSetupWizardLocked() 404s the
+ * whole wizard, including this card's own GET/PUT routes, the moment
+ * SystemSettings.setupFinalized is set), and Super-Admin > Content >
+ * Homepage > Brand Identity intentionally renders these two fields
+ * read-only (HomepageSettingsClient.jsx) since the resort name/color
+ * touch too many places (invoices, email subjects) to change casually
+ * after launch. Get it right here, or change it directly in the DB
+ * afterward.
  *
  * DATA FLOW:
  * 1. On mount -> GET /api/system-setup-wizard/branding
@@ -86,9 +93,10 @@ export default function BrandingCard({ showToast }) {
       <h2 className="setupWizardSubStepTitle">Brand your resort (optional)</h2>
       <p className="setupWizardBody">
         Set the resort name and accent color shown across the Header, Footer, Hero
-        section, and browser tab title — no code editing needed. Skip this and
-        continue if you&apos;d rather set it up later from Super-Admin &gt; Content &gt;
-        Homepage &gt; Brand Identity.
+        section, and browser tab title — no code editing needed. This is the only
+        time these two are editable through the UI, so get them right before
+        continuing — afterward, Super-Admin &gt; Content &gt; Homepage &gt; Brand
+        Identity only shows them read-only.
       </p>
 
       {isLoading ? (

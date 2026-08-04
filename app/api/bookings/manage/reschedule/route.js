@@ -44,6 +44,7 @@ import { sendGeneralEmail } from "@/services/emailjs";
 import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 import { getActiveBookingRule } from "@/services/bookingRules";
 import { getRebookingPolicy, evaluateRebookingEligibility } from "@/services/rebookingPolicy";
+import { getResortDisplayName } from "@/services/resortName";
 
 // Same per-type start/end time fields the manage lookup route reads.
 const START_TIME_FIELD_BY_TYPE = {
@@ -300,7 +301,10 @@ export async function POST(request) {
       // Admin-editable copy (super-admin > Content > Booking Email
       // Templates > Booking Rebooked). bodyMessage is an optional extra
       // note the admin can add above the (always dynamic) invoice link.
-      const rebookedTemplate = await getOrCreateEmailTemplate("rebooked");
+      const [rebookedTemplate, resortName] = await Promise.all([
+        getOrCreateEmailTemplate("rebooked"),
+        getResortDisplayName(),
+      ]);
       const mergeVars = { guestName: updatedBooking.guestName };
       const adminBodyNote = renderTemplateText(rebookedTemplate.bodyMessage, mergeVars);
       const invoiceLine = invoiceUrl
@@ -309,7 +313,7 @@ export async function POST(request) {
 
       await sendGeneralEmail({
         toEmail: updatedBooking.guestEmail,
-        subject: `your-private-resort — Booking Rebooked (${updatedBooking.referenceCode})`,
+        subject: `${resortName} — Booking Rebooked (${updatedBooking.referenceCode})`,
         eyebrow: renderTemplateText(rebookedTemplate.eyebrowText, mergeVars),
         heading: renderTemplateText(rebookedTemplate.headingText, mergeVars),
         intro: renderTemplateText(rebookedTemplate.introMessage, mergeVars),

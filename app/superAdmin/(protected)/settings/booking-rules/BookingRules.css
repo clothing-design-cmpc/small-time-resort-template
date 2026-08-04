@@ -102,6 +102,22 @@
   flex-wrap: wrap;
 }
 
+/*
+ * .bookingRulesSweepRow
+ * Row for the "Run Expiry Sweep Now" manual dev-testing trigger under
+ * Section 7 (DP Countdown) — hint text on the left, button on the
+ * right, wrapping to stacked on narrow viewports.
+ */
+.bookingRulesSweepRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding-top: var(--space-sm);
+}
+
 .bookingRulesSectionTitle {
   font-size: 1.15rem;
   font-weight: 700;

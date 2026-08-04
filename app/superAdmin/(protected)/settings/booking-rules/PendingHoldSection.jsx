@@ -23,11 +23,34 @@
 "use client";
 
 import { useState } from "react";
+import axios from "axios";
 import { usePendingHoldHours } from "@/hooks/usePendingHoldHours";
 
 export default function PendingHoldSection({ showToast }) {
   const { pendingHoldHours, isLoading, error, updatePendingHoldHours } = usePendingHoldHours();
   const [pendingHoldHoursDraft, setPendingHoldHoursDraft] = useState(undefined);
+  const [isSweeping, setIsSweeping] = useState(false);
+
+  /**
+   * handleRunExpirySweepNow
+   * Manually triggers app/api/cron/booking-expiry's exact sweep logic
+   * (see services/bookingExpirySweep.js) via the super-admin-only
+   * route. Exists because Vercel Cron never fires against localhost —
+   * this is the only way to see auto-expiry/auto-cancellation actually
+   * happen while developing, instead of waiting for a deploy.
+   */
+  async function handleRunExpirySweepNow() {
+    setIsSweeping(true);
+    try {
+      const response = await axios.post("/api/superAdmin/settings/booking-rules/run-expiry-sweep");
+      showToast(`✓ ${response.data.message}`, "success");
+    } catch (submitError) {
+      const message = submitError?.response?.data?.message || "Failed to run the expiry sweep.";
+      showToast(`✕ ${message}`, "error");
+    } finally {
+      setIsSweeping(false);
+    }
+  }
 
   // Keep the draft in sync once the real value loads, without
   // clobbering it while the admin is actively typing a new value —
@@ -86,6 +109,23 @@ export default function PendingHoldSection({ showToast }) {
 
       {isLoading && <p className="bookingRulesHint">Loading DP Countdown…</p>}
       {!isLoading && error && <p className="bookingRulesFormError">{error}</p>}
+
+      <div className="bookingRulesSweepRow">
+        <div>
+          <p className="bookingRulesHint">
+            In production this runs automatically every 15 minutes. On localhost, nothing triggers it on its
+            own — use this button to test auto-expiry and the auto-cancellation email right now.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="bookingRulesButton bookingRulesButton--neutral"
+          onClick={handleRunExpirySweepNow}
+          disabled={isSweeping}
+        >
+          {isSweeping ? "Running…" : "Run Expiry Sweep Now"}
+        </button>
+      </div>
     </section>
   );
 }

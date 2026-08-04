@@ -100,29 +100,58 @@ function drawWatermark(page, text, { font, size, color, opacity, angleDegrees, c
 }
 
 /**
+ * hexToRgb01
+ * Converts a "#rrggbb" hex string to pdf-lib's rgb(), which expects
+ * each channel as a 0-1 float rather than 0-255. Re-validates the hex
+ * shape itself (same pattern as services/bookingConfirmationEmail.js)
+ * since this value came from the database — a malformed stored value
+ * must never throw mid-PDF-generation and must never silently render
+ * as black text instead of falling back to the site's real default.
+ */
+function hexToRgb01(hexColor) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hexColor ?? "")) return null;
+  const r = parseInt(hexColor.slice(1, 3), 16) / 255;
+  const g = parseInt(hexColor.slice(3, 5), 16) / 255;
+  const b = parseInt(hexColor.slice(5, 7), 16) / 255;
+  return rgb(r, g, b);
+}
+
+/**
  * generateInvoicePdf
  * Builds and returns the invoice as a Buffer, ready to attach to an
  * email or stream back as a file download.
  *
  * @param {object} booking - a Prisma Booking row, with `room` included
  *   (roomName may be null for tour bookings without a room)
- * @param {object} [location] - { resortLatitude, resortLongitude },
- *   both nullable. Present → the resort pin map + directions link
- *   section is embedded below Stay Details; absent → that section is
- *   skipped entirely.
+ * @param {object} [location] - { resortLatitude, resortLongitude,
+ *   resortMessengerUsername, resortName, brandAccentColor }. The first
+ *   two, present → the resort pin map + directions link section is
+ *   embedded below Stay Details; absent → that section is skipped
+ *   entirely. resortName/brandAccentColor come from SystemSettings
+ *   (siteTitle/brandAccentColor, set once in the setup wizard's
+ *   Branding step) — both optional, falling back to the site's
+ *   original defaults below if the singleton row is somehow missing.
  * @param {string[]} [packageInclusions] - display-ready strings (already
  *   resolved from the matching BookingRule's amenities/products/free-text
  *   by the route handler — this file stays DB-free). Empty/omitted →
  *   the "Included in this Package" section is skipped entirely.
  */
 export async function generateInvoicePdf(booking, location = {}, packageInclusions = []) {
-  const { resortLatitude = null, resortLongitude = null, resortMessengerUsername = null } = location;
+  const {
+    resortLatitude = null,
+    resortLongitude = null,
+    resortMessengerUsername = null,
+    resortName = null,
+    brandAccentColor = null,
+  } = location;
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const ACCENT = rgb(0.13, 0.55, 0.13); // matches the site's green accent token
+  // Falls back to the site's original green if brandAccentColor is
+  // missing/malformed — see hexToRgb01 above.
+  const ACCENT = hexToRgb01(brandAccentColor) ?? rgb(0.13, 0.55, 0.13);
   const MUTED = rgb(0.4, 0.4, 0.4);
   const INK = rgb(0.05, 0.05, 0.06);
 
@@ -139,7 +168,7 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
   }
 
   // --- Header ---
-  writeLine("VILLA AZURE RESORT", { font: fontBold, size: 20, color: ACCENT, gap: 26 });
+  writeLine((resortName || "your-private-resort").toUpperCase(), { font: fontBold, size: 20, color: ACCENT, gap: 26 });
   writeLine("Booking Invoice", { font: fontBold, size: 13, gap: 24 });
 
   // --- Reference code — the whole point of this document ---

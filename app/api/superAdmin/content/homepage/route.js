@@ -54,7 +54,12 @@ export async function PUT(request) {
     const updatedSettings = await prisma.systemSettings.update({
       where: { id: "singleton" },
       data: {
-        brandAccentColor: body.brandAccentColor ?? existingSettings.brandAccentColor,
+        // brandAccentColor and siteTitle are deliberately NEVER written
+        // here — they're wizard-only (app/system-setup-wizard/BrandingCard.jsx,
+        // locked once via isSetupWizardLocked()). HomepageSettingsClient.jsx
+        // already renders both read-only, but that's a frontend-only
+        // guard — dropping them from this update() call is the actual
+        // enforcement, since Rule 18 never trusts client-side alone.
         heroEyebrow: body.heroEyebrow ?? existingSettings.heroEyebrow,
         heroTitle: body.heroTitle ?? existingSettings.heroTitle,
         heroTagline: body.heroTagline ?? existingSettings.heroTagline,
@@ -99,7 +104,6 @@ export async function PUT(request) {
         testimonialsSectionEnabled: body.testimonialsSectionEnabled ?? existingSettings.testimonialsSectionEnabled,
         testimonialsSectionCount: body.testimonialsSectionCount ?? existingSettings.testimonialsSectionCount,
         testimonialsFeaturedOnly: body.testimonialsFeaturedOnly ?? existingSettings.testimonialsFeaturedOnly,
-        siteTitle: body.siteTitle ?? existingSettings.siteTitle,
         siteDescription: body.siteDescription ?? existingSettings.siteDescription,
         ogImageUrl: body.ogImageUrl ?? existingSettings.ogImageUrl,
         ogImageKey: body.ogImageKey ?? existingSettings.ogImageKey,

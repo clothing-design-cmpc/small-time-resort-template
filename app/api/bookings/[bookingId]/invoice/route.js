@@ -62,7 +62,13 @@ export async function GET(request, { params }) {
   // PDF — never blocks the invoice download itself.
   const settings = await prisma.systemSettings.findUnique({
     where: { id: "singleton" },
-    select: { resortLatitude: true, resortLongitude: true, resortMessengerUsername: true },
+    select: {
+      resortLatitude: true,
+      resortLongitude: true,
+      resortMessengerUsername: true,
+      siteTitle: true,
+      brandAccentColor: true,
+    },
   });
 
   // Resolve which package (BookingRule) actually priced this booking, so
@@ -103,6 +109,8 @@ export async function GET(request, { params }) {
         resortLatitude: settings?.resortLatitude ?? null,
         resortLongitude: settings?.resortLongitude ?? null,
         resortMessengerUsername: settings?.resortMessengerUsername ?? null,
+        resortName: settings?.siteTitle ?? null,
+        brandAccentColor: settings?.brandAccentColor ?? null,
       },
       packageInclusions
     );

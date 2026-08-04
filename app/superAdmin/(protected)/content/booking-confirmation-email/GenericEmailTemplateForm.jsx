@@ -33,7 +33,7 @@ const EMPTY_FORM = {
  * guess (or accidentally invent a tag that never gets replaced).
  */
 const MERGE_TAG_HINTS = {
-  pending: ["{{guestName}}", "{{pendingHoldHours}}"],
+  pending: ["{{guestName}}", "{{pendingHoldRemaining}}"],
   cancelled: ["{{guestName}}"],
   auto_cancelled: ["{{guestName}}"],
   rebooked: ["{{guestName}}"],

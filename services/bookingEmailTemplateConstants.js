@@ -38,7 +38,7 @@ export const DEFAULT_TEMPLATE_COPY = {
     introMessage:
       "We've received your booking request and are holding your dates. To confirm it, please send us your invoice PDF on Facebook Messenger — the instructions are printed on it. Keep your reference code below too; you'll need it once confirmed to unlock turn-by-turn directions.",
     bodyMessage:
-      "What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have {{pendingHoldHours}} hours from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.",
+      "What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have {{pendingHoldRemaining}} from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.",
   },
   cancelled: {
     eyebrowText: "BOOKING CANCELLED",

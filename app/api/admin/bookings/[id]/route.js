@@ -32,6 +32,7 @@ import { isExclusionViolation } from "@/services/pgErrorCodes";
 import { deleteFromR2 } from "@/services/r2";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
+import { getResortDisplayName } from "@/services/resortName";
 
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -253,18 +254,23 @@ export async function PATCH(request, { params }) {
         // "cancelled at your request," written for the guest
         // self-cancel flow — reword it in that page if you want
         // different copy for an admin-initiated rejection specifically.
-        const cancelledTemplate = await getOrCreateEmailTemplate("cancelled");
+        const [cancelledTemplate, resortName] = await Promise.all([
+          getOrCreateEmailTemplate("cancelled"),
+          getResortDisplayName(),
+        ]);
         const mergeVars = { guestName: existingBooking.guestName };
 
         await sendGeneralEmail({
           toEmail: existingBooking.guestEmail,
-          subject: `your-private-resort — Booking Cancelled (${existingBooking.referenceCode})`,
+          subject: `${resortName} — Booking Cancelled (${existingBooking.referenceCode})`,
           eyebrow: renderTemplateText(cancelledTemplate.eyebrowText, mergeVars),
           heading: renderTemplateText(cancelledTemplate.headingText, mergeVars),
           intro: renderTemplateText(cancelledTemplate.introMessage, mergeVars),
           highlightLine1: `Reference code: ${existingBooking.referenceCode}`,
           highlightLine2: `${FULL_DATE.format(existingBooking.checkInDate)} → ${FULL_DATE.format(existingBooking.checkOutDate)}`,
           bodyMessage: renderTemplateText(cancelledTemplate.bodyMessage, mergeVars),
+          emailType: "booking_cancelled",
+          relatedBookingId: existingBooking.id,
         });
       } catch (error) {
         console.error("[api/admin/bookings/[id]] Failed to send cancellation email:", error.message);

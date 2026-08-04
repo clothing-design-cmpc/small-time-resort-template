@@ -48,7 +48,7 @@ export const DEFAULT_TEMPLATE_COPY = {
     introMessage:
       "We've received your booking request and are holding your dates. To confirm it, please send us your invoice PDF on Facebook Messenger — the instructions are printed on it. Keep your reference code below too; you'll need it once confirmed to unlock turn-by-turn directions.",
     bodyMessage:
-      "What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have {{pendingHoldHours}} hours from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.",
+      "What happens next:\n1. Make your down payment (DP).\n2. Send the payment receipt to us on Facebook Messenger.\n3. Wait for the resort owner to confirm your booking — you have {{pendingHoldRemaining}} from now to send your DP before these dates are released.\n\nDon't worry — once your booking is confirmed, you'll receive an email automatically.",
   },
   cancelled: {
     eyebrowText: "BOOKING CANCELLED",
@@ -69,8 +69,7 @@ export const DEFAULT_TEMPLATE_COPY = {
     eyebrowText: "BOOKING REBOOKED",
     headingText: "Your dates have been updated, {{guestName}}!",
     introMessage: "Your stay at your-private-resort has been moved to the new dates below. Your reference code stays the same.",
-    bodyMessage:
-      "If any of these new details look wrong, or if you have any questions about your updated stay, just reply to this email or message us on Facebook and we'll sort it out right away.",
+    bodyMessage: "",
   },
 };
 
@@ -101,29 +100,11 @@ export async function getOrCreateEmailTemplate(templateKey) {
     throw new Error(`[bookingEmailTemplates] Unknown templateKey: ${templateKey}`);
   }
 
-  const template = await prisma.bookingEmailTemplate.upsert({
+  return prisma.bookingEmailTemplate.upsert({
     where: { id: templateKey },
     update: {},
     create: { id: templateKey, ...defaults },
   });
-
-  // Self-heal: a row created before its DEFAULT_TEMPLATE_COPY had real
-  // text for a given field (e.g. "rebooked" originally shipped with an
-  // empty bodyMessage) would otherwise stay blank forever, since the
-  // upsert above only seeds defaults on first-ever creation. Backfill
-  // any field that's still empty so the admin's tab always shows real
-  // starter copy instead of a blank field.
-  const backfill = {};
-  for (const field of ["eyebrowText", "headingText", "introMessage", "bodyMessage"]) {
-    if (!template[field] && defaults[field]) {
-      backfill[field] = defaults[field];
-    }
-  }
-  if (Object.keys(backfill).length > 0) {
-    return prisma.bookingEmailTemplate.update({ where: { id: templateKey }, data: backfill });
-  }
-
-  return template;
 }
 
 /**

@@ -366,6 +366,47 @@ const REMAINING_ENV_HELP = {
   },
 };
 
+/**
+ * applyEmailjsBranding
+ * Swaps the placeholder resort name and gold accent color baked into
+ * the two EmailJS copy-paste templates below for the actual Step 3
+ * branding (siteTitle/brandAccentColor), so what the developer pastes
+ * into the EmailJS dashboard already matches their resort — instead of
+ * always shipping "VILLA AZURE" in a fixed gold (#d4a574 / #b8975a)
+ * regardless of what was set in Step 3.
+ *
+ * IMPORTANT — this only affects what gets COPIED here, once, during
+ * setup. EmailJS templates are static HTML pasted by hand into an
+ * external dashboard (dashboard.emailjs.com) — there's no live merge
+ * tag for "accent color" EmailJS understands, so once pasted, the
+ * color is fixed there until someone edits it manually in EmailJS
+ * again. That's consistent with Rule 44/Section 0's "branding is set
+ * once" model, but it does mean re-running the wizard's Step 3 (which
+ * can't happen anyway — it locks after setup) or changing the resort
+ * name directly in the database later would NOT retroactively update
+ * an already-pasted EmailJS template; only future re-pastes of this
+ * block would carry the new value.
+ *
+ * Deliberately narrow — only the resort-name wordmark occurrences and
+ * the gold accent hex codes are swapped. The placeholder tagline
+ * ("Private Resort & Retreat" / "Nasugbu, Batangas"), navy background
+ * (#1a2f4f, not part of the brandAccentColor system), and the
+ * placeholder address/phone/email have no matching SystemSettings
+ * field yet, so they're left as literal placeholders for the
+ * developer to hand-edit, same as before this function existed.
+ */
+function applyEmailjsBranding(code, resortName, accentColor) {
+  let brandedCode = code
+    .replaceAll("VILLA AZURE", resortName.toUpperCase())
+    .replaceAll("your-private-resort", resortName);
+
+  if (accentColor) {
+    brandedCode = brandedCode.replaceAll("#d4a574", accentColor).replaceAll("#b8975a", accentColor);
+  }
+
+  return brandedCode;
+}
+
 export default function RemainingEnvStep() {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -373,7 +414,33 @@ export default function RemainingEnvStep() {
   const [loadError, setLoadError] = useState(null);
   const [openHelpGroupId, setOpenHelpGroupId] = useState(null);
   const [continued, setContinued] = useState(false);
+  const [resortName, setResortName] = useState("your-private-resort");
+  const [accentColor, setAccentColor] = useState(null);
   const { toasts, showToast, dismissToast } = useToast();
+
+  // Pulls the already-saved Step 3 branding (siteTitle/brandAccentColor)
+  // so the EmailJS "Template 1"/"Template 2" code blocks below show —
+  // and copy to clipboard — with THIS resort's name and accent color
+  // already baked in, instead of the literal "VILLA AZURE" placeholder
+  // and its fixed gold accent. Same wizard-session-gated GET Step 3's
+  // BrandingCard.jsx itself uses. Best-effort — a failed fetch just
+  // means the code blocks fall back to the placeholder branding, which
+  // is still a valid, working template the developer can hand-edit.
+  useEffect(() => {
+    async function fetchBranding() {
+      try {
+        const response = await fetch("/api/system-setup-wizard/branding");
+        const result = await response.json();
+        if (result.success && result.data) {
+          setResortName(result.data.siteTitle?.trim() || "your-private-resort");
+          setAccentColor(result.data.brandAccentColor || null);
+        }
+      } catch {
+        // Fails quiet — code blocks below just show the placeholder branding.
+      }
+    }
+    fetchBranding();
+  }, []);
 
   /**
    * handleCopy
@@ -564,21 +631,34 @@ export default function RemainingEnvStep() {
                     {REMAINING_ENV_HELP[group.id].codeBlocksIntro}
                   </p>
                 )}
-                {REMAINING_ENV_HELP[group.id]?.codeBlocks?.map((block) => (
-                  <div key={block.label} className="setupWizardCodeBlockGroup">
-                    <span className="setupWizardInstructionsLabel">{block.label}</span>
-                    <div className="setupWizardCommandRow">
-                      <code className="setupWizardCodeBlock setupWizardCodeBlock--multiline">{block.code}</code>
-                      <button
-                        type="button"
-                        className="setupWizardCopyButton"
-                        onClick={() => handleCopy(block.code)}
-                      >
-                        Copy
-                      </button>
+                {group.id === "emailjs" && (
+                  <p className="setupWizardInstructionsNote">
+                    The blocks below already use your Step 3 branding — &quot;{resortName}&quot;
+                    {accentColor ? ` in ${accentColor}` : ""}. Once pasted into EmailJS, they stay
+                    static there — re-editing the resort name later (directly in the database, since
+                    Step 3 itself only ever runs once) won&apos;t retroactively update a template
+                    you&apos;ve already saved.
+                  </p>
+                )}
+                {REMAINING_ENV_HELP[group.id]?.codeBlocks?.map((block) => {
+                  const resolvedCode =
+                    group.id === "emailjs" ? applyEmailjsBranding(block.code, resortName, accentColor) : block.code;
+                  return (
+                    <div key={block.label} className="setupWizardCodeBlockGroup">
+                      <span className="setupWizardInstructionsLabel">{block.label}</span>
+                      <div className="setupWizardCommandRow">
+                        <code className="setupWizardCodeBlock setupWizardCodeBlock--multiline">{resolvedCode}</code>
+                        <button
+                          type="button"
+                          className="setupWizardCopyButton"
+                          onClick={() => handleCopy(resolvedCode)}
+                        >
+                          Copy
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

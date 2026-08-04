@@ -38,6 +38,7 @@ import { logSecurityEvent } from "@/services/securityLog";
 import { deleteFromR2 } from "@/services/r2";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
+import { getResortDisplayName } from "@/services/resortName";
 
 const CANCEL_MAX_ATTEMPTS = 10;
 const CANCEL_WINDOW_MS = 15 * 60 * 1000;
@@ -132,12 +133,15 @@ export async function POST(request) {
       try {
         // Admin-editable copy (super-admin > Content > Booking Email
         // Templates > Booking Cancelled).
-        const cancelledTemplate = await getOrCreateEmailTemplate("cancelled");
+        const [cancelledTemplate, resortName] = await Promise.all([
+          getOrCreateEmailTemplate("cancelled"),
+          getResortDisplayName(),
+        ]);
         const mergeVars = { guestName: booking.guestName };
 
         await sendGeneralEmail({
           toEmail: booking.guestEmail,
-          subject: `your-private-resort — Booking Cancelled (${booking.referenceCode})`,
+          subject: `${resortName} — Booking Cancelled (${booking.referenceCode})`,
           eyebrow: renderTemplateText(cancelledTemplate.eyebrowText, mergeVars),
           heading: renderTemplateText(cancelledTemplate.headingText, mergeVars),
           intro: renderTemplateText(cancelledTemplate.introMessage, mergeVars),

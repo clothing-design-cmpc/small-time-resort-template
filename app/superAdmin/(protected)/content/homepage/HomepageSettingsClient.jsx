@@ -186,21 +186,19 @@ export default function HomepageSettingsClient() {
         </button>
       </div>
 
-      {/* ---------- Section 0: Brand Identity ---------- */}
+      {/* ---------- Section 0: Brand Identity (locked — see BrandingCard.jsx) ---------- */}
       <div className="homepagePanel">
         <h2 className="homepagePanelTitle">Brand Identity</h2>
         <p className="homepageFormHint">
-          Shown across the Header logo, Footer, Hero section, and browser tab title.
+          Set once during first-run setup and shown across the Header logo, Footer, Hero section, and browser
+          tab title. Locked here on purpose — the resort name and accent color touch too many places
+          (Header/Footer copy, generated invoices, email subjects) to change casually from this form. To
+          change it, a developer needs to update it directly in the database (SystemSettings.siteTitle /
+          .brandAccentColor).
         </p>
         <div className="homepageFormField">
           <label htmlFor="siteTitle">Resort Name</label>
-          <input
-            id="siteTitle"
-            type="text"
-            value={formValues.siteTitle}
-            onChange={(event) => handleFieldChange("siteTitle", event.target.value)}
-            placeholder="Villa Azure Resort"
-          />
+          <input id="siteTitle" type="text" value={formValues.siteTitle} disabled readOnly />
         </div>
         <div className="homepageFormField">
           <label htmlFor="brandAccentColor">Brand Accent Color</label>
@@ -209,13 +207,14 @@ export default function HomepageSettingsClient() {
               id="brandAccentColor"
               type="color"
               value={formValues.brandAccentColor || "#3f7d52"}
-              onChange={(event) => handleFieldChange("brandAccentColor", event.target.value)}
+              disabled
+              readOnly
             />
             <input
               type="text"
               value={formValues.brandAccentColor}
-              onChange={(event) => handleFieldChange("brandAccentColor", event.target.value)}
-              placeholder="#3f7d52"
+              disabled
+              readOnly
               className="homepageColorHexInput"
             />
           </div>

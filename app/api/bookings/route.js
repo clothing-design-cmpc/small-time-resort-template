@@ -55,6 +55,8 @@ import { sendGeneralEmail } from "@/services/emailjs";
 import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 import { isExclusionViolation, isSerializationFailure } from "@/services/pgErrorCodes";
 import { getGlobalPendingHoldHours } from "@/services/pendingHoldHours";
+import { formatTimeRemaining } from "@/services/formatDuration";
+import { getResortDisplayName } from "@/services/resortName";
 
 const BOOKING_SUBMIT_MAX = 10;
 const BOOKING_SUBMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -339,12 +341,22 @@ export async function POST(request) {
     // Admin-editable copy (super-admin > Content > Booking Email
     // Templates > Booking Pending). Merge tags are filled in below
     // before this text is sent — see services/bookingEmailTemplates.js.
-    const pendingTemplate = await getOrCreateEmailTemplate("pending");
-    const mergeVars = { guestName: payload.guestName, pendingHoldHours };
+    const [pendingTemplate, resortName] = await Promise.all([
+      getOrCreateEmailTemplate("pending"),
+      getResortDisplayName(),
+    ]);
+    // THIS booking's actual remaining hold time — never the raw global
+    // pendingHoldHours setting, since the hold may have been capped
+    // short of it (booking.pendingExpiresAt, see createBookingInTransaction
+    // above and prisma/schema.prisma's pendingHoldCapped field comment).
+    const mergeVars = {
+      guestName: payload.guestName,
+      pendingHoldRemaining: formatTimeRemaining(booking.pendingExpiresAt),
+    };
 
     await sendGeneralEmail({
       toEmail: payload.guestEmail,
-      subject: `your-private-resort — Booking Request Received (${booking.referenceCode})`,
+      subject: `${resortName} — Booking Request Received (${booking.referenceCode})`,
       eyebrow: renderTemplateText(pendingTemplate.eyebrowText, mergeVars),
       heading: renderTemplateText(pendingTemplate.headingText, mergeVars),
       intro: renderTemplateText(pendingTemplate.introMessage, mergeVars),

@@ -104,27 +104,12 @@ function renderImagesBlock(images) {
  * separate seed step.
  */
 async function getOrCreateEmailSettings() {
-  const settings = await prisma.bookingConfirmationEmail.upsert({
+  return prisma.bookingConfirmationEmail.upsert({
     where: { id: "singleton" },
     update: {},
     create: { id: "singleton" },
     include: { images: { orderBy: { displayOrder: "asc" } } },
   });
-
-  // Self-heal: rows created before introMessage/footerNote had a
-  // schema-level @default would otherwise send with a blank intro/
-  // footer forever. Backfill in-memory only (no extra write) so
-  // outbound emails always carry real copy — the admin route already
-  // persists the same backfill the next time the settings page loads.
-  return {
-    ...settings,
-    introMessage:
-      settings.introMessage ||
-      "Thank you for booking with us! Here's a quick summary of your confirmed stay, along with a few resort rules to review before you arrive.",
-    footerNote:
-      settings.footerNote ||
-      "Have questions about your booking? Just reply to this email or message us on Facebook — we're happy to help.",
-  };
 }
 
 /**
@@ -151,6 +136,15 @@ export async function sendBookingConfirmationEmail({ booking }) {
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${booking.id}/invoice` : null;
     const directionsUrl = siteUrl ? `${siteUrl}/visitor/directions` : null;
+
+    // Same 6-digit hex re-validation as the wizard's save route
+    // (app/api/system-setup-wizard/branding/route.js) — this value is
+    // about to be interpolated raw into an inline style="" attribute,
+    // so a malformed stored value must never fall through unescaped
+    // into guest-facing HTML.
+    const accentColor = /^#[0-9a-fA-F]{6}$/.test(systemSettings?.brandAccentColor ?? "")
+      ? systemSettings.brandAccentColor
+      : "#22c55e";
 
     const checkInDate = new Date(booking.checkInDate).toLocaleDateString("en-PH", {
       year: "numeric",
@@ -182,9 +176,9 @@ export async function sendBookingConfirmationEmail({ booking }) {
         ${renderResortRulesList(systemSettings?.houseRules)}
       </div>`,
       renderParagraphs(emailSettings.closingMessage),
-      invoiceUrl ? `<p style="margin:0 0 8px;"><a href="${escapeHtml(invoiceUrl)}" style="color:#22c55e;">View your invoice →</a></p>` : "",
+      invoiceUrl ? `<p style="margin:0 0 8px;"><a href="${escapeHtml(invoiceUrl)}" style="color:${accentColor};">View your invoice →</a></p>` : "",
       directionsUrl
-        ? `<p style="margin:0 0 8px;"><a href="${escapeHtml(directionsUrl)}" style="color:#22c55e;">Get turn-by-turn directions →</a></p>`
+        ? `<p style="margin:0 0 8px;"><a href="${escapeHtml(directionsUrl)}" style="color:${accentColor};">Get turn-by-turn directions →</a></p>`
         : "",
       emailSettings.footerNote ? renderParagraphs(emailSettings.footerNote) : "",
     ]
@@ -193,7 +187,7 @@ export async function sendBookingConfirmationEmail({ booking }) {
 
     return await sendGeneralEmail({
       toEmail: booking.guestEmail,
-      subject: `your-private-resort — Booking Confirmed (${booking.referenceCode})`,
+      subject: `${systemSettings?.siteTitle?.trim() || "your-private-resort"} — Booking Confirmed (${booking.referenceCode})`,
       eyebrow: emailSettings.eyebrowText,
       heading: emailSettings.headingText,
       highlightLine1: `Reference code: ${booking.referenceCode}`,

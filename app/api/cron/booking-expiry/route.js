@@ -27,32 +27,24 @@
  * who never confirms on Messenger doesn't hold a room far past the
  * DP Countdown window in practice.
  *
- * DATA FLOW:
- * 1. Vercel Cron hits this route on schedule
- * 2. Finds every Booking with status "pending" and pendingExpiresAt
- *    in the past, split into two groups: pendingHoldCapped === false
- *    (auto-expire as before) and pendingHoldCapped === true (breach-flag
- *    only, see EXCEPTION above)
- * 3. Bulk-updates the non-capped group to status "expired",
- *    pendingExpiresAt untouched (kept as a historical record of when
- *    the hold was supposed to end); bulk-stamps pendingHoldBreachedAt
- *    on the capped group, status left untouched
- * 4. Best-effort auto-cancellation email sent to each newly-expired
- *    guest with an email on file — never blocks the sweep or the other
- *    guests' sends. Capped/breached bookings get no cancellation email
- *    since they were never actually cancelled.
- * 5. Logs one summary security event per group so an admin can see
- *    sweep activity in Security Logs without a row per booking
+ * LOCAL DEV NOTE: Vercel Cron only fires against DEPLOYED
+ * infrastructure — it never runs against `next dev` / localhost. If
+ * you're testing this locally and pending bookings never seem to
+ * auto-expire (or their auto-cancellation email never arrives), that's
+ * why — this route simply never gets hit on your machine. Use the
+ * super-admin "Run Expiry Sweep Now" button (Settings > Booking Rules
+ * > DP Countdown section) to trigger the exact same sweep on demand
+ * instead of waiting for a deploy.
+ *
+ * The actual sweep logic lives in services/bookingExpirySweep.js so
+ * this route and the manual super-admin trigger share one
+ * implementation — see that file for the step-by-step data flow.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/services/prisma";
 import { logSecurityEvent } from "@/services/securityLog";
-import { sendGeneralEmail } from "@/services/emailjs";
-import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
-
-const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
+import { runBookingExpirySweep } from "@/services/bookingExpirySweep";
 
 export async function GET(request) {
   // Vercel Cron requests carry this header — reject anything else so
@@ -67,36 +59,10 @@ export async function GET(request) {
   }
 
   try {
-    const now = new Date();
+    const { expiredCount, breachedCount, expiredReferenceCodes, breachedReferenceCodes } =
+      await runBookingExpirySweep();
 
-    // Only the non-capped group is eligible for auto-expiry (see file
-    // header EXCEPTION above).
-    const expiredBookings = await prisma.booking.findMany({
-      where: { status: "pending", pendingExpiresAt: { lt: now }, pendingHoldCapped: false },
-      select: {
-        id: true,
-        guestName: true,
-        guestEmail: true,
-        referenceCode: true,
-        checkInDate: true,
-        checkOutDate: true,
-      },
-    });
-
-    // Capped bookings past their scheduled-start hold that haven't
-    // already been flagged — stamp pendingHoldBreachedAt only, status
-    // stays "pending" for the super-admin to decide manually.
-    const breachedBookings = await prisma.booking.findMany({
-      where: {
-        status: "pending",
-        pendingExpiresAt: { lt: now },
-        pendingHoldCapped: true,
-        pendingHoldBreachedAt: null,
-      },
-      select: { id: true, referenceCode: true },
-    });
-
-    if (expiredBookings.length === 0 && breachedBookings.length === 0) {
+    if (expiredCount === 0 && breachedCount === 0) {
       return NextResponse.json({
         success: true,
         data: { expiredCount: 0, breachedCount: 0 },
@@ -104,88 +70,28 @@ export async function GET(request) {
       });
     }
 
-    if (expiredBookings.length > 0) {
-      await prisma.booking.updateMany({
-        where: { id: { in: expiredBookings.map((b) => b.id) } },
-        data: { status: "expired" },
-      });
-    }
-
-    if (breachedBookings.length > 0) {
-      await prisma.booking.updateMany({
-        where: { id: { in: breachedBookings.map((b) => b.id) } },
-        data: { pendingHoldBreachedAt: now },
-      });
-    }
-
-    // Best-effort auto-cancellation email per guest — the guest asked for
-    // this on the Booking Progress widget's countdown (never got a heads
-    // up before, only Security Logs saw it happen). A failed send for one
-    // guest must never block the others or the sweep itself, same pattern
-    // as every other best-effort email in this codebase. Only runs for
-    // the actually-expired (non-capped) group — breached/capped bookings
-    // were never cancelled, so they get no cancellation email here.
-    //
-    // Admin-editable copy (super-admin > Content > Booking Email
-    // Templates > Auto-Cancelled) is fetched ONCE outside the loop —
-    // it's the same row for every guest in this sweep, so re-fetching
-    // it per booking would just be redundant DB load.
-    if (expiredBookings.length > 0) {
-      const autoCancelledTemplate = await getOrCreateEmailTemplate("auto_cancelled");
-
-      await Promise.all(
-        expiredBookings.map(async (booking) => {
-          if (!booking.guestEmail) return;
-          try {
-            const mergeVars = { guestName: booking.guestName };
-            await sendGeneralEmail({
-              toEmail: booking.guestEmail,
-              subject: `your-private-resort — Booking Automatically Cancelled (${booking.referenceCode})`,
-              eyebrow: renderTemplateText(autoCancelledTemplate.eyebrowText, mergeVars),
-              heading: renderTemplateText(autoCancelledTemplate.headingText, mergeVars),
-              intro: renderTemplateText(autoCancelledTemplate.introMessage, mergeVars),
-              highlightLine1: `Reference code: ${booking.referenceCode}`,
-              highlightLine2: `${FULL_DATE.format(booking.checkInDate)} → ${FULL_DATE.format(booking.checkOutDate)}`,
-              bodyMessage: renderTemplateText(autoCancelledTemplate.bodyMessage, mergeVars),
-              emailType: "booking_auto_cancelled",
-              relatedBookingId: booking.id,
-            });
-          } catch (error) {
-            console.error(
-              `[api/cron/booking-expiry] Failed to send auto-cancellation email for ${booking.referenceCode}:`,
-              error.message
-            );
-          }
-        })
-      );
-    }
-
-    if (expiredBookings.length > 0) {
+    if (expiredCount > 0) {
       await logSecurityEvent({
         eventType: "admin_action",
         actor: "system:booking-expiry-cron",
         request: null,
-        details: `Auto-expired ${expiredBookings.length} pending booking(s) past their DP Countdown hold: ${expiredBookings
-          .map((b) => b.referenceCode)
-          .join(", ")}.`,
+        details: `Auto-expired ${expiredCount} pending booking(s) past their DP Countdown hold: ${expiredReferenceCodes.join(", ")}.`,
       });
     }
 
-    if (breachedBookings.length > 0) {
+    if (breachedCount > 0) {
       await logSecurityEvent({
         eventType: "admin_action",
         actor: "system:booking-expiry-cron",
         request: null,
-        details: `${breachedBookings.length} short-window pending booking(s) breached their capped hold and need super-admin review: ${breachedBookings
-          .map((b) => b.referenceCode)
-          .join(", ")}.`,
+        details: `${breachedCount} short-window pending booking(s) breached their capped hold and need super-admin review: ${breachedReferenceCodes.join(", ")}.`,
       });
     }
 
     return NextResponse.json({
       success: true,
-      data: { expiredCount: expiredBookings.length, breachedCount: breachedBookings.length },
-      message: `Expired ${expiredBookings.length} pending booking(s); flagged ${breachedBookings.length} for review.`,
+      data: { expiredCount, breachedCount },
+      message: `Expired ${expiredCount} pending booking(s); flagged ${breachedCount} for review.`,
     });
   } catch (error) {
     console.error("[api/cron/booking-expiry] Failed to sweep pending bookings:", error.message);

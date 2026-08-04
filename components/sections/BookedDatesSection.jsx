@@ -384,7 +384,7 @@ export default function BookedDatesSection() {
                     >
                       {isMaintenance ? (
                         <span className="miniCalendarDayMaintenanceContent">
-                          {day}
+                          <span className="miniCalendarDayMaintenanceNumber">{day}</span>
                           <span className="miniCalendarDayMaintenanceIcon" aria-hidden="true">!</span>
                         </span>
                       ) : (

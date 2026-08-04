@@ -244,31 +244,34 @@
   background-color: #f59e0b;
   color: #1a1200;
   font-weight: 600;
+  cursor: help;
 }
 
+/* Content layout matches BookedDatesSection's .miniCalendarDayMaintenance
+ * exactly — the day number stays full-size and centered (no shrinking,
+ * no stacking), with the "!" as a small badge absolutely positioned in
+ * the top-right corner instead of a second line. Keeps both calendars'
+ * date cells visually identical. */
 .howToBookCalendarDayMaintenanceContent {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  line-height: 1;
-}
-
-.howToBookCalendarDayMaintenanceNumber {
-  font-size: 0.72rem;
 }
 
 .howToBookCalendarDayMaintenanceIcon {
+  position: absolute;
+  top: -4px;
+  right: -6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 1px;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   background-color: #1a1200;
   color: #f59e0b;
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 800;
   line-height: 1;
 }

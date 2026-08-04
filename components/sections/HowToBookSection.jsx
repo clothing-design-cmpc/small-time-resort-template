@@ -756,7 +756,15 @@ export default function HowToBookSection() {
                 const isBooked = bookedSet.has(cellKey);
                 const isToday = cellKey === TODAY_KEY;
                 const isPast = cellDate < TODAY;
-                const isOpen = !isBooked && !isPast;
+                // Admin-set blackout ("resort under maintenance") — computed
+                // up front (moved above isOpen) so a maintenance day is
+                // never treated as tappable. Matches BookedDatesSection's
+                // read-only mini calendar, where maintenance days render as
+                // a plain non-interactive <span> — here the cell is a
+                // <button>, so it must be explicitly excluded from isOpen
+                // (disabled={!isOpen} below) instead of just styled amber.
+                const isMaintenanceDay = maintenanceSet.has(cellKey);
+                const isOpen = !isBooked && !isPast && !isMaintenanceDay;
                 const isSelected = selectedSet.has(cellKey);
                 // Open day that's still the checkout day of an existing
                 // overnight stay — stays clickable (a new Overnight
@@ -810,13 +818,6 @@ export default function HowToBookSection() {
                 // that could technically match both.
                 const isFullyRedDay = isFullyTourBookedDay;
                 const isHalfRedDay = !isFullyRedDay && (isCheckoutDay || isTourBookedDay);
-                // Admin-set blackout ("resort under maintenance") — takes
-                // visual priority over the ordinary red booked/partially-
-                // booked treatment above, since this isn't a guest
-                // booking at all and the visitor should know WHY the
-                // date is closed, not think it's just fully reserved.
-                const isMaintenanceDay = maintenanceSet.has(cellKey);
-
                 let cls = "howToBookCalendarDay";
                 if (isBooked) cls += " howToBookCalendarDayBooked";
                 if (isPast && !isBooked) cls += " howToBookCalendarDayPast";
@@ -863,7 +864,7 @@ export default function HowToBookSection() {
                   >
                     {isMaintenanceDay ? (
                       <span className="howToBookCalendarDayMaintenanceContent">
-                        <span className="howToBookCalendarDayMaintenanceNumber">{day}</span>
+                        {day}
                         <span className="howToBookCalendarDayMaintenanceIcon" aria-hidden="true">!</span>
                       </span>
                     ) : isPromoDay ? (

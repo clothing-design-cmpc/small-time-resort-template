@@ -51,6 +51,9 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
+import { getActiveBookingRule } from "@/services/bookingRules";
+import { getGlobalCleaningHours } from "@/services/cleaningHours";
+import { getCleaningEndsAt } from "@/services/cleaningBuffer";
 
 /**
  * toDateKey
@@ -84,9 +87,20 @@ function expandOvernightRange(checkIn, checkOut) {
   return keys;
 }
 
+/** Local YYYY-MM-DD key — matches toDateKey() above, without depending on a real Date input's own type. */
+function combineDateAndTime(date, hhmm) {
+  const [hour, minute] = String(hhmm ?? "00:00").split(":").map(Number);
+  const moment = new Date(date);
+  moment.setHours(hour || 0, minute || 0, 0, 0);
+  return moment;
+}
+
 export async function GET() {
   try {
-    const [bookings, blackoutDates] = await Promise.all([
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [bookings, blackoutDates, globalCleaningHours, overnightRule, dayTourRule, nightTourRule] = await Promise.all([
       prisma.booking.findMany({
         // "pending" holds these dates the same as "confirmed" (DP
         // Countdown soft-hold — see Booking.pendingExpiresAt) so the
@@ -111,7 +125,13 @@ export async function GET() {
             { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
           ],
         },
-        select: { checkInDate: true, checkOutDate: true, bookingType: true },
+        select: {
+          checkInDate: true,
+          checkOutDate: true,
+          bookingType: true,
+          effectiveCheckOutAt: true,
+          cleaningHoursSnapshot: true,
+        },
       }),
       // Admin-set blackouts (Booking Rules Section 6 / Room Availability
       // "Block This Week" etc.) — previously never queried here at all,
@@ -123,7 +143,12 @@ export async function GET() {
       // visitor calendar for that date, matching what "Blocked" means
       // on the admin Room Availability page.
       prisma.blackoutDate.findMany({ select: { startDate: true, endDate: true } }),
+      getGlobalCleaningHours(),
+      getActiveBookingRule("overnight"),
+      getActiveBookingRule("day_tour"),
+      getActiveBookingRule("night_tour"),
     ]);
+    const ruleByType = { overnight: overnightRule, day_tour: dayTourRule, night_tour: nightTourRule };
 
     // Tracked separately per type so the calendar can apply the
     // exclusivity rule described in the file header instead of one
@@ -196,9 +221,45 @@ export async function GET() {
     // NOT used for Night Tour — see the file header for why.
     const overnightBlocksDayTourSet = new Set([...overnightSet, ...overnightCheckoutSet]);
 
+    // --- Turnover Cleaning-Buffer Preview (Sequential Auto-Adjust) ---
+    // For every UPCOMING booking, work out the real moment the villa is
+    // ready again (its own checkout time + Cleaning Hours) and record
+    // the LATEST such moment per checkout date — if more than one
+    // booking checks out into the same calendar day (e.g. a Day Tour
+    // AND a Night Tour both ended today), the villa isn't ready until
+    // the later of the two finishes. Lets HowToBookSection.jsx preview
+    // an "auto_adjust" rule's actual adjusted check-in time up front,
+    // instead of just hiding the option the way a "strict" rule still
+    // does — mirrors the same computation services/bookingPricing.js
+    // runs authoritatively at actual booking time (see the
+    // Cleaning-Buffer Conflict block there); this is preview-only and
+    // never the final say on whether a booking is accepted.
+    const turnoverCleaningEndsAt = {};
+    for (const booking of bookings) {
+      if (booking.checkOutDate < today) continue;
+      const checkOutDateKey = toDateKey(booking.checkOutDate);
+      const ruleForBooking = ruleByType[booking.bookingType];
+      const endTimeByType = {
+        overnight: ruleForBooking?.checkOutTime,
+        day_tour: ruleForBooking?.dayTourEndTime,
+        night_tour: ruleForBooking?.nightTourEndTime,
+      };
+      const checkoutMoment =
+        booking.effectiveCheckOutAt ?? combineDateAndTime(booking.checkOutDate, endTimeByType[booking.bookingType]);
+      const cleaningHoursForBooking = booking.cleaningHoursSnapshot ?? globalCleaningHours;
+      const cleaningEndsAt = getCleaningEndsAt(checkoutMoment, cleaningHoursForBooking);
+
+      const existingLatest = turnoverCleaningEndsAt[checkOutDateKey];
+      if (!existingLatest || cleaningEndsAt.getTime() > new Date(existingLatest).getTime()) {
+        turnoverCleaningEndsAt[checkOutDateKey] = cleaningEndsAt.toISOString();
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
+        cleaningHours: globalCleaningHours,
+        turnoverCleaningEndsAt,
         bookedDates: Array.from(bookedDateSet).sort(),
         overnightBookedDates: Array.from(overnightSet).sort(),
         overnightCheckoutDates: Array.from(overnightCheckoutSet).sort(),

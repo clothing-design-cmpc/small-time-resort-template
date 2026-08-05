@@ -107,6 +107,22 @@ TODAY.setHours(0, 0, 0, 0);
 const TODAY_KEY = toKey(TODAY);
 
 /**
+ * combineDateAndTime
+ * Builds a real Date from a "YYYY-MM-DD" key + a rule's "HH:mm" time
+ * string — the same combination services/bookingPricing.js's own
+ * combineDateAndTime() does server-side, just working off a date key
+ * instead of a Date object. Used only for the Sequential Auto-Adjust
+ * preview below (see resolveAdjustableAvailability()); the server
+ * re-runs the authoritative version of this same math at actual booking
+ * time and has the final say.
+ */
+function combineDateAndTime(dateKey, hhmm) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const [hour, minute] = String(hhmm ?? "00:00").split(":").map(Number);
+  return new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
+}
+
+/**
  * getDateRangeKeys
  * Given two "YYYY-MM-DD" keys in any order, returns every date key from
  * the earlier one to the later one, inclusive. Used below so that
@@ -184,6 +200,7 @@ export default function HowToBookSection() {
     overnightBlocksDayTourSet,
     maintenanceSet,
     anyBookedSet,
+    turnoverCleaningEndsAt,
     isLoading,
     error: loadError,
   } = useBookedDates();
@@ -478,20 +495,96 @@ export default function HowToBookSection() {
           // without this, a date already carrying both an existing Day
           // Tour AND Night Tour booking would still offer both options
           // again in TourSelectionModal, letting a visitor double-book
-          // a slot that's already taken.
+          // a slot that's already taken. Always enforced regardless of
+          // sameDayPolicy — matches services/bookingPricing.js's
+          // Same-Type Duplicate Guard.
           const dateDayTourTaken = dayTourSet.has(checkInKey);
           const dateNightTourTaken = nightTourSet.has(checkInKey);
-          const conflictAdjustedOvernightFits = overnightFits && !dateHasAnyExistingBooking;
-          const conflictAdjustedAllowDayTour = timeAllowsDayTour && !dateBlocksDayTour && !dateDayTourTaken;
+
+          // SEQUENTIAL AUTO-ADJUST PREVIEW: previously a cross-type
+          // conflict (dateHasAnyExistingBooking for Overnight,
+          // dateBlocksDayTour for Day Tour) always hid the option
+          // outright. Now, when that specific type's OWN rule is
+          // "auto_adjust", the option stays visible with an adjusted
+          // check-in time instead — mirrors the exact Cleaning-Buffer
+          // logic services/bookingPricing.js runs authoritatively at
+          // actual booking time; this is preview-only and the server
+          // still re-validates (and has the final say) on submit.
+          const cleaningEndsAtIso = turnoverCleaningEndsAt?.[checkInKey] ?? null;
+
+          /**
+           * resolveAdjustableAvailability
+           * @param baseAllowed - would this type be offered at all, ignoring the cross-type conflict (rule enabled + own-type dedup + time-of-day)
+           * @param isBlockedByConflict - does a same-day OTHER-type booking exist that would normally hide this option
+           * @param sameDayPolicy - this type's own BookingRule.sameDayPolicy ("strict" | "auto_adjust")
+           * @param defaultStartTime - this type's normal "HH:mm" start time
+           * @param ownEndTime - this type's own same-day session end time ("HH:mm"), or null for Overnight (no same-day ceiling — its checkout is always a different calendar day)
+           */
+          function resolveAdjustableAvailability({ baseAllowed, isBlockedByConflict, sameDayPolicy, defaultStartTime, ownEndTime }) {
+            if (!baseAllowed) return { allowed: false, adjustedCheckInAt: null };
+            if (!isBlockedByConflict) return { allowed: true, adjustedCheckInAt: null };
+            if (sameDayPolicy !== "auto_adjust" || !cleaningEndsAtIso) return { allowed: false, adjustedCheckInAt: null };
+
+            const cleaningEndsAt = new Date(cleaningEndsAtIso);
+            const defaultStartMoment = combineDateAndTime(checkInKey, defaultStartTime);
+            if (cleaningEndsAt <= defaultStartMoment) {
+              // Cleaning already finishes before this type's own normal
+              // start time — no real adjustment needed after all.
+              return { allowed: true, adjustedCheckInAt: null };
+            }
+            if (ownEndTime) {
+              const ownEndMoment = combineDateAndTime(checkInKey, ownEndTime);
+              if (cleaningEndsAt >= ownEndMoment) {
+                // No real session time left today after the previous
+                // booking's cleanup — stays hidden even under auto_adjust.
+                return { allowed: false, adjustedCheckInAt: null };
+              }
+            }
+            return { allowed: true, adjustedCheckInAt: cleaningEndsAt };
+          }
+
+          const overnightResolved = resolveAdjustableAvailability({
+            baseAllowed: overnightFits,
+            isBlockedByConflict: dateHasAnyExistingBooking,
+            sameDayPolicy: rule.overnightSameDayPolicy,
+            defaultStartTime: rule.checkInTime,
+            ownEndTime: null,
+          });
+          const dayTourResolved = resolveAdjustableAvailability({
+            baseAllowed: timeAllowsDayTour && !dateDayTourTaken,
+            isBlockedByConflict: dateBlocksDayTour,
+            sameDayPolicy: rule.dayTourSameDayPolicy,
+            defaultStartTime: rule.dayTourStartTime,
+            ownEndTime: rule.dayTourEndTime,
+          });
+
+          const conflictAdjustedOvernightFits = overnightResolved.allowed;
+          const conflictAdjustedAllowDayTour = dayTourResolved.allowed;
+          // Night Tour is never hidden by a cross-type same-day conflict
+          // in this exclusivity model (see file header + the matching
+          // "gt" carve-out in services/bookingPricing.js) — only its own
+          // dedup check and time-of-day narrowing apply.
           const conflictAdjustedAllowNightTour = timeAllowsNightTour && !dateNightTourTaken;
+
+          // Passed to TourSelectionModal so each auto-adjusted card can
+          // show "Adjusted check-in: 7:00 PM" instead of its normal
+          // default time — null for a type that wasn't adjusted (either
+          // no conflict, or the conflict blocked it outright).
+          const adjustedCheckInTimes = {
+            overnight: overnightResolved.adjustedCheckInAt ? overnightResolved.adjustedCheckInAt.toISOString() : null,
+            day_tour: dayTourResolved.adjustedCheckInAt ? dayTourResolved.adjustedCheckInAt.toISOString() : null,
+          };
+
           // Pure checkout-day case — the date itself isn't otherwise
           // booked (still open on the calendar for a new Overnight
           // check-in), but it does carry a same-day checkout that just
           // narrowed the Tour options above. Surfaced to the visitor as
           // an awareness notice in TourSelectionModal rather than
-          // letting them find out only after picking Day Tour.
+          // letting them find out only after picking Day Tour. Skipped
+          // once Day Tour already has its own adjusted-time card instead
+          // (auto_adjust), since that card already says this.
           const checkoutNotice =
-            !dateHasAnyExistingBooking && overnightCheckoutSet.has(checkInKey) && checkOutTime
+            !dateHasAnyExistingBooking && overnightCheckoutSet.has(checkInKey) && checkOutTime && !adjustedCheckInTimes.day_tour
               ? `The previous guests check out at ${formatTime12Hour(checkOutTime)} this day, so Day Tour may not be available.`
               : null;
 
@@ -514,6 +607,7 @@ export default function HowToBookSection() {
             dayTourPricePerGuest: rule.dayTourPricePerGuest,
             nightTourPricePerGuest: rule.nightTourPricePerGuest,
             checkoutNotice,
+            adjustedCheckInTimes,
             // Each option's own check-in/out (or start/end) time —
             // TourSelectionModal reads these by key (checkInTime/
             // checkOutTime, dayTourStartTime/dayTourEndTime,
@@ -626,6 +720,7 @@ export default function HowToBookSection() {
         dayTourPricePerGuest: roomModalRequest.dayTourPricePerGuest,
         nightTourPricePerGuest: roomModalRequest.nightTourPricePerGuest,
         checkoutNotice: roomModalRequest.checkoutNotice,
+        adjustedCheckInTimes: roomModalRequest.adjustedCheckInTimes,
         timeWindows: roomModalRequest.timeWindows,
         promoEntries: roomModalRequest.promoEntries,
       });
@@ -697,6 +792,7 @@ export default function HowToBookSection() {
       dayTourPricePerGuest: tourSelectionRequest.dayTourPricePerGuest,
       nightTourPricePerGuest: tourSelectionRequest.nightTourPricePerGuest,
       checkoutNotice: tourSelectionRequest.checkoutNotice,
+      adjustedCheckInTimes: tourSelectionRequest.adjustedCheckInTimes,
       timeWindows: tourSelectionRequest.timeWindows,
       promoEntries: tourSelectionRequest.promoEntries,
     });
@@ -967,6 +1063,7 @@ export default function HowToBookSection() {
         checkoutNotice={tourSelectionRequest?.checkoutNotice}
         timeWindows={tourSelectionRequest?.timeWindows}
         promoEntries={tourSelectionRequest?.promoEntries}
+        adjustedCheckInTimes={tourSelectionRequest?.adjustedCheckInTimes}
         onBack={handleTourSelectionBack}
         onSelectType={handleTourTypeSelected}
         onClose={() => setTourSelectionRequest(null)}

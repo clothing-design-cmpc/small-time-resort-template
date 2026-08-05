@@ -50,6 +50,12 @@ import { useEffect } from "react";
 import { formatTime12Hour } from "@/utils/formatTime";
 import "./TourSelectionModal.css";
 
+// Formats a real Date (the Sequential Auto-Adjust preview moment — see
+// adjustedCheckInTimes below) into a guest-friendly "h:mm AM/PM" string.
+// Separate from formatTime12Hour() in utils/formatTime.js, which only
+// ever accepts a plain "HH:mm" rule field, not a real Date/moment.
+const ADJUSTED_TIME_FMT = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+
 const OPTIONS = [
   {
     value: "overnight",
@@ -99,6 +105,14 @@ export default function TourSelectionModal({
   checkoutNotice,
   timeWindows,
   promoEntries,
+  // date-key -> ISO moment map for whichever options got pushed later
+  // than their normal start time by Sequential Auto-Adjust (see
+  // HowToBookSection.jsx's resolveAdjustableAvailability()) — only
+  // ever set for "overnight" and "day_tour" (Night Tour is never
+  // affected by a cross-type same-day conflict in this exclusivity
+  // model). A key with a null/missing value just means that option
+  // kept its normal default time.
+  adjustedCheckInTimes,
   onSelectType,
   onBack,
   onClose,
@@ -182,6 +196,12 @@ export default function TourSelectionModal({
               const startTime = timeWindows?.[option.startTimeKey];
               const endTime = timeWindows?.[option.endTimeKey];
               const promo = promoForOption(promoEntries, option.value);
+              // Only "overnight" and "day_tour" can ever carry an
+              // adjusted moment (see the adjustedCheckInTimes prop doc
+              // above) — undefined for "night_tour" simply falls
+              // through to the normal time range below.
+              const adjustedIso = adjustedCheckInTimes?.[option.value];
+              const adjustedCheckInAt = adjustedIso ? new Date(adjustedIso) : null;
 
               return (
                 <button
@@ -195,10 +215,18 @@ export default function TourSelectionModal({
                   )}
                   <p className="tourSelectionCardName">{option.label}</p>
                   <p className="tourSelectionCardDescription">{option.description}</p>
-                  {startTime && endTime && (
-                    <p className="tourSelectionCardTimeRange">
-                      {formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}
+                  {adjustedCheckInAt ? (
+                    <p className="tourSelectionCardAdjustedNotice">
+                      Adjusted check-in: <strong>{ADJUSTED_TIME_FMT.format(adjustedCheckInAt)}</strong> — a previous
+                      guest&apos;s checkout and cleaning run past the usual {formatTime12Hour(startTime)} start.
                     </p>
+                  ) : (
+                    startTime &&
+                    endTime && (
+                      <p className="tourSelectionCardTimeRange">
+                        {formatTime12Hour(startTime)} – {formatTime12Hour(endTime)}
+                      </p>
+                    )
                   )}
                 </button>
               );

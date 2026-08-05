@@ -53,6 +53,7 @@ import { getStrictActiveBookingRule, getStrictActiveBookingRuleForDateCount } fr
 const EMPTY_RULE = {
   id: null,
   name: null,
+  sameDayPolicy: "strict",
   allowOvernightStay: false,
   allowDayTour: false,
   allowNightTour: false,
@@ -152,6 +153,7 @@ export async function GET(request) {
       data: {
         // Overnight-specific — from the rule set active (and, if
         // nightsSelected was given, matched) for Overnight
+        overnightSameDayPolicy: overnightRule.sameDayPolicy,
         allowOvernightStay: overnightRule.allowOvernightStay,
         checkInTime: overnightRule.checkInTime,
         checkOutTime: overnightRule.checkOutTime,
@@ -185,6 +187,7 @@ export async function GET(request) {
         // Day Tour-specific — from the rule set active for Day Tour,
         // including that rule's OWN inclusions (previously showed the
         // Overnight rule's inclusions instead).
+        dayTourSameDayPolicy: dayTourRule.sameDayPolicy,
         allowDayTour: dayTourRule.allowDayTour,
         dayTourStartTime: dayTourRule.dayTourStartTime,
         dayTourEndTime: dayTourRule.dayTourEndTime,
@@ -199,6 +202,7 @@ export async function GET(request) {
         // Night Tour-specific — from the rule set active for Night
         // Tour, including that rule's OWN inclusions (same fix as
         // Day Tour above).
+        nightTourSameDayPolicy: nightTourRule.sameDayPolicy,
         allowNightTour: nightTourRule.allowNightTour,
         nightTourStartTime: nightTourRule.nightTourStartTime,
         nightTourEndTime: nightTourRule.nightTourEndTime,

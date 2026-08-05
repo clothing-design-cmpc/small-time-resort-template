@@ -156,5 +156,12 @@ export function useBookedDates() {
     overnightBlocksDayTourSet,
     maintenanceSet,
     anyBookedSet,
+    // Resort-wide Cleaning Hours + a date-key -> ISO moment map of when
+    // the villa is actually ready again after each upcoming checkout —
+    // used by HowToBookSection.jsx's Sequential Auto-Adjust preview
+    // (see services/bookingPricing.js's Cleaning-Buffer block for the
+    // authoritative version of this same computation).
+    cleaningHours: data?.cleaningHours ?? null,
+    turnoverCleaningEndsAt: data?.turnoverCleaningEndsAt ?? {},
   };
 }

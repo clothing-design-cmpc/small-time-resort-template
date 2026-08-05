@@ -1,10 +1,10 @@
 /**
  * FILE: app/system-setup-wizard/SetupCompleteStep.jsx
- * ROLE: Client Component — Step 10 of the setup wizard (final screen)
+ * ROLE: Client Component — Step 11 of the setup wizard (final screen)
  *
  * PURPOSE:
  * Renders once PreHandoffTestingStep's checklist is fully checked off
- * (Step 9). The owner admin (Step 3) and vault passphrase (Step 6,
+ * (Step 10). The owner admin (Step 3) and vault passphrase (Step 6,
  * scripts/setupVaultPassphrase.js) are both prerequisites checked by
  * arePrerequisitesMet() (services/setupWizardStatus.js) before this
  * screen's "Finished testing" button is allowed to actually lock
@@ -88,7 +88,7 @@ export default function SetupCompleteStep() {
     <div className="setupWizardCard">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      <span className="setupWizardEyebrow">Step 10 of 10</span>
+      <span className="setupWizardEyebrow">Step 11 of 11</span>
       <h1 className="setupWizardTitle">Setup complete — not yet locked</h1>
       <p className="setupWizardBody">
         Every earlier step still works right now — the owner admin and vault passphrase existing

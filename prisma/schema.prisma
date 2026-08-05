@@ -1413,13 +1413,33 @@ model SystemSettings {
   resortLatitude  Float? @default(14.5995) @map("resort_latitude")
   resortLongitude Float? @default(120.9842) @map("resort_longitude")
 
-  // --- Brand Identity (resort name + accent color, used site-wide —
-  // Header logo, Footer logo/copyright, Hero title, and <title> tag —
-  // not just the Homepage Customization page). siteTitle below doubles
-  // as the resort's display name; brandAccentColor drives --color-accent
-  // / --color-accent-hover (app/layout.jsx computes the hover shade at
-  // render time via utils/colorShade.js, so only one color is stored).
-  brandAccentColor String? @default("#3f7d52") @map("brand_accent_color")
+  // --- Brand Identity (resort name + 5-token color system, used
+  // site-wide — Header logo, Footer logo/copyright, Hero title, and
+  // <title> tag — not just the Homepage Customization page). siteTitle
+  // below doubles as the resort's display name. The 5 stored colors
+  // map to CSS custom property ROLES (app/layout.jsx applies all of
+  // them as an inline style override on <html>, computing any derived
+  // shade/tint at render time via utils/colorShade.js so only these 5
+  // raw values are ever stored — never a hover/tint variant):
+  //   brandAccentColor     -> --color-accent / --color-accent-hover
+  //                           (buttons, links, active states)
+  //   brandSecondaryColor  -> --color-secondary / --color-secondary-hover
+  //                           (badges, secondary CTAs, hover accents)
+  //   brandBackgroundColor -> --color-bg (page background)
+  //   brandTextColor       -> --color-text-primary/-secondary/-muted
+  //                           (headings/body; the two lighter variants
+  //                           are translucent tints of this one ink
+  //                           color, not separately stored)
+  //   brandBorderColor     -> --color-border/-hover/-strong and
+  //                           --color-surface/-hover/-active (dividers,
+  //                           card edges, and the subtle panel tint
+  //                           that sits behind cards — all just this
+  //                           one neutral at different opacities)
+  brandAccentColor     String? @default("#3f7d52") @map("brand_accent_color")
+  brandSecondaryColor  String? @default("#c9935e") @map("brand_secondary_color")
+  brandBackgroundColor String? @default("#f8faf3") @map("brand_background_color")
+  brandTextColor       String? @default("#1c2b20") @map("brand_text_color")
+  brandBorderColor     String? @default("#e5e2db") @map("brand_border_color")
 
   // --- Homepage Customization (Page 9) ---
   heroEyebrow       String? @map("hero_eyebrow")

@@ -44,13 +44,26 @@ import IdleSessionProvider from "@/components/superAdmin/IdleSessionProvider";
 import SessionExpiryGuard from "@/components/superAdmin/SessionExpiryGuard";
 import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
 import DatabaseWipeGraceModal from "@/components/superAdmin/DatabaseWipeGraceModal";
+import { getResortDisplayName, getResortAdminLabel } from "@/services/resortName";
 
-export const metadata = {
-  title: "Super-Admin | your-private-resort",
-  description: "Enterprise control center for managing your-private-resort.",
-};
+// Dynamic per the resort's own branded name (SystemSettings.siteTitle)
+// instead of the old hardcoded "your-private-resort" literal — see
+// services/resortName.js for why this is the single source of truth.
+export async function generateMetadata() {
+  const resortName = await getResortDisplayName();
+  return {
+    title: `Super-Admin | ${resortName}`,
+    description: `Enterprise control center for managing ${resortName}.`,
+  };
+}
 
 export default async function SuperAdminLayout({ children }) {
+  // Computed server-side once per request and passed down as a plain
+  // string prop — AdminHeader is a Client Component and can't call
+  // Prisma directly, so this avoids an extra client-side fetch just
+  // for a label (Rule 31.1/31.2).
+  const adminLabel = await getResortAdminLabel();
+
   return (
     // superAdminRoot scopes the dark enterprise color tokens (SuperAdmin.css)
     // so they never leak into the visitor site's light theme.
@@ -85,7 +98,7 @@ export default async function SuperAdminLayout({ children }) {
         <SidebarProvider>
           <Sidebar />
           <div className="superAdminBody">
-            <AdminHeader />
+            <AdminHeader adminLabel={adminLabel} />
             <main id="mainContent" className="superAdminContent">
               {children}
             </main>

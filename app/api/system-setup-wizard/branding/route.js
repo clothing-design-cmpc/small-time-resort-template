@@ -6,19 +6,23 @@
  *
  * PURPOSE:
  * Lets AdminSetupStep.jsx's "Brand your resort" card read and save the
- * resort's display name (siteTitle) and brand accent color
- * (brandAccentColor) directly on the singleton SystemSettings row.
- * The equivalent admin-panel route (/api/superAdmin/content/homepage)
- * can't be used here — it requires a logged-in super-admin session
- * cookie, which doesn't exist yet this early in setup (the owner
- * account was just created via `npx prisma db seed`, not logged in).
- * Optional and skippable — never blocks progression to Step 4; both
- * fields already have schema-level defaults if left untouched.
+ * resort's display name (siteTitle) and 5-token brand color system
+ * (brandAccentColor, brandSecondaryColor, brandBackgroundColor,
+ * brandTextColor, brandBorderColor) directly on the singleton
+ * SystemSettings row. The equivalent admin-panel route
+ * (/api/superAdmin/content/homepage) can't be used here — it requires
+ * a logged-in super-admin session cookie, which doesn't exist yet
+ * this early in setup (the owner account was just created via
+ * `npx prisma db seed`, not logged in). Optional and skippable —
+ * never blocks progression to Step 4; every field already has a
+ * schema-level default if left untouched.
  *
  * DATA FLOW:
  * 1. GET  -> get-or-create the singleton row, return { siteTitle,
- *            brandAccentColor } only (never the full settings row)
- * 2. PUT  -> updates those same two fields only
+ *            brandAccentColor, brandSecondaryColor,
+ *            brandBackgroundColor, brandTextColor, brandBorderColor }
+ *            only (never the full settings row)
+ * 2. PUT  -> updates those same fields only
  */
 export const dynamic = "force-dynamic";
 
@@ -61,7 +65,14 @@ export async function GET(request) {
       where: { id: "singleton" },
       update: {},
       create: { id: "singleton" },
-      select: { siteTitle: true, brandAccentColor: true },
+      select: {
+        siteTitle: true,
+        brandAccentColor: true,
+        brandSecondaryColor: true,
+        brandBackgroundColor: true,
+        brandTextColor: true,
+        brandBorderColor: true,
+      },
     });
 
     return NextResponse.json({ success: true, data: settings, message: "Brand identity fetched successfully." });
@@ -92,22 +103,43 @@ export async function PUT(request) {
     }
 
     // Basic 6-digit hex validation — a malformed value here would
-    // silently break every CSS variable that reads --color-accent.
+    // silently break every CSS variable derived from it in
+    // app/layout.jsx. Applied identically to all 5 brand color
+    // fields; any field that fails validation is simply omitted from
+    // the update so it falls back to whatever is already stored.
     const hexColorPattern = /^#[0-9a-fA-F]{6}$/;
-    const accentColor = hexColorPattern.test(body.brandAccentColor ?? "") ? body.brandAccentColor : undefined;
+    const validatedColors = {};
+    for (const [bodyKey, columnKey] of [
+      ["brandAccentColor", "brandAccentColor"],
+      ["brandSecondaryColor", "brandSecondaryColor"],
+      ["brandBackgroundColor", "brandBackgroundColor"],
+      ["brandTextColor", "brandTextColor"],
+      ["brandBorderColor", "brandBorderColor"],
+    ]) {
+      if (hexColorPattern.test(body[bodyKey] ?? "")) {
+        validatedColors[columnKey] = body[bodyKey];
+      }
+    }
 
     const updatedSettings = await prisma.systemSettings.upsert({
       where: { id: "singleton" },
       update: {
         siteTitle: trimmedName,
-        ...(accentColor ? { brandAccentColor: accentColor } : {}),
+        ...validatedColors,
       },
       create: {
         id: "singleton",
         siteTitle: trimmedName,
-        ...(accentColor ? { brandAccentColor: accentColor } : {}),
+        ...validatedColors,
       },
-      select: { siteTitle: true, brandAccentColor: true },
+      select: {
+        siteTitle: true,
+        brandAccentColor: true,
+        brandSecondaryColor: true,
+        brandBackgroundColor: true,
+        brandTextColor: true,
+        brandBorderColor: true,
+      },
     });
 
     return NextResponse.json({ success: true, data: updatedSettings, message: "Brand identity saved successfully." });

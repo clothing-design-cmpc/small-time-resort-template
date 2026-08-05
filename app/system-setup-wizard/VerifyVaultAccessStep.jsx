@@ -32,15 +32,14 @@
  *    own existing login flow, untouched by anything in this wizard
  * 3. Back in this tab, clicking "I've verified vault access" is a
  *    purely client-side state change — hands off to
- *    <DeploymentStep /> (Step 8 — deploy to Vercel + connect the
- *    custom domain, added so PreHandoffTestingStep's "test the live
- *    URL" checklist has an actual live URL to test by the time it
- *    renders).
+ *    <LocalDryRunStep /> (Step 8 — a manual click-through QA pass
+ *    against localhost, added so problems surface before deploying
+ *    instead of after).
  */
 "use client";
 
 import { useState, useEffect } from "react";
-import DeploymentStep from "./DeploymentStep";
+import LocalDryRunStep from "./LocalDryRunStep";
 
 export default function VerifyVaultAccessStep() {
   const [verified, setVerified] = useState(false);
@@ -78,12 +77,12 @@ export default function VerifyVaultAccessStep() {
   }, []);
 
   if (verified) {
-    return <DeploymentStep />;
+    return <LocalDryRunStep />;
   }
 
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 7 of 10</span>
+      <span className="setupWizardEyebrow">Step 7 of 11</span>
       <h1 className="setupWizardTitle">Verify vault access</h1>
       <p className="setupWizardBody">
         Open the vault recovery page in a new tab and sign in using the passphrase you set in

@@ -3,14 +3,14 @@
  * ROLE: Client Component — Step 10 of the setup wizard
  *
  * PURPOSE:
- * Renders once VerifyVaultAccessStep's "I've Verified Vault Access" is
- * clicked (Step 8). Steps 1-8 each verify one individual piece
- * (env vars present, DB reachable, admin account exists, vault opens)
- * — none of them actually click through the live site as a real guest
- * or a real super-admin would. This step exists so that verification
- * happens deliberately, once, before anyone hands the site to the
- * owner — not skipped because every earlier step already showed green
- * checkmarks.
+ * Renders once DeploymentStep's "Continue" is clicked (Step 9).
+ * LocalDryRunStep (Step 8) already ran this exact same checklist
+ * against localhost, before deploying — this step repeats it against
+ * the real, live, deployed URL as the final pre-handoff confirmation,
+ * since a working localhost pass doesn't guarantee the deployed
+ * environment (real domain, production env vars in Vercel, DNS) is
+ * also wired correctly. See testingChecklistItems.js for the shared
+ * checklist both steps use.
  *
  * This is a plain checklist, client-state only — nothing is sent to
  * the server and nothing here is re-checked automatically. Every item
@@ -27,43 +27,13 @@
 
 import { useState } from "react";
 import SetupCompleteStep from "./SetupCompleteStep";
+import { buildTestingChecklist } from "./testingChecklistItems";
 
 // Each item is something that can ONLY be confirmed by actually using
 // the live site — never something an earlier wizard step's API call
 // already checked. Grouped so the checklist reads like a real QA pass,
 // not a random pile of unrelated checkboxes.
-const TESTING_CHECKLIST = [
-  {
-    group: "Visitor site",
-    items: [
-      "Homepage loads at the live URL and every section renders (Hero, About, Rooms, Amenities, Shop, Activities, Gallery, Testimonials, Location, Contact).",
-      "Reserve Your Villa: pick a room and date range, submit a real test booking, and confirm it appears on the admin Bookings page.",
-      "Cancel that same test booking from the admin Bookings page and confirm the date opens back up on the visitor date picker.",
-    ],
-  },
-  {
-    group: "Super-admin login & account",
-    items: [
-      "Log out completely, then log back in at /superAdmin/login with the real SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD — not just relying on the session from Step 3.",
-      "Try one wrong password on purpose and confirm the error message is generic (\"Invalid email or password\") — see docs/gatekeeper-testing.md before doing this more than once, since repeated attempts trip Gatekeeper 1.",
-    ],
-  },
-  {
-    group: "Content management",
-    items: [
-      "Add or edit a Room, Amenity, and Store Product from the super-admin dashboard and confirm each change shows up on the visitor site.",
-      "Edit at least one Policies & Content field (e.g. check-in time or a homepage heading) and confirm it reflects on the visitor site.",
-      "Upload one image (room photo or gallery photo) and confirm it renders — this is the easiest way to catch a misconfigured Cloudflare R2 setup.",
-    ],
-  },
-  {
-    group: "Alerts & recovery",
-    items: [
-      "Confirm a real EmailJS email actually arrived for at least one flow (booking confirmation, contact form, or the vault OTP from Step 8) — presence in .env.local doesn't guarantee a working template.",
-      "Re-open the vault recovery link from Step 8 one more time and confirm it still loads (the URL is hash-derived and changes on rotation — good to double check it wasn't accidentally rotated since).",
-    ],
-  },
-];
+const TESTING_CHECKLIST = buildTestingChecklist("the live URL");
 
 export default function PreHandoffTestingStep() {
   const [checkedItems, setCheckedItems] = useState({});
@@ -82,7 +52,7 @@ export default function PreHandoffTestingStep() {
 
   return (
     <div className="setupWizardCard">
-      <span className="setupWizardEyebrow">Step 9 of 10</span>
+      <span className="setupWizardEyebrow">Step 10 of 11</span>
       <h1 className="setupWizardTitle">Test the live site before handing it off</h1>
       <p className="setupWizardBody">
         Everything above confirmed individual pieces are configured correctly — it did not

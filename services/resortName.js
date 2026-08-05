@@ -39,3 +39,34 @@ export async function getResortDisplayName() {
   const trimmedName = settings?.siteTitle?.trim();
   return trimmedName || DEFAULT_RESORT_NAME;
 }
+
+/**
+ * slugifyResortName
+ * Converts a human-typed resort name (e.g. "Victoria's Haven Resort")
+ * into the dash-case slug style already used by the placeholder
+ * ("your-private-resort") — lowercase, non-alphanumeric runs collapsed
+ * to a single dash, no leading/trailing dash.
+ */
+function slugifyResortName(name) {
+  return String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * getResortAdminLabel
+ * Returns the branded super-admin label — the resort's own display
+ * name (or the placeholder fallback) slugified and suffixed with
+ * "-admin" (e.g. "victorias-haven-resort-admin"). This is the single
+ * source of truth for the super-admin header title and the browser
+ * tab title, so a rebrand during setup (or later, via Content >
+ * Homepage > Brand Identity) is reflected everywhere the admin area
+ * shows its own name, instead of the old hardcoded literal
+ * "your-private-resort Admin" string.
+ */
+export async function getResortAdminLabel() {
+  const resortName = await getResortDisplayName();
+  return `${slugifyResortName(resortName)}-admin`;
+}

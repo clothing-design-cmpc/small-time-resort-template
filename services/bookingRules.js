@@ -36,12 +36,26 @@ const ALLOW_FIELD_BY_TYPE = {
  * Returns the BookingRule that is currently active FOR THE GIVEN
  * bookingType ("overnight" | "day_tour" | "night_tour", defaults to
  * "overnight"). If no rule is marked active for this type yet, falls
- * back to the oldest existing rule that allows this type and activates
- * it, or — if literally no rule set allows this type at all yet —
- * bootstraps a new one with schema defaults for this type, active
- * immediately. This guarantees the visitor booking flow never breaks
- * for ANY of the three booking types, even if an admin has only ever
- * configured one of them.
+ * back to the oldest existing rule that allows this type (READ-ONLY —
+ * see note below), or — if literally no rule set allows this type at
+ * all yet — bootstraps a new one with schema defaults for this type,
+ * active immediately. This guarantees internal flows (room status
+ * display, pricing validation, invoices, reschedule) always have a
+ * usable rule shape to read from, even if an admin has only ever
+ * configured one booking type.
+ *
+ * IMPORTANT — this fallback is READ-ONLY: it no longer persists
+ * isActive:true onto the oldest eligible rule. It used to call
+ * prisma.bookingRule.update() here, which meant every background call
+ * from an internal flow (e.g. RoomStatusSection's polling on the
+ * Booking Rules admin page, which calls this for all three types on
+ * every refresh) would silently flip a rule back to Active seconds
+ * after a super-admin deliberately set it Inactive — fighting the
+ * admin's own explicit choice and defeating the public route's Golden
+ * Rule "no current booking rule" guardrail (see getStrictActiveBookingRule
+ * above) via a completely different code path. Internal callers still
+ * get a rule object to read config off of; they just no longer have
+ * the side effect of un-deactivating it in the database.
  */
 export async function getActiveBookingRule(bookingType = "overnight") {
   const allowField = ALLOW_FIELD_BY_TYPE[bookingType] ?? "allowOvernightStay";
@@ -56,25 +70,72 @@ export async function getActiveBookingRule(bookingType = "overnight") {
   if (activeRule) return activeRule;
 
   // No rule is active for THIS type — recover using the oldest existing
-  // rule that's eligible (allows this type), rather than creating a
-  // duplicate row. This never touches whichever rule is already active
-  // for a different booking type.
+  // rule that's eligible (allows this type), for internal reads only.
+  // Deliberately NOT persisted (no .update() call) — see file header
+  // note above for why writing this back caused a real bug.
   const oldestEligibleRule = await prisma.bookingRule.findFirst({
     where: { [allowField]: true },
     orderBy: { createdAt: "asc" },
   });
-  if (oldestEligibleRule) {
-    return prisma.bookingRule.update({
-      where: { id: oldestEligibleRule.id },
-      data: { isActive: true },
-    });
-  }
+  if (oldestEligibleRule) return oldestEligibleRule;
 
   // No rule set allows this booking type at all yet — bootstrap one with
-  // schema defaults for this type, active immediately.
+  // schema defaults for this type, active immediately. This IS persisted
+  // (unlike the fallback above) since it's establishing baseline data
+  // for a type that has never had any row at all, not un-toggling an
+  // admin's deliberate choice.
   return prisma.bookingRule.create({
     data: { name: `Default Rules (${bookingType})`, isActive: true, [allowField]: true },
   });
+}
+
+/**
+ * getStrictActiveBookingRule
+ * Same lookup as getActiveBookingRule() above, but NEVER auto-creates or
+ * auto-activates a fallback rule when none is currently active for this
+ * type. Returns null when there is truly no active BookingRule configured
+ * for this type.
+ *
+ * WHY THIS EXISTS: getActiveBookingRule()'s auto-bootstrap behavior is
+ * correct for internal flows (pricing validation, invoices, reschedule)
+ * that must never crash mid-transaction — but it silently fabricates a
+ * rule for the PUBLIC visitor booking flow too, which defeats the
+ * intended guardrail: a visitor should never be allowed to proceed past
+ * "Continue" on the How to Book calendar if the super-admin hasn't
+ * actually configured/activated a booking rule. Used only by the public
+ * GET /api/booking-rules route (see getStrictActiveBookingRuleForDateCount
+ * below) so that route can correctly return success:false and let
+ * HowToBookSection.jsx block with a "no current booking rule" toast
+ * instead of quietly booking against an auto-bootstrapped default the
+ * admin never configured.
+ */
+export async function getStrictActiveBookingRule(bookingType = "overnight") {
+  const allowField = ALLOW_FIELD_BY_TYPE[bookingType] ?? "allowOvernightStay";
+  return prisma.bookingRule.findFirst({
+    where: { isActive: true, [allowField]: true },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
+/**
+ * getStrictActiveBookingRuleForDateCount
+ * Same per-nights matching as getActiveBookingRuleForDateCount() below,
+ * but backed by getStrictActiveBookingRule() above — never auto-creates
+ * or auto-activates a fallback rule. Returns null when no active rule
+ * matches this type (whether or not a specific night count was given).
+ */
+export async function getStrictActiveBookingRuleForDateCount(bookingType = "overnight", howManySelectedDates = null) {
+  const allowField = ALLOW_FIELD_BY_TYPE[bookingType] ?? "allowOvernightStay";
+
+  if (Number.isInteger(howManySelectedDates) && howManySelectedDates > 0) {
+    const matchedRule = await prisma.bookingRule.findFirst({
+      where: { isActive: true, [allowField]: true, howManySelectedDates },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (matchedRule) return matchedRule;
+  }
+
+  return getStrictActiveBookingRule(bookingType);
 }
 
 /**

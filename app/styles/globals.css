@@ -47,6 +47,16 @@ video {
  * COLOR TOKENS
  * Welcoming light theme — warm ivory-green background with a
  * forest-green accent, per client request (no dark theme).
+ *
+ * These are STATIC FALLBACK values only. On every real page request,
+ * app/layout.jsx overrides every variable below with the admin's
+ * saved 5-color brand system (SystemSettings.brandAccentColor /
+ * .brandSecondaryColor / .brandBackgroundColor / .brandTextColor /
+ * .brandBorderColor) via an inline style on <html> — see that file's
+ * RootLayout() for the full derivation (hover shades, text/border
+ * opacity tiers, surface tints). The values here only matter for a
+ * standalone page rendered outside that layout, or before the DB
+ * read resolves.
  * ============================================================ */
 :root {
   --color-bg: #f8faf3;
@@ -86,6 +96,11 @@ video {
   --color-accent: #3f7d52;
   --color-accent-hover: #2f5f3d;
   --color-on-accent: #fbfdf9;
+
+  /* Secondary accent — hover states, badges, secondary CTAs; complements
+     the primary accent without competing with it for attention */
+  --color-secondary: #c9935e;
+  --color-secondary-hover: #a5764a;
 
   --color-success: #2f9e5b;
   --color-warning: #d98a24;

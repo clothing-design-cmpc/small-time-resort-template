@@ -485,9 +485,10 @@ a.setupWizardButtonSecondary {
 /*
  * .setupWizardFormField
  * Label + input pair used by BrandingCard.jsx (Step 3's optional
- * resort name / accent color form) — mirrors the admin panel's own
- * .homepageFormField pattern so the wizard doesn't invent a second
- * visual language for the same kind of control.
+ * resort name / accent color / phone / official email / address
+ * form) — mirrors the admin panel's own .homepageFormField pattern
+ * so the wizard doesn't invent a second visual language for the same
+ * kind of control.
  */
 .setupWizardFormField {
   display: flex;
@@ -502,7 +503,8 @@ a.setupWizardButtonSecondary {
   color: var(--color-text-secondary);
 }
 
-.setupWizardFormField input[type="text"] {
+.setupWizardFormField input[type="text"],
+.setupWizardFormField input[type="email"] {
   width: 100%;
   min-height: 44px;
   font-size: 1rem;
@@ -511,6 +513,24 @@ a.setupWizardButtonSecondary {
   border: 1px solid var(--color-border-strong);
   background-color: var(--color-bg);
   color: var(--color-text-primary);
+}
+
+/*
+ * .setupWizardFormField textarea
+ * Same visual treatment as the text/email inputs above, used by the
+ * Resort Address field — multi-line so a full street/city/province
+ * address doesn't get truncated in a single-line input.
+ */
+.setupWizardFormField textarea {
+  width: 100%;
+  font-size: 1rem;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  resize: vertical;
 }
 
 .setupWizardFormHint {

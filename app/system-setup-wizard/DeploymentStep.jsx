@@ -3,10 +3,10 @@
  * ROLE: Client Component — Step 9 of the setup wizard
  *
  * PURPOSE:
- * Renders once VerifyVaultAccessStep's "I've Verified Vault Access" is
- * clicked (Step 8). Everything before this step ran against
- * localhost — this step exists so the project actually goes live
- * before <PreHandoffTestingStep /> (Step 10) runs its "test the real,
+ * Renders once LocalDryRunStep's "Continue to Deployment" is clicked
+ * (Step 8). Everything before this step ran against localhost — this
+ * step exists so the project actually goes live before
+ * <PreHandoffTestingStep /> (Step 10) runs its "test the real,
  * deployed site (not just localhost)" checklist. Without this step,
  * Step 10 would have no live URL to test against.
  *
@@ -36,7 +36,7 @@
  * (moved here from ScriptsHealthStep.jsx / Step 5, where they were
  * labeled 6.1/6.2 — Step 9 is the actual moment these are needed,
  * since by now every API key is set (Steps 2-4) and the vault has
- * been created and verified (Steps 6-8)):
+ * been created and verified (Steps 6-7)):
  *   - 7: downloads a Vercel env-var reference .txt, built from
  *     ENV_GROUPS (scripts/lib/envGroups.mjs) — the same single source
  *     of truth RemainingEnvStep.jsx already imports this same way
@@ -374,7 +374,7 @@ export default function DeploymentStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 8 of 10</span>
+        <span className="setupWizardEyebrow">Step 9 of 11</span>
         <h1 className="setupWizardTitle">Deploy to Vercel &amp; connect your domain</h1>
         <p className="setupWizardBody">
           Everything so far has run on localhost. This step puts the site on a real URL —

@@ -32,3 +32,28 @@ export function darkenHexColor(hexColor, amount = 0.2) {
 
   return `#${toHexPair(r)}${toHexPair(g)}${toHexPair(b)}`;
 }
+
+/**
+ * hexToRgbaString
+ * Converts a "#rrggbb" hex color into an "rgba(r, g, b, alpha)" CSS
+ * string. Used so a single stored brand color (e.g. brandTextColor or
+ * brandBorderColor) can drive several translucent CSS variable tiers
+ * (primary/secondary/muted text, or border/border-hover/border-strong)
+ * without storing each tint as its own DB field. Falls back to a
+ * fully-opaque black at the requested alpha if the input isn't a
+ * valid 6-digit hex — callers always have a schema-level default hex
+ * to fall back on regardless, so this never needs to throw.
+ *
+ * @param {string} hexColor - e.g. "#1c2b20"
+ * @param {number} alpha    - 0-1 opacity for the resulting rgba()
+ */
+export function hexToRgbaString(hexColor, alpha = 1) {
+  const match = /^#?([a-fA-F0-9]{6})$/.exec(hexColor ?? "");
+  if (!match) return `rgba(0, 0, 0, ${alpha})`;
+
+  const [r, g, b] = [0, 2, 4].map((offset) =>
+    parseInt(match[1].slice(offset, offset + 2), 16)
+  );
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

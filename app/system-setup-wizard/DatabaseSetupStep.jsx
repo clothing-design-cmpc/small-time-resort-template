@@ -185,7 +185,7 @@ export default function DatabaseSetupStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 2 of 10</span>
+        <span className="setupWizardEyebrow">Step 2 of 11</span>
         <h1 className="setupWizardTitle">Checking database status…</h1>
       </div>
     );
@@ -194,7 +194,7 @@ export default function DatabaseSetupStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 2 of 10</span>
+        <span className="setupWizardEyebrow">Step 2 of 11</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load database status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -234,7 +234,7 @@ export default function DatabaseSetupStep() {
 
       {/* ===== Step 2 — Connection + Core env vars ===== */}
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 2 of 10</span>
+        <span className="setupWizardEyebrow">Step 2 of 11</span>
         <h1 className="setupWizardTitle">Database connection &amp; Supabase core</h1>
         <p className="setupWizardBody">
           Set these keys in <code>.env.local</code> from your Supabase

@@ -55,7 +55,14 @@ export async function getResortWeatherForecast(latitude, longitude, days = 3) {
     recordApiCall("google_weather", "forecast_lookup", response.ok);
 
     if (!response.ok) {
-      console.error(`[weather] Google Weather API responded ${response.status}`);
+      // Log the actual error body from Google, not just the status code —
+      // a bare "403" could mean an unactivated billing account, a
+      // project-level API restriction, or a key/referrer mismatch, and
+      // Google's JSON error body names which one specifically. Truncated
+      // to keep the log line readable; the full reason is always in the
+      // first ~300 chars of Google's standard error shape.
+      const errorBody = await response.text().catch(() => "(could not read error body)");
+      console.error(`[weather] Google Weather API responded ${response.status}: ${errorBody.slice(0, 500)}`);
       return null;
     }
 

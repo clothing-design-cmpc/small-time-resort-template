@@ -29,6 +29,10 @@ import "./Homepage.css";
 const EMPTY_FORM = {
   siteTitle: "",
   brandAccentColor: "",
+  brandSecondaryColor: "",
+  brandBackgroundColor: "",
+  brandTextColor: "",
+  brandBorderColor: "",
   heroTagline: "",
   heroImageUrl: null,
   heroImageKey: null,
@@ -67,6 +71,10 @@ export default function HomepageSettingsClient() {
     setFormValues({
       siteTitle: homepageSettings.siteTitle ?? "",
       brandAccentColor: homepageSettings.brandAccentColor ?? "#3f7d52",
+      brandSecondaryColor: homepageSettings.brandSecondaryColor ?? "#c9935e",
+      brandBackgroundColor: homepageSettings.brandBackgroundColor ?? "#f8faf3",
+      brandTextColor: homepageSettings.brandTextColor ?? "#1c2b20",
+      brandBorderColor: homepageSettings.brandBorderColor ?? "#e5e2db",
       heroTagline: homepageSettings.heroTagline ?? "",
       heroImageUrl: homepageSettings.heroImageUrl ?? null,
       heroImageKey: homepageSettings.heroImageKey ?? null,
@@ -190,36 +198,52 @@ export default function HomepageSettingsClient() {
       <div className="homepagePanel">
         <h2 className="homepagePanelTitle">Brand Identity</h2>
         <p className="homepageFormHint">
-          Set once during first-run setup and shown across the Header logo, Footer, Hero section, and browser
-          tab title. Locked here on purpose — the resort name and accent color touch too many places
-          (Header/Footer copy, generated invoices, email subjects) to change casually from this form. To
-          change it, a developer needs to update it directly in the database (SystemSettings.siteTitle /
-          .brandAccentColor).
+          Set once during first-run setup and shown across the Header logo, Footer, Hero section, cards,
+          borders, and browser tab title. Locked here on purpose — the resort name and brand colors touch
+          too many places (Header/Footer copy, generated invoices, email subjects, every card/border
+          site-wide) to change casually from this form. To change them, a developer needs to update them
+          directly in the database (SystemSettings.siteTitle / .brandAccentColor / .brandSecondaryColor /
+          .brandBackgroundColor / .brandTextColor / .brandBorderColor).
         </p>
         <div className="homepageFormField">
           <label htmlFor="siteTitle">Resort Name</label>
           <input id="siteTitle" type="text" value={formValues.siteTitle} disabled readOnly />
         </div>
-        <div className="homepageFormField">
-          <label htmlFor="brandAccentColor">Brand Accent Color</label>
-          <div className="homepageColorFieldRow">
-            <input
-              id="brandAccentColor"
-              type="color"
-              value={formValues.brandAccentColor || "#3f7d52"}
-              disabled
-              readOnly
-            />
-            <input
-              type="text"
-              value={formValues.brandAccentColor}
-              disabled
-              readOnly
-              className="homepageColorHexInput"
-            />
+
+        {[
+          { key: "brandAccentColor", label: "Primary Accent", hint: "Buttons, links, and active states." },
+          {
+            key: "brandSecondaryColor",
+            label: "Secondary Accent",
+            hint: "Hover states, badges, and secondary CTAs.",
+          },
+          { key: "brandBackgroundColor", label: "Background", hint: "The page background behind every section." },
+          {
+            key: "brandTextColor",
+            label: "Text",
+            hint: "Headings and body copy — lighter tones are derived from this automatically.",
+          },
+          {
+            key: "brandBorderColor",
+            label: "Border / Neutral",
+            hint: "Card borders, dividers, and the subtle tint behind cards.",
+          },
+        ].map((field) => (
+          <div className="homepageFormField" key={field.key}>
+            <label htmlFor={field.key}>{field.label}</label>
+            <div className="homepageColorFieldRow">
+              <input id={field.key} type="color" value={formValues[field.key] || "#000000"} disabled readOnly />
+              <input
+                type="text"
+                value={formValues[field.key]}
+                disabled
+                readOnly
+                className="homepageColorHexInput"
+              />
+            </div>
+            <p className="homepageFormHint">{field.hint}</p>
           </div>
-          <p className="homepageFormHint">Used for buttons, active states, and highlights site-wide.</p>
-        </div>
+        ))}
       </div>
 
       {/* ---------- Section 1: Hero ---------- */}

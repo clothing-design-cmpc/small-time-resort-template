@@ -98,7 +98,7 @@ export default function ExternalSetupStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 6 of 10</span>
+        <span className="setupWizardEyebrow">Step 6 of 11</span>
         <h1 className="setupWizardTitle">Vault setup</h1>
         <p className="setupWizardBody">
           Nothing on this step runs from this page — these three things

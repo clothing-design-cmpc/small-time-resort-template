@@ -54,28 +54,38 @@ function minutesToDisplayTime(totalMinutes) {
  * @param {string} checkInTime   - "HH:mm", e.g. "14:00"
  * @param {string} checkOutTime  - "HH:mm", e.g. "23:00"
  * @param {number} cleaningHours - hours needed to clean after checkout
+ * @param {boolean} nextOccurrenceIsNextDay - true for booking types whose
+ *   check-in happens EARLIER in the clock than their own check-out on the
+ *   same calendar day (Day Tour, Night Tour — a full same-day session).
+ *   For these, the "next" time this type needs the room again is
+ *   TOMORROW's start time, not today's — so the check-in comparison
+ *   point is shifted forward by 24h. Overnight stays don't set this:
+ *   their checkout (e.g. 11:00 AM) naturally precedes the SAME day's
+ *   next check-in (e.g. 2:00 PM), which is the real turnover this check
+ *   was designed for.
  */
-export function findCleaningBufferConflict(checkInTime, checkOutTime, cleaningHours) {
+export function findCleaningBufferConflict(checkInTime, checkOutTime, cleaningHours, { nextOccurrenceIsNextDay = false } = {}) {
   if (!checkInTime || !checkOutTime || !Number.isFinite(Number(cleaningHours))) return null;
 
   const checkOutMinutes = timeToMinutes(checkOutTime);
-  const checkInMinutes = timeToMinutes(checkInTime);
+  const rawCheckInMinutes = timeToMinutes(checkInTime);
+  // Shift the comparison point 24h forward for same-day session types
+  // (Day Tour, Night Tour) — the room isn't needed again until
+  // tomorrow's session, not later today.
+  const nextNeededByMinutes = nextOccurrenceIsNextDay ? rawCheckInMinutes + 1440 : rawCheckInMinutes;
   const cleaningEndsMinutes = checkOutMinutes + Number(cleaningHours) * 60;
 
-  // Cleaning spills past midnight into the next calendar day — that's
-  // always later than ANY same-day check-in time, guaranteed conflict.
-  const spillsToNextDay = cleaningEndsMinutes >= 1440;
-
-  const conflict = spillsToNextDay || cleaningEndsMinutes > checkInMinutes;
+  const conflict = cleaningEndsMinutes > nextNeededByMinutes;
   if (!conflict) return null;
 
   const cleaningEndsDisplay = minutesToDisplayTime(cleaningEndsMinutes);
-  const dayLabel = spillsToNextDay ? " (next day)" : "";
+  const dayLabel = cleaningEndsMinutes >= 1440 ? " (next day)" : "";
+  const turnoverLabel = nextOccurrenceIsNextDay ? "before tomorrow's session starts" : "on the same turnover day";
 
   return (
     `Checkout (${minutesToDisplayTime(checkOutMinutes)}) + ${cleaningHours}h cleaning doesn't finish until ` +
-    `${cleaningEndsDisplay}${dayLabel} — later than your Check-in time (${minutesToDisplayTime(checkInMinutes)}) ` +
-    `on the same turnover day. Back-to-back bookings would overlap with the outgoing guest. ` +
+    `${cleaningEndsDisplay}${dayLabel} — later than your Check-in time (${minutesToDisplayTime(rawCheckInMinutes)}) ` +
+    `${turnoverLabel}. Back-to-back bookings would overlap with the outgoing guest. ` +
     `Please adjust Check-in/Check-out time or reduce Cleaning Hours.`
   );
 }
@@ -84,9 +94,9 @@ export function findCleaningBufferConflict(checkInTime, checkOutTime, cleaningHo
 // form field names on BookingRule, so a caller can tell the admin
 // exactly which field(s) to fix instead of just showing a message.
 const BOOKING_TYPE_TIME_FIELDS = [
-  { type: "overnight", label: "Overnight Stay", checkInField: "checkInTime", checkOutField: "checkOutTime" },
-  { type: "day_tour", label: "Day Tour", checkInField: "dayTourStartTime", checkOutField: "dayTourEndTime" },
-  { type: "night_tour", label: "Night Tour", checkInField: "nightTourStartTime", checkOutField: "nightTourEndTime" },
+  { type: "overnight", label: "Overnight Stay", checkInField: "checkInTime", checkOutField: "checkOutTime", nextOccurrenceIsNextDay: false },
+  { type: "day_tour", label: "Day Tour", checkInField: "dayTourStartTime", checkOutField: "dayTourEndTime", nextOccurrenceIsNextDay: true },
+  { type: "night_tour", label: "Night Tour", checkInField: "nightTourStartTime", checkOutField: "nightTourEndTime", nextOccurrenceIsNextDay: true },
 ];
 
 /**
@@ -115,7 +125,9 @@ export function findAllCleaningBufferConflicts(values, cleaningHours) {
     const checkOutValue = values?.[pair.checkOutField];
     if (!checkInValue || !checkOutValue) continue; // type not configured yet — nothing to check
 
-    const conflictMessage = findCleaningBufferConflict(checkInValue, checkOutValue, cleaningHours);
+    const conflictMessage = findCleaningBufferConflict(checkInValue, checkOutValue, cleaningHours, {
+      nextOccurrenceIsNextDay: pair.nextOccurrenceIsNextDay,
+    });
     if (conflictMessage) {
       return {
         message: `${pair.label}: ${conflictMessage}`,

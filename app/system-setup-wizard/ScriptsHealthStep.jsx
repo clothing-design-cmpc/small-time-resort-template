@@ -27,7 +27,7 @@
  * Secrets Reference" buttons that used to live on this screen (labeled
  * 6.1/6.2) have moved to <DeploymentStep /> (Step 9) — by that point
  * every API key is set (Steps 2-4) and the vault has been created and
- * verified (Steps 6-8), and Step 9 is the exact moment those reference
+ * verified (Steps 6-7), and Step 9 is the exact moment those reference
  * files are actually needed (pasting values into Vercel/GitHub before
  * deploying). See DeploymentStep.jsx for that implementation.
  *
@@ -137,7 +137,7 @@ export default function ScriptsHealthStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 5 of 10</span>
+        <span className="setupWizardEyebrow">Step 5 of 11</span>
         <h1 className="setupWizardTitle">Scripts &amp; health checks</h1>
         <p className="setupWizardBody">
           Two on-demand checks you can run from here, plus a couple of

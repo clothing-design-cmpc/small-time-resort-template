@@ -14,25 +14,71 @@
  * rule marked active regardless of how many rule sets exist.
  *
  * DATA FLOW:
- * 1. hooks/usePublicBookingRules.js calls GET /api/booking-rules,
- *    optionally with ?nights=N once the visitor has picked their dates
- *    (N = nights selected, i.e. Booking.howManySelectedDates)
- * 2. getActiveBookingRuleForDateCount("overnight", N) first tries to
- *    match an Active Overnight rule set built for exactly N nights
+ * 1. hooks/usePublicBookingRules.js and HowToBookSection.jsx call GET
+ *    /api/booking-rules, optionally with ?nights=N once the visitor has
+ *    picked their dates (N = nights selected, i.e. Booking.howManySelectedDates)
+ * 2. getStrictActiveBookingRuleForDateCount("overnight", N) first tries
+ *    to match an Active Overnight rule set built for exactly N nights
  *    (BookingRule.howManySelectedDates — e.g. "4Ds-3Ns" has N = 3)
- *    before falling back to getActiveBookingRule()'s "most recently
- *    updated Active rule" behavior. Day Tour and Night Tour always use
- *    getActiveBookingRule() directly — this per-length matching only
- *    applies to Overnight, per Section 1 Rule 2 on Booking Rules.
- *    The response below merges all three into the one flat shape the
- *    visitor form expects, plus the matched rule's own name so the
- *    booking form can show which package actually applies.
+ *    before falling back to getStrictActiveBookingRule()'s "most
+ *    recently updated Active rule" behavior. Day Tour and Night Tour
+ *    always use getStrictActiveBookingRule() directly — this
+ *    per-length matching only applies to Overnight, per Section 1 Rule
+ *    2 on Booking Rules. Unlike the internal getActiveBookingRule()
+ *    services/bookingRules.js also exports, these "strict" variants
+ *    NEVER auto-bootstrap a fallback rule — if a type has no active
+ *    rule, they simply return null (Golden Rule guardrail, see below).
+ * 3. If NONE of the three types has an active rule at all, this route
+ *    returns success:false with a "No current booking rule" message
+ *    instead of resolving anything further — HowToBookSection.jsx's
+ *    handleContinue() reads that and blocks the visitor from proceeding
+ *    past date selection, showing that message as a toast.
+ * 4. Otherwise the response below merges all three into the one flat
+ *    shape the visitor form expects (missing types fall back to a
+ *    null-shaped EMPTY_RULE so a partially-configured resort still
+ *    works for whichever type(s) ARE active), plus the matched rule's
+ *    own name so the booking form can show which package actually
+ *    applies.
  */
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { getActiveBookingRule, getActiveBookingRuleForDateCount } from "@/services/bookingRules";
+import { getStrictActiveBookingRule, getStrictActiveBookingRuleForDateCount } from "@/services/bookingRules";
+
+// Golden Rule guardrail: null-shaped fallback used ONLY when a given
+// booking type has no active rule at all. Every allow* flag defaults to
+// false so downstream logic (both here and in HowToBookSection.jsx) treats
+// that type as unavailable rather than crashing on missing fields.
+const EMPTY_RULE = {
+  id: null,
+  name: null,
+  allowOvernightStay: false,
+  allowDayTour: false,
+  allowNightTour: false,
+  minNightsRequired: null,
+  maxNightsAllowed: null,
+  advanceBookingDays: null,
+  checkInTime: null,
+  checkOutTime: null,
+  refundPercentage: null,
+  cancellationCutoffDays: null,
+  depositRequired: false,
+  depositPercentage: null,
+  howManySelectedDates: null,
+  allowedGuests: null,
+  maxPax: null,
+  extraGuestFeePerHead: "0",
+  includedAmenityIds: [],
+  includedProductIds: [],
+  packageInclusions: [],
+  dayTourStartTime: null,
+  dayTourEndTime: null,
+  dayTourPricePerGuest: "0",
+  nightTourStartTime: null,
+  nightTourEndTime: null,
+  nightTourPricePerGuest: "0",
+};
 
 export async function GET(request) {
   try {
@@ -40,11 +86,30 @@ export async function GET(request) {
     const nightsParam = Number(searchParams.get("nights"));
     const nightsSelected = Number.isInteger(nightsParam) && nightsParam > 0 ? nightsParam : null;
 
-    const [overnightRule, dayTourRule, nightTourRule] = await Promise.all([
-      getActiveBookingRuleForDateCount("overnight", nightsSelected),
-      getActiveBookingRule("day_tour"),
-      getActiveBookingRule("night_tour"),
+    // Golden Rule: always check what's actually recorded/active in the
+    // BookingRule table before letting the visitor flow proceed — never
+    // auto-bootstrap a rule here (that auto-create behavior still lives
+    // in getActiveBookingRule() for internal flows, but must never leak
+    // into what a visitor is shown/allowed to book against).
+    const [overnightRuleRaw, dayTourRuleRaw, nightTourRuleRaw] = await Promise.all([
+      getStrictActiveBookingRuleForDateCount("overnight", nightsSelected),
+      getStrictActiveBookingRule("day_tour"),
+      getStrictActiveBookingRule("night_tour"),
     ]);
+
+    // Nothing is configured/active for ANY booking type — there is no
+    // current booking rule at all. Stop here; do not proceed to resolve
+    // inclusions, pricing, or anything else below.
+    if (!overnightRuleRaw && !dayTourRuleRaw && !nightTourRuleRaw) {
+      return NextResponse.json(
+        { success: false, data: null, message: "No current booking rule. Please check back later." },
+        { status: 404 }
+      );
+    }
+
+    const overnightRule = overnightRuleRaw ?? EMPTY_RULE;
+    const dayTourRule = dayTourRuleRaw ?? EMPTY_RULE;
+    const nightTourRule = nightTourRuleRaw ?? EMPTY_RULE;
 
     /**
      * resolvePackageInclusions

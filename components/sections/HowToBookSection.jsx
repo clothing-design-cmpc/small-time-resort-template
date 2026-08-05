@@ -575,9 +575,15 @@ export default function HowToBookSection() {
       // — this used to always show "No existing booking rule found"
       // regardless of cause, making it impossible to tell a genuine
       // "no rule configured" case apart from a network/server error.
-      // Logged to console so the browser DevTools/terminal shows the
-      // actual stack trace for debugging.
-      console.error("[HowToBookSection] handleContinue failed:", error);
+      // A 404 here is the EXPECTED Golden Rule guardrail response (see
+      // app/api/booking-rules/route.js) — not a bug — so it's skipped
+      // from console.error to avoid tripping Next.js's dev-mode error
+      // overlay for normal, working behavior. Anything else (500,
+      // network failure, etc.) still logs so DevTools/terminal shows
+      // the actual stack trace for real debugging.
+      if (error?.response?.status !== 404) {
+        console.error("[HowToBookSection] handleContinue failed:", error);
+      }
       const serverMessage = error?.response?.data?.message;
       showToast(`✕ ${serverMessage || "Something went wrong finding your booking rule. Please try again."}`, "error");
     } finally {

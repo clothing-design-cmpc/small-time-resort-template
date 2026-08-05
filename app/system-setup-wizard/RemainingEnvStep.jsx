@@ -94,6 +94,8 @@ const REMAINING_ENV_HELP = {
   },
   emailjs: {
     links: [{ label: "EmailJS Dashboard", url: "https://dashboard.emailjs.com" }],
+    note:
+      "Common failure to watch for: if the vault OTP or vault passphrase email fails to send with \"EmailJS responded 403: API access from non-browser environments is currently disabled\" in your terminal (npm run dev logs), it means Step L below hasn't been done yet — Service ID, Template IDs, and both keys can all be correct and it'll still fail until that toggle is switched on.",
     steps: [
       "Step A — sign in: go to dashboard.emailjs.com and sign in (or sign up if new — free plan is enough to start).",
       "Step B — copy your keys: click \"Account\" in the left sidebar, then click \"API Keys\". You'll see \"Public Key\" and \"Private Key\". Copy the Public Key into EMAILJS_PUBLIC_KEY. For the Private Key, you first need to turn on \"Strict Mode\" (a toggle on this same page) — turn it on, then a Private Key appears; copy that into EMAILJS_PRIVATE_KEY.",
@@ -368,40 +370,54 @@ const REMAINING_ENV_HELP = {
 
 /**
  * applyEmailjsBranding
- * Swaps the placeholder resort name and gold accent color baked into
- * the two EmailJS copy-paste templates below for the actual Step 3
- * branding (siteTitle/brandAccentColor), so what the developer pastes
- * into the EmailJS dashboard already matches their resort — instead of
- * always shipping "VILLA AZURE" in a fixed gold (#d4a574 / #b8975a)
- * regardless of what was set in Step 3.
+ * Swaps the placeholder resort name, gold accent color, address,
+ * phone, and email baked into the two EmailJS copy-paste templates
+ * below for the actual Step 3 branding + Contact Info
+ * (siteTitle/brandAccentColor/resortPhone/resortEmail/resortAddress),
+ * so what the developer pastes into the EmailJS dashboard already
+ * matches their resort — instead of always shipping "VILLA AZURE" in
+ * a fixed gold (#d4a574 / #b8975a) with a Nasugbu, Batangas placeholder
+ * address regardless of what was set in Step 3.
  *
  * IMPORTANT — this only affects what gets COPIED here, once, during
  * setup. EmailJS templates are static HTML pasted by hand into an
  * external dashboard (dashboard.emailjs.com) — there's no live merge
- * tag for "accent color" EmailJS understands, so once pasted, the
- * color is fixed there until someone edits it manually in EmailJS
- * again. That's consistent with Rule 44/Section 0's "branding is set
- * once" model, but it does mean re-running the wizard's Step 3 (which
- * can't happen anyway — it locks after setup) or changing the resort
- * name directly in the database later would NOT retroactively update
- * an already-pasted EmailJS template; only future re-pastes of this
- * block would carry the new value.
+ * tag for "accent color" or "resort address" EmailJS understands, so
+ * once pasted, these values are fixed there until someone edits them
+ * manually in EmailJS again. That's consistent with Rule 44/Section
+ * 0's "branding is set once" model, but it does mean re-running the
+ * wizard's Step 3 (which can't happen anyway — it locks after setup)
+ * or changing the resort name/contact info directly in the database
+ * later would NOT retroactively update an already-pasted EmailJS
+ * template; only future re-pastes of this block would carry the new
+ * values.
  *
- * Deliberately narrow — only the resort-name wordmark occurrences and
- * the gold accent hex codes are swapped. The placeholder tagline
- * ("Private Resort & Retreat" / "Nasugbu, Batangas"), navy background
- * (#1a2f4f, not part of the brandAccentColor system), and the
- * placeholder address/phone/email have no matching SystemSettings
- * field yet, so they're left as literal placeholders for the
- * developer to hand-edit, same as before this function existed.
+ * Falls back to the literal placeholder for any of resortPhone /
+ * resortEmail / resortAddress left blank in Step 3 — same
+ * "still a valid, working template the developer can hand-edit"
+ * fallback the resort name/color already had. The placeholder
+ * tagline ("Private Resort & Retreat" / "Nasugbu, Batangas") and navy
+ * background (#1a2f4f, not part of the brandAccentColor system) are
+ * still left as literal placeholders — no matching SystemSettings
+ * field for those.
  */
-function applyEmailjsBranding(code, resortName, accentColor) {
+function applyEmailjsBranding(code, resortName, accentColor, resortPhone, resortEmail, resortAddress) {
   let brandedCode = code
     .replaceAll("VILLA AZURE", resortName.toUpperCase())
     .replaceAll("your-private-resort", resortName);
 
   if (accentColor) {
     brandedCode = brandedCode.replaceAll("#d4a574", accentColor).replaceAll("#b8975a", accentColor);
+  }
+
+  if (resortAddress) {
+    brandedCode = brandedCode.replaceAll("123 Azure Shores Drive, Nasugbu, Batangas 4231", resortAddress);
+  }
+  if (resortPhone) {
+    brandedCode = brandedCode.replaceAll("+63 917 123 4567", resortPhone);
+  }
+  if (resortEmail) {
+    brandedCode = brandedCode.replaceAll("reservations@villaazure.com", resortEmail);
   }
 
   return brandedCode;
@@ -416,16 +432,22 @@ export default function RemainingEnvStep() {
   const [continued, setContinued] = useState(false);
   const [resortName, setResortName] = useState("your-private-resort");
   const [accentColor, setAccentColor] = useState(null);
+  const [resortPhone, setResortPhone] = useState(null);
+  const [resortEmail, setResortEmail] = useState(null);
+  const [resortAddress, setResortAddress] = useState(null);
   const { toasts, showToast, dismissToast } = useToast();
 
-  // Pulls the already-saved Step 3 branding (siteTitle/brandAccentColor)
+  // Pulls the already-saved Step 3 branding + Contact Info
+  // (siteTitle/brandAccentColor/resortPhone/resortEmail/resortAddress)
   // so the EmailJS "Template 1"/"Template 2" code blocks below show —
-  // and copy to clipboard — with THIS resort's name and accent color
-  // already baked in, instead of the literal "VILLA AZURE" placeholder
-  // and its fixed gold accent. Same wizard-session-gated GET Step 3's
-  // BrandingCard.jsx itself uses. Best-effort — a failed fetch just
-  // means the code blocks fall back to the placeholder branding, which
-  // is still a valid, working template the developer can hand-edit.
+  // and copy to clipboard — with THIS resort's name, accent color, and
+  // real contact info already baked in, instead of the literal
+  // "VILLA AZURE" placeholder, its fixed gold accent, and the
+  // Nasugbu, Batangas placeholder address/phone/email. Same
+  // wizard-session-gated GET Step 3's BrandingCard.jsx itself uses.
+  // Best-effort — a failed fetch just means the code blocks fall back
+  // to the placeholder branding, which is still a valid, working
+  // template the developer can hand-edit.
   useEffect(() => {
     async function fetchBranding() {
       try {
@@ -434,6 +456,9 @@ export default function RemainingEnvStep() {
         if (result.success && result.data) {
           setResortName(result.data.siteTitle?.trim() || "your-private-resort");
           setAccentColor(result.data.brandAccentColor || null);
+          setResortPhone(result.data.resortPhone?.trim() || null);
+          setResortEmail(result.data.resortEmail?.trim() || null);
+          setResortAddress(result.data.resortAddress?.trim() || null);
         }
       } catch {
         // Fails quiet — code blocks below just show the placeholder branding.
@@ -535,7 +560,7 @@ export default function RemainingEnvStep() {
   if (isLoading && !status) {
     return (
       <div className="setupWizardCard" role="status">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 11</span>
         <h1 className="setupWizardTitle">Checking environment status…</h1>
       </div>
     );
@@ -544,7 +569,7 @@ export default function RemainingEnvStep() {
   if (loadError && !status) {
     return (
       <div className="setupWizardCard" role="alert">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 11</span>
         <h1 className="setupWizardTitle">Couldn&apos;t load environment status</h1>
         <p className="setupWizardError">{loadError}</p>
         <button type="button" className="setupWizardButton" onClick={handleCheckAgain}>
@@ -563,7 +588,7 @@ export default function RemainingEnvStep() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <div className="setupWizardCard">
-        <span className="setupWizardEyebrow">Step 4 of 10</span>
+        <span className="setupWizardEyebrow">Step 4 of 11</span>
         <h1 className="setupWizardTitle">Remaining services</h1>
         <p className="setupWizardBody">
           Set these in <code>.env.local</code> (and your deployment
@@ -634,15 +659,18 @@ export default function RemainingEnvStep() {
                 {group.id === "emailjs" && (
                   <p className="setupWizardInstructionsNote">
                     The blocks below already use your Step 3 branding — &quot;{resortName}&quot;
-                    {accentColor ? ` in ${accentColor}` : ""}. Once pasted into EmailJS, they stay
-                    static there — re-editing the resort name later (directly in the database, since
-                    Step 3 itself only ever runs once) won&apos;t retroactively update a template
-                    you&apos;ve already saved.
+                    {accentColor ? ` in ${accentColor}` : ""} — and your saved Contact Info
+                    {resortPhone || resortEmail || resortAddress ? "" : " (once you fill it in on Step 3)"}.
+                    Once pasted into EmailJS, they stay static there — re-editing the resort name or
+                    contact info later (directly in the database, since Step 3 itself only ever runs
+                    once) won&apos;t retroactively update a template you&apos;ve already saved.
                   </p>
                 )}
                 {REMAINING_ENV_HELP[group.id]?.codeBlocks?.map((block) => {
                   const resolvedCode =
-                    group.id === "emailjs" ? applyEmailjsBranding(block.code, resortName, accentColor) : block.code;
+                    group.id === "emailjs"
+                      ? applyEmailjsBranding(block.code, resortName, accentColor, resortPhone, resortEmail, resortAddress)
+                      : block.code;
                   return (
                     <div key={block.label} className="setupWizardCodeBlockGroup">
                       <span className="setupWizardInstructionsLabel">{block.label}</span>

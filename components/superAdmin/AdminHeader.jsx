@@ -62,10 +62,10 @@ const TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
 
 /* Add an entry here whenever a new admin page is built.
    Every route under app/superAdmin/(protected)/ must have a matching
-   entry — a missing one silently falls back to the generic
-   "your-private-resort Admin" label below, which reads like a bug (the header
-   then shows the same text on every page instead of telling the admin
-   where they are). */
+   entry — a missing one silently falls back to the branded
+   "{resort-name}-admin" label below, which reads like a bug (the
+   header then shows the same text on every page instead of telling
+   the admin where they are). */
 const PAGE_TITLES = {
   "/superAdmin/dashboard": "Dashboard",
   "/superAdmin/bookings": "Bookings",
@@ -78,6 +78,7 @@ const PAGE_TITLES = {
   "/superAdmin/content/homepage": "Homepage Customization",
   "/superAdmin/content/policies": "Policies",
   "/superAdmin/settings/booking-rules": "Booking Rules",
+  "/superAdmin/settings/admin-access-limit": "Admin Access Limit",
   "/superAdmin/analytics": "Analytics",
   "/superAdmin/activity-feed": "Activity Feed",
   "/superAdmin/visitor-logs": "Visitor Logs",
@@ -105,16 +106,16 @@ const PAGE_TITLE_PREFIXES = [
 /**
  * resolvePageTitle
  * Looks up the exact pathname first, then falls back to the closest
- * matching prefix for dynamic routes, then finally to the generic
- * "your-private-resort Admin" label if nothing matches at all.
+ * matching prefix for dynamic routes, then finally to the branded
+ * "{resort-name}-admin" label if nothing matches at all.
  */
-function resolvePageTitle(pathname) {
+function resolvePageTitle(pathname, adminLabel) {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   const prefixMatch = PAGE_TITLE_PREFIXES.find((entry) => pathname.startsWith(entry.prefix));
-  return prefixMatch?.label ?? "your-private-resort Admin";
+  return prefixMatch?.label ?? adminLabel;
 }
 
-export default function AdminHeader() {
+export default function AdminHeader({ adminLabel }) {
   const pathname = usePathname();
   const router = useRouter();
   const menuRef = useRef(null);
@@ -124,7 +125,7 @@ export default function AdminHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const pageTitle = resolvePageTitle(pathname);
+  const pageTitle = resolvePageTitle(pathname, adminLabel);
 
   // Live clock — ticks every second, purely client-side (no server
   // round-trip needed for "what time is it right now").

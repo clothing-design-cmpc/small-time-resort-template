@@ -432,13 +432,16 @@ export default function HowToBookSection() {
       }
 
       if (allowOvernightStay) {
-        // The rule was already resolved by GET /api/booking-rules using
-        // ?nights=nightsSelected (see handleContinue's request above),
-        // which strictly matches a rule set built for this exact night
-        // count — so allowOvernightStay being true here already means
-        // this exact nightsSelected is covered. No separate min/max
-        // nights range check needed.
-        const overnightFits = rule.allowOvernightStay;
+        // IMPORTANT: getActiveBookingRuleForDateCount() (used by
+        // /api/booking-rules) falls back to "whichever Active Overnight
+        // rule was most recently updated" whenever no rule exists for
+        // this EXACT howManySelectedDates — so rule.allowOvernightStay
+        // being true does NOT by itself mean this rule was built for
+        // nightsSelected. It could silently be a 1-night rule matched
+        // against a 3-night selection. matchedRuleNights
+        // (BookingRule.howManySelectedDates) must equal nightsSelected
+        // for this to be a genuine, admin-configured match.
+        const overnightFits = rule.allowOvernightStay && rule.matchedRuleNights === nightsSelected;
 
         if (nightsSelected === 1) {
           // Exactly ONE date selected — ambiguous between Overnight (1
@@ -533,14 +536,15 @@ export default function HowToBookSection() {
         }
 
         // 2+ dates selected — no ambiguity, this can only ever be an
-        // Overnight stay, so it must fit this rule's configured
-        // min/max nights.
+        // Overnight stay, so a rule set actually built for this exact
+        // night count must exist and be Active — never silently reuse
+        // a fallback rule built for a different night count.
         if (!rule.allowOvernightStay) {
           showToast("✕ Overnight stays aren't available right now. Please try again later.", "error");
           return;
         }
         if (!overnightFits) {
-          showToast(`✕ No package covers ${nightsSelected} night(s). Please adjust your dates.`, "error");
+          showToast(`✕ No existing booking rule for a ${nightsSelected}-night stay. Please choose a different date range or try again later.`, "error");
           return;
         }
 

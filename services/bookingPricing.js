@@ -155,7 +155,8 @@ export async function validateAndQuoteBooking({
   // malformed/missing checkOutDate just leaves nightsForRuleMatch null,
   // which getActiveBookingRuleForDateCount treats the same as "no rule
   // matched" — the checks below (missing checkOutDate, nights < 1,
-  // outside min/max) still fire with their normal messages either way.
+  // rule not built for this exact night count) still fire with their
+  // normal messages either way.
   let nightsForRuleMatch = null;
   if (bookingType === "overnight" && checkOutDate) {
     const provisionalCheckIn = startOfDay(new Date(`${checkInDate}T00:00:00`));
@@ -245,6 +246,18 @@ export async function validateAndQuoteBooking({
 
     if (nights < 1) {
       throw new Error("Check-out date must be after check-in date.");
+    }
+
+    // getActiveBookingRuleForDateCount() (used to resolve `rules` above)
+    // silently falls back to "whichever Active Overnight rule was most
+    // recently updated" whenever no rule exists for this EXACT
+    // nightsForRuleMatch — so `rules` being present does NOT by itself
+    // mean it was built for this many nights. Confirm the match here,
+    // server-side, since this is the only place a Booking row actually
+    // gets written from (bypasses the visitor calendar UI entirely if
+    // someone posts directly to this endpoint).
+    if (rules.howManySelectedDates !== nights) {
+      throw new Error(`No existing booking rule for a ${nights}-night stay. Please choose a different date range.`);
     }
   }
 

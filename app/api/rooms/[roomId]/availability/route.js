@@ -20,7 +20,6 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
-import { getActiveBookingRule } from "@/services/bookingRules";
 
 function toDateKey(date) {
   const y = date.getFullYear();
@@ -79,7 +78,7 @@ export async function GET(request, { params }) {
       excludeBookingId = excludedBooking?.id ?? null;
     }
 
-    const [bookings, blackoutRanges, rules] = await Promise.all([
+    const [bookings, blackoutRanges] = await Promise.all([
       prisma.booking.findMany({
         where: {
           roomId,
@@ -92,7 +91,6 @@ export async function GET(request, { params }) {
         where: { roomId },
         select: { startDate: true, endDate: true, reason: true },
       }),
-      getActiveBookingRule(),
     ]);
 
     const unavailableSet = new Set();
@@ -112,8 +110,6 @@ export async function GET(request, { params }) {
       data: {
         unavailableDates: Array.from(unavailableSet).sort(),
         capacity: room.capacity,
-        minNightsPerBooking: rules.minNightsRequired,
-        maxNightsPerBooking: rules.maxNightsAllowed,
       },
       message: "Room availability fetched successfully.",
     });

@@ -91,9 +91,6 @@ export async function POST(request) {
         // Every new rule set starts Active — the admin can toggle it to
         // Inactive afterward from the list page if needed.
         isActive: true,
-        minNightsRequired: body.minNightsRequired,
-        maxNightsAllowed: body.maxNightsAllowed,
-        advanceBookingDays: body.advanceBookingDays,
         ruleDates: Array.isArray(body.ruleDates) ? body.ruleDates : undefined,
         // Denormalized nights count for the date-count rule matching
         // used by services/bookingRules.js -> getActiveBookingRuleForDateCount()

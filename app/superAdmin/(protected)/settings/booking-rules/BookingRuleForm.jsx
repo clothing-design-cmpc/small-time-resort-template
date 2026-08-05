@@ -602,9 +602,10 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
                1 date   -> Rule 1: choose Overnight/Day Tour/Night Tour
                2+ dates -> Rule 2: Overnight (Customized) + Hourly Charge
              minNightsRequired/maxNightsAllowed/advanceBookingDays were
-             removed from this form per admin request — no longer
-             editable here, but remain in the DB at their defaults so
-             existing booking validation is unaffected. */}
+             removed entirely — field, validation, and API exposure —
+             per admin request. Rule matching is exact-night-count-based
+             (howManySelectedDates) so a separate range/advance-window
+             check was redundant. */}
         <div className="bookingRulesSection">
           <h2 className="bookingRulesSectionTitle">Section 1: Rule Schedule</h2>
           <p className="bookingRulesSectionSubtitle">Piliin ang petsa (o mga petsa) na sasakupin ng rule na ito, tapos punan ang mga detalye.</p>

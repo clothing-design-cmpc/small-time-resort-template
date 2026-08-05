@@ -198,10 +198,10 @@ export async function validateAndQuoteBooking({
     throw new Error("Check-in date must be today or later.");
   }
 
+  // Still needed below for the Last-Minute Discount window check
+  // (rules.lastMinuteDiscountPercent) — advanceBookingDays itself no
+  // longer gates anything, but daysOut is unrelated to that field.
   const daysOut = daysBetween(today, checkIn);
-  if (daysOut > rules.advanceBookingDays) {
-    throw new Error(`Bookings can only be made up to ${rules.advanceBookingDays} days in advance.`);
-  }
 
   if (!Number.isInteger(numberOfGuests) || numberOfGuests < 1) {
     throw new Error("Enter a valid number of guests.");
@@ -233,7 +233,7 @@ export async function validateAndQuoteBooking({
     throw new Error(`This room fits up to ${room.capacity} guest(s).`);
   }
 
-  // --- Overnight-only: nights range, room availability ---
+  // --- Overnight-only: nights count, room availability ---
   let checkOut = checkIn;
   let nights = 0;
 
@@ -245,16 +245,6 @@ export async function validateAndQuoteBooking({
 
     if (nights < 1) {
       throw new Error("Check-out date must be after check-in date.");
-    }
-
-    // Nights range now comes only from the currently active BookingRule
-    // (Settings > Booking Rules) — rooms no longer carry their own
-    // override, so there's exactly one place an admin needs to check.
-    if (nights < rules.minNightsRequired) {
-      throw new Error(`This stay requires a minimum of ${rules.minNightsRequired} night(s).`);
-    }
-    if (nights > rules.maxNightsAllowed) {
-      throw new Error(`This stay cannot exceed ${rules.maxNightsAllowed} nights.`);
     }
   }
 

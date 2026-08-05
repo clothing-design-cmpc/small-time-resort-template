@@ -4,9 +4,9 @@
  *
  * PURPOSE:
  * Read-only view of the currently active BookingRule, trimmed to only
- * the fields the visitor booking form actually needs (nights range,
- * advance booking window, check-in/out times, which booking types are
- * enabled, tour windows/prices, deposit %, cancellation terms).
+ * the fields the visitor booking form actually needs (check-in/out
+ * times, which booking types are enabled, tour windows/prices,
+ * deposit %, cancellation terms).
  * Deliberately separate from
  * app/api/superAdmin/settings/booking-rules/route.js, which is the
  * admin CRUD route for the full list of rule sets — this route never
@@ -56,9 +56,6 @@ const EMPTY_RULE = {
   allowOvernightStay: false,
   allowDayTour: false,
   allowNightTour: false,
-  minNightsRequired: null,
-  maxNightsAllowed: null,
-  advanceBookingDays: null,
   checkInTime: null,
   checkOutTime: null,
   refundPercentage: null,
@@ -156,9 +153,6 @@ export async function GET(request) {
         // Overnight-specific — from the rule set active (and, if
         // nightsSelected was given, matched) for Overnight
         allowOvernightStay: overnightRule.allowOvernightStay,
-        minNightsRequired: overnightRule.minNightsRequired,
-        maxNightsAllowed: overnightRule.maxNightsAllowed,
-        advanceBookingDays: overnightRule.advanceBookingDays,
         checkInTime: overnightRule.checkInTime,
         checkOutTime: overnightRule.checkOutTime,
         refundPercentage: overnightRule.refundPercentage,

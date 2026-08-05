@@ -394,8 +394,8 @@ export default function HowToBookSection() {
   // Before sending the visitor into the reservation flow, confirm the
   // ACTUAL selected date range is bookable — not just that some rule
   // exists, but that its allowed booking type covers this selection
-  // (Overnight Stay: night count within minNightsRequired/
-  // maxNightsAllowed; Tour: at least one Tour type enabled).
+  // (Overnight Stay: a rule set exists that allows Overnight for this
+  // exact night count; Tour: at least one Tour type enabled).
   async function handleContinue() {
     if (selectedDates.length === 0) return;
     setIsCheckingRule(true);
@@ -432,9 +432,13 @@ export default function HowToBookSection() {
       }
 
       if (allowOvernightStay) {
-        const minNights = rule.minNightsRequired ?? 1;
-        const maxNights = rule.maxNightsAllowed ?? Infinity;
-        const overnightFits = rule.allowOvernightStay && nightsSelected >= minNights && nightsSelected <= maxNights;
+        // The rule was already resolved by GET /api/booking-rules using
+        // ?nights=nightsSelected (see handleContinue's request above),
+        // which strictly matches a rule set built for this exact night
+        // count — so allowOvernightStay being true here already means
+        // this exact nightsSelected is covered. No separate min/max
+        // nights range check needed.
+        const overnightFits = rule.allowOvernightStay;
 
         if (nightsSelected === 1) {
           // Exactly ONE date selected — ambiguous between Overnight (1
@@ -536,8 +540,7 @@ export default function HowToBookSection() {
           return;
         }
         if (!overnightFits) {
-          const rangeLabel = minNights === maxNights ? `${minNights}` : `${minNights}–${maxNights}`;
-          showToast(`✕ No package covers ${nightsSelected} night(s). Available range is ${rangeLabel} night(s) — please adjust your dates.`, "error");
+          showToast(`✕ No package covers ${nightsSelected} night(s). Please adjust your dates.`, "error");
           return;
         }
 

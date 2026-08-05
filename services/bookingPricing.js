@@ -365,6 +365,29 @@ export async function validateAndQuoteBooking({
   const requestedCheckInUtc = toUtcMidnight(checkIn);
   const requestedCheckOutUtc = toUtcMidnight(checkOut);
 
+  // --- Same-Type Duplicate Guard (ALWAYS enforced, regardless of sameDayPolicy) ---
+  // However flexible "auto_adjust" is about DIFFERENT types sharing a
+  // date sequentially (see the Cleaning-Buffer block below), it must
+  // never allow TWO bookings of the exact same type to double up on the
+  // same date — there's only one Day Tour slot, one Night Tour slot, and
+  // the villa itself for one Overnight party, per day. Runs before any
+  // of the cross-type checks below so it can never be bypassed by an
+  // auto_adjust exemption meant for a DIFFERENT type's conflict.
+  const sameTypeConflict = existingBookings.some((existing) => {
+    if (existing.bookingType !== bookingType) return false;
+    if (bookingType === "overnight") {
+      // Genuine date-range overlap — two Overnight stays can never share
+      // so much as a single occupied night, auto_adjust or not.
+      return requestedCheckInUtc < existing.checkOutDate && requestedCheckOutUtc > existing.checkInDate;
+    }
+    // Day Tour / Night Tour each occupy exactly one date.
+    return toDateKey(utcDateToLocalCalendarDay(existing.checkInDate)) === toDateKey(checkIn);
+  });
+  if (sameTypeConflict) {
+    const typeLabel = bookingType === "overnight" ? "Overnight stay" : bookingType === "day_tour" ? "Day Tour" : "Night Tour";
+    throw new Error(`This ${typeLabel} slot is already booked for this date. Please choose a different date.`);
+  }
+
   // --- Type-exclusivity check against existing confirmed bookings (Overnight only) ---
   // Exclusivity rule (villa is booked for exclusive use per stay):
   //   - Overnight conflicts with ANY existing confirmed booking (Overnight,
@@ -377,6 +400,21 @@ export async function validateAndQuoteBooking({
   //     booking on that date — the villa is already exclusively occupied.
   if (bookingType === "overnight" && roomId) {
     const requestedOverlaps = existingBookings.some((existing) => {
+      // SEQUENTIAL AUTO-ADJUST (BookingRule.sameDayPolicy = "auto_adjust"):
+      // a same-day Day Tour or Night Tour that occupies THIS Overnight
+      // request's own check-in date is not treated as a hard conflict
+      // here — that's exactly the back-to-back turnover the
+      // Cleaning-Buffer check below resolves by pushing the effective
+      // check-in later instead of rejecting the date outright. Any OTHER
+      // day a Day/Night Tour falls on inside a multi-night stay is still
+      // a genuine, non-adjustable conflict and keeps blocking below.
+      if (
+        rules.sameDayPolicy === "auto_adjust" &&
+        existing.bookingType !== "overnight" &&
+        toDateKey(utcDateToLocalCalendarDay(existing.checkInDate)) === toDateKey(checkIn)
+      ) {
+        return false;
+      }
       const existingCheckOut =
         existing.bookingType === "overnight"
           ? existing.checkOutDate
@@ -412,13 +450,33 @@ export async function validateAndQuoteBooking({
   // actually ready — regardless of whether the outgoing booking was
   // Overnight, Day Tour, or Night Tour, and regardless of what type is
   // checking in next. This applies resort-wide, in both directions.
+  //
+  // SEQUENTIAL AUTO-ADJUST (BookingRule.sameDayPolicy = "auto_adjust"):
+  // previously a conflict here ALWAYS threw, even though this is a
+  // single exclusive-use property that can legitimately host, say, a Day
+  // Tour in the morning and an Overnight guest that same evening, back
+  // to back. Now, when the rule active FOR THE TYPE BEING BOOKED is on
+  // "auto_adjust", a conflict no longer blocks the booking outright — it
+  // instead pushes the effective check-in to the moment cleaning
+  // actually finishes, and shifts the checkout moment forward by that
+  // same delay (duration-preserving, same pattern as the Same-Day
+  // Check-In Policy block above — extends effectiveCheckInAt/
+  // effectiveCheckOutAt if that block already set them for a "today,
+  // past normal start time" reason). "strict" rules keep the original
+  // hard-block behavior unchanged.
   {
     const startTimeByType = {
       overnight: rules.checkInTime,
       day_tour: rules.dayTourStartTime,
       night_tour: rules.nightTourStartTime,
     };
-    const requestedCheckInMoment = effectiveCheckInAt ?? combineDateAndTime(checkIn, startTimeByType[bookingType]);
+    const endTimeByType = {
+      overnight: rules.checkOutTime,
+      day_tour: rules.dayTourEndTime,
+      night_tour: rules.nightTourEndTime,
+    };
+    const baseCheckInMoment = effectiveCheckInAt ?? combineDateAndTime(checkIn, startTimeByType[bookingType]);
+    const baseCheckOutMoment = effectiveCheckOutAt ?? combineDateAndTime(checkOut, endTimeByType[bookingType]);
 
     // Resolve the currently active rule for every OTHER booking type too
     // (reusing `rules` for the incoming type itself, no extra fetch) — an
@@ -431,34 +489,35 @@ export async function validateAndQuoteBooking({
     ]);
     const ruleByType = { overnight: overnightRule, day_tour: dayTourRule, night_tour: nightTourRule };
 
-    const turnoverConflict = existingBookings.some((existing) => {
+    // Collect the LATEST "cleaning ends at" moment across every
+    // conflicting turnover — not just a boolean — since more than one
+    // existing booking can check out into this same calendar day (e.g. a
+    // Day Tour AND a Night Tour both ended today); the new guest can't
+    // arrive until the latest of them is actually ready.
+    let latestCleaningEndsAt = null;
+    for (const existing of existingBookings) {
       // Only current/upcoming bookings can ever conflict with a brand-new
       // one — a booking whose checkout date has already fully passed is
       // done and gone regardless of what Cleaning Hours is set to today.
-      // (checkIn itself is already required to be today or later above,
-      // but this guard makes that intent explicit here too, so this check
-      // can never reach back into old history even if that earlier rule
-      // changes later.)
       const existingCheckOutLocalDay = utcDateToLocalCalendarDay(existing.checkOutDate);
-      if (existingCheckOutLocalDay < today) return false;
+      if (existingCheckOutLocalDay < today) continue;
 
       const isBackToBackTurnover = toDateKey(existingCheckOutLocalDay) === toDateKey(checkIn);
-      if (!isBackToBackTurnover) return false;
+      if (!isBackToBackTurnover) continue;
 
       const ruleForExisting = ruleByType[existing.bookingType] ?? ruleByType.overnight;
-      const endTimeByType = {
+      const existingEndTimeByType = {
         overnight: ruleForExisting.checkOutTime,
         day_tour: ruleForExisting.dayTourEndTime,
         night_tour: ruleForExisting.nightTourEndTime,
       };
 
       // Prefer the exact recorded moment (set only when that earlier
-      // booking's own Same-Day Auto-Adjust actually fired); otherwise
-      // fall back to that booking's own type's standard end time for
-      // that day.
+      // booking's own auto-adjust actually fired); otherwise fall back
+      // to that booking's own type's standard end time for that day.
       const existingCheckoutMoment =
         existing.effectiveCheckOutAt ??
-        combineDateAndTime(existingCheckOutLocalDay, endTimeByType[existing.bookingType]);
+        combineDateAndTime(existingCheckOutLocalDay, existingEndTimeByType[existing.bookingType]);
 
       // Prefer the Cleaning Hours snapshotted on THAT booking at the
       // moment it was created — never today's live global setting — so
@@ -469,12 +528,44 @@ export async function validateAndQuoteBooking({
       const cleaningHoursForExisting = existing.cleaningHoursSnapshot ?? globalCleaningHours;
       const cleaningEndsAt = getCleaningEndsAt(existingCheckoutMoment, cleaningHoursForExisting);
 
-      return requestedCheckInMoment < cleaningEndsAt;
-    });
-    if (turnoverConflict) {
-      throw new Error(
-        "This isn't ready yet for that check-in time — the previous guest's checkout and cleaning haven't finished. Please choose a later check-in time or a different date."
-      );
+      if (cleaningEndsAt > baseCheckInMoment && (!latestCleaningEndsAt || cleaningEndsAt > latestCleaningEndsAt)) {
+        latestCleaningEndsAt = cleaningEndsAt;
+      }
+    }
+
+    if (latestCleaningEndsAt) {
+      if (rules.sameDayPolicy !== "auto_adjust") {
+        throw new Error(
+          "This isn't ready yet for that check-in time — the previous guest's checkout and cleaning haven't finished. Please choose a later check-in time or a different date."
+        );
+      }
+
+      // Auto-adjust: push check-in to the moment cleaning finishes, and
+      // shift check-out forward by the exact same delay so the guest's
+      // paid duration never shrinks — same principle as the Same-Day
+      // Check-In Policy block above, just triggered by an existing
+      // booking's turnover instead of the live clock.
+      const additionalDelayMs = latestCleaningEndsAt.getTime() - baseCheckInMoment.getTime();
+      effectiveCheckInAt = latestCleaningEndsAt;
+      effectiveCheckOutAt = new Date(baseCheckOutMoment.getTime() + additionalDelayMs);
+
+      if (toDateKey(effectiveCheckOutAt) !== toDateKey(baseCheckOutMoment)) {
+        checkOut = startOfDay(effectiveCheckOutAt);
+      }
+
+      // Day Tour / Night Tour are same-day sessions — if the adjusted
+      // check-in now lands at or after this type's OWN normal end time,
+      // there's no real session left to sell that day. Overnight has no
+      // such ceiling since its checkout is always a different calendar
+      // day by definition.
+      if (bookingType !== "overnight") {
+        const ownEndMoment = combineDateAndTime(checkIn, endTimeByType[bookingType]);
+        if (effectiveCheckInAt >= ownEndMoment) {
+          throw new Error(
+            "No time remains for this tour today after the previous booking's checkout and cleaning. Please choose a different date."
+          );
+        }
+      }
     }
   }
 
@@ -519,7 +610,13 @@ export async function validateAndQuoteBooking({
       },
       select: { id: true },
     });
-    if (conflictingOvernightStay) {
+    // SEQUENTIAL AUTO-ADJUST: if the Cleaning-Buffer block above already
+    // resolved this exact same-day-checkout-edge conflict (only possible
+    // for Day Tour's "gte" case — Night Tour's "gt" never matches a mere
+    // checkout-day edge, only a genuine interior-day overlap, which stays
+    // hard-blocked below regardless of policy), effectiveCheckInAt is
+    // already set and there's nothing left to reject here.
+    if (conflictingOvernightStay && !(rules.sameDayPolicy === "auto_adjust" && effectiveCheckInAt)) {
       throw new Error("The villa is already booked for an overnight stay on this date. Please pick a different date.");
     }
   }

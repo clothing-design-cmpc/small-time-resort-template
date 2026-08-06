@@ -53,6 +53,18 @@ const MARGIN = 56;
 const PESO_NUMBER = new Intl.NumberFormat("en-PH", { maximumFractionDigits: 0 });
 const PESO = { format: (value) => `PHP ${PESO_NUMBER.format(value)}` };
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
+// Formats an effectiveCheckInAt/effectiveCheckOutAt ISO moment
+// (Sequential Auto-Adjust — see services/bookingPricing.js's
+// Cleaning-Buffer block) into a full date + time — same wording/shape
+// as app/visitor/booking/ReservationSummaryClient.jsx's own
+// FULL_DATE_TIME, just en-US locale to match this file's FULL_DATE above.
+const FULL_DATE_TIME = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 /**
  * drawWatermark
@@ -231,8 +243,20 @@ export async function generateInvoicePdf(booking, location = {}, packageInclusio
   writeLine("Stay Details", { font: fontBold, size: 12, gap: 20 });
   if (booking.room?.name) writeLine(`Room / Villa: ${booking.room.name}`);
   writeLine(`Booking type: ${booking.bookingType.replace("_", " ")}`);
-  writeLine(`Check-in: ${FULL_DATE.format(new Date(booking.checkInDate))}`);
-  writeLine(`Check-out: ${FULL_DATE.format(new Date(booking.checkOutDate))}`);
+  writeLine(`Check-in: ${booking.effectiveCheckInAt ? FULL_DATE_TIME.format(new Date(booking.effectiveCheckInAt)) : FULL_DATE.format(new Date(booking.checkInDate))}`);
+  writeLine(`Check-out: ${booking.effectiveCheckOutAt ? FULL_DATE_TIME.format(new Date(booking.effectiveCheckOutAt)) : FULL_DATE.format(new Date(booking.checkOutDate))}`);
+  if (booking.effectiveCheckInAt) {
+    // Sequential Auto-Adjust pushed this booking's real check-in later
+    // than the rule's normal default (a previous same-day booking's
+    // checkout + cleaning ran past it) — flagged here so a guest
+    // reading a downloaded/printed PDF isn't caught off guard, same
+    // awareness note the confirmation email and the in-app summary
+    // page (ReservationSummaryClient.jsx) already show.
+    writeLine("Check-in time adjusted — the previous guests' checkout and cleaning ran later that day.", {
+      size: 8.5,
+      color: MUTED,
+    });
+  }
   writeLine(`Guests: ${booking.numberOfGuests}`, { gap: 26 });
 
   // --- Included in this Package — free-text extras + resolved Amenity/

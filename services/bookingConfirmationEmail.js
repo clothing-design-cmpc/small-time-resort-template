@@ -28,6 +28,18 @@ import { prisma } from "./prisma.js";
 import { sendGeneralEmail } from "./emailjs.js";
 import { DEFAULT_HOUSE_RULES } from "@/utils/defaultHouseRules";
 
+// Formats an effectiveCheckInAt/effectiveCheckOutAt ISO moment (Sequential
+// Auto-Adjust — see services/bookingPricing.js) into a full date + time,
+// same wording/shape as app/visitor/booking/ReservationSummaryClient.jsx's
+// own FULL_DATE_TIME, just en-PH locale to match this file's other dates.
+const FULL_DATE_TIME_FMT = new Intl.DateTimeFormat("en-PH", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 /**
  * escapeHtml
  * Minimal HTML-escaping for guest-supplied and admin-supplied plain
@@ -146,16 +158,33 @@ export async function sendBookingConfirmationEmail({ booking }) {
       ? systemSettings.brandAccentColor
       : "#22c55e";
 
-    const checkInDate = new Date(booking.checkInDate).toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    const checkOutDate = new Date(booking.checkOutDate).toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    // Sequential Auto-Adjust (services/bookingPricing.js's Cleaning-Buffer
+    // block, and the older Same-Day Check-In Policy block before it) may
+    // have pushed this booking's real check-in/check-out moment later
+    // than the rule's normal default — effectiveCheckInAt/
+    // effectiveCheckOutAt carry the ACTUAL moment when that happened,
+    // same fields app/visitor/booking/ReservationSummaryClient.jsx
+    // already shows the guest in-app. Previously this email only ever
+    // showed the plain calendar date (no time at all), so an adjusted
+    // guest never learned their real check-in time until they arrived —
+    // now it shows the exact date + time whenever an adjustment exists,
+    // and falls back to the plain date for the normal, un-adjusted case.
+    const checkInWasAdjusted = Boolean(booking.effectiveCheckInAt);
+    const checkOutWasAdjusted = Boolean(booking.effectiveCheckOutAt);
+    const checkInDate = checkInWasAdjusted
+      ? FULL_DATE_TIME_FMT.format(new Date(booking.effectiveCheckInAt))
+      : new Date(booking.checkInDate).toLocaleDateString("en-PH", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+    const checkOutDate = checkOutWasAdjusted
+      ? FULL_DATE_TIME_FMT.format(new Date(booking.effectiveCheckOutAt))
+      : new Date(booking.checkOutDate).toLocaleDateString("en-PH", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
 
     const bodyMessage = [
       `<p style="margin:0 0 14px;">Hi ${escapeHtml(booking.guestName)},</p>`,
@@ -165,6 +194,11 @@ export async function sendBookingConfirmationEmail({ booking }) {
         <p style="margin:0;"><strong>Reference:</strong> ${escapeHtml(booking.referenceCode)}</p>
         <p style="margin:0;"><strong>Room/Package:</strong> ${escapeHtml(booking.room?.name || "N/A")}</p>
         <p style="margin:0;"><strong>Check-in:</strong> ${escapeHtml(checkInDate)} &nbsp; <strong>Check-out:</strong> ${escapeHtml(checkOutDate)}</p>
+        ${
+          checkInWasAdjusted
+            ? `<p style="margin:6px 0 0;font-size:12.5px;color:rgba(255,255,255,0.55);">Your check-in time was adjusted from the usual schedule because the previous guests' checkout and cleaning ran later that day.</p>`
+            : ""
+        }
         <p style="margin:0;"><strong>Guests:</strong> ${escapeHtml(booking.numberOfGuests)}</p>
         <p style="margin:0;"><strong>Total:</strong> ₱${escapeHtml(Number(booking.totalAmount).toLocaleString("en-PH"))} &nbsp; <strong>Deposit:</strong> ₱${escapeHtml(Number(booking.depositAmount).toLocaleString("en-PH"))}</p>
       </div>`,

@@ -34,26 +34,26 @@ import "./styles/mediaQueries.css";
 import AnalyticsBeacon from "@/components/shared/AnalyticsBeacon";
 import RightClickGuard from "@/components/shared/RightClickGuard";
 import { prisma } from "@/services/prisma";
-import { darkenHexColor, hexToRgbaString } from "@/utils/colorShade";
+import { darkenHexColor, lightenHexColor, hexToRgba } from "@/utils/colorShade";
 
 const DEFAULT_RESORT_NAME = "your-private-resort";
 const DEFAULT_RESORT_DESCRIPTION =
   "A private resort offering an intimate escape — rooms, amenities, and experiences.";
 const DEFAULT_ACCENT_COLOR = "#3f7d52";
-const DEFAULT_SECONDARY_COLOR = "#c9935e";
 const DEFAULT_BACKGROUND_COLOR = "#f8faf3";
+const DEFAULT_SURFACE_COLOR = "#eef2e7";
+const DEFAULT_BORDER_COLOR = "#d8e0d2";
 const DEFAULT_TEXT_COLOR = "#1c2b20";
-const DEFAULT_BORDER_COLOR = "#e5e2db";
 
 /**
  * getBrandIdentity
  * Reads the singleton SystemSettings row for the resort's display
- * name (siteTitle), SEO description, OG image, and the 5-token brand
- * color system — used below by both generateMetadata() and the
- * <html> tag's inline CSS variable override. Wrapped in React's
- * cache() so both callers share one DB read per request instead of
- * two. Fails safe to the placeholder defaults on any DB error so the
- * site never 500s on this alone.
+ * name (siteTitle), SEO description, OG image, and the full 5-color
+ * brand palette (accent/background/surface/border/text) — used below
+ * by both generateMetadata() and the <html> tag's inline CSS variable
+ * overrides. Wrapped in React's cache() so both callers share one DB
+ * read per request instead of two. Fails safe to the placeholder
+ * defaults on any DB error so the site never 500s on this alone.
  */
 const getBrandIdentity = cache(async function getBrandIdentity() {
   try {
@@ -64,10 +64,10 @@ const getBrandIdentity = cache(async function getBrandIdentity() {
         siteDescription: true,
         ogImageUrl: true,
         brandAccentColor: true,
-        brandSecondaryColor: true,
         brandBackgroundColor: true,
-        brandTextColor: true,
+        brandSurfaceColor: true,
         brandBorderColor: true,
+        brandTextColor: true,
       },
     });
 
@@ -76,10 +76,10 @@ const getBrandIdentity = cache(async function getBrandIdentity() {
       resortDescription: settings?.siteDescription || DEFAULT_RESORT_DESCRIPTION,
       ogImageUrl: settings?.ogImageUrl || "/images/og-villa-azure.jpg",
       accentColor: settings?.brandAccentColor || DEFAULT_ACCENT_COLOR,
-      secondaryColor: settings?.brandSecondaryColor || DEFAULT_SECONDARY_COLOR,
       backgroundColor: settings?.brandBackgroundColor || DEFAULT_BACKGROUND_COLOR,
-      textColor: settings?.brandTextColor || DEFAULT_TEXT_COLOR,
+      surfaceColor: settings?.brandSurfaceColor || DEFAULT_SURFACE_COLOR,
       borderColor: settings?.brandBorderColor || DEFAULT_BORDER_COLOR,
+      textColor: settings?.brandTextColor || DEFAULT_TEXT_COLOR,
     };
   } catch {
     return {
@@ -87,10 +87,10 @@ const getBrandIdentity = cache(async function getBrandIdentity() {
       resortDescription: DEFAULT_RESORT_DESCRIPTION,
       ogImageUrl: "/images/og-villa-azure.jpg",
       accentColor: DEFAULT_ACCENT_COLOR,
-      secondaryColor: DEFAULT_SECONDARY_COLOR,
       backgroundColor: DEFAULT_BACKGROUND_COLOR,
-      textColor: DEFAULT_TEXT_COLOR,
+      surfaceColor: DEFAULT_SURFACE_COLOR,
       borderColor: DEFAULT_BORDER_COLOR,
+      textColor: DEFAULT_TEXT_COLOR,
     };
   }
 });
@@ -156,53 +156,49 @@ export async function generateMetadata() {
 }
 
 export default async function RootLayout({ children }) {
-  const { accentColor, secondaryColor, backgroundColor, textColor, borderColor } = await getBrandIdentity();
+  const { accentColor, backgroundColor, surfaceColor, borderColor, textColor } = await getBrandIdentity();
 
-  // Every value below is DERIVED at render time from the 5 raw hex
-  // colors above — no hover shade, tint, or opacity variant is ever
-  // stored on its own. See utils/colorShade.js and the schema comment
-  // on SystemSettings.brandAccentColor for the full role mapping.
-  const accentColorHover = darkenHexColor(accentColor, 0.2);
-  const secondaryColorHover = darkenHexColor(secondaryColor, 0.2);
-  const textColorSecondary = hexToRgbaString(textColor, 0.64);
-  const textColorMuted = hexToRgbaString(textColor, 0.44);
-  const borderColorBase = hexToRgbaString(borderColor, 0.12);
-  const borderColorHover = hexToRgbaString(borderColor, 0.24);
-  const borderColorStrong = hexToRgbaString(borderColor, 0.28);
-  // Surfaces (card/panel backgrounds) read as a faint tint of the
-  // border/neutral color rather than the raw background — this is
-  // what makes cards look "lifted" off the page background instead
-  // of just bordered.
-  const surfaceColor = hexToRgbaString(borderColor, 0.05);
-  const surfaceColorHover = hexToRgbaString(borderColor, 0.09);
-  const surfaceColorActive = hexToRgbaString(borderColor, 0.14);
+  // Every other color token in app/styles/globals.css is derived from
+  // these 5 base picks at render time — the admin only ever chooses 5
+  // colors (BrandingCard.jsx), never a hover shade or a translucent
+  // tint directly. See utils/colorShade.js for the math.
+  const themeVariables = {
+    "--color-bg": backgroundColor,
+
+    "--color-surface": surfaceColor,
+    "--color-surface-hover": darkenHexColor(surfaceColor, 0.04),
+    "--color-surface-active": darkenHexColor(surfaceColor, 0.08),
+
+    "--color-border": borderColor,
+    "--color-border-hover": darkenHexColor(borderColor, 0.15),
+    "--color-border-strong": darkenHexColor(borderColor, 0.25),
+
+    "--color-text-primary": textColor,
+    "--color-text-secondary": hexToRgba(textColor, 0.64),
+    "--color-text-muted": hexToRgba(textColor, 0.44),
+
+    "--color-accent": accentColor,
+    "--color-accent-hover": darkenHexColor(accentColor, 0.2),
+
+    "--color-skeleton-base": hexToRgba(textColor, 0.08),
+    "--color-skeleton-shine": hexToRgba(textColor, 0.15),
+  };
 
   return (
     <html
       lang="en"
       className={`${fraunces.variable} ${manrope.variable} ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
       // Overrides the color tokens declared in app/styles/globals.css
-      // with the admin's chosen 5-color brand system (Super-Admin >
-      // Content > Homepage > Brand Identity) — every button, card,
-      // border, and body of text across the visitor site reads these
-      // variables, so this single override re-themes the whole public
-      // site without touching any component CSS file.
-      style={{
-        "--color-accent": accentColor,
-        "--color-accent-hover": accentColorHover,
-        "--color-secondary": secondaryColor,
-        "--color-secondary-hover": secondaryColorHover,
-        "--color-bg": backgroundColor,
-        "--color-text-primary": textColor,
-        "--color-text-secondary": textColorSecondary,
-        "--color-text-muted": textColorMuted,
-        "--color-border": borderColorBase,
-        "--color-border-hover": borderColorHover,
-        "--color-border-strong": borderColorStrong,
-        "--color-surface": surfaceColor,
-        "--color-surface-hover": surfaceColorHover,
-        "--color-surface-active": surfaceColorActive,
-      }}
+      // with the admin's chosen 5-color palette (Super-Admin > Content
+      // > Homepage > Brand Identity, set once via the setup wizard's
+      // BrandingCard.jsx) — every card, border, button, and body of
+      // text across the visitor site reads these variables, so this
+      // single override re-themes the whole public site without
+      // touching any component CSS file. --color-surface-elevated,
+      // --color-on-accent, and the status colors (success/warning/
+      // error/info) intentionally stay as globals.css's own fixed
+      // values — those aren't part of the admin-editable palette.
+      style={themeVariables}
     >
       <body>
         <AnalyticsBeacon />

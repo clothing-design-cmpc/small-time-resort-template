@@ -6,9 +6,9 @@
  *
  * PURPOSE:
  * Lets AdminSetupStep.jsx's "Brand your resort" card read and save the
- * resort's display name (siteTitle) and 5-token brand color system
- * (brandAccentColor, brandSecondaryColor, brandBackgroundColor,
- * brandTextColor, brandBorderColor) directly on the singleton
+ * resort's display name (siteTitle) and its full 5-color brand
+ * palette (brandAccentColor/brandBackgroundColor/brandSurfaceColor/
+ * brandBorderColor/brandTextColor) directly on the singleton
  * SystemSettings row. The equivalent admin-panel route
  * (/api/superAdmin/content/homepage) can't be used here — it requires
  * a logged-in super-admin session cookie, which doesn't exist yet
@@ -19,10 +19,10 @@
  *
  * DATA FLOW:
  * 1. GET  -> get-or-create the singleton row, return { siteTitle,
- *            brandAccentColor, brandSecondaryColor,
- *            brandBackgroundColor, brandTextColor, brandBorderColor }
- *            only (never the full settings row)
- * 2. PUT  -> updates those same fields only
+ *            brandAccentColor, brandBackgroundColor, brandSurfaceColor,
+ *            brandBorderColor, brandTextColor } only (never the full
+ *            settings row)
+ * 2. PUT  -> updates those same six fields only
  */
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,19 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/services/prisma";
 import { isSetupWizardLocked } from "@/services/setupWizardStatus";
 import { hasWizardSession } from "@/services/wizardSession";
+
+// Every color field this route reads/writes — kept as one list so GET's
+// select and PUT's validation loop can't silently drift apart from
+// each other as fields get added.
+const COLOR_FIELDS = [
+  "brandAccentColor",
+  "brandBackgroundColor",
+  "brandSurfaceColor",
+  "brandBorderColor",
+  "brandTextColor",
+];
+
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 /**
  * assertWizardOpen
@@ -65,14 +78,7 @@ export async function GET(request) {
       where: { id: "singleton" },
       update: {},
       create: { id: "singleton" },
-      select: {
-        siteTitle: true,
-        brandAccentColor: true,
-        brandSecondaryColor: true,
-        brandBackgroundColor: true,
-        brandTextColor: true,
-        brandBorderColor: true,
-      },
+      select: { siteTitle: true, ...Object.fromEntries(COLOR_FIELDS.map((field) => [field, true])) },
     });
 
     return NextResponse.json({ success: true, data: settings, message: "Brand identity fetched successfully." });
@@ -102,44 +108,22 @@ export async function PUT(request) {
       );
     }
 
-    // Basic 6-digit hex validation — a malformed value here would
-    // silently break every CSS variable derived from it in
-    // app/layout.jsx. Applied identically to all 5 brand color
-    // fields; any field that fails validation is simply omitted from
-    // the update so it falls back to whatever is already stored.
-    const hexColorPattern = /^#[0-9a-fA-F]{6}$/;
+    // Basic 6-digit hex validation per color field — a malformed value
+    // here would silently break whichever CSS variable it drives.
+    // Fields that fail validation (or are simply omitted) are left out
+    // of the update entirely, so the existing/default value stays.
     const validatedColors = {};
-    for (const [bodyKey, columnKey] of [
-      ["brandAccentColor", "brandAccentColor"],
-      ["brandSecondaryColor", "brandSecondaryColor"],
-      ["brandBackgroundColor", "brandBackgroundColor"],
-      ["brandTextColor", "brandTextColor"],
-      ["brandBorderColor", "brandBorderColor"],
-    ]) {
-      if (hexColorPattern.test(body[bodyKey] ?? "")) {
-        validatedColors[columnKey] = body[bodyKey];
+    for (const field of COLOR_FIELDS) {
+      if (HEX_COLOR_PATTERN.test(body[field] ?? "")) {
+        validatedColors[field] = body[field];
       }
     }
 
     const updatedSettings = await prisma.systemSettings.upsert({
       where: { id: "singleton" },
-      update: {
-        siteTitle: trimmedName,
-        ...validatedColors,
-      },
-      create: {
-        id: "singleton",
-        siteTitle: trimmedName,
-        ...validatedColors,
-      },
-      select: {
-        siteTitle: true,
-        brandAccentColor: true,
-        brandSecondaryColor: true,
-        brandBackgroundColor: true,
-        brandTextColor: true,
-        brandBorderColor: true,
-      },
+      update: { siteTitle: trimmedName, ...validatedColors },
+      create: { id: "singleton", siteTitle: trimmedName, ...validatedColors },
+      select: { siteTitle: true, ...Object.fromEntries(COLOR_FIELDS.map((field) => [field, true])) },
     });
 
     return NextResponse.json({ success: true, data: updatedSettings, message: "Brand identity saved successfully." });

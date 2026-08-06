@@ -3,22 +3,23 @@
  * ROLE: Client Component — rendered inside AdminSetupStep.jsx (Step 3)
  *
  * PURPOSE:
- * Lets the developer set the resort's display name and the 5-token
- * brand color system during first-run setup, instead of hand-editing
- * Header.jsx, Footer.jsx, Hero.jsx, and app/styles/globals.css. Fully
- * optional and never blocks progressing to Step 4 — every field
- * already has a schema-level default (SystemSettings.siteTitle /
- * .brandAccentColor / .brandSecondaryColor / .brandBackgroundColor /
- * .brandTextColor / .brandBorderColor) if this card is skipped
+ * Lets the developer set the resort's display name and its full
+ * 5-color brand palette (Accent, Background, Surface, Border, Text)
+ * during first-run setup, instead of hand-editing Header.jsx,
+ * Footer.jsx, Hero.jsx, and app/styles/globals.css. Fully optional and
+ * never blocks progressing to Step 4 — every field already has a
+ * schema-level default (SystemSettings.siteTitle /
+ * .brandAccentColor/.brandBackgroundColor/.brandSurfaceColor/
+ * .brandBorderColor/.brandTextColor) if this card is skipped
  * entirely. THIS IS THE ONLY PLACE these fields are ever editable
  * through the UI — the wizard itself only ever runs once
- * (isSetupWizardLocked() 404s the whole wizard, including this
- * card's own GET/PUT routes, the moment SystemSettings.setupFinalized
- * is set), and Super-Admin > Content > Homepage > Brand Identity
+ * (isSetupWizardLocked() 404s the whole wizard, including this card's
+ * own GET/PUT routes, the moment SystemSettings.setupFinalized is
+ * set), and Super-Admin > Content > Homepage > Brand Identity
  * intentionally renders these fields read-only
  * (HomepageSettingsClient.jsx) since the resort name/colors touch too
- * many places (invoices, email subjects, every card/border/button
- * site-wide) to change casually after launch. Get it right here, or
+ * many places (invoices, email subjects, the whole visitor site's
+ * theme) to change casually after launch. Get it right here, or
  * change it directly in the DB afterward.
  *
  * DATA FLOW:
@@ -35,67 +36,49 @@
 
 import { useEffect, useState } from "react";
 
-const DEFAULT_ACCENT_COLOR = "#3f7d52";
-const DEFAULT_SECONDARY_COLOR = "#c9935e";
-const DEFAULT_BACKGROUND_COLOR = "#f8faf3";
-const DEFAULT_TEXT_COLOR = "#1c2b20";
-const DEFAULT_BORDER_COLOR = "#e5e2db";
-
-// Each entry drives one color-picker row below. label/hint are shown
-// to the developer; stateKey/defaultValue point at the matching piece
-// of local state — keeping this as a list instead of 5 hand-written
-// blocks means adding a 6th token later is a one-line change here.
+// One place defining every color field this card edits — id must
+// match the SystemSettings column name exactly, since it's used
+// directly as the request body key on save.
 const COLOR_FIELDS = [
   {
-    stateKey: "accentColor",
-    id: "wizardAccentColor",
+    id: "brandAccentColor",
     label: "Primary Accent",
-    hint: "Buttons, links, and active states — used most often.",
+    hint: "Buttons, links, and active states — the one color used everywhere for calls to action.",
+    defaultValue: "#3f7d52",
   },
   {
-    stateKey: "secondaryColor",
-    id: "wizardSecondaryColor",
-    label: "Secondary Accent",
-    hint: "Hover states, badges, and secondary CTAs — complements the primary accent.",
-  },
-  {
-    stateKey: "backgroundColor",
-    id: "wizardBackgroundColor",
+    id: "brandBackgroundColor",
     label: "Background",
-    hint: "The page background behind every section.",
+    hint: "The page background behind everything else.",
+    defaultValue: "#f8faf3",
   },
   {
-    stateKey: "textColor",
-    id: "wizardTextColor",
+    id: "brandSurfaceColor",
+    label: "Surface",
+    hint: "Card and panel backgrounds — usually a step lighter or darker than the page background.",
+    defaultValue: "#eef2e7",
+  },
+  {
+    id: "brandBorderColor",
+    label: "Border",
+    hint: "Dividers and card outlines — keep this subtle, not high-contrast.",
+    defaultValue: "#d8e0d2",
+  },
+  {
+    id: "brandTextColor",
     label: "Text",
-    hint: "Headings and body copy — lighter secondary/muted tones are derived from this automatically.",
-  },
-  {
-    stateKey: "borderColor",
-    id: "wizardBorderColor",
-    label: "Border / Neutral",
-    hint: "Card borders, dividers, and the subtle tint behind cards — also derived automatically.",
+    hint: "Headings and body copy site-wide.",
+    defaultValue: "#1c2b20",
   },
 ];
 
+const DEFAULT_COLOR_VALUES = Object.fromEntries(COLOR_FIELDS.map((field) => [field.id, field.defaultValue]));
+
 export default function BrandingCard({ showToast }) {
   const [resortName, setResortName] = useState("");
-  const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT_COLOR);
-  const [secondaryColor, setSecondaryColor] = useState(DEFAULT_SECONDARY_COLOR);
-  const [backgroundColor, setBackgroundColor] = useState(DEFAULT_BACKGROUND_COLOR);
-  const [textColor, setTextColor] = useState(DEFAULT_TEXT_COLOR);
-  const [borderColor, setBorderColor] = useState(DEFAULT_BORDER_COLOR);
+  const [colorValues, setColorValues] = useState(DEFAULT_COLOR_VALUES);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
-  const colorState = { accentColor, secondaryColor, backgroundColor, textColor, borderColor };
-  const colorSetters = {
-    accentColor: setAccentColor,
-    secondaryColor: setSecondaryColor,
-    backgroundColor: setBackgroundColor,
-    textColor: setTextColor,
-    borderColor: setBorderColor,
-  };
 
   useEffect(() => {
     async function fetchBranding() {
@@ -105,11 +88,15 @@ export default function BrandingCard({ showToast }) {
         const result = await response.json();
         if (result.success && result.data) {
           setResortName(result.data.siteTitle ?? "");
-          setAccentColor(result.data.brandAccentColor || DEFAULT_ACCENT_COLOR);
-          setSecondaryColor(result.data.brandSecondaryColor || DEFAULT_SECONDARY_COLOR);
-          setBackgroundColor(result.data.brandBackgroundColor || DEFAULT_BACKGROUND_COLOR);
-          setTextColor(result.data.brandTextColor || DEFAULT_TEXT_COLOR);
-          setBorderColor(result.data.brandBorderColor || DEFAULT_BORDER_COLOR);
+          // Merge over the defaults rather than replacing wholesale —
+          // any field missing from the response (e.g. a DB row saved
+          // before a newer color was added) still falls back cleanly.
+          setColorValues((previous) => ({
+            ...previous,
+            ...Object.fromEntries(
+              COLOR_FIELDS.map((field) => [field.id, result.data[field.id] || field.defaultValue])
+            ),
+          }));
         }
       } catch {
         // Fails quiet — the form still renders with empty/default
@@ -120,6 +107,10 @@ export default function BrandingCard({ showToast }) {
     }
     fetchBranding();
   }, []);
+
+  function handleColorChange(fieldId, value) {
+    setColorValues((previous) => ({ ...previous, [fieldId]: value }));
+  }
 
   async function handleSaveBranding() {
     if (!resortName.trim()) {
@@ -132,14 +123,7 @@ export default function BrandingCard({ showToast }) {
       const response = await fetch("/api/system-setup-wizard/branding", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          siteTitle: resortName.trim(),
-          brandAccentColor: accentColor,
-          brandSecondaryColor: secondaryColor,
-          brandBackgroundColor: backgroundColor,
-          brandTextColor: textColor,
-          brandBorderColor: borderColor,
-        }),
+        body: JSON.stringify({ siteTitle: resortName.trim(), ...colorValues }),
       });
       const result = await response.json();
 
@@ -147,7 +131,7 @@ export default function BrandingCard({ showToast }) {
         showToast("✕ " + (result.message ?? "Couldn't save branding."), "error");
         return;
       }
-      showToast("✓ Branding saved. Header, Footer, and page title will use this now.", "success");
+      showToast("✓ Branding saved. The whole site will use this palette now.", "success");
     } catch {
       showToast("✕ We couldn't reach the server. Please try again.", "error");
     } finally {
@@ -159,11 +143,11 @@ export default function BrandingCard({ showToast }) {
     <div className="setupWizardCard setupWizardSubStepCard">
       <h2 className="setupWizardSubStepTitle">Brand your resort (optional)</h2>
       <p className="setupWizardBody">
-        Set the resort name and a 5-color brand system — primary accent, secondary accent,
-        background, text, and border — shown across the Header, Footer, Hero section, cards,
-        and browser tab title. No code editing needed. This is the only time these are editable
-        through the UI, so get them right before continuing — afterward, Super-Admin &gt; Content
-        &gt; Homepage &gt; Brand Identity only shows them read-only.
+        Set the resort name and 5-color palette shown across the Header, Footer, Hero
+        section, browser tab title, and every card/button site-wide — no code editing
+        needed. This is the only time these are editable through the UI, so get them
+        right before continuing — afterward, Super-Admin &gt; Content &gt; Homepage &gt;
+        Brand Identity only shows them read-only.
       </p>
 
       {isLoading ? (
@@ -182,20 +166,20 @@ export default function BrandingCard({ showToast }) {
           </div>
 
           {COLOR_FIELDS.map((field) => (
-            <div className="setupWizardFormField" key={field.stateKey}>
-              <label htmlFor={field.id}>{field.label}</label>
+            <div className="setupWizardFormField" key={field.id}>
+              <label htmlFor={`wizard-${field.id}`}>{field.label}</label>
               <div className="setupWizardColorFieldRow">
                 <input
-                  id={field.id}
+                  id={`wizard-${field.id}`}
                   type="color"
-                  value={colorState[field.stateKey]}
-                  onChange={(event) => colorSetters[field.stateKey](event.target.value)}
+                  value={colorValues[field.id]}
+                  onChange={(event) => handleColorChange(field.id, event.target.value)}
                 />
                 <input
                   type="text"
-                  value={colorState[field.stateKey]}
-                  onChange={(event) => colorSetters[field.stateKey](event.target.value)}
-                  placeholder={field.id === "wizardAccentColor" ? DEFAULT_ACCENT_COLOR : ""}
+                  value={colorValues[field.id]}
+                  onChange={(event) => handleColorChange(field.id, event.target.value)}
+                  placeholder={field.defaultValue}
                   className="setupWizardColorHexInput"
                 />
               </div>

@@ -54,14 +54,14 @@ export async function PUT(request) {
     const updatedSettings = await prisma.systemSettings.update({
       where: { id: "singleton" },
       data: {
-        // siteTitle and all 5 brand color fields (brandAccentColor,
-        // brandSecondaryColor, brandBackgroundColor, brandTextColor,
-        // brandBorderColor) are deliberately NEVER written here —
-        // they're wizard-only (app/system-setup-wizard/BrandingCard.jsx,
-        // locked once via isSetupWizardLocked()). HomepageSettingsClient.jsx
-        // already renders all of them read-only, but that's a
-        // frontend-only guard — dropping them from this update() call
-        // is the actual enforcement, since Rule 18 never trusts
+        // brandAccentColor, brandBackgroundColor, brandSurfaceColor,
+        // brandBorderColor, brandTextColor, and siteTitle are
+        // deliberately NEVER written here — they're wizard-only
+        // (app/system-setup-wizard/BrandingCard.jsx, locked once via
+        // isSetupWizardLocked()). HomepageSettingsClient.jsx already
+        // renders all of them read-only, but that's a frontend-only
+        // guard — leaving them out of this update() call entirely is
+        // the actual enforcement, since Rule 18 never trusts
         // client-side alone.
         heroEyebrow: body.heroEyebrow ?? existingSettings.heroEyebrow,
         heroTitle: body.heroTitle ?? existingSettings.heroTitle,

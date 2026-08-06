@@ -13,7 +13,11 @@
  * DATA FLOW:
  * 1. Rendered once inside app/superAdmin/(protected)/layout.jsx,
  *    inside <SidebarProvider> alongside AdminHeader (the hamburger
- *    that actually toggles isSidebarOpen — see SidebarContext.jsx)
+ *    that actually toggles isSidebarOpen — see SidebarContext.jsx).
+ *    layout.jsx is itself a Server Component, so it fetches
+ *    SystemSettings.siteTitle directly (Rule 31.1 — Server Component
+ *    fetches, no client round trip needed) and passes it down as the
+ *    resortName prop, instead of this file fetching its own copy.
  * 2. usePathname() reads the current route to mark the active nav
  *    link, AND to auto-close the mobile drawer the moment the route
  *    changes — without this, tapping a link would navigate but leave
@@ -23,7 +27,7 @@
  *    closes the drawer immediately (before the route-change effect
  *    even fires) so the transition feels instant rather than waiting
  *    on navigation to complete.
- * 4. No data fetching — navLinks is fully static
+ * 4. navLinks is fully static — only the resortName prop is dynamic.
  */
 "use client";
 
@@ -96,14 +100,13 @@ const navGroups = [
     links: [
       { label: "Security Logs", href: "/superAdmin/security-logs" },
       { label: "Audit Logs", href: "/superAdmin/audit-logs" },
-      { label: "Email Logs", href: "/superAdmin/email-logs" },
       { label: "Blocked IPs", href: "/superAdmin/blocked-ips" },
       { label: "Backups", href: "/superAdmin/backups" },
     ],
   },
 ];
 
-export default function Sidebar({ isOwner = false }) {
+export default function Sidebar({ isOwner = false, resortName = "your-private-resort" }) {
   const pathname = usePathname();
   const badgeCounts = useNavBadges();
   const { isSidebarOpen, closeSidebar } = useSidebar();
@@ -138,7 +141,7 @@ export default function Sidebar({ isOwner = false }) {
         className={`adminSidebar${isSidebarOpen ? " adminSidebar--open" : ""}`}
         aria-label="Super-admin navigation"
       >
-        <div className="adminSidebarLogo">your-private-resort Admin</div>
+        <div className="adminSidebarLogo">{resortName} Admin</div>
 
         {visibleNavGroups.map((group) => (
           <div key={group.label} className="adminSidebarGroup">

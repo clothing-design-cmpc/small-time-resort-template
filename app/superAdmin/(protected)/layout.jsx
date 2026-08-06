@@ -28,6 +28,12 @@
  *    close-guard's beacon, the cookie's own 7-day expiry) that would
  *    otherwise leave the admin stuck on a page silently failing every
  *    data fetch with 401s instead of being sent back to /login
+ * 5. This layout is itself a Server Component, so it fetches the
+ *    saved SystemSettings.siteTitle directly (Rule 31.1/31.2 — no
+ *    client round trip needed) and passes it to <Sidebar> as
+ *    resortName, so the sidebar logo reads "<your resort name> Admin"
+ *    instead of the literal "your-private-resort Admin" placeholder
+ *    the wizard's BrandingCard (Step 3) is meant to replace.
  *
  * ACCESSIBILITY:
  * A visually-hidden "Skip to main content" link is the first focusable
@@ -44,25 +50,22 @@ import IdleSessionProvider from "@/components/superAdmin/IdleSessionProvider";
 import SessionExpiryGuard from "@/components/superAdmin/SessionExpiryGuard";
 import BreachAlertBanner from "@/components/superAdmin/BreachAlertBanner";
 import DatabaseWipeGraceModal from "@/components/superAdmin/DatabaseWipeGraceModal";
-import { getResortDisplayName, getResortAdminLabel } from "@/services/resortName";
+import { prisma } from "@/services/prisma";
 
-// Dynamic per the resort's own branded name (SystemSettings.siteTitle)
-// instead of the old hardcoded "your-private-resort" literal — see
-// services/resortName.js for why this is the single source of truth.
-export async function generateMetadata() {
-  const resortName = await getResortDisplayName();
-  return {
-    title: `Super-Admin | ${resortName}`,
-    description: `Enterprise control center for managing ${resortName}.`,
-  };
-}
+export const metadata = {
+  title: "Super-Admin | your-private-resort",
+  description: "Enterprise control center for managing your-private-resort.",
+};
 
 export default async function SuperAdminLayout({ children }) {
-  // Computed server-side once per request and passed down as a plain
-  // string prop — AdminHeader is a Client Component and can't call
-  // Prisma directly, so this avoids an extra client-side fetch just
-  // for a label (Rule 31.1/31.2).
-  const adminLabel = await getResortAdminLabel();
+  // Read-only — get-or-create is Step 3's BrandingCard/branding route's
+  // job, not this layout's; a missing row just falls back to the same
+  // "your-private-resort" placeholder the sidebar always showed before.
+  const settings = await prisma.systemSettings.findUnique({
+    where: { id: "singleton" },
+    select: { siteTitle: true },
+  });
+  const resortName = settings?.siteTitle?.trim() || "your-private-resort";
 
   return (
     // superAdminRoot scopes the dark enterprise color tokens (SuperAdmin.css)
@@ -96,9 +99,9 @@ export default async function SuperAdminLayout({ children }) {
           Skip to main content
         </a>
         <SidebarProvider>
-          <Sidebar />
+          <Sidebar resortName={resortName} />
           <div className="superAdminBody">
-            <AdminHeader adminLabel={adminLabel} />
+            <AdminHeader />
             <main id="mainContent" className="superAdminContent">
               {children}
             </main>

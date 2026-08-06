@@ -229,16 +229,20 @@
  * Shown instead of .tourSelectionCardTimeRange when Sequential
  * Auto-Adjust (BookingRule.sameDayPolicy = "auto_adjust") pushed this
  * option's check-in later than its normal start time, because a
- * previous same-day booking's checkout + cleaning ran past it — warm
- * accent tone (not an error color) since this is a normal, expected
- * adjustment, not a problem.
+ * previous same-day booking's checkout + cleaning ran past it. Uses the
+ * FIXED --color-success status token (never --color-accent) — this is
+ * a status indicator, not a brand action, and --color-accent is fully
+ * admin-brandable (any hue) since the 5-color token system, so tying a
+ * status tint to it could clash with whatever the admin picks. Matches
+ * the same color-mix() status-tint pattern already used elsewhere (see
+ * app/system-vault/[vaultSlug]/VaultGatekeeperTesterSection.css).
  */
 .tourSelectionCardAdjustedNotice {
   font-size: 0.75rem;
   line-height: 1.5;
-  color: var(--color-accent);
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, var(--color-border));
   border-radius: 6px;
   padding: var(--space-xs) var(--space-sm);
   margin: var(--space-xs) 0 0;

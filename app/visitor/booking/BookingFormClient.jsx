@@ -92,6 +92,12 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   // parent re-render) — only the very first time a booking gets
   // confirmed should trigger it.
   const hasAutoDownloadedInvoice = useRef(false);
+  // Holds the pre-opened blank tab (desktop) plus the Messenger link
+  // and device type captured at submit time — set once in onSubmit,
+  // read once by the auto-download effect below once the invoice PDF
+  // has actually started downloading. Kept in a ref (not state) since
+  // it never needs to trigger a re-render on its own.
+  const pendingMessengerHandoffRef = useRef(null);
 
   // Auto-downloads the invoice PDF the moment the confirmation panel
   // appears, so the guest doesn't have to find and click the
@@ -99,6 +105,13 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   // Triggered via a hidden <a download> click (not window.open) so it
   // never gets blocked as a popup and never navigates the tab away —
   // the server's Content-Disposition: attachment header does the rest.
+  //
+  // The Messenger hand-off (see onSubmit below for why a blank tab is
+  // pre-opened on desktop) is deliberately fired AFTER this download,
+  // not the moment the booking succeeds — the guest should see/get the
+  // invoice file first, then get routed to Messenger to send it. A
+  // short delay after the click() gives the browser time to actually
+  // start the download before we redirect/open Messenger.
   useEffect(() => {
     if (!confirmedBooking?.booking?.id || hasAutoDownloadedInvoice.current) return;
     hasAutoDownloadedInvoice.current = true;
@@ -109,6 +122,28 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    const handoff = pendingMessengerHandoffRef.current;
+    if (!handoff?.messengerLink) return;
+
+    const handoffTimer = setTimeout(() => {
+      if (handoff.isMobile) {
+        // Same-tab redirect — m.me is registered as a universal/app
+        // link, so the OS hands this off straight to the installed
+        // Facebook or Messenger app (whichever claims it) instead of
+        // opening in the mobile browser. Falls back to Messenger's
+        // own mobile web chat if neither app is installed.
+        window.location.href = handoff.messengerLink;
+      } else if (handoff.messengerWindow) {
+        // Desktop: the pre-opened tab now navigates to Messenger's
+        // web chat, keeping this tab on the confirmation page (with
+        // the invoice download and reference code) instead of
+        // losing it to a full-page redirect.
+        handoff.messengerWindow.location.href = handoff.messengerLink;
+      }
+    }, 1200);
+
+    return () => clearTimeout(handoffTimer);
   }, [confirmedBooking]);
   // Tracks the last quote-conflict message already toasted, so the
   // debounced quote refetch below doesn't re-toast the identical
@@ -249,11 +284,6 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
   async function onSubmit(formValues) {
     setSubmitError(null);
 
-    // Auto-redirect to Facebook Messenger right after a successful
-    // booking, so the guest lands straight in the app/chat to send
-    // their invoice instead of having to find and tap the "Send
-    // Invoice on Messenger" link themselves.
-    //
     // The blank tab below is opened synchronously, inside this click
     // handler, BEFORE the "await submitBooking(...)" call — most
     // browsers (desktop Chrome/Firefox/Safari, and iOS Safari
@@ -261,14 +291,20 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
     // prompt when it happens in direct response to a user gesture;
     // once an `await` has run, that gesture is no longer "fresh" and
     // a window.open() call after it gets silently blocked. Opening a
-    // blank tab now and just changing ITS .location once the booking
-    // succeeds sidesteps that entirely, since setting .location on an
-    // already-open window is never treated as a new popup.
+    // blank tab now and just changing ITS .location later sidesteps
+    // that entirely, since setting .location on an already-open
+    // window is never treated as a new popup.
+    //
+    // NOTE: the actual Messenger hand-off no longer happens here. It
+    // is deliberately deferred to the invoice auto-download effect
+    // above, so the guest gets their PDF first and only then gets
+    // routed to Messenger to send it — this ref just hands the
+    // pre-opened tab + link off to that effect.
     const messengerLink = buildMessengerLink(resortMessengerUsername);
     const isMobile = isMobileUserAgent();
     // Only pre-open a tab on desktop — on mobile we redirect the
-    // CURRENT tab instead (see below), so there is nothing to
-    // pre-open there.
+    // CURRENT tab instead (still deferred to the download effect),
+    // so there is nothing to pre-open there.
     const messengerWindow = messengerLink && !isMobile ? window.open("", "_blank") : null;
 
     try {
@@ -278,23 +314,7 @@ export default function BookingFormClient({ initialCheckInDate, initialCheckOutD
         checkOutDate: formValues.bookingType === "overnight" ? formValues.checkOutDate : null,
       });
       setConfirmedBooking(result);
-
-      if (messengerLink) {
-        if (isMobile) {
-          // Same-tab redirect — m.me is registered as a universal/app
-          // link, so the OS hands this off straight to the installed
-          // Facebook or Messenger app (whichever claims it) instead of
-          // opening in the mobile browser. Falls back to Messenger's
-          // own mobile web chat if neither app is installed.
-          window.location.href = messengerLink;
-        } else if (messengerWindow) {
-          // Desktop: the pre-opened tab now navigates to Messenger's
-          // web chat, keeping this tab on the confirmation page (with
-          // the invoice download and reference code) instead of
-          // losing it to a full-page redirect.
-          messengerWindow.location.href = messengerLink;
-        }
-      }
+      pendingMessengerHandoffRef.current = { messengerLink, isMobile, messengerWindow };
     } catch (error) {
       setSubmitError(error.message);
       // Booking failed — nothing to hand off to Messenger for, so

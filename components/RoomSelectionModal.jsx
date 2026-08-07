@@ -211,30 +211,30 @@ export default function RoomSelectionModal({
                     {allowOvernightStay && (
                       <p className="roomSelectionCardPriceTag" title="Overnight Stay">
                         <span className="roomSelectionCardPriceTagLeft">
-                          <Banknote size={13} strokeWidth={2.25} aria-hidden="true" />
+                          <Banknote size={16} strokeWidth={2.25} aria-hidden="true" />
                           {PESO.format(room.pricePerNight)}/night
                         </span>
                         {/* Half-sun-half-moon — an Overnight stay spans a full day-into-night cycle,
                             distinct from the single sun (Day Tour) or single moon (Night Tour) below. */}
-                        <SunMoon size={13} strokeWidth={2.25} aria-hidden="true" className="roomSelectionCardPriceTagTypeIcon" />
+                        <SunMoon size={16} strokeWidth={2.25} aria-hidden="true" className="roomSelectionCardPriceTagTypeIcon" />
                       </p>
                     )}
                     {allowDayTour && (
                       <p className="roomSelectionCardPriceTag" title="Day Tour">
                         <span className="roomSelectionCardPriceTagLeft">
-                          <Banknote size={13} strokeWidth={2.25} aria-hidden="true" />
+                          <Banknote size={16} strokeWidth={2.25} aria-hidden="true" />
                           {PESO.format(room.dayTourPrice)} — Day Tour
                         </span>
-                        <Sun size={13} strokeWidth={2.25} aria-hidden="true" className="roomSelectionCardPriceTagTypeIcon" />
+                        <Sun size={16} strokeWidth={2.25} aria-hidden="true" className="roomSelectionCardPriceTagTypeIcon" />
                       </p>
                     )}
                     {allowNightTour && (
                       <p className="roomSelectionCardPriceTag" title="Night Tour">
                         <span className="roomSelectionCardPriceTagLeft">
-                          <Banknote size={13} strokeWidth={2.25} aria-hidden="true" />
+                          <Banknote size={16} strokeWidth={2.25} aria-hidden="true" />
                           {PESO.format(room.nightTourPrice)} — Night Tour
                         </span>
-                        <Moon size={13} strokeWidth={2.25} aria-hidden="true" className="roomSelectionCardPriceTagTypeIcon" />
+                        <Moon size={16} strokeWidth={2.25} aria-hidden="true" className="roomSelectionCardPriceTagTypeIcon" />
                       </p>
                     )}
                   </div>

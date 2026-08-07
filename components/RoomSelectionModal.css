@@ -147,7 +147,7 @@
 }
 
 .roomSelectionExistingBookingsLabel {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -164,19 +164,19 @@
 }
 
 .roomSelectionExistingBookingName {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .roomSelectionExistingBookingType {
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--color-text-secondary);
 }
 
 .roomSelectionExistingBookingCountdown {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: var(--color-warning);
   font-variant-numeric: tabular-nums;
 }
@@ -192,8 +192,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   color: var(--color-text-muted);
   cursor: default;
@@ -316,20 +316,20 @@
 }
 
 .roomSelectionCardName {
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
 }
 
 .roomSelectionCardMeta {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   color: var(--color-text-secondary);
   margin: 0;
 }
 
 .roomSelectionCardAmenities {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   color: var(--color-text-muted);
   margin: 0;
 }
@@ -354,11 +354,11 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-xs);
-  padding: 3px 8px;
+  padding: 5px 10px;
   border-radius: 999px;
   background-color: rgba(63, 125, 82, 0.1);
   border: 1px solid rgba(63, 125, 82, 0.18);
-  font-size: 0.78rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--color-accent);
   margin: 0;

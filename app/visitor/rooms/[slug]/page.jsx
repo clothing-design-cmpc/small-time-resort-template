@@ -119,7 +119,12 @@ export default async function RoomDetailPage({ params }) {
               <span className="roomDetailPriceAmount">{formatPrice(room.pricePerNight)}</span>
               <span className="roomDetailPriceLabel">/ night</span>
             </div>
-            <Link href="/visitor/booking" className="roomDetailBookButton">
+            {/* Same destination as Header.jsx's "Book Now" CTA
+                (/visitor#how-to-book) — routes through the homepage
+                availability calendar (pick date(s) -> pick room ->
+                /visitor/booking) instead of skipping straight to the
+                booking form with no dates selected yet. */}
+            <Link href="/visitor#how-to-book" className="roomDetailBookButton">
               Book This Room
             </Link>
           </div>

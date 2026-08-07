@@ -48,7 +48,7 @@
 }
 
 .tourSelectionTitle {
-  font-size: 1.4rem;
+  font-size: 1.55rem;
   font-weight: 700;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
@@ -56,7 +56,7 @@
 }
 
 .tourSelectionSubtitle {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   color: var(--color-text-secondary);
   margin: 0;
 }
@@ -156,7 +156,7 @@
   border-radius: 10px;
   background-color: rgba(217, 138, 36, 0.1);
   color: var(--color-warning);
-  font-size: 0.85rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -205,20 +205,14 @@
 }
 
 .tourSelectionCardName {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
 }
 
-.tourSelectionCardDescription {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-  margin: 0;
-}
-
 .tourSelectionCardTimeRange {
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--color-text-muted);
   margin: var(--space-xs) 0 0;
@@ -238,7 +232,7 @@
  * app/system-vault/[vaultSlug]/VaultGatekeeperTesterSection.css).
  */
 .tourSelectionCardAdjustedNotice {
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   line-height: 1.5;
   color: var(--color-success);
   background: color-mix(in srgb, var(--color-success) 8%, transparent);
@@ -261,13 +255,13 @@
  */
 .tourSelectionCardPromoBadge {
   align-self: flex-start;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--color-accent);
   background-color: rgba(63, 125, 82, 0.12);
   border-radius: 999px;
-  padding: 0.15rem 0.55rem;
+  padding: 0.2rem 0.65rem;
   margin-bottom: var(--space-xs);
 }
 

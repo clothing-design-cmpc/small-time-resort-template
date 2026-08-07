@@ -214,7 +214,6 @@ export default function TourSelectionModal({
                     <span className="tourSelectionCardPromoBadge">🎉 {promo.discountPercent}% OFF</span>
                   )}
                   <p className="tourSelectionCardName">{option.label}</p>
-                  <p className="tourSelectionCardDescription">{option.description}</p>
                   {adjustedCheckInAt ? (
                     <p className="tourSelectionCardAdjustedNotice">
                       Adjusted check-in: <strong>{ADJUSTED_TIME_FMT.format(adjustedCheckInAt)}</strong> — a previous

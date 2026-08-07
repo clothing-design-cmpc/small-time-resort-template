@@ -673,8 +673,14 @@ export default function HowToBookSection() {
         // services/bookingPricing.js applies at submission time: an
         // "auto_adjust" policy means this is NOT a hard block — the
         // backend will push the effective check-in time later instead
-        // of rejecting the booking. A "strict" policy keeps blocking,
-        // same message/wording as before.
+        // of rejecting the booking. A "strict" policy keeps blocking —
+        // but with a message that names the REAL reason: same_day_policy
+        // is set per booking-rule (per night-count), not globally, so
+        // "Aug 7 already has a booking" alone is misleading (the date
+        // itself is still open/tappable — see isOpen above; only the
+        // {nightsSelected}-night rule's own policy is what disallows
+        // sharing it). Phrased as "no rule allows it" instead, matching
+        // how a visitor would actually explain this to support.
         const checkInHasSameDayConflict = anyBookedSet.has(checkInKey) && !overnightSet.has(checkInKey);
         if (checkInHasSameDayConflict) {
           const typeLabel =
@@ -685,7 +691,9 @@ export default function HowToBookSection() {
               : "Night Tour";
           if (rule.overnightSameDayPolicy !== "auto_adjust") {
             showToast(
-              `✕ ${formatKeyShort(checkInKey)} (${typeLabel}) already has a booking, so this range can't include it. Please pick a different range.`,
+              `✕ No booking rule allows a ${nightsSelected}-night stay starting on ${formatKeyShort(
+                checkInKey
+              )} while it already has a ${typeLabel} booking. Please pick a different check-in date.`,
               "error"
             );
             return;

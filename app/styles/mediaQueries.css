@@ -348,3 +348,16 @@
     display: flex !important;
   }
 }
+
+/* ============================================================
+ * SUPER-ADMIN DASHBOARD MAIN GRID — DashboardInsightsPanel (tabbed
+ * AI/Weather/Marketing) beside DashboardSystemRail (Maintenance +
+ * Quick Links). The 1.6fr/1fr split only works with real width to
+ * spread across; below 960px it collapses to one column, rail moves
+ * beneath the insights panel instead of squeezing beside it.
+ * ============================================================ */
+@media (max-width: 960px) {
+  .dashboardMainGrid {
+    grid-template-columns: 1fr;
+  }
+}

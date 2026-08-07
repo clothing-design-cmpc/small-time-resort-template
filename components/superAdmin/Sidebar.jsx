@@ -28,13 +28,18 @@
  *    even fires) so the transition feels instant rather than waiting
  *    on navigation to complete.
  * 4. navLinks is fully static — only the resortName prop is dynamic.
+ * 5. Each nav group is now an accordion — collapsed by default except
+ *    the group containing the current route, so the ~26 links across
+ *    5 groups don't all sit expanded on screen at once (design pass:
+ *    "simple, elegant, not overwhelming"). openGroups tracks which
+ *    group labels are expanded; toggling one never affects the others.
  */
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertCircle, Plus } from "lucide-react";
+import { AlertCircle, ChevronRight, Plus } from "lucide-react";
 import { useNavBadges } from "@/hooks/useNavBadges";
 import { useSidebar } from "./SidebarContext";
 import "./Sidebar.css";
@@ -111,11 +116,41 @@ export default function Sidebar({ isOwner = false, resortName = "your-private-re
   const badgeCounts = useNavBadges();
   const { isSidebarOpen, closeSidebar } = useSidebar();
 
+  /**
+   * findGroupForPathname
+   * Finds which nav group contains the currently active route, so
+   * that group can start expanded on first render — an admin landing
+   * on /superAdmin/content/rooms should see Content already open,
+   * not have to click through the accordion to find where they are.
+   */
+  function findGroupForPathname(currentPathname) {
+    const match = navGroups.find((group) =>
+      group.links.some((link) => link.href === currentPathname)
+    );
+    return match?.label ?? navGroups[0].label;
+  }
+
+  // Tracks which group labels are expanded. Only the group containing
+  // the current route starts open — every other group starts
+  // collapsed, so the sidebar reads as a short list of section names
+  // instead of a 26-link wall of text on first load.
+  const [openGroups, setOpenGroups] = useState(() => ({
+    [findGroupForPathname(pathname)]: true,
+  }));
+
+  function toggleGroup(label) {
+    setOpenGroups((previous) => ({ ...previous, [label]: !previous[label] }));
+  }
+
   // Closes the mobile drawer the instant the route actually changes —
   // covers the back/forward-button case and any programmatic
   // navigation that doesn't go through a nav link's own onClick below.
+  // Also re-opens whichever group the new route belongs to, in case
+  // navigation happened via a non-sidebar link (e.g. a dashboard
+  // "Quick Link") while that group was collapsed.
   useEffect(() => {
     closeSidebar();
+    setOpenGroups((previous) => ({ ...previous, [findGroupForPathname(pathname)]: true }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -143,9 +178,20 @@ export default function Sidebar({ isOwner = false, resortName = "your-private-re
       >
         <div className="adminSidebarLogo">{resortName} Admin</div>
 
-        {visibleNavGroups.map((group) => (
-          <div key={group.label} className="adminSidebarGroup">
-            <span className="adminSidebarGroupLabel">{group.label}</span>
+        {visibleNavGroups.map((group) => {
+          const isGroupOpen = Boolean(openGroups[group.label]);
+
+          return (
+          <div key={group.label} className={`adminSidebarGroup${isGroupOpen ? " adminSidebarGroup--open" : ""}`}>
+            <button
+              type="button"
+              className="adminSidebarGroupHeader"
+              onClick={() => toggleGroup(group.label)}
+              aria-expanded={isGroupOpen}
+            >
+              <span className="adminSidebarGroupLabel">{group.label}</span>
+              <ChevronRight size={14} strokeWidth={2.5} className="adminSidebarGroupChevron" aria-hidden="true" />
+            </button>
             <ul className="adminSidebarNav">
               {group.links.map((link) => {
                 // Marks the current page's nav link so the admin always
@@ -182,7 +228,8 @@ export default function Sidebar({ isOwner = false, resortName = "your-private-re
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </nav>
     </>
   );

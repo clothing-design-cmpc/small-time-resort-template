@@ -137,17 +137,149 @@
   background-color: var(--color-surface-hover);
 }
 
+/* ============================================================
+ * DASHBOARD MAIN GRID — two-column body below the KPI row.
+ * Left: DashboardInsightsPanel (tabbed AI/Weather/Marketing).
+ * Right: DashboardSystemRail (Maintenance toggle + Quick Links).
+ * Reflows to a single column below 960px (Rule 23.2 auto-fit would
+ * blend the two into equal widths, which we don't want here — this
+ * pairing is intentionally asymmetric, so the breakpoint is explicit).
+ * ============================================================ */
+.dashboardMainGrid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+/*
+ * .dashboardInsightsPanel
+ * Elevated card wrapping the tab row + the three (mounted, visibility-
+ * toggled) widget bodies — see DashboardInsightsPanel.jsx.
+ */
+.dashboardInsightsPanel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.dashboardTabRow {
+  display: flex;
+  gap: var(--space-lg);
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboardTabButton {
+  border: none;
+  background: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  padding: 0.9rem 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.dashboardTabButton:hover,
+.dashboardTabButton:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.dashboardTabButton--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Widget bodies stay mounted at all times (preserves their fetch-on-
+   mount hooks) — only the active one is shown. The three widget cards
+   (.aiInsightWidget / .weatherCacheWidget / .marketingInsightsSection
+   below) lose their own border/background here since the surrounding
+   .dashboardInsightsPanel already supplies that surface — nesting a
+   card inside a card would double the border/shadow. */
+.dashboardTabBody {
+  padding: var(--space-lg);
+}
+
+.dashboardTabBody--hidden {
+  display: none;
+}
+
+.dashboardTabBody .aiInsightWidget,
+.dashboardTabBody .weatherCacheWidget {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/*
+ * .dashboardSystemRail
+ * Narrow right-hand column — Maintenance toggle card stays visually
+ * distinct (see .maintenanceToggleCard below), Quick Links is a plain
+ * quiet card beneath it.
+ */
+.dashboardSystemRail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.dashboardRailCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background-color: var(--color-surface);
+}
+
+.dashboardRailCardTitle {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.dashboardQuickLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.dashboardQuickLink {
+  font-family: var(--font-admin-mono), monospace;
+  font-size: 0.72rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+  touch-action: manipulation;
+  transition: background-color var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+
+.dashboardQuickLink:hover,
+.dashboardQuickLink:focus-visible {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
 /*
  * .maintenanceToggleCard
- * Standalone card below the KPI grid — deliberately visually distinct
- * (uses the error/warning token in the button, not the resort accent)
- * since this is a rare, consequential action, not routine content editing.
+ * Now lives inside .dashboardSystemRail instead of stacked full-width
+ * below the widgets — deliberately visually distinct (uses the
+ * error/warning token in the button, not the resort accent) since
+ * this is a rare, consequential action, not routine content editing.
  */
 .maintenanceToggleCard {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  margin-top: var(--space-xl);
   padding: var(--space-lg);
   border: 1px solid var(--color-border);
   border-radius: 12px;

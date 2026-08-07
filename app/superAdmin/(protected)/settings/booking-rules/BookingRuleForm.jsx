@@ -222,6 +222,10 @@ const bookingRuleSchema = z.object({
   hourlyChargeAmount: z.coerce.number().min(0),
   refundPercentage: z.coerce.number().int().min(0).max(100),
   cancellationCutoffDays: z.coerce.number().int().min(0),
+  // Near-Term Cancellation Policy — see prisma/schema.prisma
+  // BookingRule.nearTermCancellationPolicy comment for the full
+  // "no_refund" vs "standard" behavior.
+  nearTermCancellationPolicy: z.enum(["no_refund", "standard"]),
   depositRequired: z.boolean(),
   depositPercentage: z.coerce.number().int().min(0).max(100),
   weekendSurchargePercent: z.coerce.number().int().min(0),
@@ -259,6 +263,7 @@ const DEFAULT_BOOKING_RULE_VALUES = {
   hourlyChargeAmount: 0,
   refundPercentage: 100,
   cancellationCutoffDays: 7,
+  nearTermCancellationPolicy: "no_refund",
   depositRequired: true,
   depositPercentage: 50,
   weekendSurchargePercent: 0,
@@ -297,6 +302,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           checkInTime: existingRule.checkInTime,
           checkOutTime: existingRule.checkOutTime,
           sameDayPolicy: existingRule.sameDayPolicy ?? "strict",
+          nearTermCancellationPolicy: existingRule.nearTermCancellationPolicy ?? "no_refund",
           allowOvernightStay: existingRule.allowOvernightStay,
           allowDayTour: existingRule.allowDayTour,
           allowNightTour: existingRule.allowNightTour,
@@ -434,6 +440,7 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
   const allowDayTour = watch("allowDayTour");
   const allowNightTour = watch("allowNightTour");
   const sameDayPolicy = watch("sameDayPolicy");
+  const nearTermCancellationPolicy = watch("nearTermCancellationPolicy");
   // Read by the "Total Hours of Stay" dropdowns below — each dropdown
   // shows the currently implied duration (start -> end) and, on
   // change, recomputes the matching end time field.
@@ -1118,6 +1125,41 @@ export default function BookingRuleForm({ existingRule, rooms, amenities = [], p
           <p className="bookingRulesHint">
             Ibig sabihin: &quot;Full refund kung mag-cancel ng {watch("cancellationCutoffDays")}+ araw bago ang check-in.&quot;
           </p>
+
+          {/* --- Near-Term Cancellation Policy — what happens when the
+              guest's OWN booking was made too close to check-in for the
+              free-cancellation window above to ever apply to them (e.g.
+              cutoff is 7 days but they booked same-day or 3 days out).
+              See prisma/schema.prisma BookingRule.nearTermCancellationPolicy
+              and services/bookingPricing.js for the enforcement logic. --- */}
+          <div className="bookingRulesSubPanel">
+            <p className="bookingRulesSubPanelTitle">Near-Term Cancellation Policy</p>
+            <p className="bookingRulesHint">
+              Ano ang mangyayari kapag nag-book na ang guest na hindi na niya maaabot yung{" "}
+              {watch("cancellationCutoffDays")}-day free-cancellation window sa itaas (halimbawa,
+              same-day o ilang araw na lang bago ang check-in)?
+            </p>
+            <div className="bookingRulesToggleRow">
+              <label className="bookingRulesToggle">
+                <input
+                  type="radio"
+                  name="nearTermCancellationPolicy"
+                  checked={nearTermCancellationPolicy === "no_refund"}
+                  onChange={() => setValue("nearTermCancellationPolicy", "no_refund", { shouldValidate: true })}
+                />
+                Walang Refund — hindi na mababalik ang deposit kapag nag-cancel
+              </label>
+              <label className="bookingRulesToggle">
+                <input
+                  type="radio"
+                  name="nearTermCancellationPolicy"
+                  checked={nearTermCancellationPolicy === "standard"}
+                  onChange={() => setValue("nearTermCancellationPolicy", "standard", { shouldValidate: true })}
+                />
+                Standard — sundin pa rin ang refund % sa itaas, kahit last-minute
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* --- Section 3: Deposit & Payment --- */}

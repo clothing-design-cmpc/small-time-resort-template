@@ -742,6 +742,32 @@ model BookingRule {
   // services/bookingPricing.js for the enforcement logic.
   sameDayPolicy String @default("strict") @map("same_day_policy") // "strict" | "auto_adjust"
 
+  // --- Near-Term Cancellation Policy — governs what refund a guest is
+  //     told to expect when they book so close to check-in that the
+  //     normal "free cancellation up to cancellationCutoffDays days
+  //     before check-in" window is already impossible to hit (e.g.
+  //     cancellationCutoffDays is 7 but the guest is booking same-day
+  //     or 3 days out). Without this, the confirmation page kept
+  //     showing that free-cancellation line even when it could never
+  //     apply to that specific guest — misleading.
+  //   "no_refund" — a booking made inside the cutoff window is flagged
+  //                 non-refundable at creation time (Booking.
+  //                 isDepositNonRefundable/depositNonRefundableReason —
+  //                 same fields the rebooking-limit policy already
+  //                 uses, see services/rebookingPolicy.js), and the
+  //                 confirmation/manage-booking screens show a
+  //                 "No refund if cancelled" warning instead of the
+  //                 normal cancellation-policy line.
+  //   "standard"  — no special treatment; the normal
+  //                 cancellationCutoffDays/refundPercentage line is
+  //                 shown and nothing extra is flagged, even for a
+  //                 near-term booking.
+  // Set per rule (i.e. per booking type/night-count combo — Overnight,
+  // Day Tour, and Night Tour each already have their own BookingRule
+  // row), never globally. See services/bookingPricing.js's
+  // "Near-Term Cancellation" block for the enforcement logic.
+  nearTermCancellationPolicy String @default("no_refund") @map("near_term_cancellation_policy") // "no_refund" | "standard"
+
   // --- Rule Schedule — which specific calendar dates this rule set's
   //     Section 1 settings apply to. Stored as "YYYY-MM-DD" keys.
   //     Empty array = no specific dates picked yet (rule set still needs

@@ -111,6 +111,7 @@ export async function PUT(request, { params }) {
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         sameDayPolicy: body.sameDayPolicy,
+        nearTermCancellationPolicy: body.nearTermCancellationPolicy,
         allowOvernightStay: bookingTypeFlags.allowOvernightStay,
         allowDayTour: bookingTypeFlags.allowDayTour,
         allowNightTour: bookingTypeFlags.allowNightTour,

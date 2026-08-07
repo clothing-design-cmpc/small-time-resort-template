@@ -742,6 +742,22 @@ export async function validateAndQuoteBooking({
   };
   const scheduledStartAt = effectiveCheckInAt ?? combineDateAndTime(checkIn, scheduledStartTimeByType[bookingType]);
 
+  // --- Near-Term Cancellation Policy (BookingRule.nearTermCancellationPolicy) ---
+  // A booking is "near-term" when the gap between right now (booking
+  // time) and check-in is already SHORTER than this rule's own
+  // cancellationCutoffDays — meaning the "free cancellation up to N
+  // days before check-in" window is mathematically impossible for
+  // this specific guest to ever hit. Measured in whole calendar days
+  // (Math.floor), so a guest booking at 11:59pm the day before
+  // check-in still correctly reads as "0 days out", same rounding
+  // direction as advanceBookingDays elsewhere in this file. Only
+  // flagged when the rule's own nearTermCancellationPolicy is
+  // "no_refund" — a "standard" rule intentionally opts out and no
+  // flag is set, same as before this feature existed.
+  const daysUntilCheckIn = Math.floor((checkIn.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const isNearTermNonRefundable =
+    rules.nearTermCancellationPolicy === "no_refund" && daysUntilCheckIn < rules.cancellationCutoffDays;
+
   return {
     nights,
     howManySelectedDates: nights,
@@ -776,6 +792,12 @@ export async function validateAndQuoteBooking({
     scheduledStartAt: scheduledStartAt.toISOString(),
     cancellationCutoffDays: rules.cancellationCutoffDays,
     refundPercentage: rules.refundPercentage,
+    // See Near-Term Cancellation Policy block above. The create route
+    // persists this onto Booking.isDepositNonRefundable/
+    // depositNonRefundableReason/depositNonRefundableAt; the quote
+    // preview route just returns it as-is so the visitor booking form
+    // can show a "No refund if cancelled" warning before they submit.
+    isNearTermNonRefundable,
     room: room
       ? {
           id: room.id,

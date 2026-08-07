@@ -303,8 +303,18 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
           </p>
         )}
         <p className="bookingConfirmPolicy">
-          Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in
-          ({confirmedQuote.refundPercentage}% refund).
+          {confirmedQuote.isNearTermNonRefundable ? (
+            <>
+              ⚠ This booking was made within {confirmedQuote.cancellationCutoffDays} day(s) of check-in, so
+              the usual free-cancellation window doesn&apos;t apply — your deposit is non-refundable if you
+              cancel.
+            </>
+          ) : (
+            <>
+              Free cancellation up to {confirmedQuote.cancellationCutoffDays} day(s) before check-in (
+              {confirmedQuote.refundPercentage}% refund).
+            </>
+          )}
         </p>
         <p className="bookingConfirmCancelNote">
           Need to cancel or change this booking? Call us at{" "}
@@ -435,7 +445,18 @@ export default function TourReservationSummaryClient({ checkInDate, bookingType,
             <p className="bookingQuoteRow"><span>Deposit due now</span><span>{PESO.format(quote.depositAmount)}</span></p>
           )}
           <p className="bookingQuotePolicy">
-            Free cancellation up to {quote.cancellationCutoffDays} day(s) before check-in ({quote.refundPercentage}% refund).
+            {quote.isNearTermNonRefundable ? (
+              <>
+                ⚠ This booking is within {quote.cancellationCutoffDays} day(s) of check-in — the usual
+                free-cancellation window won&apos;t apply, and the deposit will be non-refundable if
+                cancelled.
+              </>
+            ) : (
+              <>
+                Free cancellation up to {quote.cancellationCutoffDays} day(s) before check-in (
+                {quote.refundPercentage}% refund).
+              </>
+            )}
           </p>
         </div>
       )}

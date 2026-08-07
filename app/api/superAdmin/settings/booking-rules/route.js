@@ -99,6 +99,7 @@ export async function POST(request) {
         checkInTime: body.checkInTime,
         checkOutTime: body.checkOutTime,
         sameDayPolicy: body.sameDayPolicy,
+        nearTermCancellationPolicy: body.nearTermCancellationPolicy,
         // Visitor-facing guest count for this rule set — read by the
         // public reservation page (app/visitor/booking/ReservationSummaryClient.jsx)
         // and displayed there as text instead of an editable input.

@@ -178,6 +178,21 @@ async function createBookingInTransaction(payload, requestMeta, pendingHoldHours
             userAgent: requestMeta.userAgent,
             geoCity: requestMeta.geoCity,
             geoCountry: requestMeta.geoCountry,
+            // Near-Term Cancellation Policy (BookingRule.
+            // nearTermCancellationPolicy, see services/bookingPricing.js) —
+            // reuses the same isDepositNonRefundable/
+            // depositNonRefundableReason/depositNonRefundableAt fields the
+            // rebooking-limit policy already uses (services/
+            // rebookingPolicy.js), so both the guest-facing Manage My
+            // Booking widget and the super-admin bookings table
+            // automatically pick this up with zero extra UI work.
+            isDepositNonRefundable: quote.isNearTermNonRefundable,
+            depositNonRefundableReason: quote.isNearTermNonRefundable
+              ? `Booked ${quote.cancellationCutoffDays > 0 ? "within" : "on"} the ${
+                  quote.cancellationCutoffDays
+                }-day cancellation window (${quote.checkInDate} check-in booked at time of submission).`
+              : null,
+            depositNonRefundableAt: quote.isNearTermNonRefundable ? new Date() : null,
           },
         });
 

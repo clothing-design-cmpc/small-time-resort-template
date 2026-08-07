@@ -375,7 +375,29 @@ export default function HowToBookSection() {
       // anyBookedSet distinction in the file header above). Without
       // naming which date(s) are the problem, a visitor has no way to
       // tell their newly-clicked day apart from the real cause.
-      const conflictingKeys = rangeKeys.filter((key) => anyBookedSet.has(key));
+      //
+      // EXCEPTION — the check-in (earliest) date's OWN same-day Day
+      // Tour/Night Tour conflict is not necessarily a hard block: when
+      // the active rule's overnightSameDayPolicy is "auto_adjust",
+      // services/bookingPricing.js (the authoritative check at
+      // submission time) pushes the effective check-in later instead
+      // of rejecting it outright — mirrors the single-date flow's
+      // resolveAdjustableAvailability() below. We don't know the
+      // policy yet at click time (rule is fetched fresh in
+      // handleContinue), so the check-in date's own conflict is left
+      // out here and re-checked authoritatively in handleContinue()
+      // once the rule is known. Every OTHER date in the range (not
+      // the check-in date) is still a genuine, non-adjustable
+      // conflict per bookingPricing.js's comments and blocks here as
+      // before. An Overnight-type conflict is never adjustable
+      // either way (and such a day is already unclickable via
+      // bookedSet — kept here as defense-in-depth).
+      const earliestRangeKey = [...rangeKeys].sort()[0];
+      const conflictingKeys = rangeKeys.filter((key) => {
+        if (!anyBookedSet.has(key)) return false;
+        if (key === earliestRangeKey && !overnightSet.has(key)) return false;
+        return true;
+      });
       if (conflictingKeys.length > 0) {
         // Name WHAT is already booked on each conflicting date, not just
         // that something is — "Aug 3 (Day Tour)" tells the visitor
@@ -640,6 +662,41 @@ export default function HowToBookSection() {
         if (!overnightFits) {
           showToast(`✕ No existing booking rule for a ${nightsSelected}-night stay. Please choose a different date range or try again later.`, "error");
           return;
+        }
+
+        // SEQUENTIAL AUTO-ADJUST for the check-in date itself: any
+        // OTHER date in the range with a Day/Night Tour conflict was
+        // already blocked at click time in handleDayClick — this is
+        // only the check-in date's own same-day conflict, deferred
+        // here because only now do we know the active rule's
+        // overnightSameDayPolicy. Mirrors the exact exemption
+        // services/bookingPricing.js applies at submission time: an
+        // "auto_adjust" policy means this is NOT a hard block — the
+        // backend will push the effective check-in time later instead
+        // of rejecting the booking. A "strict" policy keeps blocking,
+        // same message/wording as before.
+        const checkInHasSameDayConflict = anyBookedSet.has(checkInKey) && !overnightSet.has(checkInKey);
+        if (checkInHasSameDayConflict) {
+          const typeLabel =
+            dayTourSet.has(checkInKey) && nightTourSet.has(checkInKey)
+              ? "Day Tour & Night Tour"
+              : dayTourSet.has(checkInKey)
+              ? "Day Tour"
+              : "Night Tour";
+          if (rule.overnightSameDayPolicy !== "auto_adjust") {
+            showToast(
+              `✕ ${formatKeyShort(checkInKey)} (${typeLabel}) already has a booking, so this range can't include it. Please pick a different range.`,
+              "error"
+            );
+            return;
+          }
+          // Non-blocking heads-up — the actual adjusted check-in
+          // moment is computed authoritatively by
+          // services/bookingPricing.js once the booking is submitted.
+          showToast(
+            `⚠ ${formatKeyShort(checkInKey)} already has a ${typeLabel} booking — your check-in time may be pushed back for cleaning turnover.`,
+            "warning"
+          );
         }
 
         // Rule confirmed for these dates — open the room-selection

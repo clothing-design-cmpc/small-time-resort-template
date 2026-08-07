@@ -21,6 +21,17 @@
  * request). pendingExpiresAt powers RoomSelectionModal.jsx's live DP
  * Countdown display for a pending booking still waiting on payment.
  *
+ * ALSO includes CHECKOUT-DAY bookings (relationship: "checkout"),
+ * on top of true overlaps (relationship: "overlap"): an Overnight
+ * booking whose checkout falls exactly on the new selection's own
+ * check-in date deliberately does NOT block that date (same-day
+ * turnover — see the exclusive-boundary overlap filter below) but the
+ * visitor picking that date still benefits from seeing WHO checks out
+ * that morning and, if that booking is still "pending", the same live
+ * DP Countdown shown for a true conflict — the previous guest hasn't
+ * actually confirmed yet, so the date isn't fully guaranteed free
+ * until either that countdown resolves or the booking is confirmed.
+ *
  * DATA FLOW:
  * 1. RoomSelectionModal calls GET /api/bookings/existing-on-date?checkin=&checkout=
  *    on mount / whenever the dates change (mirrors useAvailableRooms.js)
@@ -124,22 +135,40 @@ export async function GET(request) {
           booking.bookingType === "overnight"
             ? toLocalMidnight(booking.checkOutDate)
             : new Date(existingStart.getFullYear(), existingStart.getMonth(), existingStart.getDate() + 1);
-        return existingStart < checkOutDate && existingEnd > checkInDate;
+        // True overlap (blocks the new selection) OR a checkout-day
+        // match (existingEnd lands exactly on the new selection's own
+        // check-in — same-day turnover, doesn't block, but still
+        // worth surfacing — see file header).
+        const isOverlap = existingStart < checkOutDate && existingEnd > checkInDate;
+        const isCheckoutDayMatch = booking.bookingType === "overnight" && existingEnd.getTime() === checkInDate.getTime();
+        return isOverlap || isCheckoutDayMatch;
       })
-      .map((booking) => ({
-        guestName: booking.guestName,
-        status: booking.status,
-        bookingType: booking.bookingType,
-        // Only meaningful while status is "pending" — the DP Countdown
-        // widget in RoomSelectionModal.jsx uses this to tick down live.
-        // null for "confirmed" (nothing to wait on).
-        pendingExpiresAt: booking.status === "pending" ? booking.pendingExpiresAt : null,
-        // Short-window (capped) hold — see Booking.pendingHoldCapped.
-        // Lets the widget skip the ticking countdown once it's already
-        // breached instead of showing a stuck "0h 00m 00s".
-        pendingHoldCapped: booking.status === "pending" ? booking.pendingHoldCapped : false,
-        pendingHoldBreached: booking.status === "pending" ? Boolean(booking.pendingHoldBreachedAt) : false,
-      }));
+      .map((booking) => {
+        const existingStart = toLocalMidnight(booking.checkInDate);
+        const existingEnd =
+          booking.bookingType === "overnight"
+            ? toLocalMidnight(booking.checkOutDate)
+            : new Date(existingStart.getFullYear(), existingStart.getMonth(), existingStart.getDate() + 1);
+        const isOverlap = existingStart < checkOutDate && existingEnd > checkInDate;
+        return {
+          guestName: booking.guestName,
+          status: booking.status,
+          bookingType: booking.bookingType,
+          // Only meaningful while status is "pending" — the DP Countdown
+          // widget in RoomSelectionModal.jsx uses this to tick down live.
+          // null for "confirmed" (nothing to wait on).
+          pendingExpiresAt: booking.status === "pending" ? booking.pendingExpiresAt : null,
+          // Short-window (capped) hold — see Booking.pendingHoldCapped.
+          // Lets the widget skip the ticking countdown once it's already
+          // breached instead of showing a stuck "0h 00m 00s".
+          pendingHoldCapped: booking.status === "pending" ? booking.pendingHoldCapped : false,
+          pendingHoldBreached: booking.status === "pending" ? Boolean(booking.pendingHoldBreachedAt) : false,
+          // "overlap" = actually occupies the new selection's dates.
+          // "checkout" = only touches it as its own checkout morning —
+          // doesn't block, purely informational (see file header).
+          relationship: isOverlap ? "overlap" : "checkout",
+        };
+      });
 
     return NextResponse.json({
       success: true,

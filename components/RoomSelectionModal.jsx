@@ -112,14 +112,17 @@ export default function RoomSelectionModal({
           </div>
         </div>
 
-        {existingBookings.length > 0 && (
-          <div className="roomSelectionExistingBookings">
-            <p className="roomSelectionExistingBookingsLabel">
-              {existingBookings.length === 1
-                ? "There's already a booking on this date:"
-                : `There are already ${existingBookings.length} bookings on this date:`}
-            </p>
-            {existingBookings.map((existingBooking, index) => (
+        {existingBookings.length > 0 && (() => {
+          // Split by relationship (see app/api/bookings/existing-on-date/
+          // route.js) — "overlap" actually occupies these dates, while
+          // "checkout" only touches this range as its own checkout
+          // morning (same-day turnover, doesn't block). Different label,
+          // same row markup/countdown underneath either way.
+          const overlapBookings = existingBookings.filter((b) => b.relationship !== "checkout");
+          const checkoutBookings = existingBookings.filter((b) => b.relationship === "checkout");
+
+          function renderBookingRow(existingBooking, index) {
+            return (
               <div key={index} className="roomSelectionExistingBookingRow">
                 <span className="roomSelectionExistingBookingName">{existingBooking.guestName}</span>
                 <span className="roomSelectionExistingBookingType">
@@ -128,10 +131,6 @@ export default function RoomSelectionModal({
                 <StatusBadge status={existingBooking.status} />
                 {existingBooking.status === "pending" && existingBooking.pendingExpiresAt && (
                   existingBooking.pendingHoldBreached ? (
-                    // Short-window (capped) hold already past its scheduled
-                    // start — never auto-cancelled (Booking.pendingHoldCapped),
-                    // so no countdown to tick down to zero; a static tooltip
-                    // instead of DPCountdown avoids showing a stuck "0h 00m 00s".
                     <InfoTooltipIcon text="Awaiting resort confirmation — this booking's scheduled time has passed." />
                   ) : (
                     <>
@@ -141,9 +140,34 @@ export default function RoomSelectionModal({
                   )
                 )}
               </div>
-            ))}
-          </div>
-        )}
+            );
+          }
+
+          return (
+            <>
+              {overlapBookings.length > 0 && (
+                <div className="roomSelectionExistingBookings">
+                  <p className="roomSelectionExistingBookingsLabel">
+                    {overlapBookings.length === 1
+                      ? "There's already a booking on this date:"
+                      : `There are already ${overlapBookings.length} bookings on this date:`}
+                  </p>
+                  {overlapBookings.map(renderBookingRow)}
+                </div>
+              )}
+              {checkoutBookings.length > 0 && (
+                <div className="roomSelectionExistingBookings">
+                  <p className="roomSelectionExistingBookingsLabel">
+                    {checkoutBookings.length === 1
+                      ? "The previous guest checks out this morning — dates aren't fully open until this clears:"
+                      : `${checkoutBookings.length} previous guests check out this morning — dates aren't fully open until these clear:`}
+                  </p>
+                  {checkoutBookings.map(renderBookingRow)}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {isLoading && (
           <div className="roomSelectionGrid">

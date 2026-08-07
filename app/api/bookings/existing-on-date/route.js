@@ -59,8 +59,23 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const checkInDate = parseDateKey(searchParams.get("checkin"));
-    const checkOutDate = parseDateKey(searchParams.get("checkout")) ??
+    let checkOutDate = parseDateKey(searchParams.get("checkout")) ??
       (checkInDate ? new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate() + 1) : null);
+
+    // Every single-date caller (a Tour selection, or BookingStatusModal.jsx
+    // opened from a fully-booked day) sends checkout === checkin literally
+    // (see hooks/useExistingBookingsOnDate.js's `checkout: checkOutDate ||
+    // checkInDate`) rather than omitting it — so the `??` fallback above
+    // never fires and checkOutDate lands equal to checkInDate. Every
+    // overlap check below is exclusive-upper-bound (existingStart <
+    // checkOutDate), so an equal checkin/checkout produced a zero-width
+    // window that could never match ANY booking, even one sitting exactly
+    // on that date. Normalize here instead: any checkOutDate that isn't
+    // strictly after checkInDate is treated the same as "not provided" —
+    // bumped to checkInDate + 1 day.
+    if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
+      checkOutDate = new Date(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate() + 1);
+    }
 
     if (!checkInDate || !checkOutDate) {
       return NextResponse.json(

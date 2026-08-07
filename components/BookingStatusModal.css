@@ -1,0 +1,54 @@
+/*
+ * .bookingStatusBackdrop / .bookingStatusDialog
+ * Small, read-only popup (no room grid, no Continue button) — kept
+ * intentionally light/compact since it only ever shows the existing-
+ * bookings banner content. Reuses RoomSelectionModal.css's
+ * .roomSelection* row/badge/countdown classes so both surfaces stay
+ * visually identical without duplicating those rules.
+ */
+.bookingStatusBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(9, 9, 11, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal, 500);
+  padding: var(--space-lg, 1.5rem);
+}
+
+.bookingStatusDialog {
+  width: 100%;
+  max-width: 420px;
+  max-height: 85dvh;
+  overflow-y: auto;
+  background-color: var(--color-bg, #ffffff);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+  border-radius: 14px;
+  padding: var(--space-lg, 1.5rem);
+}
+
+.bookingStatusHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md, 1rem);
+  margin-bottom: var(--space-md, 1rem);
+}
+
+.bookingStatusTitle {
+  margin-top: 4px;
+}
+
+.bookingStatusHint {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary, rgba(0, 0, 0, 0.55));
+  margin: 0;
+}
+
+/* Existing-bookings block reused here has no "Choose Your Villa" grid
+ * beneath it in this modal — drop the bottom margin RoomSelectionModal
+ * relies on to separate it from that grid. */
+.bookingStatusExistingBookings {
+  margin-bottom: 0;
+}

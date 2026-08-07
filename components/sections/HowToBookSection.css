@@ -192,11 +192,16 @@
   background-color: rgba(63, 125, 82, 0.14);
 }
 
+/* Fully booked (Overnight already occupying the whole date) — no
+ * longer truly unclickable: tapping it opens the read-only
+ * BookingStatusModal (who's holding it + live DP Countdown) instead
+ * of the booking-selection flow, so "help" reads more accurately than
+ * "not-allowed" here. */
 .howToBookCalendarDayBooked {
   background-color: #c0442a;
   color: #fff;
   font-weight: 600;
-  cursor: not-allowed;
+  cursor: help;
 }
 
 .howToBookCalendarDayPast {

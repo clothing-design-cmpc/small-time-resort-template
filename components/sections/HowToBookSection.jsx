@@ -59,6 +59,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/app/visitor/shared/useToast";
 import ToastStack from "@/app/visitor/shared/ToastStack";
 import RoomSelectionModal from "@/components/RoomSelectionModal";
+import BookingStatusModal from "@/components/BookingStatusModal";
 import { formatTime12Hour } from "@/utils/formatTime";
 import TourSelectionModal from "@/components/TourSelectionModal";
 import { useAvailableRooms } from "@/hooks/useAvailableRooms";
@@ -206,6 +207,11 @@ export default function HowToBookSection() {
   } = useBookedDates();
   const [monthOffset, setMonthOffset] = useState(0);
   const [selectedDates, setSelectedDates] = useState([]);
+  // "YYYY-MM-DD" of a FULLY booked day the visitor tapped, or null.
+  // Drives BookingStatusModal — the read-only "who's holding this
+  // date" popup with the same live DP Countdown RoomSelectionModal
+  // shows, now reachable for a fully-booked (not just partial) day.
+  const [statusModalDate, setStatusModalDate] = useState(null);
   const [isCheckingRule, setIsCheckingRule] = useState(false);
   // Whether the currently active booking rule allows Overnight Stay.
   // Defaults to true (the old, permissive behavior) until the fetch
@@ -341,7 +347,17 @@ export default function HowToBookSection() {
   // before, so the visitor can never end up with 2+ dates selected for
   // a booking type that has no way to use a second date.
   function handleDayClick(cellKey, isPast, isBooked) {
-    if (isPast || isBooked) return;
+    if (isPast) return;
+
+    // Fully booked (single-room Overnight already occupying the whole
+    // date, or both Tour types maxed) — never selectable for the
+    // visitor's own booking, but now opens a read-only status popup
+    // instead of silently doing nothing, so the live DP Countdown for
+    // whoever's holding it is still reachable (see BookingStatusModal.jsx).
+    if (isBooked) {
+      setStatusModalDate(cellKey);
+      return;
+    }
 
     if (!allowOvernightStay) {
       setSelectedDates((current) => (current.length === 1 && current[0] === cellKey ? [] : [cellKey]));
@@ -1008,11 +1024,18 @@ export default function HowToBookSection() {
                     key={cellKey}
                     type="button"
                     className={cls}
-                    disabled={!isOpen}
+                    // Fully booked is no longer truly disabled — it now opens
+                    // BookingStatusModal (read-only) via handleDayClick's own
+                    // isBooked branch, so the live DP Countdown for whoever's
+                    // holding a fully-booked date stays reachable. Past days
+                    // and maintenance blackouts remain genuinely inert.
+                    disabled={isPast || isMaintenanceDay}
                     aria-pressed={isOpen ? isSelected : undefined}
                     aria-label={
                       isMaintenanceDay
                         ? `${cellKey} — resort is undergoing maintenance`
+                        : isBooked
+                        ? `${cellKey} — fully booked, view booking status`
                         : isOpen
                         ? `${isSelected ? "Deselect" : "Select"} ${cellKey}${
                             isCheckoutDay && checkOutTime ? ` — previous guests check out ${formatTime12Hour(checkOutTime)}` : ""
@@ -1025,6 +1048,8 @@ export default function HowToBookSection() {
                     title={
                       isMaintenanceDay
                         ? "Resort is undergoing maintenance."
+                        : isBooked
+                        ? "Fully booked — tap to view booking status"
                         : isPromoDay
                         ? `${promoDiscount}% OFF promo`
                         : isCheckoutDay && checkOutTime
@@ -1101,6 +1126,8 @@ export default function HowToBookSection() {
           </div>
         )}
       </div>
+
+      <BookingStatusModal date={statusModalDate} onClose={() => setStatusModalDate(null)} />
 
       <RoomSelectionModal
         isOpen={Boolean(roomModalRequest)}

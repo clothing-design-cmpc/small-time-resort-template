@@ -349,9 +349,21 @@ export async function POST(request) {
     // pendingHoldHours setting, since the hold may have been capped
     // short of it (booking.pendingExpiresAt, see createBookingInTransaction
     // above and prisma/schema.prisma's pendingHoldCapped field comment).
+    const holdRemainingText = formatTimeRemaining(booking.pendingExpiresAt);
     const mergeVars = {
       guestName: payload.guestName,
-      pendingHoldRemaining: formatTimeRemaining(booking.pendingExpiresAt),
+      pendingHoldRemaining: holdRemainingText,
+      // Alias for pendingHoldRemaining — same formatted "X hours and Y
+      // minutes" value. Added because {{pendingHoldHours}} (the raw
+      // SystemSettings field name shown elsewhere in the admin UI,
+      // e.g. Settings > Booking Rules > Pending Hold) is the tag an
+      // admin naturally reaches for when editing this template's copy,
+      // even though the documented merge tag is pendingHoldRemaining —
+      // renderTemplateText() leaves unknown tags untouched, so a typed
+      // {{pendingHoldHours}} was rendering literally in the sent email
+      // instead of the actual hour count. Accepting both means existing
+      // admin-edited template text with either spelling now works.
+      pendingHoldHours: holdRemainingText,
     };
 
     await sendGeneralEmail({

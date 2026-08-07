@@ -33,7 +33,12 @@ const EMPTY_FORM = {
  * guess (or accidentally invent a tag that never gets replaced).
  */
 const MERGE_TAG_HINTS = {
-  pending: ["{{guestName}}", "{{pendingHoldRemaining}}"],
+  // pendingHoldHours is an alias of pendingHoldRemaining (same
+  // formatted "X hours and Y minutes" value) — accepted too since it
+  // matches the SystemSettings field name shown on the Pending Hold
+  // settings page, which is the name an admin naturally reaches for
+  // here. See app/api/bookings/route.js's mergeVars for the alias.
+  pending: ["{{guestName}}", "{{pendingHoldRemaining}}", "{{pendingHoldHours}}"],
   cancelled: ["{{guestName}}"],
   auto_cancelled: ["{{guestName}}"],
   rebooked: ["{{guestName}}"],

@@ -359,6 +359,19 @@ export default function HowToBookSection() {
       return;
     }
 
+    // Admin-set maintenance blackout — never selectable for booking,
+    // but the day is no longer a disabled <button> (see the JSX below),
+    // so it still needs an explicit early-return here instead of relying
+    // on `disabled` to block the click. Surfaces the same message the
+    // old `title` attribute carried, but via a toast — the native title
+    // tooltip never fires on touch devices and was easy to miss even on
+    // desktop, which is exactly why it looked like "nothing happens"
+    // when tapping/clicking the day or its "!" icon.
+    if (maintenanceSet.has(cellKey)) {
+      showToast("⚠ This date is under maintenance and unavailable for booking.", "warning");
+      return;
+    }
+
     if (!allowOvernightStay) {
       setSelectedDates((current) => (current.length === 1 && current[0] === cellKey ? [] : [cellKey]));
       return;
@@ -1027,9 +1040,16 @@ export default function HowToBookSection() {
                     // Fully booked is no longer truly disabled — it now opens
                     // BookingStatusModal (read-only) via handleDayClick's own
                     // isBooked branch, so the live DP Countdown for whoever's
-                    // holding a fully-booked date stays reachable. Past days
-                    // and maintenance blackouts remain genuinely inert.
-                    disabled={isPast || isMaintenanceDay}
+                    // holding a fully-booked date stays reachable. Maintenance
+                    // days follow the same pattern now — the button stays
+                    // enabled so a tap/click actually registers (a disabled
+                    // button suppresses both click AND, on most touch
+                    // devices, the native title tooltip below — which is why
+                    // tapping the "!" icon used to silently do nothing).
+                    // handleDayClick's own maintenanceSet check shows a toast
+                    // instead of ever selecting the date. Only past days are
+                    // genuinely inert (nothing useful to show for those).
+                    disabled={isPast}
                     aria-pressed={isOpen ? isSelected : undefined}
                     aria-label={
                       isMaintenanceDay

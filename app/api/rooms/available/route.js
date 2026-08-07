@@ -17,9 +17,10 @@
  * 1. RoomSelectionModal calls GET /api/rooms/available?checkin=&checkout=
  *    once the homepage calendar has confirmed a booking rule exists
  * 2. Every active room is checked for overlap against Booking
- *    (status: "confirmed") and BlackoutDate for the same range — same
- *    overlap logic app/api/rooms/[roomId]/availability/route.js uses
- *    per-room, just applied across every room in one query
+ *    (status: "confirmed", or "pending" while its DP Countdown hold is
+ *    still active) and BlackoutDate for the same range — same overlap
+ *    logic app/api/rooms/[roomId]/availability/route.js uses per-room,
+ *    just applied across every room in one query
  * 3. Rooms with zero overlaps are returned, each with amenities
  *    resolved by name so the modal and reservation page can render
  *    them as text without a separate amenities fetch
@@ -90,7 +91,24 @@ export async function GET(request) {
         imageUrl: true,
         amenityIds: true,
         bookings: {
-          where: { status: "confirmed" },
+          // "pending" holds a room's dates the same as "confirmed" does
+          // (DP Countdown soft-hold — see Booking.pendingExpiresAt) —
+          // this previously only checked "confirmed", so a room with
+          // an active pending hold could still show up here as pickable
+          // even though the DB EXCLUDE constraint and bookingPricing.js's
+          // own overlap check (both of which DO account for pending)
+          // would reject it moments later at actual submit time. Same
+          // stale-vs-active distinction bookings/dates/route.js and
+          // existing-on-date/route.js already apply: a pending row past
+          // its own pendingExpiresAt (and not capped) is stale — only
+          // still "pending" in the DB because the expiry cron hasn't
+          // swept it yet — and must NOT count as blocking here either.
+          where: {
+            OR: [
+              { status: "confirmed" },
+              { status: "pending", OR: [{ pendingExpiresAt: { gt: new Date() } }, { pendingHoldCapped: true }] },
+            ],
+          },
           select: { checkInDate: true, checkOutDate: true },
         },
         blackoutDates: {

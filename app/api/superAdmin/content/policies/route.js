@@ -76,6 +76,7 @@ export async function PUT(request) {
         resortLatitude: body.resortLatitude === "" || body.resortLatitude == null ? null : Number(body.resortLatitude),
         resortLongitude:
           body.resortLongitude === "" || body.resortLongitude == null ? null : Number(body.resortLongitude),
+        adminTelegramChatIds: body.adminTelegramChatIds ?? null,
         updatedBy: body.updatedBy || null,
       },
       create: {
@@ -105,6 +106,7 @@ export async function PUT(request) {
         resortLatitude: body.resortLatitude === "" || body.resortLatitude == null ? null : Number(body.resortLatitude),
         resortLongitude:
           body.resortLongitude === "" || body.resortLongitude == null ? null : Number(body.resortLongitude),
+        adminTelegramChatIds: body.adminTelegramChatIds ?? null,
         updatedBy: body.updatedBy || null,
       },
     });
@@ -133,6 +135,7 @@ export async function PUT(request) {
       resortAddress: "Contact Info (address)",
       resortLatitude: "Contact Info (map latitude)",
       resortLongitude: "Contact Info (map longitude)",
+      adminTelegramChatIds: "Contact Info (Telegram alert chat IDs)",
     };
     const changedFields = Object.keys(POLICY_FIELD_LABELS).filter(
       (field) => previousSettings?.[field] !== updatedSettings[field]

@@ -62,6 +62,7 @@ const EMPTY_FORM = {
   resortMessengerUsername: "",
   resortLatitude: "",
   resortLongitude: "",
+  adminTelegramChatIds: "",
 };
 
 export default function PoliciesClient() {
@@ -102,6 +103,7 @@ export default function PoliciesClient() {
       resortMessengerUsername: policies.resortMessengerUsername ?? "",
       resortLatitude: policies.resortLatitude ?? "",
       resortLongitude: policies.resortLongitude ?? "",
+      adminTelegramChatIds: policies.adminTelegramChatIds ?? "",
     });
   }, [policies]);
 
@@ -274,6 +276,48 @@ export default function PoliciesClient() {
               rows={3}
               value={formValues.resortAddress}
               onChange={(event) => handleFieldChange("resortAddress", event.target.value)}
+            />
+          </div>
+          <div className="policiesTelegramSetup">
+            <span className="policiesTelegramSetupTitle">Admin Telegram Alerts</span>
+            <p className="policiesMapHint" style={{ marginBottom: "0.4rem" }}>
+              Every new booking or walk-in inquiry sends a free Telegram message to the chat ID(s)
+              below — separate from the Resort Phone above (that&apos;s what guests see). Leave blank
+              to turn this off. One-time setup per admin:
+            </p>
+            <ol className="policiesTelegramSetupSteps">
+              <li>
+                In Telegram, message <strong>@BotFather</strong>, send <code>/newbot</code>, and
+                follow the prompts to create the resort&apos;s bot (skip this if the bot already
+                exists).
+              </li>
+              <li>
+                Have the resort&apos;s developer add the bot token BotFather gave you to the
+                project&apos;s <code>TELEGRAM_BOT_TOKEN</code> environment variable.
+              </li>
+              <li>
+                Each admin who wants alerts: search for the bot&apos;s username in Telegram and tap{" "}
+                <strong>Start</strong> (or send it any message) — the bot can&apos;t message you
+                until you&apos;ve done this once.
+              </li>
+              <li>
+                Message <strong>@userinfobot</strong> — it replies instantly with your numeric chat
+                ID.
+              </li>
+              <li>
+                Paste that chat ID below. Add more than one by separating them with commas (e.g.{" "}
+                <code>123456789, 987654321</code>).
+              </li>
+            </ol>
+          </div>
+          <div className="policiesFormField">
+            <label htmlFor="adminTelegramChatIds">Admin Telegram Alert Chat IDs</label>
+            <input
+              id="adminTelegramChatIds"
+              type="text"
+              placeholder="e.g. 123456789, 987654321"
+              value={formValues.adminTelegramChatIds}
+              onChange={(event) => handleFieldChange("adminTelegramChatIds", event.target.value)}
             />
           </div>
           <p className="policiesMapHint">

@@ -47,6 +47,7 @@ import { validateAndQuoteBooking } from "@/services/bookingPricing";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { logVisitorActivity } from "@/services/visitorLog";
+import { sendAdminBookingAlert } from "@/services/adminAlert";
 import { lookupGeoLocation } from "@/services/geoip";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
@@ -343,6 +344,18 @@ export async function POST(request) {
     // Logging must never break a successful booking — just note it and move on.
     console.error("[api/bookings] Failed to log visitor activity:", error.message);
   }
+
+  // Admin Telegram alert — best-effort, never blocks or fails the
+  // booking response. Skips silently if SystemSettings.
+  // adminTelegramChatIds isn't configured yet (see services/adminAlert.js).
+  sendAdminBookingAlert({
+    guestName: payload.guestName,
+    checkInDate: quote.checkInDate,
+    checkOutDate: quote.checkOutDate,
+    referenceCode: booking.referenceCode,
+  }).catch((error) => {
+    console.error("[api/bookings] Failed to send admin alert:", error.message);
+  });
 
   try {
     // Best-effort confirmation email — carries the reference code the

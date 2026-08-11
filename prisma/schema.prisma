@@ -1423,6 +1423,17 @@ model SystemSettings {
   resortEmail   String? @map("resort_email")
   resortAddress String? @map("resort_address")
 
+  // adminTelegramChatIds — comma-separated Telegram chat IDs (e.g.
+  // "123456789,987654321") that get a Telegram message the moment a
+  // new Booking or WalkInInquiry comes in (services/adminAlert.js via
+  // services/telegram.js). Deliberately separate from resortPhone
+  // above, which is the resort's own public-facing contact number
+  // shown to guests — this field is who gets notified internally, not
+  // who guests call. Blank/null disables the alert entirely (see
+  // services/adminAlert.js's early-return guard). See
+  // services/telegram.js's file header for how to get a chat ID.
+  adminTelegramChatIds String? @map("admin_telegram_chat_ids")
+
   // --- Message Us channels (floating "Request a callback" widget) ---
   // Consumed by utils/messagingLinks.js to build click-to-chat deep
   // links (wa.me, viber://chat, m.me) — see app/visitor/layout.jsx's

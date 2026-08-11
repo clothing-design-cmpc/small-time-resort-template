@@ -181,6 +181,50 @@
   margin: 0;
 }
 
+/*
+ * .policiesTelegramSetup
+ * Self-contained "how to set this up" card sitting directly above the
+ * Admin Telegram Alert Chat IDs input — so any admin who wasn't part
+ * of the original setup conversation can configure alerts without
+ * needing to ask a developer. Quiet sunken background keeps it from
+ * competing visually with the actual editable fields around it.
+ */
+.policiesTelegramSetup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  border-radius: 8px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.policiesTelegramSetupTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.policiesTelegramSetupSteps {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.policiesTelegramSetupSteps code {
+  font-family: monospace;
+  font-size: 0.76rem;
+  background-color: var(--color-surface-hover);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+}
+
 .policiesTextEditor {
   width: 100%;
   font-family: monospace;

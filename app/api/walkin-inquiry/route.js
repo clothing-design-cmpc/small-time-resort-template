@@ -27,6 +27,7 @@ import { prisma } from "@/services/prisma";
 import { checkRateLimit } from "@/services/rateLimit";
 import { logSecurityEvent } from "@/services/securityLog";
 import { logVisitorActivity } from "@/services/visitorLog";
+import { sendAdminWalkInAlert } from "@/services/adminAlert";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 
 const WALKIN_INQUIRY_MAX = 10;
@@ -103,6 +104,16 @@ export async function POST(request) {
     }).catch((error) => {
       // Logging must never break a successful submission.
       console.error("[api/walkin-inquiry] Failed to log visitor activity:", error.message);
+    });
+
+    // Admin Telegram alert — best-effort, never blocks or fails the
+    // submission response. Skips silently if SystemSettings.
+    // adminTelegramChatIds isn't configured yet (see services/adminAlert.js).
+    sendAdminWalkInAlert({
+      guestName: payload.guestName,
+      guestPhone: payload.guestPhone,
+    }).catch((error) => {
+      console.error("[api/walkin-inquiry] Failed to send admin alert:", error.message);
     });
 
     return NextResponse.json({

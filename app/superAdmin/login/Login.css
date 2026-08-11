@@ -292,34 +292,6 @@
   color: #ffffff;
 }
 
-/*
- * .loginSuperAdminFillButton
- * Sits directly below the password field, styled as a small outlined
- * chip rather than a raw text link — reads as an intentional dev/demo
- * shortcut instead of a stray hyperlink.
- */
-.loginSuperAdminFillButton {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 32px;
-  padding: 0.3rem 0.75rem;
-  border: 1px solid rgba(159, 214, 174, 0.35);
-  border-radius: 999px;
-  background-color: rgba(63, 125, 82, 0.14);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #9fd6ae;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
-}
-
-.loginSuperAdminFillButton:hover,
-.loginSuperAdminFillButton:focus-visible {
-  background-color: rgba(63, 125, 82, 0.24);
-  border-color: rgba(159, 214, 174, 0.55);
-}
-
 .loginSubmitButton {
   width: 100%;
   min-height: 46px;

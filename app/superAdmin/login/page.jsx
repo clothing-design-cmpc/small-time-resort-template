@@ -5,8 +5,7 @@
  * PURPOSE:
  * Login form for the super-admin account, rendered over the same hero
  * villa photo used on the visitor homepage with a frosted-glass card on
- * top. Below the password field is a "Super Admin" quick-fill button
- * that auto-fills the demo credentials for local testing.
+ * top.
  *
  * DATA FLOW:
  * 1. On mount, GET /api/auth/access-status checks whether the Admin
@@ -14,7 +13,7 @@
  *    already full — if so, both inputs are disabled with an inline
  *    message instead of letting the admin fill out a form that would
  *    only be rejected afterward
- * 2. User types email/password OR clicks "Super Admin" to auto-fill both fields
+ * 2. User types email/password
  * 3. React Hook Form + Zod validate on submit (Rule 31.7)
  * 4. onSubmit POSTs to /api/auth/login, which verifies the credentials
  *    against Supabase Auth + admin_profiles, checks the same access
@@ -34,11 +33,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import IdleTimeoutNotice from "./IdleTimeoutNotice";
 import "./Login.css";
-
-/* Placeholder demo credentials for the quick-fill button. Must match the
-   SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD used by prisma/seed.js. */
-const DEMO_SUPER_ADMIN_EMAIL = "superadmin@your-private-resort.com";
-const DEMO_SUPER_ADMIN_PASSWORD = "superadmin123";
 
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -99,18 +93,6 @@ export default function SuperAdminLoginPage() {
   } = useForm({
     resolver: zodResolver(loginSchema),
   });
-
-  /**
-   * fillSuperAdminDemoCredentials
-   * Fills the email and password fields with the placeholder super-admin
-   * credentials so a developer can log in instantly during local testing.
-   * setValue with shouldValidate re-runs Zod validation immediately so the
-   * form is submit-ready without the user needing to touch either field.
-   */
-  function fillSuperAdminDemoCredentials() {
-    setValue("email", DEMO_SUPER_ADMIN_EMAIL, { shouldValidate: true });
-    setValue("password", DEMO_SUPER_ADMIN_PASSWORD, { shouldValidate: true });
-  }
 
   /**
    * onSubmit
@@ -310,17 +292,6 @@ export default function SuperAdminLoginPage() {
               </span>
             )}
           </div>
-
-          {/* Quick-fill shortcut — auto-fills both fields with the demo
-              super-admin credentials so testing never requires retyping them. */}
-          <button
-            type="button"
-            className="loginSuperAdminFillButton"
-            onClick={fillSuperAdminDemoCredentials}
-            disabled={isAccessLimitReached}
-          >
-            Super Admin
-          </button>
 
           <button type="submit" className="loginSubmitButton" disabled={isSubmitting || isAccessLimitReached}>
             {isSubmitting ? "Signing in…" : "Sign in"}

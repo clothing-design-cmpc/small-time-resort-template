@@ -113,6 +113,14 @@ export const ENV_GROUPS = [
     ],
   },
   {
+    id: "devLoginAutofill",
+    label: "Dev-only: Super-Admin login autofill button",
+    keys: [
+      { key: "NEXT_PUBLIC_DEV_LOGIN_EMAIL", required: false },
+      { key: "NEXT_PUBLIC_DEV_LOGIN_PASSWORD", required: false },
+    ],
+  },
+  {
     id: "siteConfig",
     label: "Site configuration",
     keys: [
@@ -148,4 +156,6 @@ export const ENV_FIX_INSTRUCTIONS = {
     "Gemini: aistudio.google.com → Get API key → Create API key, into GEMINI_API_KEY. Google Maps/Weather: console.cloud.google.com → APIs & Services → Library, enable Geocoding API + Routes API + Maps Static API + Weather API on one project, then Credentials → Create API Key (restrict it to those four APIs) — same key value works for both GOOGLE_MAPS_API_KEY and GOOGLE_WEATHER_API_KEY. Maps Static API is easy to miss since it's not called directly by name in code (services/directions.js's getRouteMapImage()/getResortLocationMapImage() hit its REST endpoint) — skipping it doesn't error loudly, it just makes the route map image silently never appear on /visitor/directions.",
   siteConfig:
     "Set NEXT_PUBLIC_SITE_URL to this site's live production URL in .env.local and GitHub repo secrets.",
+  devLoginAutofill:
+    "Optional, local dev only — never set in production or in GitHub repo secrets. Set NEXT_PUBLIC_DEV_LOGIN_EMAIL and NEXT_PUBLIC_DEV_LOGIN_PASSWORD in your own .env.local to a disposable/test super-admin account (never your real credentials) to show a one-click 'Autofill dev login' button on /superAdmin/login. Leave both unset (or delete .env.local's copies) and the button won't render — this is also what happens automatically on a fresh clone, since .env.local is gitignored and never committed.",
 };

@@ -29,6 +29,31 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
+// Maps a service's computed healthStatus to what the badge shows.
+// "unknown" (no calls logged yet) renders no badge at all — a brand
+// new API with zero calls isn't "healthy", it's just untested.
+const HEALTH_BADGE_COPY = {
+  healthy: "Healthy",
+  degraded: "Degraded",
+  down: "Down",
+};
+
+/**
+ * ApiHealthBadge
+ * Small status pill reflecting the most recent calls to this API, not
+ * the full 30-day failure count — see the route's computeHealthStatus
+ * for the exact rule. Only rendered when there's at least one call to
+ * judge from.
+ */
+function ApiHealthBadge({ healthStatus }) {
+  if (healthStatus === "unknown") return null;
+  return (
+    <span className={`apiHealthBadge apiHealthBadge--${healthStatus}`}>
+      {HEALTH_BADGE_COPY[healthStatus]}
+    </span>
+  );
+}
+
 /**
  * ApiUsageCard
  * One card per third-party API — call counters plus a direct link to
@@ -40,6 +65,7 @@ function ApiUsageCard({ service }) {
     <article className="apiUsageCard">
       <div className="apiUsageCardHeader">
         <h3 className="apiUsageCardLabel">{service.label}</h3>
+        <ApiHealthBadge healthStatus={service.healthStatus} />
         <a
           href={service.dashboardUrl}
           target="_blank"

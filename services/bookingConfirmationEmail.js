@@ -109,32 +109,37 @@ function renderResortRulesList(houseRulesText, textColor) {
 /**
  * renderImagesBlock
  * Renders every admin-attached image (already on Cloudflare R2's CDN)
- * as a 2-column, table-based grid — gallery-style, in displayOrder,
- * pairing images two-per-row. An HTML <table> (not CSS flex/grid) is
+ * as a 3-column, table-based grid — gallery-style, in displayOrder,
+ * grouping images three-per-row. An HTML <table> (not CSS flex/grid) is
  * used deliberately: Outlook's Word rendering engine and several other
  * mail clients don't support flex/grid layout at all, so a <table> is
- * the only reliably cross-client way to get a real 2-column grid in
- * an email. Each cell is capped at 50% width with a fixed gutter so
- * a single image can no longer render nearly full-email-width (the
+ * the only reliably cross-client way to get a real multi-column grid
+ * in an email. Each cell is capped at ~33% width with a fixed gutter
+ * so a single image can no longer render nearly full-email-width (the
  * old bug — width:100%;max-width:456px stacked one huge image per
- * row). An odd image count leaves the last row's second cell empty.
- * Empty string when no images are attached, so the section simply
- * doesn't appear.
+ * row). A row that isn't evenly divisible by 3 leaves the remaining
+ * cell(s) in that last row empty. Empty string when no images are
+ * attached, so the section simply doesn't appear.
  */
+const IMAGES_PER_ROW = 3;
+
 function renderImagesBlock(images, mutedTextColor) {
   if (!images.length) return "";
 
+  const cellWidthPercent = `${(100 / IMAGES_PER_ROW).toFixed(4)}%`;
+
   const cell = (image) =>
     image
-      ? `<td width="50%" valign="top" style="width:50%;padding:0 8px 16px 0;">
+      ? `<td width="${cellWidthPercent}" valign="top" style="width:${cellWidthPercent};padding:0 8px 16px 0;">
           <img src="${escapeHtml(image.imageUrl)}" alt="${escapeHtml(image.caption || "")}" style="width:100%;max-width:220px;border-radius:8px;display:block;" />
           ${image.caption ? `<p style="margin:6px 0 0;font-size:12px;color:${mutedTextColor};">${escapeHtml(image.caption)}</p>` : ""}
         </td>`
-      : `<td width="50%" style="width:50%;"></td>`;
+      : `<td width="${cellWidthPercent}" style="width:${cellWidthPercent};"></td>`;
 
   const rows = [];
-  for (let i = 0; i < images.length; i += 2) {
-    rows.push(`<tr>${cell(images[i])}${cell(images[i + 1])}</tr>`);
+  for (let i = 0; i < images.length; i += IMAGES_PER_ROW) {
+    const rowCells = Array.from({ length: IMAGES_PER_ROW }, (_, offset) => cell(images[i + offset]));
+    rows.push(`<tr>${rowCells.join("")}</tr>`);
   }
 
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px;"><tbody>${rows.join("")}</tbody></table>`;

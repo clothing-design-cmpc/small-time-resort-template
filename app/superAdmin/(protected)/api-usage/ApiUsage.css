@@ -87,6 +87,52 @@
   color: var(--color-primary-hover);
 }
 
+/*
+ * .apiHealthBadge
+ * Status pill reflecting the most recent calls to this API (not the
+ * full 30-day failure count) — lets an admin spot a currently-broken
+ * integration at a glance instead of reading fine-print counters.
+ */
+.apiHealthBadge {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.apiHealthBadge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.apiHealthBadge--healthy {
+  color: var(--color-success);
+  background-color: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.apiHealthBadge--degraded {
+  color: var(--color-warning);
+  background-color: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.apiHealthBadge--down {
+  color: var(--color-error);
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
 .apiUsageQuotaNote {
   font-size: 0.8rem;
   color: var(--color-text-secondary);

@@ -39,6 +39,20 @@ const loginSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters."),
 });
 
+// Dev-only login autofill — see scripts/lib/envGroups.mjs's
+// "devLoginAutofill" group for the full explanation. Both vars live
+// only in a developer's own .env.local, which is gitignored (see
+// .gitignore's `.env*` line) and therefore never present after a
+// fresh `git clone` — so this button simply doesn't exist for anyone
+// who hasn't deliberately set these two values themselves, with zero
+// extra step required on clone. The NODE_ENV check is a second,
+// independent guard so this can never render in a production build
+// even if these vars were ever set somewhere they shouldn't be.
+const DEV_LOGIN_EMAIL = process.env.NEXT_PUBLIC_DEV_LOGIN_EMAIL;
+const DEV_LOGIN_PASSWORD = process.env.NEXT_PUBLIC_DEV_LOGIN_PASSWORD;
+const isDevLoginAutofillEnabled =
+  process.env.NODE_ENV !== "production" && Boolean(DEV_LOGIN_EMAIL) && Boolean(DEV_LOGIN_PASSWORD);
+
 export default function SuperAdminLoginPage() {
   const router = useRouter();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -207,6 +221,23 @@ export default function SuperAdminLoginPage() {
           <h1 className="loginTitle">Super-Admin Login</h1>
           <p className="loginLegend">* Required fields</p>
         </div>
+
+        {/* Dev-only convenience — never renders in production or on a
+            fresh clone (see DEV_LOGIN_EMAIL/PASSWORD above). Fills the
+            form only; still requires a real submit through the normal
+            /api/auth/login flow, so it never bypasses any auth check. */}
+        {isDevLoginAutofillEnabled && (
+          <button
+            type="button"
+            className="loginDevAutofillButton"
+            onClick={() => {
+              setValue("email", DEV_LOGIN_EMAIL);
+              setValue("password", DEV_LOGIN_PASSWORD);
+            }}
+          >
+            Autofill dev login
+          </button>
+        )}
 
         {/* Shown only after an idle-timeout redirect (?reason=idle-timeout) —
             wrapped in Suspense because useSearchParams() requires it. */}

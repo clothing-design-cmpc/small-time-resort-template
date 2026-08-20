@@ -74,6 +74,12 @@ export const API_CATALOG = {
     quotaNote: "~10GB storage + 1M Class A / 10M Class B operations/month on the free tier",
     dashboardUrl: "https://dash.cloudflare.com/?to=/:account/r2/overview",
   },
+  google_drive: {
+    label: "Google Drive API",
+    usedBy: "services/googleDrive.js",
+    quotaNote: "Free — subject to per-user/per-100s request quotas on the Drive API",
+    dashboardUrl: "https://console.cloud.google.com/apis/api/drive.googleapis.com/quotas",
+  },
   supabase: {
     label: "Supabase",
     usedBy: "services/supabase.js, services/prisma.js",

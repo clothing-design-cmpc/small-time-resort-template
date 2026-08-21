@@ -38,13 +38,13 @@
 
 /*
  * .dashboardGrid
- * Four-column KPI stat card row on desktop. Uses auto-fill so it
- * reflows to 2 columns on tablet and 1 column on mobile without
- * needing separate breakpoint overrides (Rule 23.2).
+ * KPI stat cards stacked one per row at every viewport width —
+ * single-column grid instead of the previous auto-fill multi-column
+ * layout.
  */
 .dashboardGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-lg);
 }
 

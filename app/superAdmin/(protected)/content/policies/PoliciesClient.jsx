@@ -351,6 +351,11 @@ export default function PoliciesClient() {
                 Paste that chat ID below. Add more than one by separating them with commas (e.g.{" "}
                 <code>123456789, 987654321</code>).
               </li>
+              <li>
+                Once everything above is set up — or any time you add another admin&apos;s (e.g. the
+                owner&apos;s) Telegram chat ID — click <strong>Save All Changes</strong> at the top of
+                this page. The chat ID field alone doesn&apos;t take effect until it&apos;s saved.
+              </li>
             </ol>
           </div>
           <div className="policiesFormField">

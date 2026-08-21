@@ -142,6 +142,7 @@
 .policiesFormField input[type="text"],
 .policiesFormField input[type="email"],
 .policiesFormField input[type="number"],
+.policiesFormField input[type="tel"],
 .policiesFormField textarea {
   width: 100%;
   min-height: 44px;

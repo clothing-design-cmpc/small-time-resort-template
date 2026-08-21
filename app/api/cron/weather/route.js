@@ -5,8 +5,8 @@
  *       app/api/cron/ai-insight/route.js.
  *
  * PURPOSE:
- * Runs 3x/day (see vercel.json's crons entries — 5:00 AM, 12:00 PM,
- * and 8:00 PM Asia/Manila) and refreshes the cached forecast the
+ * Runs every 5 hours around the clock (see vercel.json's crons entry
+ * — "0 */5 * * *", UTC-based) and refreshes the cached forecast the
  * visitor homepage widget (WeatherForecastSection.jsx) reads. All the
  * actual work (coordinates lookup, Google API call, cache upsert)
  * lives in services/weather.js's refreshWeatherForecastCache() — this

@@ -10,15 +10,7 @@
     },
     {
       "path": "/api/cron/weather",
-      "schedule": "0 21 * * *"
-    },
-    {
-      "path": "/api/cron/weather",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/weather",
-      "schedule": "0 12 * * *"
+      "schedule": "0 */5 * * *"
     },
     {
       "path": "/api/cron/booking-expiry",

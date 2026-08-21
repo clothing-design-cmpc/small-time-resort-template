@@ -327,7 +327,7 @@
 .loginDevAutofillButton {
   width: 100%;
   min-height: 38px;
-  margin: 0 0 var(--space-sm);
+  margin: var(--space-lg) 0 var(--space-sm);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.01em;

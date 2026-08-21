@@ -4,11 +4,11 @@
  *
  * PURPOSE:
  * Renders once AdminSetupStep confirms Step 3 (super-admin created).
- * Presence-only checklist for the 8 envGroups.mjs groups not already
+ * Presence-only checklist for the 9 envGroups.mjs groups not already
  * covered by Step 2 (database, supabase): r2, emailjs, githubActions,
- * rateLimit, geoip, vaultSecurity, aiInsightAndDirections, siteConfig.
- * Together with Step 2, every one of the 10 envGroups.mjs groups is
- * surfaced somewhere in the wizard.
+ * rateLimit, geoip, telegram, vaultSecurity, aiInsightAndDirections,
+ * siteConfig. Together with Step 2, every one of the 11 envGroups.mjs
+ * groups is surfaced somewhere in the wizard.
  *
  * Each group's "How do I get these?" panel now shows a clickable link
  * (or links, for groups that touch two providers) straight to the
@@ -300,6 +300,19 @@ const REMAINING_ENV_HELP = {
       "Step D — the download is a zipped folder. Unzip it, and inside you'll find a file ending in .mmdb. Rename it to exactly GeoLite2-City.mmdb if it isn't already, then move/copy that file into this project's services/geoip/ folder (create that folder if it doesn't exist yet).",
       "Step E — set MAXMIND_DB_PATH in .env.local to services/geoip/GeoLite2-City.mmdb (this is already the default the app expects, so you likely don't need to change anything if you placed the file exactly where step D says).",
       "Step F — remember to repeat steps C and D every couple of weeks: MaxMind refreshes the GeoLite2 database roughly every 2 weeks with updated location data, and the app doesn't auto-update it — you just re-download and replace the same file.",
+    ],
+  },
+  telegram: {
+    links: [{ label: "Open Telegram (web)", url: "https://web.telegram.org" }],
+    note:
+      "Completely optional — leave TELEGRAM_BOT_TOKEN blank and nothing breaks, admins just won't get a free Telegram message for every new booking/walk-in inquiry. Free, no per-message cost, no volume limit — unlike SMS. Recipients (chat IDs) are set separately in Super-Admin, not here — see step E below.",
+    steps: [
+      "Step A — create the bot: in Telegram (app or web.telegram.org), search for and open a chat with @BotFather. Send /newbot and follow its prompts (pick a display name, then a unique username ending in \"bot\"). Skip this step entirely if the resort's bot already exists.",
+      "Step B — copy the token: BotFather replies with a message containing a token that looks like 123456789:AAExampleTokenTextHere. Copy that whole string into TELEGRAM_BOT_TOKEN in .env.local.",
+      "Step C — restart the dev server: save .env.local, then in the terminal running npm run dev, press Ctrl+C and run npm run dev again — Next.js only reads env vars on startup.",
+      "Step D — each admin who wants alerts must open a chat with the new bot (search its @username in Telegram, tap Start, or just send it any message) — Telegram bots can never message someone who hasn't started a conversation with them first.",
+      "Step E — get each admin's chat ID: after step D, have that admin message @userinfobot — it instantly replies with their own numeric chat ID. This step and the Chat ID field itself are NOT in this wizard — they're entered later in Super-Admin → Content → Policies & Content → Contact Info → \"Admin Telegram Alert Chat IDs\" (comma-separate more than one).",
+      "To verify it worked: once TELEGRAM_BOT_TOKEN is set, this wizard's \"Check again\" button and the vault dashboard's \"Run Environment Check\" both confirm the token is valid by calling Telegram's own getMe endpoint — no test message is sent, so this check is always safe to re-run.",
     ],
   },
   vaultSecurity: {

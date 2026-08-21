@@ -90,6 +90,11 @@ export const ENV_GROUPS = [
     ],
   },
   {
+    id: "telegram",
+    label: "Telegram (free admin booking/inquiry alerts — optional)",
+    keys: [{ key: "TELEGRAM_BOT_TOKEN", required: false }],
+  },
+  {
     id: "vaultSecurity",
     label: "Vault & Gatekeeper security",
     keys: [
@@ -150,6 +155,8 @@ export const ENV_FIX_INSTRUCTIONS = {
     "Upstash Console → your Redis database → REST API. Copy UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
   geoip:
     "Download GeoLite2-City.mmdb from maxmind.com (free account) and place it at the path set in MAXMIND_DB_PATH (default: services/geoip/GeoLite2-City.mmdb).",
+  telegram:
+    "In Telegram, message @BotFather, send /newbot, and follow the prompts — it replies with a bot token. Put that token in TELEGRAM_BOT_TOKEN. Optional: skip entirely to leave admin Telegram alerts off. Recipients are set separately, in Super-Admin → Content → Policies & Content → Contact Info → Admin Telegram Alert Chat IDs.",
   vaultSecurity:
     "Check VAULT_SETUP_KEY, VAULT_OWNER_EMAIL, and CRON_SECRET in .env.local and GitHub repo secrets. Regenerate a secret with: node scripts/generateEnvSecret.mjs",
   aiInsightAndDirections:

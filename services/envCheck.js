@@ -32,6 +32,12 @@
  *                  Environment Check" in EnvCheckerSection.jsx, never
  *                  runs on page load/mount), so it never fires without
  *                  the owner explicitly asking for it.
+ *   - Telegram:    calls the Bot API's getMe endpoint to confirm
+ *                  TELEGRAM_BOT_TOKEN is valid — no side effect (never
+ *                  messages anyone), so unlike EmailJS this is safe to
+ *                  run on every check, not just on-demand. Skipped (not
+ *                  failed) when the token is unset entirely, since
+ *                  Telegram alerts are an optional feature.
  * Every other group (Supabase, R2, GitHub Actions, Upstash, Vault/Security)
  * stays presence-only — a live network call to each on every run isn't
  * needed to answer "did someone forget to set this," and Supabase/R2
@@ -47,6 +53,7 @@
 import { prisma } from "@/services/prisma";
 import { existsSync, statSync } from "node:fs";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { verifyTelegramBotToken } from "@/services/telegram";
 // ENV_GROUPS now lives in scripts/lib/envGroups.mjs so the nightly
 // standalone check (scripts/runEnvCheck.js, runs via plain `node` and
 // can't resolve the "@/" alias) and this on-demand dashboard check
@@ -179,10 +186,24 @@ export async function checkEnvironment() {
       : { status: "failed", message: "EmailJS rejected the send — check server logs for the exact response." };
   }
 
+  // --- Live check 4: Telegram bot token is valid ---
+  // Optional feature — an unset token is reported via the group's own
+  // presence status (required: false, so it never shows "missing"),
+  // not as a failed live check, so an owner who simply hasn't set up
+  // Telegram alerts doesn't see a red "failed" badge for a feature
+  // they never opted into.
+  let telegramLive = { status: "unknown", message: "Not checked." };
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    telegramLive = { status: "ok", message: "Not configured — admin Telegram alerts are off (optional)." };
+  } else {
+    telegramLive = await verifyTelegramBotToken();
+  }
+
   const groupsWithLiveChecks = groups.map((group) => {
     if (group.id === "database") return { ...group, liveCheck: databaseLive };
     if (group.id === "geoip") return { ...group, liveCheck: geoipLive };
     if (group.id === "emailjs") return { ...group, liveCheck: emailjsLive };
+    if (group.id === "telegram") return { ...group, liveCheck: telegramLive };
     return group;
   });
 

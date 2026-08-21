@@ -6,12 +6,12 @@
  *       and admin-status.
  *
  * PURPOSE:
- * Reports presence-only status for the 8 envGroups.mjs groups NOT
+ * Reports presence-only status for the 9 envGroups.mjs groups NOT
  * already covered by Step 2 (database, supabase) or the seed-only
  * SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD keys checked by admin-status:
- *   r2, emailjs, githubActions, rateLimit, geoip, vaultSecurity,
- *   aiInsightAndDirections, siteConfig
- * Together with Step 2's two groups, this is all 10 envGroups.mjs
+ *   r2, emailjs, githubActions, rateLimit, geoip, telegram,
+ *   vaultSecurity, aiInsightAndDirections, siteConfig
+ * Together with Step 2's two groups, this is all 11 envGroups.mjs
  * groups — nothing is ever left unchecked by the wizard.
  *
  * No live connectivity checks here (unlike services/envCheck.js's full
@@ -41,6 +41,7 @@ const REMAINING_GROUP_IDS = [
   "githubActions",
   "rateLimit",
   "geoip",
+  "telegram",
   "vaultSecurity",
   "aiInsightAndDirections",
   "siteConfig",

@@ -1,0 +1,25 @@
+=== CHANGE LOG (continued from overviewProject.txt, which reached the
+    1000-line cap) ===
+Full project overview (stack, file map, process flows) stays
+authoritative in overviewProject.txt. This file is change-log-only,
+append-only — newest entry last.
+
+[2026-08-21] Added Telegram bot alerting to the Setup Wizard and vault
+  dashboard's Environment Check (it already existed in Super-Admin's
+  Policies & Content page and services/adminAlert.js, but
+  TELEGRAM_BOT_TOKEN was missing from scripts/lib/envGroups.mjs
+  entirely, so it was invisible to both the wizard and the "is it set
+  up yet" checkers). Added a `telegram` env group (TELEGRAM_BOT_TOKEN,
+  optional) with fix instructions; added a no-side-effect
+  verifyTelegramBotToken() live check (Telegram's getMe endpoint) to
+  services/telegram.js and wired it into services/envCheck.js so it
+  surfaces automatically on the vault dashboard's Environment Check;
+  added the group to RemainingEnvStep.jsx's Step 4 checklist (Setup
+  Wizard) and to ApiSetupGuideSection.jsx's static guide (vault
+  dashboard), with matching step-by-step BotFather setup instructions
+  in both places; added the group to remaining-env-status/route.js's
+  checked list. Investigated the PDF invoice + Messenger sequencing
+  flow (services/invoicePdf.js, BookingFormClient.jsx,
+  ReservationSummaryClient.jsx, TourReservationSummaryClient.jsx) and
+  found it already fully implemented — no changes made there pending
+  clarification of what specifically needs continuing.

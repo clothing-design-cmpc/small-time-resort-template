@@ -163,6 +163,21 @@ const SETUP_GUIDE_SECTIONS = [
     ],
   },
   {
+    id: "telegram",
+    label: "8. Telegram Bot — free admin booking/inquiry alerts (optional)",
+    envVars: ["TELEGRAM_BOT_TOKEN"],
+    note:
+      "Completely optional — leave TELEGRAM_BOT_TOKEN unset and nothing breaks, admins just won't get a free Telegram message for every new booking/walk-in inquiry. Free, no per-message cost, no volume limit. Recipient chat IDs are NOT set here — they go in Super-Admin → Content → Policies & Content → Contact Info → \"Admin Telegram Alert Chat IDs\".",
+    steps: [
+      "Step A — in Telegram (app or web.telegram.org), message @BotFather, send /newbot, and follow its prompts to create the resort's bot. Skip this if the bot already exists.",
+      "Step B — BotFather replies with a token like 123456789:AAExampleTokenTextHere. Copy that into TELEGRAM_BOT_TOKEN.",
+      "Step C — restart the dev server (or redeploy) — env vars are only read on startup, not hot-reloaded.",
+      "Step D — each admin who wants alerts must open a chat with the bot (search its @username, tap Start) — the bot can't message anyone who hasn't done this once.",
+      "Step E — each admin messages @userinfobot to get their own numeric chat ID, then that ID is pasted into Super-Admin → Content → Policies & Content → Contact Info → Admin Telegram Alert Chat IDs (comma-separate more than one).",
+      "The Environment Check below verifies the token by calling Telegram's own getMe endpoint — no test message is sent, so it's always safe to re-run.",
+    ],
+  },
+  {
     id: "seedAdmin",
     label: "7. Seed Admin Account — local config, no signup",
     envVars: ["SEED_ADMIN_EMAIL", "SEED_ADMIN_PASSWORD"],

@@ -83,3 +83,46 @@ export async function sendTelegramMessage({ chatId, message }) {
     return false;
   }
 }
+
+/**
+ * verifyTelegramBotToken
+ * Calls the Bot API's getMe endpoint to confirm TELEGRAM_BOT_TOKEN is
+ * both present and actually valid — a live check with NO side effects
+ * (unlike sendTelegramMessage, this never messages anyone), safe to run
+ * on every load of the vault dashboard's Environment Check, same
+ * reasoning services/envCheck.js's GeoIP file-presence check already
+ * relies on. Never throws — returns a status/message pair the caller
+ * renders directly, matching every other liveCheck shape in
+ * services/envCheck.js.
+ *
+ * @returns {Promise<{status: "ok"|"failed", message: string}>}
+ */
+export async function verifyTelegramBotToken() {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    return {
+      status: "failed",
+      message: "TELEGRAM_BOT_TOKEN is not set — admin Telegram alerts are disabled.",
+    };
+  }
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok || !body?.ok) {
+      return {
+        status: "failed",
+        message: `Telegram rejected this bot token: ${body?.description ?? `HTTP ${response.status}`}.`,
+      };
+    }
+
+    return {
+      status: "ok",
+      message: `Connected as @${body.result.username}.`,
+    };
+  } catch (error) {
+    return { status: "failed", message: `Couldn't reach Telegram: ${error.message}` };
+  }
+}

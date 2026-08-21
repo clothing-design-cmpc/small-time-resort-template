@@ -628,6 +628,50 @@
 }
 
 /*
+ * .aiInsightSources
+ * Citation links for the market-context web search grounding
+ * (services/aiInsight.js's getMarketContext()) — lets the owner open
+ * the actual source instead of taking the summary on faith.
+ */
+.aiInsightSources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.aiInsightSourcesLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.aiInsightSourcesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aiInsightSourcesList a {
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--transition-fast);
+}
+
+.aiInsightSourcesList a:hover,
+.aiInsightSourcesList a:focus-visible {
+  color: var(--color-accent-hover);
+}
+
+/*
  * .weatherCacheWidget
  * Dashboard card for the homepage weather forecast cache — same
  * elevated-card treatment as .aiInsightWidget above, kept visually

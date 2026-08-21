@@ -1626,6 +1626,16 @@ model AiInsightLog {
   // debugging ("why did it say that"), never shown as the headline itself.
   salesSummary    String   @map("sales_summary") @db.Text
   weatherSummary  String?  @map("weather_summary") @db.Text
+  // Gemini + Google Search grounding result — local demand drivers,
+  // upcoming Philippine holidays/events near the resort, and general
+  // travel/leisure-spending sentiment. Null when GEMINI_API_KEY is
+  // missing or the grounded call fails; the insight still generates
+  // off sales + weather alone in that case (see services/aiInsight.js).
+  marketContext   String?  @map("market_context") @db.Text
+  // Citation URLs Gemini's search grounding returned for marketContext
+  // above, so the owner can open the actual source instead of taking
+  // the summary on faith. Empty array when marketContext is null.
+  marketSources   String[] @default([]) @map("market_sources")
   observation     String   @db.Text
   likelyCause     String   @map("likely_cause") @db.Text
   suggestedAction String   @map("suggested_action") @db.Text

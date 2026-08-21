@@ -56,6 +56,12 @@ export const API_CATALOG = {
     quotaNote: "Free tier — per-minute and per-day request limits, varies by model",
     dashboardUrl: "https://aistudio.google.com/usage",
   },
+  gemini_search_grounding: {
+    label: "Gemini API (Google Search grounding)",
+    usedBy: "services/aiInsight.js",
+    quotaNote: "Shares the Gemini free-tier request limits; grounded calls also draw from a separate free daily search-grounding quota",
+    dashboardUrl: "https://aistudio.google.com/usage",
+  },
   github: {
     label: "GitHub REST API",
     usedBy: "services/github.js",

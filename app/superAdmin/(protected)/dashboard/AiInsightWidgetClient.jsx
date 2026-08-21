@@ -3,11 +3,13 @@
  * ROLE: Super-admin only — protected by middleware.js auth guard
  *
  * PURPOSE:
- * Dashboard card showing the latest daily AI Sales Insight
- * (villa-azure-ai-insight-and-directions-plan.txt, Part 1). Runs
- * automatically once a day via Vercel Cron
- * (app/api/cron/ai-insight/route.js), but the owner can also force a
- * fresh one on demand — the plan's hybrid approach.
+ * Dashboard card showing the latest daily AI Sales Insight — a
+ * correlation of the resort's own sales data with the weather forecast
+ * and a live web-search-grounded market/economic context (upcoming
+ * local holidays/events, travel spending sentiment — see
+ * services/aiInsight.js's getMarketContext()). Runs automatically once
+ * a day via Vercel Cron (app/api/cron/ai-insight/route.js), but the
+ * owner can also force a fresh one on demand.
  *
  * DATA FLOW:
  * 1. useAiInsight() fetches GET /api/admin/ai-insight on mount
@@ -15,6 +17,9 @@
  *    error with retry, and empty ("no insight generated yet")
  * 3. "Regenerate now" POSTs /api/admin/ai-insight/regenerate and
  *    swaps in the fresh result, with a toast either way
+ * 4. When the insight drew on a market/economic web search, the
+ *    market context summary and its citation links (marketSources)
+ *    are shown so the owner can verify the claim, not just trust it
  */
 "use client";
 
@@ -117,7 +122,28 @@ export default function AiInsightWidgetClient() {
               <dd>{insight.likelyCause}</dd>
               <dt>Suggested Action</dt>
               <dd>{insight.suggestedAction}</dd>
+              {insight.marketContext && (
+                <>
+                  <dt>Market &amp; Local Context</dt>
+                  <dd>{insight.marketContext}</dd>
+                </>
+              )}
             </dl>
+          )}
+
+          {insight.status !== "error" && insight.marketSources?.length > 0 && (
+            <div className="aiInsightSources">
+              <span className="aiInsightSourcesLabel">Sources</span>
+              <ul className="aiInsightSourcesList">
+                {insight.marketSources.map((sourceUrl) => (
+                  <li key={sourceUrl}>
+                    <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
+                      {new URL(sourceUrl).hostname.replace(/^www\./, "")}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}

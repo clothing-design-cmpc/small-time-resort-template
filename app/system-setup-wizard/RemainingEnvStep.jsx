@@ -62,6 +62,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ScriptsHealthStep from "./ScriptsHealthStep";
 import ResellerArchitectureNote from "./ResellerArchitectureNote";
+import TelegramChatIdsCard from "./TelegramChatIdsCard";
 import { useToast } from "./shared/useToast";
 import ToastStack from "./shared/ToastStack";
 
@@ -305,13 +306,14 @@ const REMAINING_ENV_HELP = {
   telegram: {
     links: [{ label: "Open Telegram (web)", url: "https://web.telegram.org" }],
     note:
-      "Completely optional — leave TELEGRAM_BOT_TOKEN blank and nothing breaks, admins just won't get a free Telegram message for every new booking/walk-in inquiry. Free, no per-message cost, no volume limit — unlike SMS. Recipients (chat IDs) are set separately in Super-Admin, not here — see step E below.",
+      "Completely optional — leave TELEGRAM_BOT_TOKEN blank and nothing breaks, admins just won't get a free Telegram message for every new booking/walk-in inquiry. Free, no per-message cost, no volume limit — unlike SMS. Multiple admins CAN receive alerts from the same bot — see the chat ID card below step E.",
     steps: [
       "Step A — create the bot: in Telegram (app or web.telegram.org), search for and open a chat with @BotFather. Send /newbot and follow its prompts (pick a display name, then a unique username ending in \"bot\"). Skip this step entirely if the resort's bot already exists.",
       "Step B — copy the token: BotFather replies with a message containing a token that looks like 123456789:AAExampleTokenTextHere. Copy that whole string into TELEGRAM_BOT_TOKEN in .env.local.",
       "Step C — restart the dev server: save .env.local, then in the terminal running npm run dev, press Ctrl+C and run npm run dev again — Next.js only reads env vars on startup.",
       "Step D — each admin who wants alerts must open a chat with the new bot (search its @username in Telegram, tap Start, or just send it any message) — Telegram bots can never message someone who hasn't started a conversation with them first.",
-      "Step E — get each admin's chat ID: after step D, have that admin message @userinfobot — it instantly replies with their own numeric chat ID. This step and the Chat ID field itself are NOT in this wizard — they're entered later in Super-Admin → Content → Policies & Content → Contact Info → \"Admin Telegram Alert Chat IDs\" (comma-separate more than one).",
+      "Step E — get each admin's chat ID: after step D, have that admin message @userinfobot — it instantly replies with their own numeric chat ID.",
+      "Step F — paste the chat ID(s) into the \"Set Admin Telegram Alert Chat IDs\" card right below this checklist and click Save — it's saved straight to the database from here, comma-separated for more than one admin. (The same field can also be edited later in Super-Admin → Content → Policies & Content → Contact Info, if you'd rather set it up after launch.)",
       "To verify it worked: once TELEGRAM_BOT_TOKEN is set, this wizard's \"Check again\" button and the vault dashboard's \"Run Environment Check\" both confirm the token is valid by calling Telegram's own getMe endpoint — no test message is sent, so this check is always safe to re-run.",
     ],
   },
@@ -636,6 +638,13 @@ export default function RemainingEnvStep() {
             >
               {openHelpGroupId === group.id ? "Hide" : "How do I get these?"}
             </button>
+
+            {/* Shown unconditionally (not gated behind "How do I get
+                these?") — this is a real action to take, not just
+                documentation, so it stays visible whether or not the
+                telegram group's help panel is expanded. */}
+            {group.id === "telegram" && <TelegramChatIdsCard showToast={showToast} />}
+
             {openHelpGroupId === group.id && (
               <div className="setupWizardInstructions">
                 <span className="setupWizardInstructionsLabel">{group.label}</span>

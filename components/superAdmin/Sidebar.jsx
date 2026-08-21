@@ -98,6 +98,7 @@ const navGroups = [
       { label: "Visitor Logs", href: "/superAdmin/visitor-logs" },
       { label: "Account Activity", href: "/superAdmin/account-activity" },
       { label: "API Usage", href: "/superAdmin/api-usage" },
+      { label: "Email Logs", href: "/superAdmin/email-logs" },
     ],
   },
   {

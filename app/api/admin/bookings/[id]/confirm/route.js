@@ -27,6 +27,7 @@ import { requireSuperAdmin } from "@/services/adminSession";
 import { logSecurityEvent } from "@/services/securityLog";
 import { isExclusionViolation } from "@/services/pgErrorCodes";
 import { sendBookingConfirmationEmail } from "@/services/bookingConfirmationEmail";
+import { sendBookedBookingTelegramAlert } from "@/services/bookingTelegramAlerts";
 
 export async function POST(request, { params }) {
   const session = requireSuperAdmin(request);
@@ -70,6 +71,12 @@ export async function POST(request, { params }) {
     // and any admin-attached images (Content > Booking Confirmation Email).
     sendBookingConfirmationEmail({ booking: updatedBooking }).catch((error) => {
       console.error("[api/admin/bookings/[id]/confirm] Failed to send confirmation email:", error.message);
+    });
+
+    // Admin Telegram alert — "Booked" event (Task 1). Best-effort,
+    // never blocks an already-confirmed booking.
+    sendBookedBookingTelegramAlert(updatedBooking).catch((error) => {
+      console.error("[api/admin/bookings/[id]/confirm] Failed to send Telegram alert:", error.message);
     });
 
     // Audit trail (Rule 6) — who approved which guest's pending booking, and when.

@@ -45,6 +45,7 @@ import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/booking
 import { getActiveBookingRule } from "@/services/bookingRules";
 import { getRebookingPolicy, evaluateRebookingEligibility } from "@/services/rebookingPolicy";
 import { getResortDisplayName } from "@/services/resortName";
+import { sendRebookingTelegramAlert } from "@/services/bookingTelegramAlerts";
 
 // Same per-type start/end time fields the manage lookup route reads.
 const START_TIME_FIELD_BY_TYPE = {
@@ -292,6 +293,17 @@ export async function POST(request) {
     // reschedule, and this route never sent any notice of its own.
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
     const invoiceUrl = siteUrl ? `${siteUrl}/api/bookings/${updatedBooking.id}/invoice` : null;
+
+    // Admin Telegram alert — "Rebooking" event (Task 1). Best-effort,
+    // never blocks an already-moved booking. Uses the pre-reschedule
+    // `booking` row (still holding the OLD dates at this point) to show
+    // the previous dates alongside the updated booking's new ones.
+    sendRebookingTelegramAlert(updatedBooking, {
+      checkInDate: booking.checkInDate,
+      checkOutDate: booking.checkOutDate,
+    }).catch((error) => {
+      console.error("[api/bookings/manage/reschedule] Failed to send Telegram alert:", error.message);
+    });
 
     try {
       // Best-effort notice — a failed send must never fail an already-

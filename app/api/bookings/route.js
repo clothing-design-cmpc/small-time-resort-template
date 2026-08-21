@@ -347,13 +347,11 @@ export async function POST(request) {
 
   // Admin Telegram alert — best-effort, never blocks or fails the
   // booking response. Skips silently if SystemSettings.
-  // adminTelegramChatIds isn't configured yet (see services/adminAlert.js).
-  sendAdminBookingAlert({
-    guestName: payload.guestName,
-    checkInDate: quote.checkInDate,
-    checkOutDate: quote.checkOutDate,
-    referenceCode: booking.referenceCode,
-  }).catch((error) => {
+  // adminTelegramChatIds isn't configured yet (see services/adminAlert.js
+  // / services/bookingTelegramAlerts.js). Passes the full booking row so
+  // the message includes every detail (phone, guest count, amounts)
+  // plus the resort's Messenger link.
+  sendAdminBookingAlert(booking).catch((error) => {
     console.error("[api/bookings] Failed to send admin alert:", error.message);
   });
 

@@ -19,11 +19,18 @@
  * Blank/unset disables the alert entirely (no error, just a skipped
  * send — same "not configured yet" pattern as the email alerts).
  *
+ * sendAdminBookingAlert below now just re-exports the richer
+ * "pending" template from services/bookingTelegramAlerts.js — that
+ * file also covers booked/cancelled/auto-cancelled/rebooked, one
+ * function per booking lifecycle event, all sharing the same
+ * recipient list and low-level sender defined here.
+ *
  * This file is server-side only — never import it in a "use client" file.
  */
 
 import { prisma } from "./prisma.js";
 import { sendTelegramMessage } from "./telegram.js";
+import { sendPendingBookingTelegramAlert } from "./bookingTelegramAlerts.js";
 
 /**
  * getAdminAlertRecipients
@@ -48,31 +55,18 @@ async function getAdminAlertRecipients() {
 /**
  * sendAdminBookingAlert
  * Fired right after a new Booking is created (app/api/bookings/route.js).
- * Best-effort — never throws, so a failed/unconfigured alert never
- * fails an already-successful booking. Sends the same message to
- * every configured recipient in parallel.
+ * Thin re-export of the richer "pending" template in
+ * services/bookingTelegramAlerts.js — kept under this original name so
+ * every existing import site keeps working unchanged. Best-effort —
+ * never throws, so a failed/unconfigured alert never fails an
+ * already-successful booking.
  *
- * @param {object} input
- * @param {string} input.guestName
- * @param {string} input.checkInDate  - "YYYY-MM-DD", already formatted upstream
- * @param {string} input.checkOutDate - "YYYY-MM-DD"
- * @param {string} input.referenceCode
+ * @param {object} booking - the full Booking row (guestName, guestPhone,
+ *   guestEmail, bookingType, checkInDate, checkOutDate, numberOfGuests,
+ *   totalAmount, depositAmount, referenceCode)
  */
-export async function sendAdminBookingAlert({ guestName, checkInDate, checkOutDate, referenceCode }) {
-  const recipients = await getAdminAlertRecipients();
-  if (recipients.length === 0) {
-    // Not configured — this is the expected default state, not an error.
-    return false;
-  }
-
-  const message =
-    `🛎️ New booking: ${guestName}\n` +
-    `${checkInDate} → ${checkOutDate}\n` +
-    `Ref: ${referenceCode}\n` +
-    `Check the super-admin dashboard to review.`;
-
-  const results = await Promise.all(recipients.map((chatId) => sendTelegramMessage({ chatId, message })));
-  return results.some(Boolean);
+export async function sendAdminBookingAlert(booking) {
+  return sendPendingBookingTelegramAlert(booking);
 }
 
 /**

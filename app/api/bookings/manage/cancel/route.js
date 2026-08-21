@@ -39,6 +39,7 @@ import { deleteFromR2 } from "@/services/r2";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 import { getResortDisplayName } from "@/services/resortName";
+import { sendCancelledBookingTelegramAlert } from "@/services/bookingTelegramAlerts";
 
 const CANCEL_MAX_ATTEMPTS = 10;
 const CANCEL_WINDOW_MS = 15 * 60 * 1000;
@@ -82,7 +83,12 @@ export async function POST(request) {
         id: true,
         status: true,
         guestName: true,
+        guestPhone: true,
         guestEmail: true,
+        bookingType: true,
+        numberOfGuests: true,
+        totalAmount: true,
+        depositAmount: true,
         referenceCode: true,
         checkInDate: true,
         checkOutDate: true,
@@ -124,6 +130,12 @@ export async function POST(request) {
       details: `Guest self-service cancelled and deleted booking ${booking.referenceCode} (${booking.checkInDate
         .toISOString()
         .slice(0, 10)} – ${booking.checkOutDate.toISOString().slice(0, 10)}).`,
+    });
+
+    // Admin Telegram alert — "Cancelled" event (Task 1), initiated by
+    // the guest here. Best-effort, never blocks the cancellation.
+    sendCancelledBookingTelegramAlert(booking, "guest").catch((error) => {
+      console.error("[api/bookings/manage/cancel] Failed to send Telegram alert:", error.message);
     });
 
     // Best-effort cancellation email — never blocks the cancellation

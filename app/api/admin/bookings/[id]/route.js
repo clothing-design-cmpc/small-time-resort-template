@@ -33,6 +33,7 @@ import { deleteFromR2 } from "@/services/r2";
 import { sendGeneralEmail } from "@/services/emailjs";
 import { getOrCreateEmailTemplate, renderTemplateText } from "@/services/bookingEmailTemplates";
 import { getResortDisplayName } from "@/services/resortName";
+import { sendCancelledBookingTelegramAlert } from "@/services/bookingTelegramAlerts";
 
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -238,6 +239,13 @@ export async function PATCH(request, { params }) {
       actor: session.uid,
       request,
       details: `Cancelled booking for ${existingBooking.guestName} (${existingBooking.checkInDate.toISOString().slice(0, 10)} – ${existingBooking.checkOutDate.toISOString().slice(0, 10)}).`,
+    });
+
+    // Admin Telegram alert — "Cancelled" event (Task 1), initiated by
+    // an admin here (distinct from the guest self-cancel flow below).
+    // Best-effort, never blocks the cancellation itself.
+    sendCancelledBookingTelegramAlert(updatedBooking, "admin").catch((error) => {
+      console.error("[api/admin/bookings/[id]] Failed to send Telegram alert:", error.message);
     });
 
     // Best-effort cancellation email — never blocks the cancellation

@@ -74,6 +74,11 @@ export default function PoliciesClient() {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- Manual "Send Message Now" (Task 1 — sends directly, separate
+  // from the automatic booking-status alerts) ---
+  const [telegramMessageDraft, setTelegramMessageDraft] = useState("");
+  const [isSendingTelegramMessage, setIsSendingTelegramMessage] = useState(false);
+
   // Seed local form state once the singleton row loads — after that,
   // edits live only in formValues until "Save All Changes" is pressed.
   useEffect(() => {
@@ -151,6 +156,44 @@ export default function PoliciesClient() {
       showToast(`✕ ${message}`, "error");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  /**
+   * handleSendTelegramMessage
+   * Fires the free-form text in telegramMessageDraft straight to every
+   * configured admin chat ID via /api/superAdmin/content/policies/
+   * telegram-send — separate from the automatic per-status booking
+   * alerts (services/bookingTelegramAlerts.js), which fire on their
+   * own. This is a manual, one-off broadcast (e.g. "closed this
+   * weekend for maintenance").
+   */
+  async function handleSendTelegramMessage() {
+    if (!telegramMessageDraft.trim()) {
+      showToast("✕ Type a message first.", "error");
+      return;
+    }
+
+    setIsSendingTelegramMessage(true);
+    try {
+      const response = await fetch("/api/superAdmin/content/policies/telegram-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: telegramMessageDraft.trim() }),
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        showToast(`✕ ${result.message}`, "error");
+        return;
+      }
+
+      showToast(result.message, "success");
+      setTelegramMessageDraft("");
+    } catch (sendError) {
+      showToast("✕ Network error — please try again.", "error");
+    } finally {
+      setIsSendingTelegramMessage(false);
     }
   }
 
@@ -319,6 +362,35 @@ export default function PoliciesClient() {
               value={formValues.adminTelegramChatIds}
               onChange={(event) => handleFieldChange("adminTelegramChatIds", event.target.value)}
             />
+          </div>
+          <div className="policiesTelegramSetup">
+            <span className="policiesTelegramSetupTitle">Send a Message Now</span>
+            <p className="policiesMapHint" style={{ marginBottom: "0.4rem" }}>
+              Sends this text directly to every chat ID above right now — separate from the
+              automatic booking alerts (new/pending, booked, cancelled, auto-cancelled, rebooked),
+              which send their own messages on their own. Use this for one-off announcements (e.g.
+              &quot;Closed this weekend for maintenance&quot;). Save your chat IDs above first if you
+              haven&apos;t yet.
+            </p>
+            <div className="policiesFormField">
+              <label htmlFor="telegramMessageDraft">Message</label>
+              <textarea
+                id="telegramMessageDraft"
+                rows={3}
+                placeholder="Type the message to send to Telegram now..."
+                value={telegramMessageDraft}
+                onChange={(event) => setTelegramMessageDraft(event.target.value)}
+                maxLength={4000}
+              />
+            </div>
+            <button
+              type="button"
+              className="policiesSaveButton"
+              onClick={handleSendTelegramMessage}
+              disabled={isSendingTelegramMessage || !telegramMessageDraft.trim()}
+            >
+              {isSendingTelegramMessage ? "Sending…" : "Send Message Now"}
+            </button>
           </div>
           <p className="policiesMapHint">
             Message Us channels — the floating &quot;Request a callback&quot; button on the visitor site shows

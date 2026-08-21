@@ -23,6 +23,7 @@ import { prisma } from "./prisma.js";
 import { sendGeneralEmail } from "./emailjs.js";
 import { getOrCreateEmailTemplate, renderTemplateText } from "./bookingEmailTemplates.js";
 import { getResortDisplayName } from "./resortName.js";
+import { sendAutoCancelledBookingTelegramAlert } from "./bookingTelegramAlerts.js";
 
 const FULL_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -43,7 +44,12 @@ export async function runBookingExpirySweep() {
     select: {
       id: true,
       guestName: true,
+      guestPhone: true,
       guestEmail: true,
+      bookingType: true,
+      numberOfGuests: true,
+      totalAmount: true,
+      depositAmount: true,
       referenceCode: true,
       checkInDate: true,
       checkOutDate: true,
@@ -79,6 +85,18 @@ export async function runBookingExpirySweep() {
       where: { id: { in: breachedBookings.map((b) => b.id) } },
       data: { pendingHoldBreachedAt: now },
     });
+  }
+
+  // Admin Telegram alert — "Auto-Cancel" event (Task 1), one per
+  // expired booking. Best-effort, never blocks the sweep — a failed
+  // Telegram send must never stop the actual status update above,
+  // which already happened.
+  if (expiredBookings.length > 0) {
+    Promise.all(expiredBookings.map((booking) => sendAutoCancelledBookingTelegramAlert(booking))).catch(
+      (error) => {
+        console.error("[bookingExpirySweep] Failed to send Telegram auto-cancel alert(s):", error.message);
+      }
+    );
   }
 
   // Best-effort auto-cancellation email per guest — never blocks the

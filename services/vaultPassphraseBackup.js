@@ -51,7 +51,12 @@ const RETRY_DELAY_MS = 3000;
 // stops working on its own instead of staying valid forever.
 const SIGNED_URL_EXPIRY_SECONDS = 24 * 60 * 60; // 24 hours
 
-function buildPassphraseFileContents({ newPassphrase, generatedByLabel, generatedAt, vaultRecoveryUrl }) {
+// Exported so services/vaultTelegramAlerts.js can reuse the EXACT same
+// template for the Telegram alert as this file writes to R2 — one
+// source of truth, so the two channels can never silently drift apart
+// in wording/structure the way two independently-maintained copies
+// eventually would.
+export function buildPassphraseFileContents({ newPassphrase, generatedByLabel, generatedAt, vaultRecoveryUrl }) {
   return (
     `your-private-resort — Vault Recovery Passphrase\n` +
     `Generated: ${generatedAt}\n` +

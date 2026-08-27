@@ -71,7 +71,7 @@ export async function generateAndDistributePassphrase({ actor, reason, request, 
   // companion ping (which deliberately omits the passphrase), this one
   // includes the plaintext code itself, per the owner's request that
   // EVERY new vault code also go out over Telegram, not just email.
-  const telegramSent = await sendVaultPassphraseTelegramAlert({ newPassphrase, reason });
+  const telegramSent = await sendVaultPassphraseTelegramAlert({ newPassphrase, reason, generatedByLabel });
 
   // Audit trail — this is a disaster-recovery credential, always
   // logged with the admin (or the key-based VAULT_IDENTITY) who

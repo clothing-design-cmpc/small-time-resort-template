@@ -23,3 +23,22 @@ append-only — newest entry last.
   ReservationSummaryClient.jsx, TourReservationSummaryClient.jsx) and
   found it already fully implemented — no changes made there pending
   clarification of what specifically needs continuing.
+
+[2026-08-28] Added a Gatekeeper 3 pre-lockdown email-OTP challenge
+  (docs/gatekeeper-3-otp-challenge.md) so an anomalous-but-correct-
+  password login (new device or impossible travel) no longer fires
+  the full breach response immediately -- a 6-digit code is emailed
+  to VAULT_OWNER_EMAIL first, and the login stays pending for 3
+  minutes. Gatekeeper 3 still fires exactly as before if the code is
+  wrong, exhausted, or the window expires unanswered. New Prisma
+  model LoginAnomalyChallenge; new services/loginAnomalyOtp.js and
+  services/loginSession.js (session-cookie helpers extracted so both
+  the normal login route and the new OTP-verify route build sessions
+  identically); new sendLoginAnomalyOtpEmail() in services/emailAlert.js;
+  new app/api/auth/login-otp/verify and .../expire routes; login page
+  (app/superAdmin/login/page.jsx + Login.css) now shows a code-entry
+  screen with a live countdown while a challenge is pending. Also
+  fixed a pre-existing bug in services/breachResponse.js where
+  triggerGatekeeperBreach()'s skipIpBlock parameter was accepted but
+  never actually read, so the owner-IP leniency it was meant to grant
+  never worked -- now honored.

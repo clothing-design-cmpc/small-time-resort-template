@@ -278,3 +278,48 @@ export async function sendOwnerIpUpdatedEmail({ newIp }) {
     emailType: "owner_ip_updated",
   });
 }
+
+/**
+ * sendLoginAnomalyOtpEmail
+ * Gatekeeper 3 pre-lockdown step (services/loginAnomalyOtp.js). Sent
+ * to VAULT_OWNER_EMAIL every time a correct password is entered from
+ * an anomalous device or location — regardless of which admin account
+ * was used to log in — since only the owner's inbox can confirm
+ * whether the person signing in is actually the owner or family.
+ * Best-effort — never throws; the caller (loginAnomalyOtp.js) already
+ * handles a false return by logging it, since there's no other channel
+ * to notify the owner if this fails.
+ *
+ * @param {object} input
+ * @param {string} input.code - plaintext 6-digit code, never logged elsewhere
+ * @param {string} input.attemptedEmail - which admin account this login used
+ * @param {string|null} input.anomalyReason - from SecurityLog, e.g. "New device: ..."
+ * @param {string|null} input.ipAddress
+ * @param {number} input.expiryMinutes
+ */
+export async function sendLoginAnomalyOtpEmail({ code, attemptedEmail, anomalyReason, ipAddress, expiryMinutes }) {
+  const vaultOwnerEmail = process.env.VAULT_OWNER_EMAIL;
+  if (!vaultOwnerEmail) {
+    console.error("[emailAlert] VAULT_OWNER_EMAIL is not set — skipping login anomaly OTP email.");
+    return false;
+  }
+
+  return sendGeneralEmail({
+    toEmail: vaultOwnerEmail,
+    subject: "Confirm this sign-in — verification code",
+    eyebrow: "SIGN-IN VERIFICATION",
+    heading: "A sign-in needs your confirmation",
+    intro:
+      `Someone signed in to ${attemptedEmail} with the correct password, but from a device or ` +
+      `location we haven't seen before (${anomalyReason ?? "reason unavailable"}${ipAddress ? `, IP ${ipAddress}` : ""}). ` +
+      "Enter the code below on the sign-in screen only if this was you or someone in your family.",
+    highlightLine1: code,
+    highlightLine2: `Expires in ${expiryMinutes} minutes`,
+    bodyMessage:
+      "If you did NOT attempt this sign-in and don't recognize it, do nothing — the code will " +
+      "expire on its own and the site will lock down automatically, the same as before this " +
+      "verification step existed.",
+    emailType: "login_anomaly_otp",
+  });
+}
+

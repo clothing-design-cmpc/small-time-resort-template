@@ -10,6 +10,11 @@ cards (all 3 gatekeepers, no terminal needed), and the manual
 walkthrough (for the one thing nothing else covers — impossible
 travel).
 
+> **Gatekeeper 3 no longer fires immediately on an anomalous login** —
+> see `docs/gatekeeper-3-otp-challenge.md` for the email-OTP step now
+> in front of it. Everything below still describes what eventually
+> happens if that OTP challenge fails or times out.
+
 **Never run any of these against production.** All three deliberately
 trip real breach detectors — that's the whole point.
 

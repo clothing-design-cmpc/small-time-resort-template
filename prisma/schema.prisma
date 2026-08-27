@@ -574,6 +574,56 @@ model MagicLoginToken {
 }
 
 // ============================================================
+// MODEL: LoginAnomalyChallenge  (Gatekeeper 3 pre-lockdown OTP step)
+// ============================================================
+// One row per anomalous-but-correct-password login attempt (new
+// device OR impossible travel — see services/securityLog.js's
+// detectAnomalies()). Instead of firing the full Gatekeeper 3 breach
+// response immediately, app/api/auth/login/route.js creates this row,
+// emails a 6-digit code to the resort owner, and holds the login in a
+// "pending" state client-side. The two outcomes:
+//   - Correct code within OTP_EXPIRY_MINUTES (services/loginAnomalyOtp.js)
+//     -> app/api/auth/login-otp/verify/route.js finishes the login
+//     normally (session cookie + AdminSession row) and Gatekeeper 3
+//     never fires. The device's own login_success SecurityLog row
+//     (already written before this challenge existed — see the
+//     comment in app/api/auth/login/route.js) is what marks it
+//     "known" for future logins, same as a normal clean login.
+//   - Wrong code, max attempts exceeded, or the 3-minute window
+//     expires with no response -> triggerGatekeeperBreach({gatekeeper:3})
+//     fires exactly as it did before this feature existed. This is
+//     the safety net: silence or a wrong guess is treated as a
+//     possible attacker, never as implicit approval.
+// This only replaces the MOMENT Gatekeeper 3 fires for an anomalous
+// login — it changes nothing about Gatekeeper 1 or 2, and an
+// impossible-travel anomaly is challenged exactly the same way a
+// new-device anomaly is (no IP-based exemption for either — a stated,
+// deliberate change from the old ownerVerifiedIp-based skipIpBlock
+// leniency, since a self-reported IP is too easy to spoof/change to
+// gate anything more than the OTP-block step it already still gates).
+model LoginAnomalyChallenge {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String
+  authUserId        String    @map("auth_user_id") @db.Uuid
+  role              String
+  fullName          String    @map("full_name")
+  otpCodeHash       String    @map("otp_code_hash")
+  ipAddress         String?   @map("ip_address")
+  deviceFingerprint String?   @map("device_fingerprint")
+  anomalyReason     String?   @map("anomaly_reason")
+  skipIpBlock       Boolean   @default(false) @map("skip_ip_block")
+  attempts          Int       @default(0)
+  status            String    @default("pending") // pending | approved | failed | expired
+  createdAt         DateTime  @default(now()) @map("created_at")
+  expiresAt         DateTime  @map("expires_at")
+  respondedAt       DateTime? @map("responded_at")
+
+  @@index([status])
+  @@index([expiresAt])
+  @@map("login_anomaly_challenges")
+}
+
+// ============================================================
 // MODEL: BackupLog  (Database Backup history — see scripts/runBackup.js)
 // ============================================================
 // One row per backup run, written by the standalone backup script

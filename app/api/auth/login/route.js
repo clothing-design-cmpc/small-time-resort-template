@@ -21,6 +21,19 @@
  *    set containing the user id + role so proxy.js (edge runtime,
  *    no DB access) can authorize requests without a network call
  *
+ * GATEKEEPER 3 PRE-LOCKDOWN OTP CHALLENGE (services/loginAnomalyOtp.js) —
+ * a correct password from an anomalous device or location (new device
+ * or impossible travel) no longer fires the full breach response
+ * immediately. Instead, a 6-digit code is emailed to VAULT_OWNER_EMAIL
+ * and this route responds with { otpRequired: true, challengeId }
+ * instead of a session cookie. app/api/auth/login-otp/verify/route.js
+ * finishes the login on a correct code; app/api/auth/login-otp/expire/route.js
+ * (called by the login page's own countdown) or a wrong/exhausted code
+ * both fall through to the exact same Gatekeeper 3 response this route
+ * used to fire directly — see prisma/schema.prisma's
+ * LoginAnomalyChallenge model header for the full two-outcome flow, and
+ * docs/gatekeeper-3-otp-challenge.md for the feature writeup.
+ *
  * OWNER VERIFIED IP (SystemSettings.ownerVerifiedIp) — added on top of
  * the flow above, see GK3-OWNER-IP-DESIGN.txt for the full reasoning:
  * - A login attempt from this IP gets 5 attempts instead of 3 before
@@ -30,10 +43,12 @@
  *   successful login from a different IP — never after an anomalous one,
  *   so a stolen-but-correct password can never claim the leniency for
  *   itself. Every auto-update fires an alert email as a safety net.
- * - A Gatekeeper 3 trip only ever skips its IP-block step (never the
- *   lockdown/backup/rotation) when the anomaly was a NEW DEVICE from
- *   this exact IP — an IMPOSSIBLE TRAVEL trip is never exempted here,
- *   regardless of IP.
+ * - A Gatekeeper 3 trip — if the OTP challenge above ultimately fails —
+ *   only ever skips its IP-block step (never the lockdown/backup/
+ *   rotation) when the anomaly was a NEW DEVICE from this exact IP —
+ *   an IMPOSSIBLE TRAVEL trip is never exempted here, regardless of IP.
+ *   Neither anomaly type skips the OTP challenge itself, only this one
+ *   downstream step if the challenge fails.
  *
  * ADMIN ACCESS LIMIT (SystemSettings.maxAdminSessions) — a valid
  * super_admin login is turned away with 403 if that many devices are
@@ -55,7 +70,9 @@ import { isIpBlocked } from "@/services/ipBlock";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
 import { issueMagicLoginToken } from "@/services/magicLogin";
 import { sendOwnerMagicLoginEmail, sendOwnerIpUpdatedEmail } from "@/services/emailAlert";
-import { getAdminAccessLimitStatus, createAdminSession } from "@/services/adminAccessLimit";
+import { getAdminAccessLimitStatus } from "@/services/adminAccessLimit";
+import { buildSessionPayload, attachSessionCookie, persistAdminSession } from "@/services/loginSession";
+import { createLoginAnomalyChallenge } from "@/services/loginAnomalyOtp";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
@@ -64,7 +81,8 @@ const loginRequestSchema = z.object({
 
 // Same 15-minute access-token lifetime pattern as Rule 32.3 — the
 // session cookie mirrors the underlying Supabase access token's window.
-const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
+// (SESSION_COOKIE_MAX_AGE_SECONDS itself now lives in services/loginSession.js
+// so this route and app/api/auth/login-otp/verify/route.js always agree.)
 
 // Cookies marked Secure are silently dropped by the browser on plain
 // HTTP — which is exactly what `npm run dev` serves on localhost. Only
@@ -341,14 +359,10 @@ export async function POST(request) {
     );
   }
 
-  // Step 3: set the HttpOnly session cookie proxy.js decodes. "sid" is
-  // this device/browser's own AdminSession row id — logout uses it to
-  // delete exactly this session without touching this admin's other
-  // active sessions on other devices.
-  const sessionId = crypto.randomUUID();
-  const sessionPayload = Buffer.from(
-    JSON.stringify({ uid: authUserId, role: adminProfile.role, sid: sessionId })
-  ).toString("base64");
+  // Step 3: build (but don't attach yet) the session cookie payload —
+  // needed below either immediately (clean login) or later, unchanged,
+  // once an OTP-challenged login is approved (services/loginSession.js).
+  const { sessionId, sessionPayload } = buildSessionPayload({ authUserId, role: adminProfile.role });
 
   const securityLogRow = await logSecurityEvent({
     eventType: "login_success",
@@ -365,27 +379,50 @@ export async function POST(request) {
   const isNewDeviceOnly = Boolean(securityLogRow?.isNewDevice) && !isImpossibleTravel;
 
   if (securityLogRow?.isAnomalous && ip !== "unknown") {
-    // GATEKEEPER 3 TRIPPED — a genuinely valid super-admin login, but the
-    // built-in anomaly detector (services/securityLog.js) flagged it as
-    // impossible travel or a brand-new device. This is the most serious
-    // of the three signals: it means someone already has the correct
-    // password. Fire the full breach response even though the password
-    // was correct — a compromised credential is exactly what this gate
-    // exists for.
+    // GATEKEEPER 3 PRE-LOCKDOWN OTP CHALLENGE — a genuinely valid
+    // super-admin login, but the built-in anomaly detector
+    // (services/securityLog.js) flagged it as impossible travel or a
+    // brand-new device. Rather than immediately firing the full breach
+    // response, email a 6-digit code to the resort owner and hold this
+    // login pending for OTP_EXPIRY_MINUTES — see
+    // services/loginAnomalyOtp.js and prisma/schema.prisma's
+    // LoginAnomalyChallenge model header for the full two-outcome flow.
+    // Gatekeeper 3 still fires exactly as before if the code is wrong,
+    // exhausted, or the window expires with no response — this only
+    // changes the MOMENT it fires, never removes it as a safety net.
     //
-    // skipIpBlock is ONLY set when this was a new-device-only anomaly
-    // AND the request came from the currently-trusted owner IP — every
-    // other response step (lockdown, backup, alert, rotation) still runs
-    // in full either way. Impossible travel never sets this, regardless
-    // of IP — see services/breachResponse.js's own comments.
+    // skipIpBlock is carried on the challenge row and applied later
+    // (by app/api/auth/login-otp/verify/route.js or
+    // app/api/auth/login-otp/expire/route.js) only if this challenge
+    // ultimately fails — same isRequestFromOwnerIp + isNewDeviceOnly
+    // condition this route already used before this feature existed.
+    // Impossible travel never sets this, regardless of IP.
     const skipIpBlock = isRequestFromOwnerIp && isNewDeviceOnly;
 
-    await triggerGatekeeperBreach({
-      gatekeeper: 3,
+    const { challengeId, expiresAt, emailSent } = await createLoginAnomalyChallenge({
+      email,
+      authUserId,
+      role: adminProfile.role,
+      fullName: adminProfile.fullName,
       ipAddress: ip,
-      details: securityLogRow.anomalyReason || `Anomalous login detected for ${email}.`,
+      deviceFingerprint: securityLogRow.deviceFingerprint ?? null,
+      anomalyReason: securityLogRow.anomalyReason || `Anomalous login detected for ${email}.`,
       skipIpBlock,
-    }).catch((error) => console.error("[login] Gatekeeper 3 breach response failed:", error.message));
+    });
+
+    // Sign the Supabase session back out — the browser must not keep a
+    // valid Supabase session for a login this route hasn't finished
+    // yet. The OTP-verify route re-authenticates via the challenge row
+    // instead of relying on this Supabase session surviving.
+    await adminClient.auth.admin.signOut(signInData.session.access_token).catch(() => {});
+
+    return NextResponse.json({
+      success: false,
+      data: { otpRequired: true, challengeId, expiresAt, emailSent },
+      message: emailSent
+        ? "This sign-in needs confirmation. We've emailed a verification code to the resort owner."
+        : "This sign-in needs confirmation, but the verification email failed to send. Contact the site owner.",
+    });
   } else if (ip !== "unknown" && ip !== storedOwnerIp) {
     // AUTO-UPDATE the trusted owner IP — only on a CLEAN (non-anomalous)
     // successful login. Never on an anomalous one, even though the
@@ -419,26 +456,13 @@ export async function POST(request) {
     message: "Signed in successfully.",
   });
 
-  response.cookies.set("session", sessionPayload, {
-    httpOnly: true,
-    // Secure cookies are dropped outright on plain HTTP — only enforce
-    // it in production where the app is served over HTTPS.
-    secure: isProduction,
-    sameSite: "strict",
-    path: "/",
-    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
-  });
+  attachSessionCookie(response, sessionPayload, isProduction);
 
   // Track this device/browser as an active session — expiresAt mirrors
   // the cookie's own maxAge so a session that's never explicitly
   // logged out (browser crash, killed process) still stops counting
   // toward the access limit once the cookie itself would have expired.
-  await createAdminSession({
-    id: sessionId,
-    adminId: authUserId,
-    ipAddress: ip !== "unknown" ? ip : null,
-    expiresAt: new Date(Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000),
-  });
+  await persistAdminSession({ sessionId, authUserId, ipAddress: ip });
 
   return response;
 }

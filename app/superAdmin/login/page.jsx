@@ -70,6 +70,23 @@ export default function SuperAdminLoginPage() {
   // swaps the error banner for a "check your email" message instead.
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
+  // Gatekeeper 3 pre-lockdown OTP challenge (services/loginAnomalyOtp.js).
+  // Set once /api/auth/login responds with { otpRequired: true,
+  // challengeId, expiresAt } — an anomalous-but-correct-password login
+  // (new device or impossible travel). Swaps the whole form for the
+  // OTP entry screen below until the code is confirmed, rejected, or
+  // the countdown runs out with nothing submitted.
+  const [otpChallenge, setOtpChallenge] = useState(null); // { challengeId, expiresAt } | null
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState(null);
+  const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
+  // True once the countdown hits zero and /api/auth/login-otp/expire has
+  // been called — the challenge is closed and Gatekeeper 3 has already
+  // fired server-side by the time this renders, so the form stays
+  // locked rather than letting a stale code still be submitted.
+  const [isOtpWindowClosed, setIsOtpWindowClosed] = useState(false);
+
   // Admin Access Limit (Super-Admin > Settings > Admin Access Limit) —
   // true once the configured number of admins are already signed in.
   // Checked once on mount so the form starts disabled instead of
@@ -98,6 +115,98 @@ export default function SuperAdminLoginPage() {
       isMounted = false;
     };
   }, []);
+
+  // Drives the OTP countdown display and fires the expire call the
+  // instant it reaches zero — a setInterval tick, not a single
+  // setTimeout, so the visible number updates every second rather than
+  // just jumping from full to zero.
+  useEffect(() => {
+    if (!otpChallenge) return;
+
+    function computeSecondsLeft() {
+      return Math.max(0, Math.round((new Date(otpChallenge.expiresAt).getTime() - Date.now()) / 1000));
+    }
+
+    setOtpSecondsLeft(computeSecondsLeft());
+
+    const intervalId = setInterval(async () => {
+      const secondsLeft = computeSecondsLeft();
+      setOtpSecondsLeft(secondsLeft);
+
+      if (secondsLeft <= 0) {
+        clearInterval(intervalId);
+        setIsOtpWindowClosed(true);
+
+        // Best-effort — the server re-checks its own stored expiresAt
+        // before doing anything, so this call is safe to fire even if
+        // the client's clock is slightly off. A network failure here
+        // just means the breach response fires a little later, off the
+        // server's own next check, rather than not at all.
+        try {
+          await fetch("/api/auth/login-otp/expire", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ challengeId: otpChallenge.challengeId }),
+          });
+        } catch {
+          // Nothing to show the user here — the window is already
+          // closed client-side regardless of whether this call lands.
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [otpChallenge]);
+
+  /**
+   * onSubmitOtp
+   * Posts the entered code to /api/auth/login-otp/verify. A correct
+   * code finishes the login (same redirect as the normal onSubmit
+   * below); a wrong code shows an inline error but leaves the
+   * countdown running — repeated wrong guesses still count against
+   * OTP_MAX_ATTEMPTS server-side even though this form doesn't track
+   * an attempt count of its own.
+   */
+  async function onSubmitOtp(event) {
+    event.preventDefault();
+    if (isOtpWindowClosed) return;
+
+    setOtpError(null);
+    setIsOtpSubmitting(true);
+
+    let response;
+    try {
+      response = await fetch("/api/auth/login-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId: otpChallenge.challengeId, code: otpCode }),
+      });
+    } catch {
+      setOtpError("We couldn't reach the server. Check your connection and try again.");
+      setIsOtpSubmitting(false);
+      return;
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      setOtpError(result.message || "Incorrect or expired code.");
+      setOtpCode("");
+      setIsOtpSubmitting(false);
+      // A wrong-code response that exhausted attempts or hit an
+      // already-expired challenge means Gatekeeper 3 has already fired
+      // server-side (see app/api/auth/login-otp/verify/route.js) —
+      // lock the form the same way the countdown reaching zero does,
+      // instead of leaving a dead code input open.
+      if (response.status === 403) {
+        setIsOtpWindowClosed(true);
+      }
+      return;
+    }
+
+    router.push("/superAdmin/dashboard");
+    router.refresh();
+  }
 
   const {
     register,
@@ -135,6 +244,17 @@ export default function SuperAdminLoginPage() {
     const result = await response.json();
 
     if (!result.success) {
+      // Gatekeeper 3 pre-lockdown OTP challenge — an anomalous-but-
+      // correct-password login. Swap to the OTP entry screen instead
+      // of treating this as a normal auth error; stop here (no reload,
+      // no attempt count, no field wipe needed since the form itself
+      // is about to be replaced).
+      if (result.data?.otpRequired) {
+        setOtpChallenge({ challengeId: result.data.challengeId, expiresAt: result.data.expiresAt });
+        setAuthError(result.data.emailSent ? null : result.message);
+        return;
+      }
+
       // Owner-verified-IP leniency exceeded its 5-attempt limit — the
       // server already emailed a one-time sign-in link instead of
       // blocking this IP. Swap to a distinct message rather than the
@@ -218,10 +338,65 @@ export default function SuperAdminLoginPage() {
             </svg>
           </span>
           <span className="loginEyebrow">your-private-resort Admin</span>
-          <h1 className="loginTitle">Super-Admin Login</h1>
-          <p className="loginLegend">* Required fields</p>
+          <h1 className="loginTitle">{otpChallenge ? "Confirm Sign-In" : "Super-Admin Login"}</h1>
+          {!otpChallenge && <p className="loginLegend">* Required fields</p>}
         </div>
 
+        {/* Gatekeeper 3 pre-lockdown OTP challenge — replaces the rest
+            of the card (autofill button, notices, and the email/
+            password form below) until the code is confirmed, rejected,
+            or the countdown closes the window. See onSubmitOtp above
+            and services/loginAnomalyOtp.js for the server side. */}
+        {otpChallenge ? (
+          <>
+            <p className="loginOtpNotice">
+              {authError ||
+                "This sign-in was from a device or location we haven't seen before. Enter the code emailed to the resort owner to continue."}
+            </p>
+
+            {isOtpWindowClosed ? (
+              <p role="alert" className="loginAuthError">
+                Time's up — this sign-in attempt has been closed and reported. Refresh the page to try again.
+              </p>
+            ) : (
+              <form className="loginForm" onSubmit={onSubmitOtp} noValidate>
+                <div className="loginField">
+                  <label htmlFor="otpCode">
+                    Verification code <span aria-hidden="true">*</span>
+                  </label>
+                  <input
+                    id="otpCode"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ""))}
+                  />
+                  {otpError && (
+                    <span role="alert" className="loginFieldError">
+                      {otpError}
+                    </span>
+                  )}
+                </div>
+
+                <p className="loginOtpCountdown" role="status">
+                  Code expires in {Math.floor(otpSecondsLeft / 60)}:{String(otpSecondsLeft % 60).padStart(2, "0")}
+                </p>
+
+                <button
+                  type="submit"
+                  className="loginSubmitButton"
+                  disabled={isOtpSubmitting || otpCode.length !== 6}
+                >
+                  {isOtpSubmitting ? "Confirming…" : "Confirm sign-in"}
+                </button>
+              </form>
+            )}
+          </>
+        ) : (
+          <>
         {/* Dev-only convenience — never renders in production or on a
             fresh clone (see DEV_LOGIN_EMAIL/PASSWORD above). Fills the
             form only; still requires a real submit through the normal
@@ -328,6 +503,8 @@ export default function SuperAdminLoginPage() {
             {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
+          </>
+        )}
       </div>
     </section>
   );

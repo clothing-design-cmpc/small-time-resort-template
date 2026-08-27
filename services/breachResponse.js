@@ -98,8 +98,15 @@ const BREACH_MESSAGE =
  * @param {1|2|3} input.gatekeeper
  * @param {string|null} input.ipAddress
  * @param {string} input.details - human-readable one-liner for the incident record
+ * @param {boolean} [input.skipIpBlock] - when true, Step 1's blockIp()
+ *   call is skipped (every other step — incident record, lockdown,
+ *   backup, alert, rotation — still runs in full). Only ever passed
+ *   as true by callers implementing the owner-IP leniency described in
+ *   app/api/auth/login/route.js's file header. NOTE: prior to this
+ *   fix, this parameter was accepted but never actually read here —
+ *   the IP was always blocked regardless of what callers passed.
  */
-export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }) {
+export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details, skipIpBlock = false }) {
   const reason = `${GATEKEEPER_LABELS[gatekeeper] ?? `Gatekeeper ${gatekeeper}`} tripped: ${details}`;
 
   // GK3 gets the full "assume the worst" treatment (site-wide lockdown +
@@ -109,17 +116,20 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details }
   // scoped to that IP instead of taking the whole site down.
   const isFullLockdown = gatekeeper === 3;
 
-  // Step 1 — block the IP immediately, for ALL 3 gatekeepers. Gatekeeper
-  // 3 trips AFTER a successful login with a correct password, so this
-  // IP could be the real super-admin travelling or using a new device —
-  // that risk is accepted here on purpose. The vault recovery page is
-  // reachable via its own separate login chain (passphrase + OTP) and is
-  // never gated by BlockedIp/proxy.js's IP check the same way /superAdmin
-  // is, so a real admin blocked here can still reach recovery and the new
-  // /superAdmin/blocked-ips page (via another device/network) to unblock
-  // themselves afterward — see that page for why unbanning itself still
-  // requires the vault's own step-up code, not just a super-admin session.
-  if (ipAddress) {
+  // Step 1 — block the IP immediately, for ALL 3 gatekeepers, UNLESS
+  // the caller explicitly set skipIpBlock (owner-IP leniency — see the
+  // JSDoc above). Gatekeeper 3 trips AFTER a successful login with a
+  // correct password, so this IP could be the real super-admin
+  // travelling or using a new device — that risk is accepted here on
+  // purpose. The vault recovery page is reachable via its own separate
+  // login chain (passphrase + OTP) and is never gated by
+  // BlockedIp/proxy.js's IP check the same way /superAdmin is, so a
+  // real admin blocked here can still reach recovery and the new
+  // /superAdmin/blocked-ips page (via another device/network) to
+  // unblock themselves afterward — see that page for why unbanning
+  // itself still requires the vault's own step-up code, not just a
+  // super-admin session.
+  if (ipAddress && !skipIpBlock) {
     await blockIp(ipAddress, reason, gatekeeper);
   }
 

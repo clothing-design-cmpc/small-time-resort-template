@@ -24,6 +24,7 @@
     "check:gatekeepers": "node scripts/checkGatekeepers.js",
     "generate-recovery-card": "node scripts/generateRecoveryCard.mjs",
     "rotate-vault-passphrase": "node scripts/rotateVaultPassphrase.mjs",
+    "rotate-vault-passphrase-if-due": "node scripts/rotateVaultPassphraseIfDue.mjs",
     "backfill:rule-date-count": "node scripts/backfillBookingRuleDateCount.js"
   },
   "dependencies": {

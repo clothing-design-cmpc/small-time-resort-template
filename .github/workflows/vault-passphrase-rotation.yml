@@ -1,0 +1,70 @@
+# FILE: .github/workflows/vault-passphrase-rotation.yml
+# PURPOSE:
+# Runs scripts/rotateVaultPassphraseIfDue.mjs on GitHub's own cloud
+# runners, daily — same "separate infrastructure, talks to the DB
+# directly" pattern as database-backup.yml (Rule 40.1/40.5).
+#
+# WHY THIS EXISTS ALONGSIDE app/api/system-vault-setup/auto-rotate/route.js:
+# That route only ever fires when Vercel Cron calls it, which only
+# happens once this app is actually deployed to Vercel. While this
+# project is still localhost-only, nothing ever calls that route, so
+# VaultPassphrase.expiresAt just sits in the past forever (see
+# overviewProject.txt's DEBUG POINTS entry on this exact symptom).
+# This workflow reaches the live Supabase DB directly instead, so
+# rotation keeps happening on schedule whether or not the Next.js app
+# itself is deployed anywhere. Once the app IS deployed to Vercel with
+# CRON_SECRET set, both this workflow and the Vercel cron route are
+# safe to run side by side — the underlying check
+# (isVaultPassphraseExpired()) is idempotent, so whichever one runs
+# first each day performs the rotation and the other is simply a
+# same-day no-op.
+#
+# Schedule: 17:00 UTC = 1:00 AM Philippine Time (UTC+8) every day —
+# same low-traffic window as the nightly backup, just checking (not
+# always rotating) daily. Only actually rotates roughly once every 30
+# days, per isVaultPassphraseExpired().
+name: Vault Passphrase Auto-Rotation Check
+
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  rotate-if-due:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm ci only installs the @prisma/client package — it does NOT
+      # generate the actual client code. Same requirement as
+      # database-backup.yml's identical step.
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Rotate vault passphrase if due
+        run: npm run rotate-vault-passphrase-if-due
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          VAULT_OWNER_EMAIL: ${{ secrets.VAULT_OWNER_EMAIL }}
+          EMAILJS_SERVICE_ID: ${{ secrets.EMAILJS_SERVICE_ID }}
+          EMAILJS_GENERAL_TEMPLATE_ID: ${{ secrets.EMAILJS_GENERAL_TEMPLATE_ID }}
+          EMAILJS_PUBLIC_KEY: ${{ secrets.EMAILJS_PUBLIC_KEY }}
+          EMAILJS_PRIVATE_KEY: ${{ secrets.EMAILJS_PRIVATE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL }}

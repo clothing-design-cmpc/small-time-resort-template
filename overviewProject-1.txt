@@ -57,3 +57,20 @@ append-only — newest entry last.
   LoginOtp.css holds the two OTP-specific classes previously added to
   Login.css. Both login-otp/verify and login-otp/expire routes now
   also clear the cookie once a challenge resolves.
+
+[2026-08-28] Added GitHub Actions-based vault passphrase auto-rotation
+  as a fallback for the existing Vercel Cron route (app/api/system-
+  vault-setup/auto-rotate/route.js), which only ever fires once the
+  app is deployed to Vercel — while running localhost-only, that route
+  is never called and VaultPassphrase.expiresAt sits in the past
+  indefinitely. New scripts/rotateVaultPassphraseIfDue.mjs checks
+  isVaultPassphraseExpired() and only rotates (via the shared
+  generateAndDistributePassphrase()) when the 30 days are actually up;
+  new .github/workflows/vault-passphrase-rotation.yml runs it daily on
+  GitHub's own runners, talking directly to the live Supabase DB via
+  DIRECT_URL, independent of whether the Next.js app itself is
+  deployed anywhere. Also fixed scripts/rotateVaultPassphrase.mjs (the
+  existing manual force-rotate script) to route through the same
+  shared function instead of calling email/R2/logging directly — it
+  was missing the Telegram alert every other rotation path already
+  had. New package.json script: "rotate-vault-passphrase-if-due".

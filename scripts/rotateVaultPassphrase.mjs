@@ -14,16 +14,26 @@
  * scripts/runEnvCheck.js — talks to the DB directly via DIRECT_URL,
  * never through a Next.js request.
  *
+ * Routes through services/vaultPassphrase.js's shared
+ * generateAndDistributePassphrase() — the SAME rotate + email +
+ * Telegram + R2 + audit-log flow every other rotation path (the
+ * manual "Generate New Passphrase" button, the Vercel cron route, and
+ * scripts/rotateVaultPassphraseIfDue.mjs) already uses, so this
+ * terminal script can never drift out of sync with them again (it
+ * previously called email + R2 + logging directly and was missing the
+ * Telegram alert every other path already had).
+ *
  * WHAT IT DOES (in order):
  *   1. Generates a new random passphrase + rotates the DB row
  *      (services/vaultAuth.js's rotateVaultPassphrase() — this also
  *      rotates the hidden recovery URL slug, since the two are tied
  *      together; see that file's header for why)
  *   2. Emails the new plaintext passphrase to VAULT_OWNER_EMAIL
- *   3. Saves a matching .txt backup to Cloudflare R2 (private
+ *   3. Sends it to Telegram (services/vaultTelegramAlerts.js)
+ *   4. Saves a matching .txt backup to Cloudflare R2 (private
  *      secrets/ key + presigned link, retries once on failure —
  *      services/vaultPassphraseBackup.js)
- *   4. Logs a "vault_passphrase_set" SecurityLog row so this shows up
+ *   5. Logs a "vault_passphrase_set" SecurityLog row so this shows up
  *      in the Security Logs page same as any other rotation
  *
  * USAGE:
@@ -39,40 +49,28 @@
  * as real env vars).
  */
 import "./loadEnv.mjs";
-import { rotateVaultPassphrase } from "../services/vaultAuth.js";
-import { sendVaultPassphraseRotationEmail } from "../services/emailAlert.js";
-import { saveVaultPassphraseToR2 } from "../services/vaultPassphraseBackup.js";
-import { logSecurityEvent } from "../services/securityLog.js";
+import { VAULT_IDENTITY } from "../services/vaultAuth.js";
+import { generateAndDistributePassphrase } from "../services/vaultPassphrase.js";
 import { prisma } from "../services/prisma.js";
 
 async function main() {
   const reason = process.argv[2] || "Manually rotated from the terminal (scripts/rotateVaultPassphrase.mjs).";
 
   console.log("[rotateVaultPassphrase] Rotating vault passphrase…");
-  const newPassphrase = await rotateVaultPassphrase();
-
-  console.log("[rotateVaultPassphrase] Emailing the new passphrase…");
-  const emailSent = await sendVaultPassphraseRotationEmail({ newPassphrase, reason });
-
-  console.log("[rotateVaultPassphrase] Saving a backup copy to Cloudflare R2…");
-  const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
-    newPassphrase,
+  const { emailSent, telegramSent, r2Saved, r2SignedUrl } = await generateAndDistributePassphrase({
+    actor: VAULT_IDENTITY,
+    reason,
     generatedByLabel: reason,
-  });
-
-  await logSecurityEvent({
-    eventType: "vault_passphrase_set",
-    actor: "vault",
-    details: `${reason}. Email sent: ${emailSent}. Saved to R2: ${r2Saved}.`,
   });
 
   console.log("\n[rotateVaultPassphrase] Done.");
   console.log(`  Email sent to VAULT_OWNER_EMAIL: ${emailSent ? "yes" : "no — check server logs above"}`);
+  console.log(`  Sent to Telegram: ${telegramSent ? "yes" : "no — check server logs above"}`);
   console.log(`  Saved to Cloudflare R2: ${r2Saved ? "yes" : "no — check server logs above"}`);
   if (r2SignedUrl) console.log(`  R2 signed link (expires in 24h): ${r2SignedUrl}`);
   console.log(
     "\nThe new passphrase itself is NEVER printed to this terminal or logged anywhere —" +
-      " check the VAULT_OWNER_EMAIL inbox (or the R2 backup link above, before it expires) to read it."
+      " check the VAULT_OWNER_EMAIL inbox, Telegram, or the R2 backup link above (before it expires) to read it."
   );
 }
 

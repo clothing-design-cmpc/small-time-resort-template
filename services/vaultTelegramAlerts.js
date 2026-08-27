@@ -11,6 +11,10 @@
  *   2. A Gatekeeper 3 pre-lockdown login-anomaly OTP code —
  *      services/loginAnomalyOtp.js calls sendLoginAnomalyOtpTelegramAlert()
  *      right alongside its existing email send.
+ *   3. The vault's own second-factor OTP (the /system-vault/[slug]/otp
+ *      screen, after the passphrase is accepted) — services/vaultOtp.js
+ *      calls sendVaultOtpTelegramAlert() right alongside its existing
+ *      email send.
  *
  * Recipients and the low-level send call reuse the same
  * SystemSettings.adminTelegramChatIds list (comma-separated) and
@@ -115,6 +119,29 @@ export async function sendLoginAnomalyOtpTelegramAlert({ code, attemptedEmail, a
     `Code: ${code}\n` +
     `Expires in ${expiryMinutes} minutes.\n\n` +
     `Enter this on the sign-in screen only if this was you.`;
+
+  return sendToAllRecipients(message);
+}
+
+/**
+ * sendVaultOtpTelegramAlert
+ * Sends the vault's own second-factor OTP code over Telegram, alongside
+ * services/vaultOtp.js's existing sendGeneralEmail() call — same
+ * reasoning as every other code in this file: a second, independent
+ * channel so a missed/delayed/spam-filtered email is never the only
+ * way to finish unlocking the vault before this short-lived code
+ * expires.
+ *
+ * @param {object} input
+ * @param {string} input.code - plaintext 12-character code
+ * @param {number} input.expiryMinutes
+ */
+export async function sendVaultOtpTelegramAlert({ code, expiryMinutes }) {
+  const message =
+    `🔒 Vault verification code\n\n` +
+    `Code: ${code}\n` +
+    `Expires in ${expiryMinutes} minute${expiryMinutes === 1 ? "" : "s"}.\n\n` +
+    `Enter this on the vault login screen to continue.`;
 
   return sendToAllRecipients(message);
 }

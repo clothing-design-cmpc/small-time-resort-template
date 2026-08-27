@@ -8,9 +8,14 @@
  * vault is only half-unlocked. This file generates a 12-character
  * alphanumeric + special-character code (services/vaultOtpConfig.js),
  * stores a HASH of it (never the plaintext) in the otp* fields of the
- * consolidated singleton Vault row, and emails the plaintext to VAULT_OWNER_EMAIL via
- * services/emailjs.js. The owner reads the code from their inbox and
- * types it into VaultOtpClient — the code itself never touches
+ * consolidated singleton Vault row, and sends the plaintext to VAULT_OWNER_EMAIL via
+ * services/emailjs.js AND, as a second independent channel, to every
+ * configured Telegram chat via services/vaultTelegramAlerts.js's
+ * sendVaultOtpTelegramAlert() — same reasoning as every other
+ * vault-security code in this app: a missed/delayed/spam-filtered
+ * email must never be the only way to get this code. The owner reads
+ * the code from whichever channel arrives first and types it into
+ * VaultOtpClient — the code itself never touches
  * localStorage, sessionStorage, or any client-readable storage, and
  * the comparison against the stored hash always happens here, on the
  * server, never in the browser.
@@ -34,6 +39,7 @@
 import { scryptSync, randomInt, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/services/prisma";
 import { sendGeneralEmail } from "@/services/emailjs";
+import { sendVaultOtpTelegramAlert } from "@/services/vaultTelegramAlerts";
 import { VAULT_IDENTITY } from "@/services/vaultAuth";
 import { OTP_EXPIRY_MINUTES, OTP_CODE_LENGTH, OTP_CHARSET } from "@/services/vaultOtpConfig";
 
@@ -153,11 +159,30 @@ export async function generateAndSendVaultOtp(forceNew = true) {
     emailType: "vault_otp",
   });
 
+  // Second, independent channel — sent regardless of whether the email
+  // above succeeded, same reasoning as every other vault-security code
+  // in this app (services/vaultTelegramAlerts.js). Best-effort: a
+  // Telegram failure never blocks the response the email already
+  // determined, and a blank/unset adminTelegramChatIds list silently
+  // no-ops here rather than erroring.
+  const telegramSent = await sendVaultOtpTelegramAlert({
+    code: plaintextCode,
+    expiryMinutes: OTP_EXPIRY_MINUTES,
+  });
+
+  if (!telegramSent) {
+    console.error("[vaultOtp] Failed to send OTP Telegram alert.");
+  }
+
   if (!emailSent) {
     return { success: false, message: "Failed to send the verification email. Please try again." };
   }
 
-  return { success: true, message: `Code sent to ${maskEmail(ownerEmail)}.`, expiresAt };
+  return {
+    success: true,
+    message: `Code sent to ${maskEmail(ownerEmail)}${telegramSent ? " and Telegram" : ""}.`,
+    expiresAt,
+  };
 }
 
 /**

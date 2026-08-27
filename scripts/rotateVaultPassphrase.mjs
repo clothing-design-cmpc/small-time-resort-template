@@ -49,9 +49,15 @@
  * as real env vars).
  */
 import "./loadEnv.mjs";
+import { logDbHost } from "./lib/logDbHost.js";
 import { VAULT_IDENTITY } from "../services/vaultAuth.js";
 import { generateAndDistributePassphrase } from "../services/vaultPassphrase.js";
 import { prisma } from "../services/prisma.js";
+
+// See rotateVaultPassphraseIfDue.mjs's identical log lines for why —
+// same shared services/prisma.js connection path, same failure mode.
+logDbHost("DATABASE_URL", process.env.DATABASE_URL);
+logDbHost("DIRECT_URL", process.env.DIRECT_URL);
 
 async function main() {
   const reason = process.argv[2] || "Manually rotated from the terminal (scripts/rotateVaultPassphrase.mjs).";

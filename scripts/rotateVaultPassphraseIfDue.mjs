@@ -47,9 +47,19 @@
  * Actions secrets, if those are already set on process.env).
  */
 import "./loadEnv.mjs";
+import { logDbHost } from "./lib/logDbHost.js";
 import { isVaultPassphraseExpired, VAULT_IDENTITY } from "../services/vaultAuth.js";
 import { generateAndDistributePassphrase } from "../services/vaultPassphrase.js";
 import { prisma } from "../services/prisma.js";
+
+// This script (via services/prisma.js) only ever has DIRECT_URL set in CI —
+// DATABASE_URL is intentionally left unset here (see prisma.js's own header
+// comment on the fallback). Logging both up front turns a buried ECONNREFUSED
+// several stack frames into services/vaultAuth.js into an immediate, plain
+// answer to "which connection string is this actually using, and is it even
+// a real Supabase host."
+logDbHost("DATABASE_URL", process.env.DATABASE_URL);
+logDbHost("DIRECT_URL", process.env.DIRECT_URL);
 
 async function main() {
   console.log("[rotateVaultPassphraseIfDue] Checking whether the vault passphrase is due for rotation…");

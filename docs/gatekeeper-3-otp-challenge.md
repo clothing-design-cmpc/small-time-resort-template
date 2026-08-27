@@ -31,7 +31,7 @@ Anomaly detected? (new device OR impossible travel)
 Login       Generate 6-digit code, hash + store it on a new
 completes   LoginAnomalyChallenge row, email the PLAINTEXT code
 normally    to VAULT_OWNER_EMAIL. Login stays "pending" — no
-(unchanged) session cookie yet. Login page shows a code-entry
+(unchanged) session cookie yet. Redirects to /superAdmin/login/otp, which shows a code-entry
             screen with a 3-minute countdown.
                     │
         ┌───────────┼───────────────┐
@@ -91,10 +91,11 @@ part in deciding whether the OTP challenge itself is required.
 | `services/loginSession.js` | Extracted session-cookie-building helpers, shared by the normal login route and the OTP-verify route |
 | `services/emailAlert.js` | `sendLoginAnomalyOtpEmail()` — sends the code to `VAULT_OWNER_EMAIL` |
 | `services/breachResponse.js` | Bugfix: `skipIpBlock` was accepted but never actually read — now honored |
-| `app/api/auth/login/route.js` | On an anomalous login, creates the challenge and responds `{ otpRequired: true, challengeId, expiresAt }` instead of firing Gatekeeper 3 directly |
+| `app/api/auth/login/route.js` | On an anomalous login, creates the challenge and sets a "loginOtpChallenge" cookie instead of firing Gatekeeper 3 directly |
 | `app/api/auth/login-otp/verify/route.js` | New — verifies the submitted code, finishes the login or fires Gatekeeper 3 |
-| `app/api/auth/login-otp/expire/route.js` | New — called by the login page's own countdown when time runs out unanswered |
-| `app/superAdmin/login/page.jsx` / `Login.css` | New OTP entry screen with a live countdown, replacing the normal form while a challenge is pending |
+| `app/api/auth/login-otp/expire/route.js` | New — called by the OTP page's own countdown when time runs out unanswered |
+| `app/superAdmin/login/otp/page.jsx` | New — Server Component, reads the cookie (same role vault's own `/otp` page plays for its "vaultSession" cookie) |
+| `app/superAdmin/login/otp/LoginOtpClient.jsx` / `LoginOtp.css` | New — the actual code-entry form with a live countdown |
 
 ## Testing
 
@@ -102,7 +103,7 @@ part in deciding whether the OTP challenge itself is required.
    Live Test" card does (log in once normally, then again simulating a
    new device) — but stop short of expecting an immediate lockdown.
 2. Confirm `VAULT_OWNER_EMAIL` receives a 6-digit code within a few
-   seconds, and the login page shows the "Confirm Sign-In" screen with
+   seconds, and the browser redirects to /superAdmin/login/otp, showing the "Confirm Sign-In" screen with
    a counting-down `3:00`.
 3. **Correct-code path:** enter the code within 3 minutes → should
    redirect straight to `/superAdmin/dashboard`, and `BreachEvent`

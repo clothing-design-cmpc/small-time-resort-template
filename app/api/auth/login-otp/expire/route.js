@@ -92,5 +92,10 @@ export async function POST(request) {
   // Always a plain ack — the login page already knows to show the
   // "locked down" state locally once it calls this, regardless of what
   // comes back.
-  return NextResponse.json({ success: true, data: null, message: "Challenge closed." });
+  const ackResponse = NextResponse.json({ success: true, data: null, message: "Challenge closed." });
+  // Challenge is dead either way (expired, or was already resolved by
+  // a verify call that landed first) — clear it so a stale cookie
+  // can't point the /otp page at a resolved row.
+  ackResponse.cookies.set("loginOtpChallenge", "", { path: "/", maxAge: 0 });
+  return ackResponse;
 }

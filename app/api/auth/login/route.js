@@ -416,13 +416,35 @@ export async function POST(request) {
     // instead of relying on this Supabase session surviving.
     await adminClient.auth.admin.signOut(signInData.session.access_token).catch(() => {});
 
-    return NextResponse.json({
+    const otpResponse = NextResponse.json({
       success: false,
-      data: { otpRequired: true, challengeId, expiresAt, emailSent },
+      data: { otpRequired: true, emailSent },
       message: emailSent
         ? "This sign-in needs confirmation. We've emailed a verification code to the resort owner."
         : "This sign-in needs confirmation, but the verification email failed to send. Contact the site owner.",
     });
+
+    // "loginOtpChallenge" cookie — same role vault's own "vaultSession"
+    // cookie plays between its passphrase and OTP steps: it's what lets
+    // app/superAdmin/login/otp/page.jsx (a Server Component) know a
+    // challenge is pending and which one, without putting challengeId
+    // in a URL. HttpOnly since the client-side OTP form never needs to
+    // read it directly — it always goes through that page's own
+    // server-side read. maxAge matches the challenge's own expiry so
+    // the cookie never outlives what it points to.
+    otpResponse.cookies.set(
+      "loginOtpChallenge",
+      Buffer.from(JSON.stringify({ challengeId, expiresAt })).toString("base64"),
+      {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "strict",
+        path: "/",
+        maxAge: Math.max(1, Math.round((new Date(expiresAt).getTime() - Date.now()) / 1000)),
+      }
+    );
+
+    return otpResponse;
   } else if (ip !== "unknown" && ip !== storedOwnerIp) {
     // AUTO-UPDATE the trusted owner IP — only on a CLEAN (non-anomalous)
     // successful login. Never on an anomalous one, even though the

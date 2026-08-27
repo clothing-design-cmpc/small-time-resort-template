@@ -42,3 +42,18 @@ append-only — newest entry last.
   triggerGatekeeperBreach()'s skipIpBlock parameter was accepted but
   never actually read, so the owner-IP leniency it was meant to grant
   never worked -- now honored.
+
+[2026-08-28] Fixed the Gatekeeper 3 OTP challenge from the previous
+  entry: it had rendered the code-entry form inline on the same
+  /superAdmin/login page instead of as its own route, unlike the
+  vault's own passphrase -> /otp page handoff pattern. Now
+  app/api/auth/login/route.js sets a "loginOtpChallenge" HttpOnly
+  cookie (mirroring vault's "vaultSession" cookie) instead of
+  returning challengeId/expiresAt in the JSON body; new Server
+  Component app/superAdmin/login/otp/page.jsx reads that cookie and
+  redirects back to /superAdmin/login if it's missing/invalid; new
+  app/superAdmin/login/otp/LoginOtpClient.jsx holds the actual
+  code-entry form + countdown (moved out of page.jsx entirely); new
+  LoginOtp.css holds the two OTP-specific classes previously added to
+  Login.css. Both login-otp/verify and login-otp/expire routes now
+  also clear the cookie once a challenge resolves.

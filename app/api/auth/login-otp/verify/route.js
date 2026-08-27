@@ -138,6 +138,9 @@ export async function POST(request) {
     attachSessionCookie(response, sessionPayload, isProduction);
     await persistAdminSession({ sessionId, authUserId: result.challenge.authUserId, ipAddress: ip });
 
+    // Challenge is resolved — no reason for this cookie to outlive it.
+    response.cookies.set("loginOtpChallenge", "", { path: "/", maxAge: 0 });
+
     return response;
   }
 
@@ -156,10 +159,14 @@ export async function POST(request) {
       skipIpBlock: result.challenge.skipIpBlock,
     }).catch((error) => console.error("[login-otp/verify] Gatekeeper 3 breach response failed:", error.message));
 
-    return NextResponse.json(
+    const breachResponse = NextResponse.json(
       { success: false, data: null, message: "Incorrect or expired code. This attempt has been reported." },
       { status: 403 }
     );
+    // Challenge is dead either way — clear it so a stale cookie can't
+    // point the /otp page at a resolved row.
+    breachResponse.cookies.set("loginOtpChallenge", "", { path: "/", maxAge: 0 });
+    return breachResponse;
   }
 
   // No pending challenge (already resolved, wrong id, etc.) — never

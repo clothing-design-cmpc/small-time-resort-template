@@ -399,7 +399,7 @@ export async function POST(request) {
     // Impossible travel never sets this, regardless of IP.
     const skipIpBlock = isRequestFromOwnerIp && isNewDeviceOnly;
 
-    const { challengeId, expiresAt, emailSent } = await createLoginAnomalyChallenge({
+    const { challengeId, expiresAt, emailSent, telegramSent } = await createLoginAnomalyChallenge({
       email,
       authUserId,
       role: adminProfile.role,
@@ -418,10 +418,11 @@ export async function POST(request) {
 
     const otpResponse = NextResponse.json({
       success: false,
-      data: { otpRequired: true, emailSent },
-      message: emailSent
-        ? "This sign-in needs confirmation. We've emailed a verification code to the resort owner."
-        : "This sign-in needs confirmation, but the verification email failed to send. Contact the site owner.",
+      data: { otpRequired: true, emailSent, telegramSent },
+      message:
+        emailSent || telegramSent
+          ? "This sign-in needs confirmation. We've sent a verification code to the resort owner."
+          : "This sign-in needs confirmation, but the verification code failed to send. Contact the site owner.",
     });
 
     // "loginOtpChallenge" cookie — same role vault's own "vaultSession"

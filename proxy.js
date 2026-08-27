@@ -381,8 +381,20 @@ export async function proxy(request, event) {
   // --- SUPER-ADMIN PAGES + API ROUTES + HIDDEN RECOVERY PAGE: only
   // accessible by role "super_admin" ---
   // Login page itself must stay reachable, or nobody could ever sign in.
+  // NOTE: excludes the whole "/superAdmin/login" family (prefix match,
+  // not just the exact "/superAdmin/login" string) — this used to only
+  // exclude the exact login page, which meant "/superAdmin/login/otp"
+  // (the Gatekeeper 3 pre-lockdown OTP challenge page — see
+  // services/loginAnomalyOtp.js) still counted as a protected route.
+  // There is no "session" cookie at that point (only a separate
+  // "loginOtpChallenge" cookie the OTP page itself reads), so every
+  // visit to that page was immediately bounced back to
+  // "/superAdmin/login" before the OTP form could ever render — the
+  // page effectively never existed from the visitor's side, even
+  // though its own file, API routes, and email/Telegram send were all
+  // working correctly.
   const isProtectedRoute =
-    (pathname.startsWith("/superAdmin") && pathname !== "/superAdmin/login") ||
+    (pathname.startsWith("/superAdmin") && !pathname.startsWith("/superAdmin/login")) ||
     (pathname.startsWith("/api/admin") && !isVaultStandaloneApiPath(pathname)) ||
     pathname.startsWith("/api/superAdmin");
   // Note: HIDDEN_RECOVERY_PATH_PREFIX ("/system-vault/") is intentionally

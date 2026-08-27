@@ -72,11 +72,10 @@
  */
 import { prisma } from "@/services/prisma";
 import { blockIp } from "@/services/ipBlock";
-import { sendBreachAlertEmail, sendVaultPassphraseRotationEmail } from "@/services/emailAlert";
+import { sendBreachAlertEmail } from "@/services/emailAlert";
 import { triggerWorkflowDispatch } from "@/services/github";
-import { rotateVaultPassphrase } from "@/services/vaultAuth";
-import { logSecurityEvent } from "@/services/securityLog";
-import { saveVaultPassphraseToR2 } from "@/services/vaultPassphraseBackup";
+import { VAULT_IDENTITY } from "@/services/vaultAuth";
+import { generateAndDistributePassphrase } from "@/services/vaultPassphrase";
 
 const GATEKEEPER_LABELS = {
   1: "Gatekeeper 1 — Login brute force",
@@ -194,46 +193,29 @@ export async function triggerGatekeeperBreach({ gatekeeper, ipAddress, details, 
   let vaultPassphraseR2Backup = null;
   if (isFullLockdown) {
     try {
-      const newPassphrase = await rotateVaultPassphrase();
-      vaultPassphraseRotated = await sendVaultPassphraseRotationEmail({
-        newPassphrase,
+      // Routes through the SAME shared rotate/email/Telegram/R2/audit-log
+      // flow every other rotation path uses (services/vaultPassphrase.js)
+      // instead of duplicating it inline here — this used to be its own
+      // one-off rotate+email+R2+log sequence that had drifted out of
+      // sync with the shared helper (missing the Telegram alert), so a
+      // GK3 breach rotation never went out over Telegram the way a
+      // manual "Generate New Passphrase" click already did. Using the
+      // shared function means any future channel added to a rotation
+      // automatically covers this path too.
+      const result = await generateAndDistributePassphrase({
+        actor: VAULT_IDENTITY,
         reason,
-      });
-
-      // Step 6b — save the same plaintext passphrase to a .txt file and
-      // upload it to Cloudflare R2 (private `secrets/` key, never the
-      // public CDN URL — see services/vaultPassphraseBackup.js's header)
-      // as a second, durable copy alongside the email — an inbox can be
-      // missed, deleted, or temporarily unreachable, and this gives the
-      // owner a place to look even if that specific email never
-      // arrives. Best-effort: a failed R2 upload must never undo the
-      // rotation that already happened, or block the rest of this
-      // response.
-      //
-      // Uses the shared services/vaultPassphraseBackup.js helper (Task 4)
-      // instead of a one-off inline upload — that helper retries once
-      // before giving up, since a single transient R2 failure (network
-      // blip, brief rate limit) was previously enough to silently skip
-      // the backup with no second attempt. Same file/format every other
-      // rotation path (auto-rotate cron, manual setup) already uses, so
-      // all three read as one consistent family in the bucket's
-      // secrets/ folder.
-      const { r2Saved, r2SignedUrl } = await saveVaultPassphraseToR2({
-        newPassphrase,
+        request: null,
         generatedByLabel: `Gatekeeper ${gatekeeper} — ${reason}`,
       });
-      vaultPassphraseR2Backup = r2SignedUrl;
-      if (!r2Saved) {
+      vaultPassphraseRotated = result.emailSent;
+      vaultPassphraseR2Backup = result.r2SignedUrl;
+      if (!result.r2Saved) {
         console.error("[breachResponse] Failed to save passphrase backup to R2 after retry.");
       }
-
-      await logSecurityEvent({
-        eventType: "vault_passphrase_rotated",
-        actor: "vault",
-        details: `Auto-rotated after ${reason}. New passphrase emailed to VAULT_OWNER_EMAIL${
-          vaultPassphraseR2Backup ? " and backed up to Cloudflare R2" : " (R2 backup failed — see server logs)"
-        }.`,
-      });
+      if (!result.telegramSent) {
+        console.error("[breachResponse] Failed to send passphrase Telegram alert.");
+      }
     } catch (error) {
       console.error("[breachResponse] Failed to rotate vault passphrase:", error.message);
     }

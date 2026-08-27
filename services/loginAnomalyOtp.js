@@ -38,6 +38,7 @@
 import { scryptSync, randomInt, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/services/prisma";
 import { sendLoginAnomalyOtpEmail } from "@/services/emailAlert";
+import { sendLoginAnomalyOtpTelegramAlert } from "@/services/vaultTelegramAlerts";
 
 const SCRYPT_KEY_LENGTH = 64;
 
@@ -148,7 +149,23 @@ export async function createLoginAnomalyChallenge({
     console.error("[loginAnomalyOtp] Failed to send OTP email for", email);
   }
 
-  return { challengeId: challenge.id, expiresAt, emailSent };
+  // Second, independent channel — sent regardless of whether the email
+  // above succeeded, same reasoning as every other vault-security code
+  // in this app (services/vaultTelegramAlerts.js). A missed/delayed
+  // email must never be the only way to complete this challenge before
+  // its short window runs out.
+  const telegramSent = await sendLoginAnomalyOtpTelegramAlert({
+    code: plaintextCode,
+    attemptedEmail: email,
+    anomalyReason,
+    expiryMinutes: OTP_EXPIRY_MINUTES,
+  });
+
+  if (!telegramSent) {
+    console.error("[loginAnomalyOtp] Failed to send OTP Telegram alert for", email);
+  }
+
+  return { challengeId: challenge.id, expiresAt, emailSent, telegramSent };
 }
 
 /**

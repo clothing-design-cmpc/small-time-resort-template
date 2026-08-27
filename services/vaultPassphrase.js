@@ -27,13 +27,15 @@ import { rotateVaultPassphrase } from "./vaultAuth.js";
 import { sendVaultPassphraseRotationEmail } from "./emailAlert.js";
 import { saveVaultPassphraseToR2 } from "./vaultPassphraseBackup.js";
 import { logSecurityEvent } from "./securityLog.js";
+import { sendVaultPassphraseTelegramAlert } from "./vaultTelegramAlerts.js";
 
 /**
  * generateAndDistributePassphrase
- * Rotates the passphrase, emails the plaintext, saves a copy to
- * Cloudflare R2, and writes the audit log entry — email and R2 are
- * both best-effort (a failure in either never blocks the caller from
- * seeing the passphrase in its own response).
+ * Rotates the passphrase, emails the plaintext, sends it over
+ * Telegram, saves a copy to Cloudflare R2, and writes the audit log
+ * entry — email, Telegram, and R2 are all best-effort (a failure in
+ * any one never blocks the caller from seeing the passphrase in its
+ * own response, and never cancels the other two channels).
  *
  * @param {string} actor  - VAULT_IDENTITY (key-based path) or the session's uid
  * @param {string} reason - human-readable audit trail string, distinguishes
@@ -64,6 +66,13 @@ export async function generateAndDistributePassphrase({ actor, reason, request, 
     ...(r2KeyPrefix ? { keyPrefix: r2KeyPrefix } : {}),
   });
 
+  // Third, independent channel — sent regardless of whether the email
+  // above succeeded. Unlike services/emailAlert.js's sendVaultWebhookAlert()
+  // companion ping (which deliberately omits the passphrase), this one
+  // includes the plaintext code itself, per the owner's request that
+  // EVERY new vault code also go out over Telegram, not just email.
+  const telegramSent = await sendVaultPassphraseTelegramAlert({ newPassphrase, reason });
+
   // Audit trail — this is a disaster-recovery credential, always
   // logged with the admin (or the key-based VAULT_IDENTITY) who
   // triggered it, distinct from the "vault_passphrase_rotated"
@@ -72,8 +81,8 @@ export async function generateAndDistributePassphrase({ actor, reason, request, 
     eventType: "vault_passphrase_set",
     actor,
     request,
-    details: `${reason}. Email sent: ${emailSent}. Saved to R2: ${r2Saved}.`,
+    details: `${reason}. Email sent: ${emailSent}. Telegram sent: ${telegramSent}. Saved to R2: ${r2Saved}.`,
   });
 
-  return { passphrase: newPassphrase, emailSent, r2Saved, r2SignedUrl };
+  return { passphrase: newPassphrase, emailSent, telegramSent, r2Saved, r2SignedUrl };
 }

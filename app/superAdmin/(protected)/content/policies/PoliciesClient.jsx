@@ -426,7 +426,7 @@ export default function PoliciesClient() {
             <input
               id="resortMessengerUsername"
               type="text"
-              placeholder="e.g. yourprivateresort (from facebook.com/yourprivateresort)"
+              placeholder="e.g. yourprivateresort, or paste your Page's full Facebook URL"
               value={formValues.resortMessengerUsername}
               onChange={(event) => handleFieldChange("resortMessengerUsername", event.target.value)}
             />

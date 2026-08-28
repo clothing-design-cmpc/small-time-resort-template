@@ -50,20 +50,59 @@ export function buildViberLink(phone) {
 
 /**
  * buildMessengerLink
- * m.me/<username> opens a direct chat with the resort's Facebook Page
- * in Messenger (or the FB app's Messenger tab on mobile). The admin
- * enters just the Page username/ID from Super-Admin > Policies &
- * Content > Contact Info — never a full URL — so this strips any
- * accidental "facebook.com/" or "@" the admin might paste in by habit.
+ * m.me/<username-or-id> opens a direct chat with the resort's Facebook
+ * Page in Messenger (or the FB app's Messenger tab on mobile). The
+ * admin is asked to enter just the Page username/ID from Super-Admin >
+ * Policies & Content > Contact Info — never a full URL — but pages
+ * that haven't set up a vanity username yet only HAVE a full URL to
+ * copy, in one of these forms, which m.me does NOT accept as-is:
+ *   - "facebook.com/profile.php?id=61551234567890" (no vanity username)
+ *   - "facebook.com/pages/Your-Private-Resort/61551234567890" (legacy Page URL)
+ *   - "facebook.com/yourprivateresort?ref=hl" (vanity username + stray query string)
+ *   - "m.me/yourprivateresort" (already an m.me link, pasted whole)
+ * A naive strip of just "facebook.com/" and a trailing slash leaves
+ * "profile.php?id=..." or "pages/Name/..." sitting in front of the
+ * numeric ID, producing a broken m.me link even though the URL the
+ * admin copied was completely correct — this function extracts the
+ * actual username/ID out of every one of those shapes before building
+ * the link, instead of assuming the input is already a bare username.
  *
- * @param {string} pageUsername - e.g. "yourprivateresort" (not a full URL)
- * @returns {string|null} null if username is empty/unset
+ * @param {string} pageUsername - Page username, numeric ID, or a full
+ *   Facebook/m.me URL in any of the forms above
+ * @returns {string|null} null if nothing usable was found
  */
 export function buildMessengerLink(pageUsername) {
-  const cleaned = String(pageUsername ?? "")
-    .trim()
-    .replace(/^@/, "")
+  let cleaned = String(pageUsername ?? "").trim();
+  if (!cleaned) return null;
+
+  // Already an m.me link — pull out just the path segment so we don't
+  // end up building "m.me/m.me/username".
+  const mDotMeMatch = cleaned.match(/^https?:\/\/(www\.)?m\.me\/([^/?#]+)/i);
+  if (mDotMeMatch) {
+    return `https://m.me/${mDotMeMatch[2]}`;
+  }
+
+  // "profile.php?id=NUMBER" — pages with no vanity username set. The
+  // numeric ID after "id=" is the only part m.me actually needs.
+  const profilePhpMatch = cleaned.match(/profile\.php\?id=(\d+)/i);
+  if (profilePhpMatch) {
+    return `https://m.me/${profilePhpMatch[1]}`;
+  }
+
+  // Legacy "pages/Page-Name/NUMBER" Page URL — the trailing numeric ID
+  // is what m.me needs, not the human-readable name before it.
+  const legacyPagesMatch = cleaned.match(/\/pages\/[^/]+\/(\d+)/i);
+  if (legacyPagesMatch) {
+    return `https://m.me/${legacyPagesMatch[1]}`;
+  }
+
+  // Normal vanity-username case (or a bare username/ID typed directly)
+  // — strip the facebook.com/fb.com host, a leading "@", and anything
+  // from a stray "?" or trailing slash onward.
+  cleaned = cleaned
     .replace(/^https?:\/\/(www\.)?(facebook|fb)\.com\//i, "")
+    .replace(/^@/, "")
+    .replace(/[?#].*$/, "")
     .replace(/\/+$/, "");
   if (!cleaned) return null;
 

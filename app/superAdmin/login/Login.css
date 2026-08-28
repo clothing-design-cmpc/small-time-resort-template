@@ -295,11 +295,11 @@
 /*
  * .loginRememberDeviceField / .loginRememberDeviceLabel
  * "Remember this device" checkbox row on the login form — sits below
- * the password field, above the submit button. A native checkbox +
- * label pairing (not a custom-styled toggle) so it stays fully
- * keyboard/screen-reader accessible with zero extra work; only the
- * spacing and text color are customized to match the frosted-glass
- * card's dark theme.
+ * the password field, above the submit button. Custom-styled checkbox
+ * that matches the frosted-glass card aesthetic with the brand-green
+ * accent, smooth transitions, and a visible checkmark when checked.
+ * Still fully keyboard/screen-reader accessible using the native
+ * input (appearance: none hides the browser default, not accessibility).
  */
 .loginRememberDeviceField {
   margin-top: var(--space-xs);
@@ -309,24 +309,102 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  /* Gives the whole row (checkbox + text) a 44px tap target (Rule
+     29.1) — clicking anywhere in this label, including the empty
+     space around the small checkbox, toggles it natively. Avoids
+     padding the checkbox itself, which breaks under this project's
+     global box-sizing: border-box (padding eats into the fixed
+     width/height instead of adding to it). */
+  min-height: 44px;
   font-size: 0.9rem;
-  color: var(--color-text-secondary);
+  /* Card sits on a dark frosted background — needs a light color, not
+     the light-theme --color-text-secondary token (that one renders as
+     near-invisible dark green here). */
+  color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
+  user-select: none;
 }
 
+/*
+ * Custom checkbox styling — appearance: none removes the browser
+ * default so we can paint our own design. A clean, fixed 20x20px box
+ * (border-box aware — border-radius/border sit inside this size, no
+ * padding tricks needed since the label above already provides the
+ * 44px tap target).
+ */
 .loginRememberDeviceLabel input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  min-width: 44px;
-  min-height: 44px;
-  /* The 44px touch-target minimum (Rule 29.1) would visually balloon a
-     checkbox — pad instead of resizing the box itself, keeping the
-     visible control small while the actual tappable/clickable area
-     still meets the minimum on mobile. */
-  padding: 13px;
-  margin: -13px;
-  accent-color: var(--color-accent);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
   cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.loginRememberDeviceLabel input[type="checkbox"]:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.loginRememberDeviceLabel input[type="checkbox"]:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.24);
+}
+
+/*
+ * Checked state — solid green background with a white checkmark
+ * painted via ::after pseudo-element.
+ */
+.loginRememberDeviceLabel input[type="checkbox"]:checked {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.loginRememberDeviceLabel input[type="checkbox"]:checked:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+.loginRememberDeviceLabel input[type="checkbox"]:checked:focus-visible {
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.32);
+}
+
+/*
+ * Checkmark icon — a simple hand-painted SVG-style check mark
+ * centered inside the checkbox when checked.
+ */
+.loginRememberDeviceLabel input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  /* Center within the 20px content box, then rotate into a checkmark */
+  transform: translate(-50%, -65%) rotate(-45deg);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.loginRememberDeviceLabel input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.loginRememberDeviceLabel input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .loginSubmitButton {

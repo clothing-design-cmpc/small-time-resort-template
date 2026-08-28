@@ -29,11 +29,13 @@
  * .loginOtpCountdown
  * Small muted countdown text under the code input — never the primary
  * focal point of the form, just a quiet reminder of the 3-minute
- * window before Gatekeeper 3 fires.
+ * window before Gatekeeper 3 fires. Uses a translucent white, not
+ * --color-text-secondary — that token is a dark green tuned for
+ * light backgrounds and is nearly invisible on this dark frosted card.
  */
 .loginOtpCountdown {
   margin: 0;
   font-size: 0.8rem;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.55);
   text-align: center;
 }

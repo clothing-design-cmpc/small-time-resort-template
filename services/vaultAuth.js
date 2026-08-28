@@ -65,6 +65,15 @@
  */
 import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from "node:crypto";
 import { prisma } from "./prisma.js";
+// Same transient-DB-error retry every other standalone script
+// (runBackup.js, runRestore.js, purgeSecurityLogs.js) already wraps
+// its writes with — this file was the one gap: its upsert/findUnique
+// calls are exercised by scripts/rotateVaultPassphraseIfDue.mjs on a
+// GitHub Actions runner, the exact environment withRetry.js's own
+// header describes as occasionally hitting EAI_AGAIN/ECONNRESET on
+// the Supabase pooler. Without it, a single transient blip here fails
+// the whole scheduled run instead of retrying.
+import { withRetry } from "../scripts/lib/withRetry.js";
 
 const SCRYPT_KEY_LENGTH = 64;
 
@@ -117,10 +126,14 @@ const VAULT_RECOVERY_PATH_PREFIX = "/system-vault/";
 async function getEffectivePassphraseHash() {
   let dbHash = null;
   try {
-    const vaultPassphraseRow = await prisma.vaultPassphrase.findUnique({
-      where: { id: "vault_passphrase" },
-      select: { passphraseHash: true },
-    });
+    const vaultPassphraseRow = await withRetry(
+      () =>
+        prisma.vaultPassphrase.findUnique({
+          where: { id: "vault_passphrase" },
+          select: { passphraseHash: true },
+        }),
+      { label: "vaultPassphrase.findUnique (passphraseHash)" }
+    );
     dbHash = vaultPassphraseRow?.passphraseHash ?? null;
   } catch (error) {
     // DB read failure must never crash vault login or URL generation —
@@ -143,10 +156,14 @@ async function getEffectivePassphraseHash() {
  */
 async function getEffectiveUrlSalt() {
   try {
-    const vaultPassphraseRow = await prisma.vaultPassphrase.findUnique({
-      where: { id: "vault_passphrase" },
-      select: { urlSalt: true },
-    });
+    const vaultPassphraseRow = await withRetry(
+      () =>
+        prisma.vaultPassphrase.findUnique({
+          where: { id: "vault_passphrase" },
+          select: { urlSalt: true },
+        }),
+      { label: "vaultPassphrase.findUnique (urlSalt)" }
+    );
     return vaultPassphraseRow?.urlSalt ?? "";
   } catch (error) {
     // Same fail-open-to-old-behavior reasoning as getEffectivePassphraseHash
@@ -170,15 +187,19 @@ async function getEffectiveUrlSalt() {
 export async function rotateVaultUrlSalt() {
   const newSalt = randomBytes(16).toString("hex");
 
-  await prisma.vaultPassphrase.upsert({
-    where: { id: "vault_passphrase" },
-    update: { urlSalt: newSalt },
-    // create{} only matters if this is somehow called before any
-    // passphrase has ever been set — passphraseHash stays null, same
-    // as a fresh install, so getEffectivePassphraseHash() still falls
-    // back to VAULT_PASSPHRASE_HASH as usual.
-    create: { id: "vault_passphrase", urlSalt: newSalt },
-  });
+  await withRetry(
+    () =>
+      prisma.vaultPassphrase.upsert({
+        where: { id: "vault_passphrase" },
+        update: { urlSalt: newSalt },
+        // create{} only matters if this is somehow called before any
+        // passphrase has ever been set — passphraseHash stays null, same
+        // as a fresh install, so getEffectivePassphraseHash() still falls
+        // back to VAULT_PASSPHRASE_HASH as usual.
+        create: { id: "vault_passphrase", urlSalt: newSalt },
+      }),
+    { label: "vaultPassphrase.upsert (urlSalt rotation)" }
+  );
 
   return getVaultRecoveryUrl();
 }
@@ -341,11 +362,15 @@ export async function rotateVaultPassphrase() {
   const newHash = hashVaultPassphrase(newPassphrase);
   const newExpiresAt = new Date(Date.now() + VAULT_PASSPHRASE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-  await prisma.vaultPassphrase.upsert({
-    where: { id: "vault_passphrase" },
-    update: { passphraseHash: newHash, expiresAt: newExpiresAt },
-    create: { id: "vault_passphrase", passphraseHash: newHash, expiresAt: newExpiresAt },
-  });
+  await withRetry(
+    () =>
+      prisma.vaultPassphrase.upsert({
+        where: { id: "vault_passphrase" },
+        update: { passphraseHash: newHash, expiresAt: newExpiresAt },
+        create: { id: "vault_passphrase", passphraseHash: newHash, expiresAt: newExpiresAt },
+      }),
+    { label: "vaultPassphrase.upsert (rotation)" }
+  );
 
   return newPassphrase;
 }
@@ -361,10 +386,14 @@ export async function rotateVaultPassphrase() {
  */
 export async function isVaultPassphraseExpired() {
   try {
-    const row = await prisma.vaultPassphrase.findUnique({
-      where: { id: "vault_passphrase" },
-      select: { expiresAt: true },
-    });
+    const row = await withRetry(
+      () =>
+        prisma.vaultPassphrase.findUnique({
+          where: { id: "vault_passphrase" },
+          select: { expiresAt: true },
+        }),
+      { label: "vaultPassphrase.findUnique (expiresAt check)" }
+    );
     if (!row?.expiresAt) return true;
     return row.expiresAt.getTime() <= Date.now();
   } catch (error) {

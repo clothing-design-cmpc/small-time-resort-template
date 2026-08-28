@@ -22,17 +22,31 @@
  *    no DB access) can authorize requests without a network call
  *
  * GATEKEEPER 3 PRE-LOCKDOWN OTP CHALLENGE (services/loginAnomalyOtp.js) —
- * a correct password from an anomalous device or location (new device
- * or impossible travel) no longer fires the full breach response
- * immediately. Instead, a 6-digit code is emailed to VAULT_OWNER_EMAIL
- * and this route responds with { otpRequired: true, challengeId }
- * instead of a session cookie. app/api/auth/login-otp/verify/route.js
- * finishes the login on a correct code; app/api/auth/login-otp/expire/route.js
- * (called by the login page's own countdown) or a wrong/exhausted code
- * both fall through to the exact same Gatekeeper 3 response this route
- * used to fire directly — see prisma/schema.prisma's
- * LoginAnomalyChallenge model header for the full two-outcome flow, and
+ * a correct password no longer goes straight to a session. OTP is now
+ * MANDATORY on every super-admin login, with NO exceptions — not for a
+ * known device, not for the owner's own verified IP, not for a clean
+ * (non-anomalous) login. (Previously this only fired for an anomalous
+ * device/location; that automatic exemption is gone.) A 6-digit code is
+ * emailed to VAULT_OWNER_EMAIL and this route responds with
+ * { otpRequired: true, challengeId } instead of a session cookie.
+ * app/api/auth/login-otp/verify/route.js finishes the login on a
+ * correct code; app/api/auth/login-otp/expire/route.js (called by the
+ * login page's own countdown) or a wrong/exhausted code both fall
+ * through to the exact same Gatekeeper 3 response this route used to
+ * fire directly — see prisma/schema.prisma's LoginAnomalyChallenge
+ * model header for the full two-outcome flow, and
  * docs/gatekeeper-3-otp-challenge.md for the feature writeup.
+ *
+ * "REMEMBER THIS DEVICE" TRUSTED-DEVICE SKIP (services/trustedDevice.js) —
+ * the ONLY way to skip the OTP step above. The login page has a
+ * checkbox; if checked AND that login's OTP is confirmed, verify/route.js
+ * mints a TrustedDevice row and sets an HttpOnly "trustedDevice" cookie
+ * good for 30 days. THIS route checks that cookie first, before any
+ * anomaly/OTP logic runs at all — a valid, unexpired match for THIS
+ * exact authUserId finishes the login immediately, same as the old
+ * "clean login" path. No cookie, an expired one, or one that belongs to
+ * a different admin account all fall through to the mandatory OTP step
+ * above exactly as if "Remember this device" had never existed.
  *
  * OWNER VERIFIED IP (SystemSettings.ownerVerifiedIp) — added on top of
  * the flow above, see GK3-OWNER-IP-DESIGN.txt for the full reasoning:
@@ -73,10 +87,15 @@ import { sendOwnerMagicLoginEmail, sendOwnerIpUpdatedEmail } from "@/services/em
 import { getAdminAccessLimitStatus } from "@/services/adminAccessLimit";
 import { buildSessionPayload, attachSessionCookie, persistAdminSession } from "@/services/loginSession";
 import { createLoginAnomalyChallenge } from "@/services/loginAnomalyOtp";
+import { verifyTrustedDevice, TRUSTED_DEVICE_COOKIE_NAME } from "@/services/trustedDevice";
 
 const loginRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  // "Remember this device" checkbox — optional/defaulted so older
+  // clients (or a direct API call) that omit it just never remember
+  // the device, same as leaving it unchecked.
+  rememberDevice: z.boolean().optional().default(false),
 });
 
 // Same 15-minute access-token lifetime pattern as Rule 32.3 — the
@@ -372,24 +391,30 @@ export async function POST(request) {
   });
 
   // Distinguish WHICH anomaly sub-type fired, if any — new-device and
-  // impossible-travel get different treatment below (GK3-OWNER-IP-DESIGN.txt
-  // Section 5). isAnomalous can be true for either or both; impossible
-  // travel always wins when both are present.
+  // impossible-travel still get different treatment below for the
+  // skipIpBlock decision (GK3-OWNER-IP-DESIGN.txt Section 5), even
+  // though the anomaly flag no longer decides whether OTP fires at
+  // all. isAnomalous can be true for either or both; impossible travel
+  // always wins when both are present.
   const isImpossibleTravel = Boolean(securityLogRow?.anomalyReason?.startsWith("Impossible travel"));
   const isNewDeviceOnly = Boolean(securityLogRow?.isNewDevice) && !isImpossibleTravel;
 
-  if (securityLogRow?.isAnomalous && ip !== "unknown") {
-    // GATEKEEPER 3 PRE-LOCKDOWN OTP CHALLENGE — a genuinely valid
-    // super-admin login, but the built-in anomaly detector
-    // (services/securityLog.js) flagged it as impossible travel or a
-    // brand-new device. Rather than immediately firing the full breach
-    // response, email a 6-digit code to the resort owner and hold this
-    // login pending for OTP_EXPIRY_MINUTES — see
+  // TRUSTED-DEVICE CHECK — the only thing that can skip the now-mandatory
+  // OTP step below. Checked here, before any OTP logic runs, so a valid
+  // match for THIS authUserId behaves exactly like the old "clean login"
+  // path used to for every known device — see services/trustedDevice.js.
+  const trustedDeviceToken = request.cookies.get(TRUSTED_DEVICE_COOKIE_NAME)?.value ?? null;
+  const isTrustedDevice = await verifyTrustedDevice({ authUserId, rawToken: trustedDeviceToken });
+
+  if (!isTrustedDevice) {
+    // GATEKEEPER 3 PRE-LOCKDOWN OTP CHALLENGE — mandatory on every
+    // login now, not just an anomalous one, and with no owner/known-
+    // device exception. Email a 6-digit code to the resort owner and
+    // hold this login pending for OTP_EXPIRY_MINUTES — see
     // services/loginAnomalyOtp.js and prisma/schema.prisma's
     // LoginAnomalyChallenge model header for the full two-outcome flow.
-    // Gatekeeper 3 still fires exactly as before if the code is wrong,
-    // exhausted, or the window expires with no response — this only
-    // changes the MOMENT it fires, never removes it as a safety net.
+    // Gatekeeper 3 still fires if the code is wrong, exhausted, or the
+    // window expires with no response, exactly as before.
     //
     // skipIpBlock is carried on the challenge row and applied later
     // (by app/api/auth/login-otp/verify/route.js or
@@ -406,8 +431,9 @@ export async function POST(request) {
       fullName: adminProfile.fullName,
       ipAddress: ip,
       deviceFingerprint: securityLogRow.deviceFingerprint ?? null,
-      anomalyReason: securityLogRow.anomalyReason || `Anomalous login detected for ${email}.`,
+      anomalyReason: securityLogRow.anomalyReason || `Sign-in confirmation required for ${email}.`,
       skipIpBlock,
+      rememberDevice: payload.rememberDevice,
     });
 
     // Sign the Supabase session back out — the browser must not keep a
@@ -447,10 +473,14 @@ export async function POST(request) {
 
     return otpResponse;
   } else if (ip !== "unknown" && ip !== storedOwnerIp) {
-    // AUTO-UPDATE the trusted owner IP — only on a CLEAN (non-anomalous)
-    // successful login. Never on an anomalous one, even though the
-    // password was correct — a stolen-but-correct password must never be
-    // able to claim the owner-IP leniency for its own IP going forward.
+    // AUTO-UPDATE the trusted owner IP — only reached now via a
+    // TRUSTED-DEVICE login (the isTrustedDevice branch above), since
+    // OTP is otherwise mandatory. Still never on an anomalous login —
+    // a stolen-but-correct password must never be able to claim the
+    // owner-IP leniency for its own IP going forward, and a stolen
+    // password alone was never enough to pass the trusted-device check
+    // in the first place (that requires the actual "trustedDevice"
+    // cookie from a browser that already completed OTP once).
     try {
       await prisma.systemSettings.upsert({
         where: { id: "singleton" },

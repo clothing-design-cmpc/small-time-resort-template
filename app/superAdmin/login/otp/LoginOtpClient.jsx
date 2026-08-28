@@ -130,8 +130,9 @@ export default function LoginOtpClient({ challengeId, expiresAt }) {
   return (
     <>
       <p className="loginOtpNotice">
-        This sign-in was from a device or location we haven&rsquo;t seen before. Enter the code
-        emailed to the resort owner to continue.
+        Every sign-in now needs confirmation. Enter the code emailed to the resort owner to
+        continue — or check &ldquo;Remember this device&rdquo; on the login page next time to skip
+        this step for 30 days.
       </p>
 
       {isWindowClosed ? (

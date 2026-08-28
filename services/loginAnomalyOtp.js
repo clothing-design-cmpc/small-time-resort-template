@@ -88,6 +88,11 @@ function hashOtpCode(plaintextCode, challengeId) {
  * @param {boolean} input.skipIpBlock - carried over from the login
  *   route's existing owner-IP leniency check, applied only if this
  *   challenge ultimately fails/expires and Gatekeeper 3 actually fires.
+ * @param {boolean} [input.rememberDevice] - the login page's "Remember
+ *   this device" checkbox value, carried on the row so verify/route.js
+ *   knows — only once THIS code is confirmed — whether to also mint a
+ *   TrustedDevice (services/trustedDevice.js) so future logins from
+ *   this browser can skip the OTP step entirely.
  */
 export async function createLoginAnomalyChallenge({
   email,
@@ -98,6 +103,7 @@ export async function createLoginAnomalyChallenge({
   deviceFingerprint,
   anomalyReason,
   skipIpBlock,
+  rememberDevice,
 }) {
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
@@ -116,6 +122,7 @@ export async function createLoginAnomalyChallenge({
       deviceFingerprint,
       anomalyReason,
       skipIpBlock: Boolean(skipIpBlock),
+      rememberDevice: Boolean(rememberDevice),
       expiresAt,
     },
   });

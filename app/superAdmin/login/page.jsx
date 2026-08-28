@@ -19,14 +19,18 @@
  *    against Supabase Auth + admin_profiles, checks the same access
  *    limit again server-side, and sets the "session" cookie that
  *    middleware.js reads
- * 5. On success, redirect to /superAdmin/dashboard. On failure, show an
- *    inline error banner above the form — UNLESS the login was
- *    anomalous (new device/impossible travel), in which case the
- *    server has already set a "loginOtpChallenge" cookie and this page
- *    redirects to app/superAdmin/login/otp/page.jsx instead, the same
- *    way the vault's own login step hands off to its own /otp route —
- *    see that page and services/loginAnomalyOtp.js for the rest of
- *    the flow.
+ * 5. Correct credentials always require a follow-up OTP step now
+ *    (Gatekeeper 3, mandatory, no exceptions) UNLESS this exact browser
+ *    already has a valid "trustedDevice" cookie for this account (see
+ *    services/trustedDevice.js) — in that one case the server responds
+ *    with a normal success + session cookie, same as before this
+ *    feature existed. Otherwise the server has set a "loginOtpChallenge"
+ *    cookie and this page redirects to app/superAdmin/login/otp/page.jsx,
+ *    the same way the vault's own login step hands off to its own /otp
+ *    route — see that page and services/loginAnomalyOtp.js for the rest
+ *    of the flow. The "Remember this device" checkbox below rides along
+ *    on this same request and, if checked, only actually takes effect
+ *    once that OTP step is confirmed.
  */
 "use client";
 
@@ -43,6 +47,10 @@ import "./Login.css";
 const loginSchema = z.object({
   email: z.string().email("Enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
+  // "Remember this device" — carried straight through to /api/auth/login;
+  // only actually takes effect once that login's OTP step is confirmed
+  // (see app/api/auth/login-otp/verify/route.js).
+  rememberDevice: z.boolean().optional().default(false),
 });
 
 // Dev-only login autofill — see scripts/lib/envGroups.mjs's
@@ -338,6 +346,23 @@ export default function SuperAdminLoginPage() {
                 {errors.password.message}
               </span>
             )}
+          </div>
+
+          {/* Every sign-in now requires an emailed OTP code (Gatekeeper 3,
+              no exceptions — see app/api/auth/login/route.js's header).
+              Checking this box is the only way to skip that step on
+              future logins from this same browser, for 30 days — it
+              only takes effect once THIS login's OTP is confirmed. */}
+          <div className="loginRememberDeviceField">
+            <label htmlFor="rememberDevice" className="loginRememberDeviceLabel">
+              <input
+                id="rememberDevice"
+                type="checkbox"
+                disabled={isAccessLimitReached}
+                {...register("rememberDevice")}
+              />
+              Remember this device for 30 days
+            </label>
           </div>
 
           <button type="submit" className="loginSubmitButton" disabled={isSubmitting || isAccessLimitReached}>

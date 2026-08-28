@@ -612,6 +612,13 @@ model LoginAnomalyChallenge {
   deviceFingerprint String?   @map("device_fingerprint")
   anomalyReason     String?   @map("anomaly_reason")
   skipIpBlock       Boolean   @default(false) @map("skip_ip_block")
+  // "Remember this device" checkbox value from the login page, carried
+  // on the challenge row so app/api/auth/login-otp/verify/route.js
+  // knows — once the code is confirmed — whether to also mint a
+  // TrustedDevice row for this account (see that model below). Never
+  // read anywhere else; a login that never reaches OTP verification
+  // (wrong code, expired, GK3 fires) simply never remembers the device.
+  rememberDevice    Boolean   @default(false) @map("remember_device")
   attempts          Int       @default(0)
   status            String    @default("pending") // pending | approved | failed | expired
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -621,6 +628,39 @@ model LoginAnomalyChallenge {
   @@index([status])
   @@index([expiresAt])
   @@map("login_anomaly_challenges")
+}
+
+// ============================================================
+// MODEL: TrustedDevice  (Gatekeeper 3 — "Remember this device")
+// ============================================================
+// Gatekeeper 3's OTP challenge is now mandatory on EVERY super-admin
+// login, including the resort owner and including known devices/IPs —
+// there is no more automatic exemption based on the anomaly detector
+// alone (see app/api/auth/login/route.js's header for the before/after).
+// The ONLY way to skip the OTP step going forward is an explicit,
+// owner-chosen "Remember this device" checkbox at login time — this
+// table is what that checkbox creates.
+//
+// Only the SHA-256 hash of the device token is ever stored (same
+// never-store-the-raw-secret pattern as MagicLoginToken.tokenHash
+// above) — the raw token lives only in the HttpOnly "trustedDevice"
+// cookie on the admin's own browser (services/trustedDevice.js).
+// Scoped to one specific authUserId, so a trusted-device cookie from
+// one admin account can never skip OTP for a login attempt on a
+// different admin account, even from the same browser.
+model TrustedDevice {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authUserId        String    @map("auth_user_id") @db.Uuid
+  tokenHash         String    @unique @map("token_hash")
+  deviceFingerprint String?   @map("device_fingerprint")
+  ipAddress         String?   @map("ip_address")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  expiresAt         DateTime  @map("expires_at")
+  lastUsedAt        DateTime? @map("last_used_at")
+
+  @@index([authUserId])
+  @@index([expiresAt])
+  @@map("trusted_devices")
 }
 
 // ============================================================

@@ -28,6 +28,10 @@
  *    the challenge row's own stored ipAddress/anomalyReason/skipIpBlock
  *    — identical inputs to what the login route would have passed
  *    directly, before this feature existed.
+ * 6. On a verified code, if the challenge row's rememberDevice is true
+ *    (the login page's "Remember this device" checkbox), also mint a
+ *    TrustedDevice row + "trustedDevice" cookie (services/trustedDevice.js)
+ *    so future logins from this browser skip the OTP step for 30 days.
  */
 export const dynamic = "force-dynamic";
 
@@ -39,6 +43,7 @@ import { logSecurityEvent } from "@/services/securityLog";
 import { checkRateLimit } from "@/services/rateLimit";
 import { scanForSqlInjection } from "@/services/sqlInjectionGuard";
 import { triggerGatekeeperBreach } from "@/services/breachResponse";
+import { createTrustedDevice, attachTrustedDeviceCookie } from "@/services/trustedDevice";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -137,6 +142,34 @@ export async function POST(request) {
 
     attachSessionCookie(response, sessionPayload, isProduction);
     await persistAdminSession({ sessionId, authUserId: result.challenge.authUserId, ipAddress: ip });
+
+    // "Remember this device" — the checkbox value the login page sent
+    // is carried on the challenge row (LoginAnomalyChallenge.rememberDevice).
+    // Only NOW, after the code is actually confirmed, mint the
+    // TrustedDevice row + cookie — a checked box on a login that never
+    // completes OTP never remembers anything.
+    if (result.challenge.rememberDevice) {
+      try {
+        const rawToken = await createTrustedDevice({
+          authUserId: result.challenge.authUserId,
+          deviceFingerprint: result.challenge.deviceFingerprint,
+          ipAddress: ip,
+        });
+        attachTrustedDeviceCookie(response, rawToken, isProduction);
+
+        await logSecurityEvent({
+          eventType: "trusted_device_added",
+          actor: result.challenge.email,
+          request,
+          details: `${result.challenge.fullName} marked this device as trusted — future logins from it skip the OTP step for 30 days.`,
+        });
+      } catch (error) {
+        // Best-effort — a failure here must never undo an otherwise
+        // successful, OTP-confirmed login. The admin just gets
+        // prompted for OTP again next time instead of being remembered.
+        console.error("[login-otp/verify] Failed to create TrustedDevice:", error.message);
+      }
+    }
 
     // Challenge is resolved — no reason for this cookie to outlive it.
     response.cookies.set("loginOtpChallenge", "", { path: "/", maxAge: 0 });
